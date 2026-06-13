@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-green: #5bb420;
+  --color-green-deep: #2f7d1f;
+  --color-green-dark: #1f5e16;
+  --color-leaf: #8bc34a;
+  --color-gold: #c99a3b;
+  --color-bg: #ffffff;
+  --color-soft: #f3f9ee;
+  --color-ink: #1a2e1a;
+  --color-muted: #5f7163;
+  --font-display: "Poppins", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--color-green);
+    color: #fff;
+  }
+}
+
+/* Reveal on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Soft floating animation for hero visual */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+.animate-float { animation: float 5s ease-in-out infinite; }
+
+/* Drone drift */
+@keyframes drift {
+  from { transform: translateX(-30px); }
+  to   { transform: translateX(30px); }
+}
+.animate-drift { animation: drift 6s ease-in-out infinite alternate; }
+
+::-webkit-scrollbar { width: 11px; }
+::-webkit-scrollbar-track { background: var(--color-soft); }
+::-webkit-scrollbar-thumb { background: var(--color-green); border-radius: 10px; }
