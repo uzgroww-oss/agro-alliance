@@ -1,8 +1,8 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 
-const mascot = "/mascot-contact.png"
+const mascot = "/mascot-contact.webp"
 
 const contactInfo = [
   { icon: I.phone, t: "Telefon", v: "+998 90 123 45 67" },
@@ -24,7 +24,7 @@ const offices = [
 ]
 
 const faqs = [
-  { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring — jamoamiz siz bilan bog'lanadi." },
+  { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring вЂ” jamoamiz siz bilan bog'lanadi." },
   { q: "Platformadan foydalanish uchun to'lov kerakmi?", a: "Asosiy imkoniyatlar bepul. Premium xizmatlar va kengaytirilgan analitika uchun obuna rejalari mavjud." },
   { q: "Bloger bo'lib platformaga qo'shilish uchun nima qilish kerak?", a: "\"KIRISH\" orqali ro'yxatdan o'ting, profilingizni to'ldiring va kontentingizni joylashtiring. Tasdiqlangandan so'ng reytingda paydo bo'lasiz." },
   { q: "Texnik yordamga qanday murojaat qilishim mumkin?", a: "info@agroalliance.uz manziliga yozing yoki +998 90 123 45 67 raqamiga qo'ng'iroq qiling. Ish vaqtida tez javob beramiz." },
@@ -36,7 +36,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/60" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/50" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />

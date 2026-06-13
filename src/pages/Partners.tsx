@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom"
+﻿import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 
-const mascot = "/mascot-partners.png"
+const mascot = "/mascot-partners.webp"
 
 const stats = [
   { icon: I.users, v: "200+", l: "Faol hamkorlar" },
@@ -36,7 +36,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -59,7 +59,7 @@ function Hero() {
             </Reveal>
             <Reveal delay={90}>
               <p className="mt-5 max-w-md leading-relaxed text-muted">
-                Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni
+                Agro Alliance вЂ” agro sohadagi innovatsion yechimlar va imkoniyatlarni
                 birlashtiruvchi ishonchli hamkor platformasi.
               </p>
             </Reveal>

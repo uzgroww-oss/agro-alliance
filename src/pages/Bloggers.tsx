@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react"
+﻿import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 import { bloggers, categories, catLabel, regions, sorts, platforms, cover } from "../lib/bloggers"
 
-const mascot = "/mascot3.png"
+const mascot = "/mascot3.webp"
 
 const heroStats = [
   { icon: I.users, v: "120+", l: "Faol blogerlar" },
@@ -48,7 +48,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -111,7 +111,7 @@ function Hero() {
                   <span className="absolute -right-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-green text-xs font-bold text-white ring-2 ring-white">1</span>
                 </div>
                 <h3 className="mt-3 font-display font-bold">Fermer Elyor</h3>
-                <p className="text-xs text-muted">Issiqxona • Fermerlik</p>
+                <p className="text-xs text-muted">Issiqxona вЂў Fermerlik</p>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
@@ -281,7 +281,7 @@ export default function Bloggers() {
           <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted transition-colors hover:border-green hover:text-green">
             <Icon d={I.chevLeft} className="h-4 w-4" />
           </button>
-          {["1", "2", "3", "4", "…", "10"].map((p, i) => (
+          {["1", "2", "3", "4", "вЂ¦", "10"].map((p, i) => (
             <button
               key={i}
               className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${

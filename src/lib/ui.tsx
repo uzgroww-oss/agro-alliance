@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react"
+﻿import { useEffect, useRef, type ReactNode } from "react"
 
-export const logo = "/logo.png"
+export const logo = "/logo.webp"
 
 /* ---------- Scroll reveal ---------- */
 export function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
+﻿import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 
-const mascotCam = "/mascot3.png"
-const mascotPoint = "/mascot.png"
+const mascotCam = "/mascot3.webp"
+const mascotPoint = "/mascot.webp"
 import { findBlogger, cover } from "../lib/bloggers"
 import { api } from "../lib/api"
 
@@ -69,13 +69,13 @@ function Header({ b, live }: { b: ReturnType<typeof findBlogger>; live: Live | n
   return (
     <div className="relative overflow-hidden rounded-3xl border border-green/10 bg-white shadow-[0_12px_44px_rgba(91,180,32,0.10)]">
       {/* greenhouse fills the whole card */}
-      <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-tr from-white/92 via-white/55 to-white/15" />
 
-      {/* mascot — inside the card, centered */}
+      {/* mascot вЂ” inside the card, centered */}
       <img src={mascotCam} alt="" className="animate-float pointer-events-none absolute bottom-0 left-1/2 z-10 hidden h-[12.5rem] -translate-x-1/2 object-contain drop-shadow-2xl xl:block" />
 
-      {/* REYTING card — far right */}
+      {/* REYTING card вЂ” far right */}
       <div className="absolute right-5 top-5 z-20 hidden w-52 rounded-2xl border border-green/10 bg-white/95 p-5 shadow-[0_10px_30px_rgba(91,180,32,0.18)] backdrop-blur lg:block">
         <div className="flex items-center gap-2 text-green">
           <Icon d={I.trophy} className="h-5 w-5" /><span className="font-display text-sm font-bold tracking-wide">REYTING</span>
@@ -175,7 +175,7 @@ function About() {
         ))}
       </dl>
       <p className="mt-4 text-sm leading-relaxed text-muted">
-        3 yildan beri issiqxona va fermerlik sohasida kontent yarataman. Maqsadim —
+        3 yildan beri issiqxona va fermerlik sohasida kontent yarataman. Maqsadim вЂ”
         fermerlarga foydali va amaliy bilimlarni soddalashtirib yetkazish.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -254,7 +254,7 @@ function Content({ live }: { live: Live | null }) {
                   {v.plats?.[0] && <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white">{v.plats[0]}</span>}
                 </div>
                 <h4 className="mt-3 font-semibold leading-snug transition-colors group-hover:text-green">{v.name}</h4>
-                <p className="mt-1 text-xs text-muted">{v.views} ko'rish · {v.date}</p>
+                <p className="mt-1 text-xs text-muted">{v.views} ko'rish В· {v.date}</p>
               </a>
             ))}
           </div>
@@ -269,7 +269,7 @@ function Content({ live }: { live: Live | null }) {
                   <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white">{v.dur}</span>
                 </div>
                 <h4 className="mt-3 font-semibold leading-snug">{v.t}</h4>
-                <p className="mt-1 text-xs text-muted">{v.views} · {v.when}</p>
+                <p className="mt-1 text-xs text-muted">{v.views} В· {v.when}</p>
               </div>
             ))}
           </div>
@@ -298,7 +298,7 @@ function Content({ live }: { live: Live | null }) {
             <div key={n} className="rounded-xl bg-soft p-4">
               <div className="flex items-center gap-1 text-green">{Array.from({ length: 5 }).map((_, i) => <Icon key={i} d={I.star} className="h-3.5 w-3.5" />)}</div>
               <p className="mt-2 text-sm text-ink/80">"{t}"</p>
-              <p className="mt-1 text-xs font-semibold text-muted">— {n}</p>
+              <p className="mt-1 text-xs font-semibold text-muted">вЂ” {n}</p>
             </div>
           ))}
         </div>
@@ -427,7 +427,7 @@ function Efficiency() {
           </div>
           <div className="self-center rounded-2xl border border-white/10 bg-white/5 p-6">
             <div className="text-sm text-white/60">Kutilayotgan natija</div>
-            <div className="mt-1 font-display text-3xl font-extrabold text-green">100K – 300K+</div>
+            <div className="mt-1 font-display text-3xl font-extrabold text-green">100K вЂ“ 300K+</div>
             <div className="text-white/70">Ko'rishlar</div>
             <div className="mt-3 text-xs text-white/40">Kampaniyaga qarab</div>
           </div>

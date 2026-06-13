@@ -1,6 +1,6 @@
-import { Reveal, Icon, I, StatsBar } from "../lib/ui"
+﻿import { Reveal, Icon, I, StatsBar } from "../lib/ui"
 
-const mascot = "/mascot.png"
+const mascot = "/mascot.webp"
 
 const heroCards = [
   { icon: I.brain, t: "AI ASSISTANT", d: "Sun'iy intellekt yordamchisi kontent, tahlil va g'oyalar bilan yordam beradi." },
@@ -23,7 +23,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />

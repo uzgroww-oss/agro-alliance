@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom"
+﻿import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar } from "../lib/ui"
 
-const mascot = "/mascot2.png"
+const mascot = "/mascot2.webp"
 
 const pillars = [
   {
@@ -42,7 +42,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -71,13 +71,13 @@ function Hero() {
             </Reveal>
             <Reveal delay={90}>
               <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
-                Agro Alliance — agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni
+                Agro Alliance вЂ” agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni
                 birlashtiruvchi innovatsion media platforma.
               </p>
             </Reveal>
             <Reveal delay={160}>
               <p className="mt-4 max-w-md leading-relaxed text-muted">
-                Bizning maqsadimiz — zamonaviy media va texnologiyalar orqali qishloq
+                Bizning maqsadimiz вЂ” zamonaviy media va texnologiyalar orqali qishloq
                 xo'jaligini rivojlantirish va agro kelajakni birgalikda yaratish.
               </p>
             </Reveal>
@@ -107,10 +107,10 @@ function Hero() {
                 AGRO KELAJAKNI<br />BIRGA YARATAMIZ
               </h3>
               <p className="mt-4 leading-relaxed text-muted">
-                Media, texnologiya va bilim — agro sohaning yangi imkoniyatlarini ochadi.
+                Media, texnologiya va bilim вЂ” agro sohaning yangi imkoniyatlarini ochadi.
                 Agro Alliance ana shu imkoniyatlarni hamma uchun kengaytiradi.
               </p>
-              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">”</span>
+              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">вЂќ</span>
             </div>
           </Reveal>
         </div>
@@ -200,7 +200,7 @@ function CtaBanner() {
             <div>
               <h3 className="font-display text-xl font-extrabold tracking-tight">BIRGA KATTA MAQSADLARGA ERISHAMIZ!</h3>
               <p className="mt-1 text-sm text-muted">
-                Agro Alliance — bu faqat platforma emas, bu agro kelajakni birga qurish harakati.
+                Agro Alliance вЂ” bu faqat platforma emas, bu agro kelajakni birga qurish harakati.
               </p>
             </div>
           </div>
