@@ -3,7 +3,7 @@ services:
     name: agro-alliance
     runtime: node
     plan: free
-    buildCommand: npm install -g bun && bun install && bunx vite build && cd server && bun install
+    buildCommand: cd server && npm install
     startCommand: node server/index.js
     envVars:
       - key: NODE_VERSION
