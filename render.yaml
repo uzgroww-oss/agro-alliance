@@ -3,7 +3,7 @@ services:
     name: agro-alliance
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && npm install --prefix server
+    buildCommand: npm install --include=dev && npx vite build && npm install --prefix server
     startCommand: node server/index.js
     envVars:
       - key: NODE_VERSION
