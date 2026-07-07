@@ -16,6 +16,7 @@ export function load() {
     data = { users: [], seq: 1 }
   }
   if (!data.partners) data.partners = []
+  if (!data.stats) data.stats = []
   return data
 }
 
@@ -71,6 +72,15 @@ export const db = {
       return true
     }
     return false
+  },
+  // ---- site stats (counters) ----
+  get stats() {
+    return data.stats
+  },
+  setStats(arr) {
+    data.stats = arr
+    save()
+    return arr
   },
   save,
 }

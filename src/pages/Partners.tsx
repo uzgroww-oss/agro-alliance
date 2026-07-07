@@ -32,13 +32,59 @@ const benefits = [
   { icon: I.sprout, t: "Innovatsion yondashuv", d: "Yangi g'oyalar va zamonaviy yechimlar bilan ishlash." },
 ]
 
+function BrandChip({ name }: { name: string }) {
+  return (
+    <div className="grid h-16 min-w-[150px] place-items-center rounded-2xl border border-green/10 bg-white/90 px-6 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)] backdrop-blur-sm">
+      {name}
+    </div>
+  )
+}
+
+function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "right"; duration: string }) {
+  const loop = [...items, ...items]
+  return (
+    <div className="flex overflow-hidden">
+      <div
+        className={`flex w-max gap-4 ${dir === "left" ? "marquee-left" : "marquee-right"}`}
+        style={{ animationDuration: duration }}
+      >
+        {loop.map((p, i) => (
+          <BrandChip key={`${p}-${i}`} name={p} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const rev = [...partners].reverse()
+const marqueeRows = [
+  { items: partners.slice(0, 8), dir: "left" as const, duration: "34s" },
+  { items: partners.slice(7, 15), dir: "right" as const, duration: "42s" },
+  { items: rev.slice(0, 8), dir: "left" as const, duration: "50s" },
+  { items: rev.slice(7, 15), dir: "right" as const, duration: "38s" },
+  { items: partners.slice(3, 11), dir: "left" as const, duration: "46s" },
+  { items: rev.slice(3, 11), dir: "right" as const, duration: "54s" },
+]
+
+function BrandCarousel() {
+  return (
+    <div className="marquee-track absolute inset-0 flex flex-col justify-center gap-3 py-4">
+      {marqueeRows.map((r, i) => (
+        <MarqueeRow key={i} items={r.items} dir={r.dir} duration={r.duration} />
+      ))}
+    </div>
+  )
+}
+
 function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-white/55" />
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
+        <div className="absolute inset-0 bg-soft" />
+        <BrandCarousel />
+        <div className="absolute inset-0 bg-white/45" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/75 to-white/40" />
+        <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
       </div>
       <div className="mx-auto max-w-[1320px] px-5 pt-7 lg:px-8">

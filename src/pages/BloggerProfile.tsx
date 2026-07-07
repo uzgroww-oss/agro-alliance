@@ -391,13 +391,14 @@ function Brands() {
 }
 
 function Efficiency() {
-  // line chart points (x,y) in a 0..100 box; y inverted
+  // engagement o'sishi — ustunli diagramma
   const pts = [
-    { x: 12, y: 70, l: "6.1%", sub: "Avg 3 oy" },
-    { x: 50, y: 45, l: "7.8%", sub: "Avg 6 oy" },
-    { x: 88, y: 22, l: "8.7%", sub: "" },
+    { v: 6.1, l: "6.1%", sub: "Avg 3 oy" },
+    { v: 7.8, l: "7.8%", sub: "Avg 6 oy" },
+    { v: 8.7, l: "8.7%", sub: "Hozir" },
   ]
-  const poly = pts.map((p) => `${p.x},${p.y}`).join(" ")
+  const min = Math.min(...pts.map((p) => p.v)), max = Math.max(...pts.map((p) => p.v))
+  const barH = (v: number) => 40 + (max === min ? 55 : ((v - min) / (max - min)) * 60)
   return (
     <Reveal>
       <div className="relative mt-6 overflow-hidden rounded-3xl bg-ink p-8 text-white">
@@ -410,19 +411,19 @@ function Efficiency() {
             <div className="text-white/70">Yuqori Engagement</div>
             <p className="mt-3 text-sm text-white/50">O'rtacha ko'rsatkichdan <span className="font-bold text-green">2.3x yuqori</span></p>
 
-            <div className="relative mt-6 h-28 max-w-md">
-              <svg viewBox="0 0 100 90" preserveAspectRatio="none" className="h-full w-full">
-                <polyline points={poly} fill="none" stroke="#5bb420" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <div className="mt-6 max-w-md">
+              <div className="flex h-32 items-end gap-4">
                 {pts.map((p, i) => (
-                  <circle key={i} cx={p.x} cy={p.y} r="2.6" fill="#5bb420" stroke="#0a0a0a" strokeWidth="1" />
+                  <div key={i} className="group flex h-full flex-1 flex-col items-center justify-end">
+                    <div className="mb-1.5 font-display text-sm font-bold text-green">{p.l}</div>
+                    <div
+                      className="w-full rounded-t-xl bg-green bg-gradient-to-t from-green/25 via-green/60 to-green shadow-[0_0_24px_rgba(91,180,32,0.35)] transition-all duration-500 ease-out group-hover:to-leaf"
+                      style={{ height: `${barH(p.v)}%` }}
+                    />
+                    <div className="mt-2 text-[10px] text-white/40">{p.sub}</div>
+                  </div>
                 ))}
-              </svg>
-              {pts.map((p, i) => (
-                <div key={i} className="absolute -translate-x-1/2 text-center" style={{ left: `${p.x}%`, top: `${p.y - 18}%` }}>
-                  <div className="font-display text-sm font-bold text-green">{p.l}</div>
-                  {p.sub && <div className="text-[10px] text-white/40">{p.sub}</div>}
-                </div>
-              ))}
+              </div>
             </div>
           </div>
           <div className="self-center rounded-2xl border border-white/10 bg-white/5 p-6">

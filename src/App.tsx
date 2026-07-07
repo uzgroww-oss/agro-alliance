@@ -15,6 +15,8 @@ import Contact from "./pages/Contact"
 import Login from "./pages/Login"
 import BloggerDashboard from "./pages/dashboard/BloggerDashboard"
 import AdminDashboard from "./pages/dashboard/AdminDashboard"
+import ClientDashboard from "./pages/dashboard/ClientDashboard"
+import { roleHome } from "./lib/roles"
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -34,11 +36,11 @@ function MainLayout() {
   )
 }
 
-function RequireRole({ role, children }: { role: "superadmin" | "blogger"; children: ReactNode }) {
+function RequireRole({ role, children }: { role: "superadmin" | "blogger" | "client"; children: ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="grid min-h-screen place-items-center text-muted">Yuklanmoqda…</div>
   if (!user) return <Navigate to="/kirish" replace />
-  if (user.role !== role) return <Navigate to={user.role === "superadmin" ? "/admin" : "/dashboard"} replace />
+  if (user.role !== role) return <Navigate to={roleHome(user.role)} replace />
   return <>{children}</>
 }
 
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="/kirish" element={<Login />} />
           <Route path="/dashboard" element={<RequireRole role="blogger"><BloggerDashboard /></RequireRole>} />
           <Route path="/admin" element={<RequireRole role="superadmin"><AdminDashboard /></RequireRole>} />
+          <Route path="/mijoz" element={<RequireRole role="client"><ClientDashboard /></RequireRole>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

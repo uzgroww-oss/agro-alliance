@@ -95,44 +95,50 @@ export default function DashboardLayout({
 }
 
 /* ---------- Shared dashboard chart helpers ---------- */
+// Ustunli (bar) diagramma — har bir nuqta alohida gradient ustun
 export function LineChart({ points, labels }: { points: number[]; labels: string[] }) {
-  const max = Math.max(...points) * 1.15
-  const w = 100, h = 60
-  const step = w / (points.length - 1)
-  const xy = points.map((p, i) => [i * step, h - (p / max) * h] as const)
-  const line = xy.map(([x, y]) => `${x},${y}`).join(" ")
-  const area = `0,${h} ${line} ${w},${h}`
+  const max = Math.max(...points) * 1.18 || 1
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-56 w-full">
-        <defs>
-          <linearGradient id="lc" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5bb420" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#5bb420" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polygon points={area} fill="url(#lc)" />
-        <polyline points={line} fill="none" stroke="#5bb420" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {xy.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="1.6" fill="#5bb420" stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+    <div>
+      <div className="flex h-56 items-end gap-1.5 sm:gap-2.5">
+        {points.map((p, i) => (
+          <div key={i} className="group flex h-full flex-1 flex-col items-center justify-end">
+            <span className="mb-1.5 rounded-md bg-green/10 px-1.5 py-0.5 text-[10px] font-bold text-green opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              {p >= 1000 ? (p / 1000).toFixed(p % 1000 === 0 ? 0 : 1) + "K" : p}
+            </span>
+            <div
+              className="w-full rounded-t-lg bg-green bg-gradient-to-t from-green/30 via-green/70 to-green shadow-[0_2px_8px_rgba(91,180,32,0.25)] transition-all duration-500 ease-out group-hover:to-green-deep"
+              style={{ height: `${Math.max((p / max) * 100, 4)}%` }}
+            />
+          </div>
         ))}
-      </svg>
-      <div className="mt-2 flex justify-between text-[11px] text-muted">
-        {labels.map((l) => <span key={l}>{l}</span>)}
+      </div>
+      <div className="mt-2.5 flex gap-1.5 sm:gap-2.5">
+        {labels.map((l, i) => <span key={i} className="flex-1 text-center text-[11px] text-muted">{l}</span>)}
       </div>
     </div>
   )
 }
 
 export function Donut({ segments }: { segments: { label: string; value: number; color: string }[] }) {
-  const total = segments.reduce((s, x) => s + x.value, 0)
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1
   const r = 42, c = 2 * Math.PI * r
+  const gap = 3 // segmentlar orasidagi bo'shliq (svg birligida)
   let offset = 0
   return (
     <svg viewBox="0 0 110 110" className="h-44 w-44 -rotate-90">
-      {segments.map((s) => {
+      {/* fon halqasi */}
+      <circle cx="55" cy="55" r={r} fill="none" stroke="#eef4e8" strokeWidth="12" />
+      {segments.filter((s) => s.value > 0).map((s) => {
         const len = (s.value / total) * c
-        const el = <circle key={s.label} cx="55" cy="55" r={r} fill="none" stroke={s.color} strokeWidth="14" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} />
+        const seg = Math.max(len - gap, 0.5)
+        const el = (
+          <circle
+            key={s.label} cx="55" cy="55" r={r} fill="none"
+            stroke={s.color} strokeWidth="12" strokeLinecap="round"
+            strokeDasharray={`${seg} ${c - seg}`} strokeDashoffset={-offset}
+          />
+        )
         offset += len
         return el
       })}

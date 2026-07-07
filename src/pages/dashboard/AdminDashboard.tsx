@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem } from "../../lib/ui"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -138,7 +138,8 @@ function Bloggers() {
 
 /* ---------- Partners (hamkorlar) management ---------- */
 type Task = { id: number; title: string; status: "done" | "progress" | "pending" }
-type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number; signedDate: string; status: string; tasks: Task[] }
+type PartnerClient = { id: number; name: string; email: string }
+type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
 
 const fmtSom = (n: number) => {
   if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + " mlrd"
@@ -161,6 +162,9 @@ function AdminPartners() {
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState("")
   const [taskDrafts, setTaskDrafts] = useState<Record<number, string>>({})
+  const [clientDrafts, setClientDrafts] = useState<Record<number, { email: string; password: string }>>({})
+  const [openClient, setOpenClient] = useState<Record<number, boolean>>({})
+  const [clientErr, setClientErr] = useState<Record<number, string>>({})
   const blank = { name: "", sphere: "", contractNo: "", amount: "", status: "active" }
   const [form, setForm] = useState(blank)
 
@@ -194,6 +198,19 @@ function AdminPartners() {
     const title = (taskDrafts[pid] || "").trim(); if (!title) return
     await api(`/partners/${pid}/tasks`, { method: "POST", body: JSON.stringify({ title }) })
     setTaskDrafts((d) => ({ ...d, [pid]: "" })); reload()
+  }
+  const createClient = async (p: Partner) => {
+    const draft = clientDrafts[p.id] || { email: "", password: "" }
+    if (!draft.email.trim() || !draft.password.trim()) { setClientErr((e) => ({ ...e, [p.id]: "Email va parol majburiy" })); return }
+    try {
+      await api(`/partners/${p.id}/client`, { method: "POST", body: JSON.stringify({ name: p.name, email: draft.email, password: draft.password }) })
+      setClientDrafts((d) => ({ ...d, [p.id]: { email: "", password: "" } }))
+      setClientErr((e) => ({ ...e, [p.id]: "" })); setOpenClient((o) => ({ ...o, [p.id]: false })); reload()
+    } catch (err: any) { setClientErr((e) => ({ ...e, [p.id]: err?.message || "Xatolik" })) }
+  }
+  const removeClient = async (pid: number) => {
+    if (!confirm("Mijoz loginini o'chirishni tasdiqlaysizmi?")) return
+    await api(`/partners/${pid}/client`, { method: "DELETE" }); reload()
   }
 
   const stats = [
@@ -304,6 +321,39 @@ function AdminPartners() {
                   <button onClick={() => addTask(p.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white"><Icon d={I.plus} className="h-4 w-4" /> Vazifa</button>
                 </div>
               </div>
+
+              {/* client (buyurtmachi) login */}
+              <div className="mt-4 rounded-xl border border-green/15 bg-[#fafdf7] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.user} className="h-5 w-5" /></span>
+                    <div>
+                      <div className="text-sm font-bold">Mijoz kabineti</div>
+                      <div className="text-xs text-muted">{p.client ? "Buyurtmachi ishlarini kuzata oladi" : "Login yarating — buyurtmachi o'ziga qilingan ishlarni ko'radi"}</div>
+                    </div>
+                  </div>
+                  {p.client ? (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-green/10 px-2.5 py-1 text-xs font-bold text-green"><Icon d={I.check} className="h-3.5 w-3.5" /> {p.client.email}</span>
+                      <button onClick={() => removeClient(p.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="Loginni o'chirish"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setOpenClient((o) => ({ ...o, [p.id]: !o[p.id] }))} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white">
+                      <Icon d={I.plus} className="h-4 w-4" /> Login yaratish
+                    </button>
+                  )}
+                </div>
+                {!p.client && openClient[p.id] && (
+                  <div className="mt-3">
+                    {clientErr[p.id] && <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{clientErr[p.id]}</div>}
+                    <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                      <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Mijoz emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="text" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <button onClick={() => createClient(p)} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white">Yaratish</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )
         })}
@@ -362,6 +412,59 @@ function Overview() {
   )
 }
 
+/* ---------- Site stats editor ---------- */
+function StatsEditor() {
+  const [items, setItems] = useState<StatItem[]>([])
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const reload = () => api<{ stats: StatItem[] }>("/stats").then((d) => setItems(d.stats)).catch(() => {})
+  useEffect(() => { reload() }, [])
+
+  const set = (i: number, field: "value" | "label", v: string) =>
+    setItems((arr) => arr.map((s, idx) => (idx === i ? { ...s, [field]: v } : s)))
+
+  const save = async () => {
+    setBusy(true); setSaved(false)
+    try {
+      const d = await api<{ stats: StatItem[] }>("/stats", { method: "PUT", body: JSON.stringify({ stats: items }) })
+      setItems(d.stats); setSaved(true); setTimeout(() => setSaved(false), 2500)
+    } catch { /* ignore */ } finally { setBusy(false) }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Sayt statistikasi</h2>
+          <p className="mt-1 text-sm text-muted">Bosh sahifadagi raqamlar (120+, 5M+ …) — bu yerdan tahrirlanadi.</p>
+        </div>
+        <button onClick={save} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+          <Icon d={I.check} className="h-4 w-4" /> {busy ? "Saqlanmoqda…" : "Saqlash"}
+        </button>
+      </div>
+
+      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi — bosh sahifada yangilandi.</div>}
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((s, i) => (
+          <div key={s.key} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={statIcon[s.key] || I.star} className="h-5 w-5" /></span>
+              <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
+            </div>
+            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat</label>
+            <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} placeholder="120+" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 font-display text-lg font-extrabold outline-none focus:border-green" />
+            <label className="mt-3 block text-xs font-semibold text-muted">Izoh</label>
+            <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder="Agro blogerlar" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          </div>
+        ))}
+        {items.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Yuklanmoqda…</div>}
+      </div>
+    </div>
+  )
+}
+
 function Placeholder({ title }: { title: string }) {
   return (
     <div className="grid min-h-[60vh] place-items-center text-center">
@@ -382,7 +485,7 @@ export default function AdminDashboard() {
   const doLogout = () => { logout(); nav2("/kirish") }
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: "Super Admin", initials }}>
-      {active === "Dashboard" ? <Overview /> : active === "Bloggerlar" ? <Bloggers /> : active === "Hamkorlar" ? <AdminPartners /> : <Placeholder title={active} />}
+      {active === "Dashboard" ? <Overview /> : active === "Bloggerlar" ? <Bloggers /> : active === "Hamkorlar" ? <AdminPartners /> : active === "Statistika" ? <StatsEditor /> : <Placeholder title={active} />}
     </DashboardLayout>
   )
 }

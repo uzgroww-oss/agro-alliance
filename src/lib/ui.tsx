@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, type ReactNode } from "react"
+﻿import { useEffect, useRef, useState, type ReactNode } from "react"
+import { api } from "./api"
 
 export const logo = "/logo.webp"
 
@@ -107,38 +108,58 @@ export function Icon({ d, className = "h-6 w-6", sw = 1.8 }: { d: string; classN
 }
 
 /* ---------- Shared data ---------- */
+// stat key -> icon (qiymat va label backenddan keladi)
+export const statIcon: Record<string, string> = {
+  bloggers: I.users,
+  views: I.play,
+  partners: I.building,
+  regions: I.globe,
+  contents: I.leaf,
+}
+// default (backend yuklanmaguncha / xato bo'lsa ko'rsatiladi)
 export const stats = [
-  { icon: I.users, v: "120+", l: "Agro blogerlar" },
-  { icon: I.play, v: "5M+", l: "Oylik ko'rishlar" },
-  { icon: I.building, v: "50+", l: "Hamkor kompaniyalar" },
-  { icon: I.globe, v: "20+", l: "Hududlarda faoliyat" },
-  { icon: I.leaf, v: "1000+", l: "Yaratilgan kontentlar" },
+  { key: "bloggers", v: "120+", l: "Agro blogerlar" },
+  { key: "views", v: "5M+", l: "Oylik ko'rishlar" },
+  { key: "partners", v: "50+", l: "Hamkor kompaniyalar" },
+  { key: "regions", v: "20+", l: "Hududlarda faoliyat" },
+  { key: "contents", v: "1000+", l: "Yaratilgan kontentlar" },
 ]
+export type StatItem = { key: string; value: string; label: string }
 
 export const navLinks: { label: string; to: string }[] = [
   { label: "BOSH SAHIFA", to: "/" },
   { label: "BIZ HAQIMIZDA", to: "/about" },
   { label: "BLOGERLAR", to: "/blogerlar" },
-  { label: "PLATFORMA", to: "/platforma" },
+  // { label: "PLATFORMA", to: "/platforma" }, // vaqtincha berkitilgan (sahifa /platforma'da qoladi)
   { label: "YANGILIKLAR", to: "/yangiliklar" },
   { label: "HAMKORLAR", to: "/hamkorlar" },
   { label: "ALOQA", to: "/aloqa" },
 ]
 
-/* ---------- Shared Stats bar ---------- */
+/* ---------- Shared Stats bar (qiymatlar backenddan) ---------- */
 export function StatsBar() {
+  const [items, setItems] = useState(() => stats.map((s) => ({ key: s.key, value: s.v, label: s.l })))
+
+  useEffect(() => {
+    let alive = true
+    api<{ stats: StatItem[] }>("/public/stats")
+      .then((d) => { if (alive && Array.isArray(d.stats) && d.stats.length) setItems(d.stats) })
+      .catch(() => {}) // xato bo'lsa default qoladi
+    return () => { alive = false }
+  }, [])
+
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
         <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
-          {stats.map((s) => (
-            <div key={s.l} className="flex items-center gap-3 px-2">
+          {items.map((s) => (
+            <div key={s.key} className="flex items-center gap-3 px-2">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/20 text-green">
-                <Icon d={s.icon} className="h-5 w-5" />
+                <Icon d={statIcon[s.key] || I.star} className="h-5 w-5" />
               </span>
               <div>
-                <div className="font-display text-2xl font-extrabold leading-none">{s.v}</div>
-                <div className="mt-1 text-xs font-medium text-muted">{s.l}</div>
+                <div className="font-display text-2xl font-extrabold leading-none">{s.value}</div>
+                <div className="mt-1 text-xs font-medium text-muted">{s.label}</div>
               </div>
             </div>
           ))}

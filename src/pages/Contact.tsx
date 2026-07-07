@@ -201,18 +201,42 @@ function Offices() {
           </div>
         </div>
         <Reveal delay={100}>
-          <div className="h-full min-h-[360px] overflow-hidden rounded-3xl border border-green/10 shadow-[0_8px_30px_rgba(91,180,32,0.08)]">
-            <iframe
-              title="Xarita"
-              className="h-full w-full"
-              style={{ border: 0, minHeight: 360 }}
-              loading="lazy"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=69.25%2C41.30%2C69.33%2C41.34&layer=mapnik&marker=41.32%2C69.28"
-            />
-          </div>
+          <MapEmbed />
         </Reveal>
       </div>
     </section>
+  )
+}
+
+function MapEmbed() {
+  // rolikda zoom bo'lib ketmasligi uchun: bosilmaguncha xarita "passiv" (pointer-events yo'q),
+  // sichqoncha chiqib ketsa yana himoyalanadi
+  const [active, setActive] = useState(false)
+  return (
+    <div
+      onMouseLeave={() => setActive(false)}
+      className="relative h-full min-h-[360px] overflow-hidden rounded-3xl border border-green/10 shadow-[0_8px_30px_rgba(91,180,32,0.08)]"
+    >
+      <iframe
+        title="Xarita"
+        className={`h-full w-full ${active ? "" : "pointer-events-none"}`}
+        style={{ border: 0, minHeight: 360 }}
+        loading="lazy"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=69.25%2C41.30%2C69.33%2C41.34&layer=mapnik&marker=41.32%2C69.28"
+      />
+      {!active && (
+        <button
+          type="button"
+          onClick={() => setActive(true)}
+          className="group absolute inset-0 grid place-items-center bg-ink/0 transition-colors hover:bg-ink/5"
+          aria-label="Xaritani faollashtirish"
+        >
+          <span className="flex items-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-semibold text-ink shadow-lg ring-1 ring-green/15 backdrop-blur transition-transform group-hover:scale-105">
+            <Icon d={I.pin} className="h-4 w-4 text-green" /> Xarita bilan ishlash uchun bosing
+          </span>
+        </button>
+      )}
+    </div>
   )
 }
 

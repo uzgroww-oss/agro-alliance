@@ -1,6 +1,7 @@
 ﻿import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
+import { roleHome } from "../lib/roles"
 
 const mascot = "/mascot.webp"
 import { useAuth } from "../lib/auth"
@@ -39,7 +40,7 @@ export default function Login() {
     setBusy(true)
     try {
       const u = await login(email.trim(), password)
-      nav(u.role === "superadmin" ? "/admin" : "/dashboard")
+      nav(roleHome(u.role))
     } catch (err: any) {
       setError(err?.message || "Kirishda xatolik")
     } finally {

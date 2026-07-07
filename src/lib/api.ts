@@ -23,7 +23,8 @@ export type User = {
   id: number
   name: string
   email: string
-  role: "superadmin" | "blogger"
+  role: "superadmin" | "blogger" | "client"
+  partnerId?: number
   status?: string
   profile?: Record<string, string>
   socials?: { id: number; platform: string; link: string; connected: boolean; name?: string; avatar?: string; subscribers?: string }[]

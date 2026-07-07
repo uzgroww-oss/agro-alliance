@@ -62,6 +62,23 @@
 }
 .animate-drift { animation: drift 6s ease-in-out infinite alternate; }
 
+/* Partner brand carousel (infinite marquee) */
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes marquee-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+.marquee-left  { animation: marquee-left 32s linear infinite; }
+.marquee-right { animation: marquee-right 38s linear infinite; }
+.marquee-track:hover .marquee-left,
+.marquee-track:hover .marquee-right { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee-left, .marquee-right { animation: none; }
+}
+
 ::-webkit-scrollbar { width: 11px; }
 ::-webkit-scrollbar-track { background: var(--color-soft); }
 ::-webkit-scrollbar-thumb { background: var(--color-green); border-radius: 10px; }

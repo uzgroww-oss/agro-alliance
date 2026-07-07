@@ -16,6 +16,7 @@ load()
 seed()
 migrate()
 seedPartners()
+seedStats()
 
 const app = express()
 app.use(cors())
@@ -115,8 +116,14 @@ app.patch("/api/bloggers/:id/status", auth, requireRole("superadmin"), (req, res
 })
 
 /* ---------- Admin: partners (hamkorlar) ---------- */
+const partnerClient = (pid) => db.users.find((u) => u.role === "client" && u.partnerId === Number(pid))
+
 app.get("/api/partners", auth, requireRole("superadmin"), (req, res) => {
-  res.json({ partners: db.partners })
+  const partners = db.partners.map((p) => {
+    const c = partnerClient(p.id)
+    return { ...p, client: c ? { id: c.id, name: c.name, email: c.email } : null }
+  })
+  res.json({ partners })
 })
 
 app.post("/api/partners", auth, requireRole("superadmin"), (req, res) => {
@@ -139,7 +146,37 @@ app.post("/api/partners", auth, requireRole("superadmin"), (req, res) => {
 })
 
 app.delete("/api/partners/:id", auth, requireRole("superadmin"), (req, res) => {
+  const c = partnerClient(req.params.id)
+  if (c) db.removeUser(c.id) // cascade: remove linked client login
   db.removePartner(req.params.id)
+  res.json({ ok: true })
+})
+
+// create a client (buyurtmachi tashkilot) login for a partner
+app.post("/api/partners/:id/client", auth, requireRole("superadmin"), async (req, res) => {
+  const p = db.findPartner(req.params.id)
+  if (!p) return res.status(404).json({ error: "Hamkor topilmadi" })
+  if (partnerClient(p.id)) return res.status(409).json({ error: "Bu hamkorda allaqachon mijoz logini bor" })
+  const { name, email, password } = req.body || {}
+  if (!email || !password) return res.status(400).json({ error: "Email va parol majburiy" })
+  if (db.findUserByEmail(email)) return res.status(409).json({ error: "Bu email allaqachon mavjud" })
+  const user = {
+    id: nextId(),
+    name: name || p.name,
+    email,
+    passwordHash: await bcrypt.hash(String(password), 10),
+    role: "client",
+    status: "active",
+    partnerId: p.id,
+  }
+  db.addUser(user)
+  res.status(201).json({ client: { id: user.id, name: user.name, email: user.email } })
+})
+
+// remove a partner's client login
+app.delete("/api/partners/:id/client", auth, requireRole("superadmin"), (req, res) => {
+  const c = partnerClient(req.params.id)
+  if (c) db.removeUser(c.id)
   res.json({ ok: true })
 })
 
@@ -239,6 +276,13 @@ app.delete("/api/me/videos/:id", auth, requireRole("blogger"), (req, res) => {
   res.json({ ok: true })
 })
 
+/* ---------- Client (buyurtmachi): view own project (read-only) ---------- */
+app.get("/api/me/partner", auth, requireRole("client"), (req, res) => {
+  const p = db.findPartner(req.user.partnerId)
+  if (!p) return res.status(404).json({ error: "Sizga biriktirilgan loyiha topilmadi" })
+  res.json({ partner: p })
+})
+
 /* ---------- Public (no auth) — for main website ---------- */
 app.get("/api/public/bloggers", (req, res) => {
   const list = db.users
@@ -251,6 +295,21 @@ app.get("/api/public/bloggers/:slug", (req, res) => {
   const u = db.users.find((x) => x.role === "blogger" && x.slug === req.params.slug)
   if (!u) return res.status(404).json({ error: "Bloger topilmadi" })
   res.json({ blogger: publicProfile(u) })
+})
+
+// public site stats (counters bar on main pages)
+app.get("/api/public/stats", (req, res) => res.json({ stats: db.stats }))
+
+// admin: edit site stats
+app.get("/api/stats", auth, requireRole("superadmin"), (req, res) => res.json({ stats: db.stats }))
+app.put("/api/stats", auth, requireRole("superadmin"), (req, res) => {
+  const incoming = Array.isArray(req.body?.stats) ? req.body.stats : null
+  if (!incoming) return res.status(400).json({ error: "stats массиви majburiy" })
+  const cleaned = incoming
+    .filter((s) => s && s.key)
+    .map((s) => ({ key: String(s.key), value: String(s.value ?? "").trim(), label: String(s.label ?? "").trim() }))
+  db.setStats(cleaned)
+  res.json({ stats: db.stats })
 })
 
 app.get("/api/health", (req, res) => res.json({ ok: true, users: db.users.length }))
@@ -331,6 +390,19 @@ function seedPartners() {
   )
   save()
   console.log("✓ Seed: 5 ta demo hamkor qo'shildi")
+}
+
+/* ---------- Seed: site stats ---------- */
+function seedStats() {
+  if (db.stats && db.stats.length > 0) return
+  db.setStats([
+    { key: "bloggers", value: "120+", label: "Agro blogerlar" },
+    { key: "views", value: "5M+", label: "Oylik ko'rishlar" },
+    { key: "partners", value: "50+", label: "Hamkor kompaniyalar" },
+    { key: "regions", value: "20+", label: "Hududlarda faoliyat" },
+    { key: "contents", value: "1000+", label: "Yaratilgan kontentlar" },
+  ])
+  console.log("✓ Seed: sayt statistikasi qo'shildi")
 }
 
 /* ---------- Migration: ensure every blogger has a slug ---------- */
