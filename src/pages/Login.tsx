@@ -91,7 +91,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right panel вЂ” form */}
+        {/* Right panel — form */}
         <div className="flex flex-col p-7 sm:p-10 lg:p-12">
           <div className="flex items-center justify-end gap-5 text-sm">
             <button className="inline-flex items-center gap-1.5 rounded-full border border-green/15 px-3 py-1.5 font-semibold text-ink/70 transition-colors hover:border-green hover:text-green">
@@ -148,11 +148,11 @@ export default function Login() {
               )}
 
               <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
-                <Icon d={I.login} className="h-5 w-5" /> {busy ? "KirilmoqdaвЂ¦" : "KIRISH"}
+                <Icon d={I.login} className="h-5 w-5" /> {busy ? "Kirilmoqda…" : "KIRISH"}
               </button>
 
               <button type="button" onClick={() => { setEmail("admin@agroalliance.uz"); setPassword("admin123") }} className="w-full text-center text-xs text-muted hover:text-green">
-                Demo: admin@agroalliance.uz / admin123 В· elyor@agroalliance.uz / elyor123
+                Demo: admin@agroalliance.uz / admin123 · elyor@agroalliance.uz / elyor123
               </button>
             </form>
 

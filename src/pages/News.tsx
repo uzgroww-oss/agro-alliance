@@ -167,7 +167,7 @@ export default function News() {
                       <div className="min-w-0">
                         <p className="line-clamp-2 text-sm font-medium leading-snug transition-colors group-hover:text-green">{p.title}</p>
                         <div className="mt-1 flex items-center gap-2 text-[11px] text-muted">
-                          <span>{p.date}</span>В·<span className="flex items-center gap-0.5"><Icon d={I.eye} className="h-3 w-3" /> {p.views}</span>
+                          <span>{p.date}</span>·<span className="flex items-center gap-0.5"><Icon d={I.eye} className="h-3 w-3" /> {p.views}</span>
                         </div>
                       </div>
                     </Link>
@@ -239,7 +239,7 @@ export default function News() {
             {/* Pagination */}
             <div className="mt-10 flex items-center justify-center gap-2">
               <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted hover:border-green hover:text-green"><Icon d={I.chevLeft} className="h-4 w-4" /></button>
-              {["1", "2", "3", "4", "вЂ¦", "12"].map((p, i) => (
+              {["1", "2", "3", "4", "…", "12"].map((p, i) => (
                 <button key={i} className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${p === "1" ? "bg-green text-white shadow-lg shadow-green/30" : "border border-green/15 bg-white text-ink/70 hover:border-green hover:text-green"}`}>{p}</button>
               ))}
               <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted hover:border-green hover:text-green"><Icon d={I.chevRight} className="h-4 w-4" /></button>

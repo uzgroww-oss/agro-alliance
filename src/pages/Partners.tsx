@@ -105,7 +105,7 @@ function Hero() {
             </Reveal>
             <Reveal delay={90}>
               <p className="mt-5 max-w-md leading-relaxed text-muted">
-                Agro Alliance вЂ” agro sohadagi innovatsion yechimlar va imkoniyatlarni
+                Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni
                 birlashtiruvchi ishonchli hamkor platformasi.
               </p>
             </Reveal>

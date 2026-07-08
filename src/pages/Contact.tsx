@@ -24,7 +24,7 @@ const offices = [
 ]
 
 const faqs = [
-  { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring вЂ” jamoamiz siz bilan bog'lanadi." },
+  { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring — jamoamiz siz bilan bog'lanadi." },
   { q: "Platformadan foydalanish uchun to'lov kerakmi?", a: "Asosiy imkoniyatlar bepul. Premium xizmatlar va kengaytirilgan analitika uchun obuna rejalari mavjud." },
   { q: "Bloger bo'lib platformaga qo'shilish uchun nima qilish kerak?", a: "\"KIRISH\" orqali ro'yxatdan o'ting, profilingizni to'ldiring va kontentingizni joylashtiring. Tasdiqlangandan so'ng reytingda paydo bo'lasiz." },
   { q: "Texnik yordamga qanday murojaat qilishim mumkin?", a: "info@agroalliance.uz manziliga yozing yoki +998 90 123 45 67 raqamiga qo'ng'iroq qiling. Ish vaqtida tez javob beramiz." },

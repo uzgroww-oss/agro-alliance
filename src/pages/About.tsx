@@ -71,13 +71,13 @@ function Hero() {
             </Reveal>
             <Reveal delay={90}>
               <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
-                Agro Alliance вЂ” agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni
+                Agro Alliance — agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni
                 birlashtiruvchi innovatsion media platforma.
               </p>
             </Reveal>
             <Reveal delay={160}>
               <p className="mt-4 max-w-md leading-relaxed text-muted">
-                Bizning maqsadimiz вЂ” zamonaviy media va texnologiyalar orqali qishloq
+                Bizning maqsadimiz — zamonaviy media va texnologiyalar orqali qishloq
                 xo'jaligini rivojlantirish va agro kelajakni birgalikda yaratish.
               </p>
             </Reveal>
@@ -107,10 +107,10 @@ function Hero() {
                 AGRO KELAJAKNI<br />BIRGA YARATAMIZ
               </h3>
               <p className="mt-4 leading-relaxed text-muted">
-                Media, texnologiya va bilim вЂ” agro sohaning yangi imkoniyatlarini ochadi.
+                Media, texnologiya va bilim — agro sohaning yangi imkoniyatlarini ochadi.
                 Agro Alliance ana shu imkoniyatlarni hamma uchun kengaytiradi.
               </p>
-              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">вЂќ</span>
+              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">”</span>
             </div>
           </Reveal>
         </div>
@@ -200,7 +200,7 @@ function CtaBanner() {
             <div>
               <h3 className="font-display text-xl font-extrabold tracking-tight">BIRGA KATTA MAQSADLARGA ERISHAMIZ!</h3>
               <p className="mt-1 text-sm text-muted">
-                Agro Alliance вЂ” bu faqat platforma emas, bu agro kelajakni birga qurish harakati.
+                Agro Alliance — bu faqat platforma emas, bu agro kelajakni birga qurish harakati.
               </p>
             </div>
           </div>
