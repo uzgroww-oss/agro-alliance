@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar } from "../lib/ui"
 import { api } from "../lib/api"
+import { newsImg } from "../lib/news"
+import Newsletter from "../components/Newsletter"
 
 const mascot = "/mascot.webp"
 
@@ -152,12 +154,123 @@ function Features() {
   )
 }
 
+type NewsItem = { slug: string; title: string; cat: string; desc: string; date: string; views: string; seed: string }
+type BloggerItem = { id: string; name: string; avatar: string; niche: string; region: string }
+
+function LatestNews() {
+  const [news, setNews] = useState<NewsItem[]>([])
+  useEffect(() => {
+    api<{ news: NewsItem[] }>("/public/news?per_page=6").then((d) => setNews(d.news || [])).catch(() => {})
+  }, [])
+  if (news.length === 0) return null
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
+      <Reveal>
+        <div className="mb-10 flex items-end justify-between">
+          <div>
+            <span className="text-sm font-bold text-green">YANGILIKLAR</span>
+            <h2 className="mt-2 font-display text-[clamp(1.6rem,4vw,2.6rem)] font-extrabold tracking-tight">OXIRGI YANGILIKLAR</h2>
+          </div>
+          <Link to="/yangiliklar" className="hidden items-center gap-2 rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green sm:inline-flex">
+            Barchasi <Icon d={I.arrow} className="h-4 w-4" />
+          </Link>
+        </div>
+      </Reveal>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {news.map((n, i) => (
+          <Reveal key={n.slug} delay={(i % 3) * 80}>
+            <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
+              <div className="h-40 overflow-hidden">
+                <img src={newsImg(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              </div>
+              <div className="p-5">
+                <span className="text-xs font-bold uppercase tracking-wide text-green">{n.cat}</span>
+                <h3 className="mt-2 font-display font-bold leading-snug transition-colors group-hover:text-green">{n.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted line-clamp-2">{n.desc}</p>
+                <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                  <span>{n.date}</span>
+                  <span className="flex items-center gap-1"><Icon d={I.eye} className="h-3.5 w-3.5" /> {n.views}</span>
+                </div>
+              </div>
+            </Link>
+          </Reveal>
+        ))}
+      </div>
+      <Link to="/yangiliklar" className="mt-8 inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-6 py-3 text-sm font-bold transition-colors hover:border-green hover:text-green sm:hidden">
+        Barcha yangiliklar <Icon d={I.arrow} className="h-4 w-4" />
+      </Link>
+    </section>
+  )
+}
+
+function TopBloggers() {
+  const [bloggers, setBloggers] = useState<BloggerItem[]>([])
+  useEffect(() => {
+    api<{ bloggers: BloggerItem[] }>("/public/bloggers?per_page=6").then((d) => setBloggers(d.bloggers || [])).catch(() => {})
+  }, [])
+  if (bloggers.length === 0) return null
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
+      <Reveal>
+        <div className="mb-10 flex items-end justify-between">
+          <div>
+            <span className="text-sm font-bold text-green">BLOGLERLAR</span>
+            <h2 className="mt-2 font-display text-[clamp(1.6rem,4vw,2.6rem)] font-extrabold tracking-tight">ENG YAXSHI BLOGLERLAR</h2>
+          </div>
+          <Link to="/blogerlar" className="hidden items-center gap-2 rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green sm:inline-flex">
+            Barchasi <Icon d={I.arrow} className="h-4 w-4" />
+          </Link>
+        </div>
+      </Reveal>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {bloggers.map((b, i) => (
+          <Reveal key={b.id} delay={(i % 3) * 80}>
+            <Link to={`/blogerlar/${b.id}`} className="group flex items-center gap-4 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
+              {b.avatar ? <img src={b.avatar} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-soft" /> : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xl font-bold text-green">{b.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>}
+              <div className="min-w-0">
+                <h3 className="font-display font-bold transition-colors group-hover:text-green">{b.name}</h3>
+                <p className="mt-1 text-sm text-muted">{b.niche || "Bloger"}</p>
+                {b.region && <p className="text-xs text-muted">{b.region}</p>}
+              </div>
+            </Link>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function CTA() {
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
+      <div className="overflow-hidden rounded-3xl bg-green px-8 py-12 text-center text-white lg:px-16 lg:py-16">
+        <Reveal>
+          <h2 className="font-display text-[clamp(1.6rem,4vw,2.6rem)] font-extrabold tracking-tight">PLATFORMAGA QO'SHILING</h2>
+          <p className="mx-auto mt-4 max-w-lg text-lg text-white/80">Agro Alliance platformasida o'z o'rningizni toping. Bloger, hamkor yoki oddiy foydalanuvchi — hammamiz uchun joy bor.</p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <Link to="/royxatdan-otish" className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-bold text-green shadow-lg transition-transform hover:scale-105">
+              RO'YXATDAN O'TISH <Icon d={I.arrow} className="h-5 w-5" />
+            </Link>
+            <Link to="/blogerlar" className="inline-flex items-center gap-2 rounded-xl border-2 border-white/40 px-7 py-3.5 font-bold text-white transition-colors hover:bg-white/10">
+              BLOGLERLARNI KO'RISH
+            </Link>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
 export default function Home() {
   return (
     <>
       <Hero />
       <StatsBar />
       <Features />
+      <LatestNews />
+      <TopBloggers />
+      <CTA />
+      <Newsletter />
     </>
   )
 }

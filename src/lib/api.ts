@@ -324,6 +324,13 @@ function resolveAdminUrl(path: string, method: string): string {
     }
   }
 
+  if (segments[0] === "media-get-signed-upload-url") {
+    return `${SUPABASE_FUNCTIONS_URL}/media-get-signed-upload-url${qsRaw ? `?${qsRaw}` : ""}`
+  }
+  if (segments[0] === "media-get-signed-download-url") {
+    return `${SUPABASE_FUNCTIONS_URL}/media-get-signed-download-url${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
   const fnName = basePath.replace(/^\//, "admin-").replace(/\//g, "-")
   return `${SUPABASE_FUNCTIONS_URL}/${fnName}${qsRaw ? `?${qsRaw}` : ""}`
 }
