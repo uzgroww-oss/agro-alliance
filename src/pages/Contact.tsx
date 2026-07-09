@@ -1,10 +1,13 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 import { api } from "../lib/api"
 import { usePublicSettings } from "../lib/settings"
 
 const mascot = "/mascot-contact.webp"
+
+type Office = { name: string; main: boolean; addr: string; phone: string; email: string }
+type Faq = { q: string; a: string }
 
 const features = [
   { icon: I.headset, t: "Tezkor javob", d: "24 soat ichida javob berishga harakat qilamiz" },
@@ -13,12 +16,12 @@ const features = [
   { icon: I.handshake, t: "Hamkorlik", d: "Uzoq muddatli va samarali hamkorlikni qadrlaymiz" },
 ]
 
-const offices = [
+const defaultOffices: Office[] = [
   { name: "Toshkent ofisi", main: true, addr: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy", phone: "+998 90 123 45 67", email: "info@agroalliance.uz" },
   { name: "Farg'ona ofisi", main: false, addr: "Farg'ona shahri, A. Navoiy ko'chasi, 45A-uy", phone: "+998 91 987 65 43", email: "fargona@agroalliance.uz" },
 ]
 
-const faqs = [
+const defaultFaqs: Faq[] = [
   { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring — jamoamiz siz bilan bog'lanadi." },
   { q: "Platformadan foydalanish uchun to'lov kerakmi?", a: "Asosiy imkoniyatlar bepul. Premium xizmatlar va kengaytirilgan analitika uchun obuna rejalari mavjud." },
   { q: "Bloger bo'lib platformaga qo'shilish uchun nima qilish kerak?", a: "\"KIRISH\" orqali ro'yxatdan o'ting, profilingizni to'ldiring va kontentingizni joylashtiring. Tasdiqlangandan so'ng reytingda paydo bo'lasiz." },
@@ -246,7 +249,7 @@ function Features() {
   )
 }
 
-function Offices() {
+function Offices({ offices }: { offices: Office[] }) {
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-10 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-2">
@@ -316,7 +319,7 @@ function MapEmbed() {
   )
 }
 
-function Faq() {
+function Faq({ faqs }: { faqs: Faq[] }) {
   const [open, setOpen] = useState<number | null>(0)
   return (
     <div>
@@ -349,11 +352,11 @@ function Faq() {
   )
 }
 
-function FaqAndNewsletter() {
+function FaqAndNewsletter({ faqs }: { faqs: Faq[] }) {
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-10 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-2">
-        <Faq />
+        <Faq faqs={faqs} />
         <Reveal delay={100}>
           <div className="flex h-full flex-col justify-center rounded-3xl border border-green/15 bg-soft p-8">
             <div className="flex items-start gap-5">
@@ -372,12 +375,23 @@ function FaqAndNewsletter() {
 }
 
 export default function Contact() {
+  const [offices, setOffices] = useState(defaultOffices)
+  const [faqs, setFaqs] = useState(defaultFaqs)
+
+  useEffect(() => {
+    api<{ settings: Record<string, string> }>("/public/settings").then((d) => {
+      const s = d.settings
+      if (s.offices) { try { setOffices(JSON.parse(s.offices)) } catch {} }
+      if (s.faqs) { try { setFaqs(JSON.parse(s.faqs)) } catch {} }
+    }).catch(() => {})
+  }, [])
+
   return (
     <>
       <Hero />
       <Features />
-      <Offices />
-      <FaqAndNewsletter />
+      <Offices offices={offices} />
+      <FaqAndNewsletter faqs={faqs} />
     </>
   )
 }

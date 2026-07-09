@@ -406,7 +406,16 @@ function Overview() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className={card}>
           <h3 className="font-display text-lg font-bold">Platforma o'sishi</h3>
-          <div className="mt-4"><LineChart points={[40, 55, 70, 85, 100, 128]} labels={["Noy", "Dek", "Yan", "Fev", "Mar", "Apr"]} /></div>
+          <div className="mt-4">
+            {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
+              <LineChart
+                points={[bloggerCount || 0, partnerCount || 0, newsCount || 0, (bloggerCount || 0) + (partnerCount || 0), (bloggerCount || 0) + (newsCount || 0), (partnerCount || 0) + (newsCount || 0)]}
+                labels={["Blogerlar", "Hamkorlar", "Yangiliklar", "Blog+Hamkor", "Blog+Yangilik", "Hamk+Yangilik"]}
+              />
+            ) : (
+              <div className="py-8 text-center text-sm text-muted">Yuklanmoqda…</div>
+            )}
+          </div>
         </div>
         <div className={card}>
           <h3 className="font-display text-lg font-bold">So'nggi yangiliklar</h3>
