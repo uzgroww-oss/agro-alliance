@@ -368,18 +368,22 @@ function Overview() {
   const [bloggerCount, setBloggerCount] = useState<number | null>(null)
   const [partnerCount, setPartnerCount] = useState<number | null>(null)
   const [newsCount, setNewsCount] = useState<number | null>(null)
+  const [subscribers, setSubscribers] = useState<number | null>(null)
+  const [recentNews, setRecentNews] = useState<{ title: string; created_at: string }[]>([])
 
   useEffect(() => {
     api<{ bloggers: unknown[] }>("/bloggers").then((d) => setBloggerCount(d.bloggers.length)).catch(() => {})
     api<{ partners: unknown[] }>("/partners").then((d) => setPartnerCount(d.partners.length)).catch(() => {})
-    api<{ news: unknown[] }>("/news").then((d) => setNewsCount(d.news.length)).catch(() => {})
+    api<{ pagination: { total: number } }>("/news?per_page=1").then((d) => setNewsCount(d.pagination?.total || 0)).catch(() => {})
+    api<{ subscribers: unknown[] }>("/subscribers").then((d) => setSubscribers(d.subscribers.length)).catch(() => {})
+    api<{ news: { title: string; created_at: string }[] }>("/news?per_page=4").then((d) => setRecentNews(d.news || [])).catch(() => {})
   }, [])
 
   const stats = [
     { icon: I.users, t: "Jami bloggerlar", v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
     { icon: I.handshake, t: "Hamkorlar", v: partnerCount === null ? "…" : String(partnerCount), delta: "real-time" },
     { icon: I.doc, t: "Yangiliklar", v: newsCount === null ? "…" : String(newsCount), delta: "real-time" },
-    { icon: I.eye, t: "Platforma", v: "Faol", delta: "online" },
+    { icon: I.send, t: "Obunachilar", v: subscribers === null ? "…" : String(subscribers), delta: "real-time" },
   ]
   return (
     <>
@@ -405,14 +409,19 @@ function Overview() {
           <div className="mt-4"><LineChart points={[40, 55, 70, 85, 100, 128]} labels={["Noy", "Dek", "Yan", "Fev", "Mar", "Apr"]} /></div>
         </div>
         <div className={card}>
-          <h3 className="font-display text-lg font-bold">So'nggi harakatlar</h3>
+          <h3 className="font-display text-lg font-bold">So'nggi yangiliklar</h3>
           <ul className="mt-4 space-y-3 text-sm">
-            {[["Yangi bloger ro'yxatdan o'tdi", "Smart Agro"], ["Hamkorlik tasdiqlandi", "Syngenta"], ["Yangilik chop etildi", "Dronlar..."], ["Profil yangilandi", "Fermer Elyor"]].map(([t, s], i) => (
+            {recentNews.length > 0 ? recentNews.map((n, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-green" />
-                <span><span className="font-medium">{t}</span><span className="block text-xs text-muted">{s}</span></span>
+                <span>
+                  <span className="font-medium">{n.title.substring(0, 50)}{n.title.length > 50 ? "…" : ""}</span>
+                  <span className="block text-xs text-muted">{n.created_at ? new Date(n.created_at).toLocaleDateString("uz") : ""}</span>
+                </span>
               </li>
-            ))}
+            )) : (
+              <li className="text-muted">Yangiliklar yo'q</li>
+            )}
           </ul>
         </div>
       </div>
