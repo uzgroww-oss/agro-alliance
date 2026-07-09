@@ -175,10 +175,7 @@ export default function Login() {
             </div>
 
             <p className="mt-6 text-center text-sm text-muted">
-              Profilingiz yo'qmi? <Link to="/register" className="inline-flex items-center gap-1 font-bold text-green hover:underline">Ro'yxatdan o'ting <Icon d={I.arrow} className="h-4 w-4" /></Link>
-            </p>
-            <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted">
-              <Icon d={I.shield} className="h-4 w-4 text-green" /> Ma'lumotlaringiz xavfsiz va himoyalangan
+              <Icon d={I.shield} className="inline h-4 w-4 text-green" /> Ma'lumotlaringiz xavfsiz va himoyalangan
             </p>
           </div>
         </div>

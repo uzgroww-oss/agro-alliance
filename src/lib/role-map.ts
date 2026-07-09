@@ -10,7 +10,6 @@ const DB_TO_FE: Record<string, string> = {
   editor: "superadmin",
   blogger: "blogger",
   company: "client",
-  user: "client",
 }
 
 export function feRole(dbRole: string): string {
@@ -18,11 +17,11 @@ export function feRole(dbRole: string): string {
 }
 
 export function dbRole(feRole: string): string {
-  return FE_TO_DB[feRole] ?? "user"
+  return FE_TO_DB[feRole] ?? "company"
 }
 
-export function isDbRole(role: string): role is "super_admin" | "admin" | "editor" | "blogger" | "company" | "user" {
-  return ["super_admin", "admin", "editor", "blogger", "company", "user"].includes(role)
+export function isDbRole(role: string): role is "super_admin" | "admin" | "editor" | "blogger" | "company" {
+  return ["super_admin", "admin", "editor", "blogger", "company"].includes(role)
 }
 
 export function isFeRole(role: string): role is "superadmin" | "blogger" | "client" {
