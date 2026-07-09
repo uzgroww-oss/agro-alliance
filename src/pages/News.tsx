@@ -28,8 +28,8 @@ function Meta({ date, views }: { date: string; views: string }) {
 function NewsCard({ n }: { n: News }) {
   return (
     <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
-      <div className="h-40 overflow-hidden">
-        <img src={newsImg(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+      <div className="aspect-video overflow-hidden rounded-t-2xl">
+        <img src={newsImg(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
       </div>
       <div className="p-5">
         <CatTag k={n.cat} />

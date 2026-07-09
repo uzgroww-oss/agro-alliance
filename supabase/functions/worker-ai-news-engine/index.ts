@@ -122,7 +122,8 @@ JSON: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence su
 
       const slug = slugify(titleUz) || "agro-" + Date.now()
       const cat = categories.find((c: any) => c.key === category)
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgPrompt)}?width=800&height=500&nologo=true`
+      // Pollinations — article-specific AI rasm (sekin lekin mos)
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgPrompt)}?width=800&height=500&nologo=true&seed=${i}`
 
       const { error: insErr } = await supabaseAdmin.from("news_articles").insert({
         title: titleUz, slug, excerpt: summaryUz, content: contentUz,
