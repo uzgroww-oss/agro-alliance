@@ -67,31 +67,34 @@ Deno.serve(async (req) => {
       }
     })
 
-    // Fetch categories with real article counts
+    // Fetch categories
     const { data: categories } = await supabaseAdmin
       .from("news_categories")
-      .select(`
-        key,
-        name_uz,
-        icon,
-        articles:news_articles!inner(count)
-      `)
+      .select("id, key, name_uz, icon")
       .eq("is_active", true)
       .is("deleted_at", null)
-      .eq("news_articles.status", "published")
-      .is("news_articles.deleted_at", null)
-      .lte("news_articles.published_at", new Date().toISOString())
       .order("sort_order", { ascending: true })
 
+    // Count articles per category
     const cats = [
       { key: "all", label: "Barcha yangiliklar", icon: "grid", count: count || 0 },
-      ...(categories || []).map((c: Record<string, unknown>) => ({
-        key: c.key,
-        label: c.name_uz as string || c.key as string,
-        icon: (c.icon as string) || "grid",
-        count: (c.articles as Array<unknown> || []).length || 0,
-      })),
     ]
+
+    for (const cat of (categories || [])) {
+      const { count: catCount } = await supabaseAdmin
+        .from("news_articles")
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", cat.id)
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .lte("published_at", new Date().toISOString())
+      cats.push({
+        key: cat.key,
+        label: cat.name_uz || cat.key,
+        icon: cat.icon || "grid",
+        count: catCount || 0,
+      })
+    }
 
     return cachedJsonResponse({
       news,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
-import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, type News } from "../lib/news"
+import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
 
 export default function NewsDetail() {
   const { slug } = useParams()
@@ -78,7 +78,7 @@ export default function NewsDetail() {
 
         <Reveal delay={80}>
           <div className="mt-6 overflow-hidden rounded-3xl">
-            <img src={article.seed ? `https://picsum.photos/seed/${article.seed}/1000/560` : `https://picsum.photos/seed/${article.slug}/1000/560`} alt={article.title} className="h-auto w-full object-cover" />
+            <img src={newsImg(article.seed || article.slug, 1000, 560)} alt={article.title} className="h-auto w-full object-cover" />
           </div>
         </Reveal>
 
@@ -116,7 +116,7 @@ export default function NewsDetail() {
               <Reveal key={n.slug} delay={(i % 3) * 80}>
                 <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
                   <div className="h-40 overflow-hidden">
-                    <img src={`https://picsum.photos/seed/${n.seed || n.slug}/400/260`} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img src={newsImg(n.seed || n.slug, 400, 260)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
                   <div className="p-5">
                     <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(n.cat)}</span>

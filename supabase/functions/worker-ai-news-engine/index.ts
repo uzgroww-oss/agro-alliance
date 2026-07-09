@@ -101,11 +101,18 @@ JSON: [{"idx":1,"title":"title","description":"summary","source":"source","link"
 Title: ${s.title}
 Desc: ${s.description.substring(0, 300)}
 
-JSON format: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence summary","tags":["tag1","tag2"],"cat":"texnologiya|qishloq|bozor|xalqaro","img":["keyword1","keyword2"]}`,
+Choose ONE category: "texnologiya", "qishloq", "bozor", "davlat", "innovatsiya", "ekologiya", "tadqiqotlar", or "xalqaro"
+
+JSON: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence summary","tags":["tag1","tag2"],"cat":"choose one","img":["keyword1","keyword2"]}`,
           { temperature: 0.7, maxTokens: 1024, retries: 1 },
         )
         titleUz = tr.t; contentUz = tr.c; summaryUz = tr.s
-        tags = tr.tags || ["agro"]; category = tr.cat || "xalqaro"; imgKw = tr.img || ["agriculture"]
+        tags = (tr.tags || ["agro"]).slice(0, 5)
+        // Clean category: take first valid key
+        const validCats = ["texnologiya", "qishloq", "bozor", "davlat", "innovatsiya", "ekologiya", "tadqiqotlar", "xalqaro"]
+        const rawCat = (tr.cat || "xalqaro").split("|")[0].trim().toLowerCase()
+        category = validCats.includes(rawCat) ? rawCat : "xalqaro"
+        imgKw = (tr.img || ["agriculture"]).map((w) => w.replace(/[^a-zA-Z]/g, "").toLowerCase()).filter(Boolean).slice(0, 3)
       } catch (e) {
         console.log(`Translation error [${i}]:`, (e as Error).message)
         titleUz = s.title; contentUz = `<p>${s.description}</p>`; summaryUz = s.description.substring(0, 200)
