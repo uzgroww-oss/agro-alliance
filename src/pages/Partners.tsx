@@ -25,12 +25,6 @@ const directions = [
   { icon: I.megaphone, t: "Media va marketing", d: "Marketing, reklama, PR va media sohasida faoliyat yurituvchi hamkorlarimiz." },
 ]
 
-const partners = [
-  "UZ-GROW", "AGRO MARKET", "Syngenta", "BAYER", "CORTEVA",
-  "YARA", "avgust", "JOHN DEERE", "CASE IH", "MASSEY FERGUSON",
-  "FMC", "ADAMA", "BASF", "VALLEY", "NETAFIM",
-]
-
 const benefits = [
   { icon: I.handshake, t: "O'zaro manfaatli", d: "Win-win strategiyasiga asoslangan hamkorlik." },
   { icon: I.shield, t: "Ishonch va sifat", d: "Yuqori standartlar va ishonchli aloqalar." },
@@ -62,17 +56,20 @@ function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "
   )
 }
 
-const rev = [...partners].reverse()
-const marqueeRows = [
-  { items: partners.slice(0, 8), dir: "left" as const, duration: "34s" },
-  { items: partners.slice(7, 15), dir: "right" as const, duration: "42s" },
-  { items: rev.slice(0, 8), dir: "left" as const, duration: "50s" },
-  { items: rev.slice(7, 15), dir: "right" as const, duration: "38s" },
-  { items: partners.slice(3, 11), dir: "left" as const, duration: "46s" },
-  { items: rev.slice(3, 11), dir: "right" as const, duration: "54s" },
-]
-
 function BrandCarousel() {
+  const [livePartners, setLivePartners] = useState<string[]>(partners)
+  useEffect(() => {
+    api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
+      if (d.partners?.length) setLivePartners(d.partners.map((p) => p.name))
+    }).catch(() => {})
+  }, [])
+  const rev = [...livePartners].reverse()
+  const mid = Math.ceil(livePartners.length / 2)
+  const marqueeRows = [
+    { items: livePartners.slice(0, mid), dir: "left" as const, duration: "34s" },
+    { items: livePartners.slice(mid), dir: "right" as const, duration: "42s" },
+    { items: rev.slice(0, mid), dir: "left" as const, duration: "50s" },
+  ]
   return (
     <div className="marquee-track absolute inset-0 flex flex-col justify-center gap-3 py-4">
       {marqueeRows.map((r, i) => (
@@ -136,11 +133,26 @@ function Hero() {
 }
 
 function StatsRow() {
+  const [liveStats, setLiveStats] = useState(stats)
+  useEffect(() => {
+    api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
+      if (d.partners?.length) {
+        const spheres = new Set(d.partners.map((p) => p.sphere))
+        setLiveStats([
+          { icon: I.users, v: `${d.partners.length}+`, l: "Faol hamkorlar" },
+          { icon: I.building, v: `${spheres.size}+`, l: "Yo'nalishlar" },
+          { icon: I.handshake, v: `${d.partners.length}+`, l: "Strategik hamkorlar" },
+          { icon: I.globe, v: "1M+", l: "Birgalikda qamrov" },
+          { icon: I.star, v: "5+", l: "Yillik tajriba" },
+        ])
+      }
+    }).catch(() => {})
+  }, [])
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
         <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
-          {stats.map((s) => (
+          {liveStats.map((s) => (
             <div key={s.l} className="flex items-center gap-3 px-2">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/20 text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
               <div>
