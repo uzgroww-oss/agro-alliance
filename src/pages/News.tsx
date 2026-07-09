@@ -149,6 +149,7 @@ export default function News() {
   }, [data, theme, date])
 
   const pagination = data?.pagination
+  const apiCategories = data?.categories?.length ? data.categories : cats
 
   // featured / side logic – only on first page when there is enough data
 const featured = page === 1 && newsList[0]
@@ -171,7 +172,7 @@ const side = page === 1 && newsList.slice(1, 3)
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
               </div>
             </label>
-            <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => setCat(cats.find((c) => c.label === v)?.key ?? "all")} options={cats.map((c) => c.label)} />
+            <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => setCat(apiCategories.find((c) => c.label === v)?.key ?? "all")} options={apiCategories.map((c) => c.label)} />
             <Select label="Mavzu" value={theme} onChange={setTheme} options={themes} />
             <Select label="Sana" value={date} onChange={setDate} options={dates} />
             <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green/30 bg-white px-5 py-3 text-sm font-bold transition-colors hover:border-green hover:text-green">
@@ -190,7 +191,7 @@ const side = page === 1 && newsList.slice(1, 3)
             <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
               <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">KATEGORIYALAR</h3>
               <ul className="mt-4 space-y-1">
-                {cats.map((c) => {
+                {apiCategories.map((c) => {
                   const active = c.key === cat
                   return (
                     <li key={c.key}>

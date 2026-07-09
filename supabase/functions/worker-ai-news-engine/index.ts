@@ -121,7 +121,7 @@ JSON: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence su
 
       const slug = slugify(titleUz) || "agro-" + Date.now()
       const cat = categories.find((c: any) => c.key === category)
-      const imageUrl = `https://picsum.photos/seed/${encodeURIComponent(imgKw.join(","))}/800/500`
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgKw.join(" "))}?width=800&height=500&nologo=true`
 
       const { error: insErr } = await supabaseAdmin.from("news_articles").insert({
         title: titleUz, slug, excerpt: summaryUz, content: contentUz,
