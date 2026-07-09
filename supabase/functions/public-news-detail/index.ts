@@ -30,6 +30,13 @@ Deno.serve(async (req) => {
     if (error) return errorResponse(error.message, 500)
     if (!article) return cachedJsonResponse({ article: null }, CACHE_TTL)
 
+    // Ko'rish sonini +1 qilish
+    const newViewCount = (article.view_count || 0) + 1
+    await supabaseAdmin
+      .from("news_articles")
+      .update({ view_count: newViewCount })
+      .eq("id", article.id)
+
     const cat = article.category as Record<string, unknown> || {}
     const author = article.author as Record<string, unknown> || {}
     const publishedAt = article.published_at as string || ""
@@ -39,9 +46,9 @@ Deno.serve(async (req) => {
       cat: cat.key || "",
       desc: article.excerpt || "",
       date: formatNewsDate(publishedAt),
-      views: (article.view_count || 0) > 1000
-        ? `${Math.floor((article.view_count as number) / 1000)}K+`
-        : `${article.view_count || 0}`,
+      views: newViewCount > 1000
+        ? `${Math.floor(newViewCount / 1000)}K+`
+        : `${newViewCount}`,
       seed: article.cover_image || "",
       top: article.is_featured || false,
       author: author.name as string || undefined,
