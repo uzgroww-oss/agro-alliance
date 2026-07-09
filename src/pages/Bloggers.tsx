@@ -2,15 +2,11 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, type Blogger } from "../lib/bloggers"
+import { api } from "../lib/api"
 
 const mascot = "/mascot3.webp"
 
-const heroStats = [
-  { icon: I.users, v: "120+", l: "Faol blogerlar" },
-  { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
-  { icon: I.building, v: "5M+", l: "Jami auditoriya" },
-  { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
-]
+type HeroStat = { icon: string; v: string; l: string }
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
   return (
@@ -45,6 +41,17 @@ function Socials() {
 }
 
 function Hero() {
+  const [heroStats, setHeroStats] = useState<HeroStat[]>([])
+  useEffect(() => {
+    api<{ bloggers: { id: string }[]; pagination: { total: number } }>("/public/bloggers?per_page=1").then((d) => {
+      setHeroStats([
+        { icon: I.users, v: `${d.pagination?.total || 0}+`, l: "Faol blogerlar" },
+        { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
+        { icon: I.building, v: "5M+", l: "Jami auditoriya" },
+        { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
+      ])
+    }).catch(() => {})
+  }, [])
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">

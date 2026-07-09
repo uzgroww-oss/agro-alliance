@@ -7,22 +7,8 @@ import Newsletter from "../components/Newsletter"
 
 const mascot = "/mascot.webp"
 
-const defaultHeroCards = [
-  { icon: I.brain, t: "AI ASSISTANT", d: "Sun'iy intellekt yordamchisi kontent, tahlil va g'oyalar bilan yordam beradi." },
-  { icon: I.task, t: "TASK MANAGER", d: "Vazifalarni boshqaring, muddatlar va KPI larni nazorat qiling." },
-  { icon: I.doc, t: "CONTRACT CENTER", d: "Elektron shartnomalar, imzo va xavfsiz hamkorlik." },
-  { icon: I.trophy, t: "BLOGER REYTINGI", d: "Reyting, baholash va o'sish imkoniyatlari." },
-  { icon: I.play, t: "MEDIA MARKETPLACE", d: "Kampaniyalar, reklama va hamkorlik bozori." },
-]
-
-const defaultFeatures = [
-  { icon: I.robot, t: "AI TEXNOLOGIYALAR", d: "AI yordamida kontent yaratish, tahlil qilish va rivojlantirish." },
-  { icon: I.sprout, t: "SMART FARMING", d: "Zamonaviy texnologiyalar va innovatsion yechimlar." },
-  { icon: I.book, t: "BILIM VA TA'LIM", d: "Agro bilimlar, kurslar va professional ta'lim." },
-  { icon: I.media, t: "MEDIA RESURSLAR", d: "Video, maqola, intervyu va foydali kontentlar." },
-  { icon: I.chart, t: "ANALITIKA", d: "Ma'lumotlar tahlili, statistika va samaradorlik o'lchovi." },
-  { icon: I.send, t: "O'SISH VA DAROMAD", d: "Reyting, imkoniyat va daromad manbalari." },
-]
+type HeroCard = { icon: string; t: string; d: string }
+type FeatureCard = { icon: string; t: string; d: string }
 
 const iconMap: Record<string, string> = {
   brain: I.brain, task: I.task, doc: I.doc, trophy: I.trophy, play: I.play,
@@ -34,7 +20,7 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [heroCards, setHeroCards] = useState(defaultHeroCards)
+  const [heroCards, setHeroCards] = useState<HeroCard[]>([])
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const hc = d.sections?.find((s) => s.section_key === "hero_cards")
@@ -74,14 +60,10 @@ function Hero() {
           </Reveal>
           <Reveal delay={240}>
             <div className="mt-9 flex flex-wrap gap-4">
-        <Link to="/kirish" className="inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-          PLATFORMAGA KIRISH
-          <Icon d={I.arrow} className="h-5 w-5" />
-        </Link>
-              <a href="#" className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 bg-white px-7 py-3.5 font-bold text-ink transition-colors hover:border-green hover:text-green">
+              {/* <a href="#" className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 bg-white px-7 py-3.5 font-bold text-ink transition-colors hover:border-green hover:text-green">
                 HAMKOR BO'LISH
                 <Icon d={I.users} className="h-5 w-5" />
-              </a>
+              </a> */}
             </div>
           </Reveal>
         </div>
@@ -115,7 +97,7 @@ function Hero() {
 }
 
 function Features() {
-  const [features, setFeatures] = useState(defaultFeatures)
+  const [features, setFeatures] = useState<FeatureCard[]>([])
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const fc = d.sections?.find((s) => s.section_key === "features")

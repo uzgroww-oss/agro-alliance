@@ -5,17 +5,7 @@ import { api } from "../lib/api"
 
 const mascot = "/mascot.webp"
 
-const defaultCapabilities = [
-  { icon: I.users, t: "CREATOR MARKETPLACE", d: "Agro blogerlar bilan hamkorlik qiling, kampaniyalar yarating va brendingizni rivojlantiring." },
-  { icon: I.robot, t: "AI ASSISTANT", d: "AI yordamchimiz sizga kontent g'oyalari, tahlil, matn yozish va strategiya tuzishda yordam beradi." },
-  { icon: I.doc, t: "CONTRACT CENTER", d: "Xavfsiz shartnomalar tuzing, imzolang va barcha bitimlaringizni bir joyda boshqaring." },
-  { icon: I.chart, t: "ANALYTICS", d: "Kengaytirilgan tahlillar, ko'rsatkichlar va hisobotlar orqali samaradorlikni oshiring." },
-  { icon: I.cap, t: "AGRO ACADEMY", d: "Agro soha bo'yicha bilim oling, kurslar va vebinarlarda qatnashing, malakangizni oshiring." },
-  { icon: I.megaphone, t: "CAMPAIGN MANAGEMENT", d: "Kampaniyalarni rejalashtiring, blogerlarni tanlang, natijalarni kuzating va boshqaring." },
-  { icon: I.task, t: "TASK MANAGER", d: "Vazifalarni yaratish, taqsimlash va bajarilishini nazorat qilish oson va samarali." },
-  { icon: I.media, t: "MEDIA HUB", d: "Barcha video, rasm va kontentlaringizni saqlang, boshqaring va jamoa bilan ulashing." },
-  { icon: I.wallet, t: "TO'LOVLAR VA HISOB-KITOB", d: "Xavfsiz to'lovlar, avtomatik hisob-kitoblar va shaffof moliyaviy boshqaruv tizimi." },
-]
+type Capability = { icon: string; t: string; d: string }
 
 const iconMap: Record<string, string> = { users: I.users, robot: I.robot, doc: I.doc, chart: I.chart, cap: I.cap, megaphone: I.megaphone, task: I.task, media: I.media, wallet: I.wallet, brain: I.brain, sprout: I.sprout, book: I.book, building: I.building, shield: I.shield, globe: I.globe, leaf: I.leaf, trophy: I.trophy, play: I.play }
 
@@ -23,7 +13,7 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [capabilities, setCapabilities] = useState(defaultCapabilities)
+  const [capabilities, setCapabilities] = useState<Capability[]>([])
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const cc = d.sections?.find((s) => s.section_key === "capabilities")

@@ -9,28 +9,10 @@ type PartnerStats = { total: number; countries: number; strategic: number; cover
 
 const mascot = "/mascot-partners.webp"
 
-const stats = [
-  { icon: I.users, v: "200+", l: "Faol hamkorlar" },
-  { icon: I.building, v: "15+", l: "Mamlakatlarda hamkorlik" },
-  { icon: I.handshake, v: "50+", l: "Strategik hamkorlar" },
-  { icon: I.globe, v: "1M+", l: "Birgalikda qamrov" },
-  { icon: I.star, v: "5+", l: "Yillik tajriba" },
-]
+type DirectionItem = { icon: string; t: string; d: string }
+type BenefitItem = { icon: string; t: string; d: string }
 
-const directions = [
-  { icon: I.sprout, t: "Agro texnologiyalar", d: "Zamonaviy agro texnologiya yechimlarini joriy etish va ishlab chiqaruvchilar bilan hamkorlik." },
-  { icon: I.shield, t: "O'g'it va himoya vositalari", d: "Yuqori sifatli o'g'itlar, urug'lar va o'simliklarni himoya qilish vositalari yetkazib beruvchilar." },
-  { icon: I.tractor, t: "Qishloq xo'jaligi texnikasi", d: "Zamonaviy qishloq xo'jaligi texnikalari va uskunalarni yetkazib beruvchi kompaniyalar." },
-  { icon: I.cap, t: "Ta'lim va konsultatsiya", d: "Agro soha bo'yicha ta'lim, trening va konsultatsiya xizmatlarini ko'rsatuvchi tashkilotlar." },
-  { icon: I.megaphone, t: "Media va marketing", d: "Marketing, reklama, PR va media sohasida faoliyat yurituvchi hamkorlarimiz." },
-]
-
-const benefits = [
-  { icon: I.handshake, t: "O'zaro manfaatli", d: "Win-win strategiyasiga asoslangan hamkorlik." },
-  { icon: I.shield, t: "Ishonch va sifat", d: "Yuqori standartlar va ishonchli aloqalar." },
-  { icon: I.globe, t: "Keng qamrov", d: "Katta auditoriya va keng imkoniyatlar." },
-  { icon: I.sprout, t: "Innovatsion yondashuv", d: "Yangi g'oyalar va zamonaviy yechimlar bilan ishlash." },
-]
+const iconMap: Record<string, string> = { sprout: I.sprout, shield: I.shield, tractor: I.tractor, cap: I.cap, megaphone: I.megaphone, handshake: I.handshake, globe: I.globe, users: I.users, building: I.building, star: I.star }
 
 function BrandChip({ name }: { name: string }) {
   return (
@@ -168,6 +150,15 @@ function StatsRow() {
 }
 
 function Directions() {
+  const [items, setItems] = useState<DirectionItem[]>([])
+  useEffect(() => {
+    api<{ sections: { section_key: string; items: { icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections").then((d) => {
+      const sec = d.sections?.find((s) => s.section_key === "partner_directions")
+      if (sec?.items?.length) {
+        setItems(sec.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
+      }
+    }).catch(() => {})
+  }, [])
   return (
     <section id="yonalishlar" className="mx-auto max-w-[1320px] px-5 py-14 lg:px-8">
       <Reveal>
@@ -182,19 +173,21 @@ function Directions() {
           </p>
         </div>
       </Reveal>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {directions.map((c, i) => (
-          <Reveal key={c.t} delay={(i % 5) * 70}>
-            <div className="group h-full rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
-              <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
-                <Icon d={c.icon} className="h-8 w-8" />
-              </span>
-              <h3 className="mt-5 font-display font-bold">{c.t}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{c.d}</p>
-            </div>
-          </Reveal>
-        ))}
-      </div>
+      {items.length > 0 && (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {items.map((c, i) => (
+            <Reveal key={c.t} delay={(i % 5) * 70}>
+              <div className="group h-full rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
+                <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
+                  <Icon d={c.icon} className="h-8 w-8" />
+                </span>
+                <h3 className="mt-5 font-display font-bold">{c.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{c.d}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

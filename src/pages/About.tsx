@@ -5,19 +5,8 @@ import { api } from "../lib/api"
 
 const mascot = "/mascot2.webp"
 
-const defaultPillars = [
-  { icon: I.target, t: "MISSIYAMIZ", type: "text" as const, body: "Agro soha uchun sifatli media kontent yaratish, agro blogerlarni qo'llab-quvvatlash, fermerlar va kompaniyalar o'rtasida ishonchli ko'prik bo'lish." },
-  { icon: I.eye, t: "VIZYONIMIZ", type: "text" as const, body: "Markaziy Osiyodagi eng yirik agro media ekotizimiga aylanish va global miqyosda qishloq xo'jaligi rivojiga hissa qo'shish." },
-  { icon: I.gem, t: "QADRIYATLARIMIZ", type: "list" as const, items: ["Ishonchlilik va halollik", "Innovatsiya va texnologiya", "Sifatli kontent", "Hamkorlik va rivojlanish"] },
-]
-
-const defaultTeam = [
-  { name: "Jasur Xolmirzayev", role: "Asoschi & CEO", img: 12 },
-  { name: "Akmal To'raqulov", role: "Operatsion direktor", img: 33 },
-  { name: "Otabek Karimov", role: "Media direktor", img: 51 },
-  { name: "Malika Sodiqova", role: "Marketing direktor", img: 47 },
-  { name: "Abdulloh Yo'ldoshev", role: "Texnologiya direktori", img: 60 },
-]
+type Pillar = { icon: string; t: string; type: "text" | "list"; body?: string; items?: string[] }
+type TeamMember = { name: string; role: string; img: number }
 
 const iconMap: Record<string, string> = { target: I.target, eye: I.eye, gem: I.gem, check: I.check, brain: I.brain, task: I.task, doc: I.doc, trophy: I.trophy, play: I.play, robot: I.robot, sprout: I.sprout, book: I.book, media: I.media, chart: I.chart, send: I.send, building: I.building, shield: I.shield, users: I.users, globe: I.globe, leaf: I.leaf }
 
@@ -25,8 +14,8 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [pillars, setPillars] = useState(defaultPillars)
-  const [team, setTeam] = useState(defaultTeam)
+  const [pillars, setPillars] = useState<Pillar[]>([])
+  const [team, setTeam] = useState<TeamMember[]>([])
 
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
