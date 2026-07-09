@@ -39,7 +39,7 @@ function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "
 }
 
 function BrandCarousel() {
-  const [livePartners, setLivePartners] = useState<string[]>(partners)
+  const [livePartners, setLivePartners] = useState<string[]>([])
   useEffect(() => {
     api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
       if (d.partners?.length) setLivePartners(d.partners.map((p) => p.name))
@@ -197,7 +197,7 @@ function PartnerLogos() {
   useEffect(() => {
     api<{ partners: LivePartner[] }>("/public/partners").then((d) => setLivePartners(d.partners)).catch(() => {})
   }, [])
-  const list = livePartners.length > 0 ? livePartners : partners.map((p) => ({ name: p, slug: p.toLowerCase(), sphere: "", logo: null, direction: "" }))
+  const list = livePartners.length > 0 ? livePartners : []
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
