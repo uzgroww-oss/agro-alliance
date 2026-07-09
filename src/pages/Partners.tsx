@@ -115,7 +115,7 @@ function Hero() {
 }
 
 function StatsRow() {
-  const [liveStats, setLiveStats] = useState(stats)
+  const [liveStats, setLiveStats] = useState<Array<{ icon: string; v: string; l: string }>>([])
   useEffect(() => {
     api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
       if (d.partners?.length) {
