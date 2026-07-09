@@ -174,7 +174,7 @@ export default function Login() {
               </button>
             </div>
 
-            <p className="mt-6 text-center text-sm text-muted">
+            <p className="mt-6 text-center text-xs text-muted">
               <Icon d={I.shield} className="inline h-4 w-4 text-green" /> Ma'lumotlaringiz xavfsiz va himoyalangan
             </p>
           </div>
