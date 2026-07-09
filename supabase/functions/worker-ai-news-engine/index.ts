@@ -93,9 +93,9 @@ JSON: [{"idx":1,"title":"title","description":"summary","source":"source","link"
       const { data: ex } = await supabaseAdmin.from("news_articles").select("id").eq("ai_source_fingerprint", fp).is("deleted_at", null).maybeSingle()
       if (ex) continue
 
-      let titleUz: string, contentUz: string, summaryUz: string, tags: string[], category: string, imgKw: string[]
+      let titleUz: string, contentUz: string, summaryUz: string, tags: string[], category: string, imgPrompt: string
       try {
-        const tr = await groqJson<{ t: string; c: string; s: string; tags: string[]; cat: string; img: string[] }>(
+        const tr = await groqJson<{ t: string; c: string; s: string; tags: string[]; cat: string; img_prompt: string }>(
           `Translate this agricultural news to Uzbek language. Return ONLY valid JSON, no other text.
 
 Title: ${s.title}
@@ -103,25 +103,26 @@ Desc: ${s.description.substring(0, 300)}
 
 Choose ONE category: "texnologiya", "qishloq", "bozor", "davlat", "innovatsiya", "ekologiya", "tadqiqotlar", or "xalqaro"
 
-JSON: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence summary","tags":["tag1","tag2"],"cat":"choose one","img":["keyword1","keyword2"]}`,
+For img_prompt: Write a detailed 1-2 sentence English description of what a realistic photo for this article should show. Be specific about the scene, objects, colors, lighting. Example: "A modern precision agriculture drone flying over green wheat fields at golden hour, photorealistic"
+
+JSON: {"t":"Uzbek title","c":"<p>Uzbek article 150 words</p>","s":"2 sentence summary","tags":["tag1","tag2"],"cat":"choose one","img_prompt":"detailed English image description"}`,
           { temperature: 0.7, maxTokens: 1024, retries: 1 },
         )
         titleUz = tr.t; contentUz = tr.c; summaryUz = tr.s
         tags = (tr.tags || ["agro"]).slice(0, 5)
-        // Clean category: take first valid key
         const validCats = ["texnologiya", "qishloq", "bozor", "davlat", "innovatsiya", "ekologiya", "tadqiqotlar", "xalqaro"]
         const rawCat = (tr.cat || "xalqaro").split("|")[0].trim().toLowerCase()
         category = validCats.includes(rawCat) ? rawCat : "xalqaro"
-        imgKw = (tr.img || ["agriculture"]).map((w) => w.replace(/[^a-zA-Z]/g, "").toLowerCase()).filter(Boolean).slice(0, 3)
+        imgPrompt = tr.img_prompt || "agricultural farm landscape with green fields and blue sky, photorealistic"
       } catch (e) {
         console.log(`Translation error [${i}]:`, (e as Error).message)
         titleUz = s.title; contentUz = `<p>${s.description}</p>`; summaryUz = s.description.substring(0, 200)
-        tags = ["agro"]; category = "xalqaro"; imgKw = ["agriculture"]
+        tags = ["agro"]; category = "xalqaro"; imgPrompt = "agricultural farm with green crops and modern equipment, photorealistic"
       }
 
       const slug = slugify(titleUz) || "agro-" + Date.now()
       const cat = categories.find((c: any) => c.key === category)
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgKw.join(" "))}?width=800&height=500&nologo=true`
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgPrompt)}?width=800&height=500&nologo=true`
 
       const { error: insErr } = await supabaseAdmin.from("news_articles").insert({
         title: titleUz, slug, excerpt: summaryUz, content: contentUz,
