@@ -228,11 +228,6 @@ function Overview({ me, reload }: { me: User; reload: () => void }) {
   return (
     <>
       <h1 className="font-display text-2xl font-extrabold tracking-tight">Bloger Dashboard</h1>
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <ProfileCard me={me} reload={reload} />
-        <SocialsCard me={me} reload={reload} />
-      </div>
-
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((s) => (
           <div key={s.t} className={card.replace("p-6", "p-5")}>
@@ -243,7 +238,10 @@ function Overview({ me, reload }: { me: User; reload: () => void }) {
           </div>
         ))}
       </div>
-
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <ProfileCard me={me} reload={reload} />
+        <SocialsCard me={me} reload={reload} />
+      </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <VideosCard me={me} reload={reload} />
         <div className={card}>
@@ -251,6 +249,36 @@ function Overview({ me, reload }: { me: User; reload: () => void }) {
           <div className="mt-4 space-y-2.5">{quickActions.map((a) => <button key={a.t} className="flex w-full items-center gap-3 rounded-xl border border-green/10 bg-[#fafdf7] px-4 py-3 text-sm font-semibold transition-colors hover:border-green/30 hover:bg-soft"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-green shadow-sm"><Icon d={a.icon} className="h-4 w-4" /></span>{a.t}<Icon d={I.chevRight} className="ml-auto h-4 w-4 text-muted" /></button>)}</div>
         </div>
       </div>
+    </>
+  )
+}
+
+function ProfileTab({ me, reload }: { me: User; reload: () => void }) {
+  return (
+    <>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">Profilim</h1>
+      <p className="mt-1 text-sm text-muted">Shaxsiy ma'lumotlaringizni tahrirlang.</p>
+      <div className="mt-6"><ProfileCard me={me} reload={reload} /></div>
+    </>
+  )
+}
+
+function SocialsTab({ me, reload }: { me: User; reload: () => void }) {
+  return (
+    <>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">Ijtimoiy tarmoqlar</h1>
+      <p className="mt-1 text-sm text-muted">Ijtimoiy tarmoq akkauntlaringizni boshqaring.</p>
+      <div className="mt-6"><SocialsCard me={me} reload={reload} /></div>
+    </>
+  )
+}
+
+function VideosTab({ me, reload }: { me: User; reload: () => void }) {
+  return (
+    <>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">Videolarim</h1>
+      <p className="mt-1 text-sm text-muted">Joylangan videolaringizni boshqaring.</p>
+      <div className="mt-6"><VideosCard me={me} reload={reload} /></div>
     </>
   )
 }
@@ -444,6 +472,9 @@ export default function BloggerDashboard() {
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: "Blogger", initials }}>
       {!me ? <div className="grid min-h-[60vh] place-items-center text-muted">Yuklanmoqda…</div>
         : active === "Dashboard" ? <Overview me={me} reload={reload} />
+        : active === "Profilim" ? <ProfileTab me={me} reload={reload} />
+        : active === "Ijtimoiy tarmoqlar" ? <SocialsTab me={me} reload={reload} />
+        : active === "Videolar" ? <VideosTab me={me} reload={reload} />
         : active === "Xizmatlar" ? <ServicesTab />
         : active === "Hududlar" ? <RegionsTab />
         : active === "Yo'nalishlar" ? <SpecializationsTab />
