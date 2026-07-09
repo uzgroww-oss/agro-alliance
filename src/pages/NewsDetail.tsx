@@ -85,7 +85,7 @@ export default function NewsDetail() {
         <Reveal delay={120}>
           <div className="mt-7 space-y-5 text-[17px] leading-relaxed text-ink/80">
             <p className="text-lg font-medium text-ink">{article.desc}</p>
-            {article.body.map((p, i) => <p key={i}>{p}</p>)}
+            <div dangerouslySetInnerHTML={{ __html: article.body.join("") }} />
           </div>
         </Reveal>
 

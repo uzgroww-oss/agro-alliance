@@ -33,8 +33,6 @@ Deno.serve(async (req) => {
     const cat = article.category as Record<string, unknown> || {}
     const author = article.author as Record<string, unknown> || {}
     const publishedAt = article.published_at as string || ""
-    const content = (article.content as string || "").split("\n\n")
-
     const result = {
       slug: article.slug,
       title: article.title,
@@ -47,7 +45,7 @@ Deno.serve(async (req) => {
       seed: article.cover_image || "",
       top: article.is_featured || false,
       author: author.name as string || undefined,
-      body: content,
+      body: [article.content || ""],
     }
 
     return cachedJsonResponse({ article: result }, CACHE_TTL)

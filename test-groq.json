@@ -1,0 +1,11 @@
+{
+  "model": "llama-3.1-8b-instant",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Sen professional agro yangilik jurnalistisan. Quyidagi maqolani O'ZBEK tiliga lotin TO'LIQ tarjima qil. Sarlavha: 10-20 so'z, matn: 3-4 paragraf 200+ so'z, xulosa: 2-3 jumla. Teglar: o'zbekcha. Return ONLY valid JSON.\n\nAsl maqola: 9 Ways Collaboration Is Accelerating Innovation Across AgTech\nAgricultural technology companies are collaborating more than ever.\n\nJSON: {\"t\":\"sarlavha\",\"c\":\"<p>paragraf</p>\",\"s\":\"xulosa\",\"tags\":[\"teg\"],\"cat\":\"texnologiya\"}"
+    }
+  ],
+  "max_tokens": 1000,
+  "temperature": 0.7
+}

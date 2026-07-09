@@ -78,7 +78,10 @@ export async function groqJson<T = unknown>(
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<T> {
   const { text } = await groqChat(prompt, opts);
-  const cleaned = text
+  // Try to extract JSON from the response
+  const jsonMatch = text.match(/\[[\s\S]*\]/) || text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in Groq response");
+  const cleaned = jsonMatch[0]
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
