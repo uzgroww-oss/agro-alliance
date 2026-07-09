@@ -12,6 +12,13 @@ const mascot = "/mascot-partners.webp"
 type DirectionItem = { icon: string; t: string; d: string }
 type BenefitItem = { icon: string; t: string; d: string }
 
+const benefits: BenefitItem[] = [
+  { icon: I.handshake, t: "O'zaro manfaatli", d: "Win-win strategiyasiga asoslangan hamkorlik." },
+  { icon: I.shield, t: "Ishonch va sifat", d: "Yuqori standartlar va ishonchli aloqalar." },
+  { icon: I.globe, t: "Keng qamrov", d: "Katta auditoriya va keng imkoniyatlar." },
+  { icon: I.sprout, t: "Innovatsion yondashuv", d: "Yangi g'oyalar va zamonaviy yechimlar bilan ishlash." },
+]
+
 const iconMap: Record<string, string> = { sprout: I.sprout, shield: I.shield, tractor: I.tractor, cap: I.cap, megaphone: I.megaphone, handshake: I.handshake, globe: I.globe, users: I.users, building: I.building, star: I.star }
 
 function BrandChip({ name }: { name: string }) {
