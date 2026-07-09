@@ -673,6 +673,8 @@ function AdminSettings() {
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const [engineBusy, setEngineBusy] = useState(false)
+  const [engineResult, setEngineResult] = useState("")
 
   const load = () => {
     setLoading(true)
@@ -689,6 +691,23 @@ function AdminMonitoring() {
     load()
   }
 
+  const runEngine = async () => {
+    setEngineBusy(true)
+    setEngineResult("")
+    try {
+      const d = await api<{ published: number; target: number; fetched: number; results: string[] }>(
+        "/ai-news-engine",
+        { method: "POST" }
+      )
+      setEngineResult(`✅ ${d.published} ta yangilik yaratildi (${d.fetched} ta manbadan). Kunlik target: ${d.target}`)
+      load()
+    } catch (e: any) {
+      setEngineResult(`❌ Xatolik: ${e?.message || "Noma'lum xatolik"}`)
+    } finally {
+      setEngineBusy(false)
+    }
+  }
+
   const statusColor: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-700",
     processing: "bg-blue-100 text-blue-700",
@@ -703,10 +722,18 @@ function AdminMonitoring() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Monitoring</h2>
           <p className="mt-1 text-sm text-muted">Worker'lar, queue'lar va tizim holati.</p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
-        </button>
+        <div className="flex gap-2">
+          <button onClick={runEngine} disabled={engineBusy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+            <Icon d={I.bolt} className="h-4 w-4" /> {engineBusy ? "Yuklanmoqda…" : "AI Yangiliklar Yig'ish"}
+          </button>
+          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+            <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+          </button>
+        </div>
       </div>
+      {engineResult && (
+        <div className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${engineResult.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{engineResult}</div>
+      )}
 
       {/* Queue Stats */}
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
