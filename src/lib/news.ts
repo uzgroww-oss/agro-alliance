@@ -28,7 +28,11 @@ export const newsCatLabel = (k: string) => cats.find((c) => c.key === k)?.label 
 
 export const themes = ["Barchasi", "Sug'orish", "Texnika", "Eksport", "Subsidiya", "Iqlim"]
 export const dates = ["Barchasi", "Bugun", "Bu hafta", "Bu oy", "Bu yil"]
-export const newsImg = (seed: string, w = 640, h = 400) => `https://picsum.photos/seed/${seed}/${w}/${h}`
+export const newsImg = (seed: string, w = 640, h = 400) => {
+  if (!seed) return `https://picsum.photos/seed/agro-default/${w}/${h}`
+  if (seed.startsWith("http")) return seed
+  return `https://picsum.photos/seed/${seed}/${w}/${h}`
+}
 
 /* Live API loaders — empty fallbacks when API is unavailable */
 import { api } from "./api"

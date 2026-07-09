@@ -2,17 +2,14 @@ const ALLOWED_ORIGINS = [
   "https://agroalliance.uz",
   "https://www.agroalliance.uz",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://localhost:3001",
 ]
 
-function getAllowedOrigin(req: Request): string {
-  const origin = req.headers.get("Origin") ?? ""
-  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
-}
-
 export function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "*"
   return {
-    "Access-Control-Allow-Origin": getAllowedOrigin(req),
+    "Access-Control-Allow-Origin": origin === "" ? "*" : origin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-application-name",

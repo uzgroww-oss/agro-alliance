@@ -224,7 +224,7 @@ function TopBloggers() {
       </Reveal>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {bloggers.map((b, i) => (
-          <Reveal key={b.id} delay={(i % 3) * 80}>
+          <Reveal key={b.id || `blogger-${i}`} delay={(i % 3) * 80}>
             <Link to={`/blogerlar/${b.id}`} className="group flex items-center gap-4 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
               {b.avatar ? <img src={b.avatar} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover ring-4 ring-soft" /> : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xl font-bold text-green">{b.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>}
               <div className="min-w-0">

@@ -283,7 +283,9 @@ const side = page === 1 && newsList.slice(1, 3)
                   <div className="rounded-2xl border border-green/10 bg-white py-20 text-center text-muted">Hech narsa topilmadi.</div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                    {newsList.map((n, i) => (
+                    {newsList
+                      .filter((n) => !(page === 1 && (n === newsList[0] || n === newsList[1] || n === newsList[2])))
+                      .map((n, i) => (
                       <Reveal key={n.slug} delay={(i % 3) * 70}><NewsCard n={n} /></Reveal>
                     ))}
                   </div>
