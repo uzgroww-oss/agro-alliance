@@ -11,7 +11,12 @@ const nav = [
   { label: "Bloggerlar", icon: I.users },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
+  { label: "Kategoriyalar", icon: I.grid },
+  { label: "Bosh sahifa", icon: I.dashboard },
   { label: "Manbalar", icon: I.globe },
+  { label: "Foydalanuvchilar", icon: I.users },
+  { label: "Xabarlar", icon: I.doc },
+  { label: "Obunachilar", icon: I.users },
   { label: "Statistika", icon: I.chart },
   { label: "Sozlamalar", icon: I.gear },
   { label: "Monitoring", icon: I.chart },
@@ -849,15 +854,468 @@ function AdminNewsSources() {
   )
 }
 
+/* ---------- Users Management ---------- */
+type AdminUser = { id: string; email: string; name: string; role: string; status: string; created_at: string }
+
+function AdminUsers() {
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ users: AdminUser[] }>("/users")
+      .then((d) => setUsers(d.users || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggleStatus = async (u: AdminUser) => {
+    const newStatus = u.status === "active" ? "suspended" : "active"
+    await api(`/users/${u.id}`, { method: "PATCH", body: JSON.stringify({ status: newStatus }) })
+    load()
+  }
+
+  const roleColors: Record<string, string> = {
+    super_admin: "bg-green/10 text-green",
+    admin: "bg-blue-100 text-blue-600",
+    editor: "bg-purple-100 text-purple-600",
+    blogger: "bg-orange-100 text-orange-600",
+    company: "bg-cyan-100 text-cyan-600",
+    user: "bg-slate-100 text-slate-500",
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Foydalanuvchilar</h2>
+          <p className="mt-1 text-sm text-muted">Barcha ro'yxatdan o'tgan foydalanuvchilar.</p>
+        </div>
+        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        </button>
+      </div>
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {!loading && users.length === 0 && <div className="py-8 text-center text-muted">Foydalanuvchilar topilmadi.</div>}
+        {!loading && users.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold">Foydalanuvchi</th>
+                  <th className="pb-3 font-semibold">Rol</th>
+                  <th className="pb-3 font-semibold">Holat</th>
+                  <th className="pb-3 font-semibold">Ro'yxatdan o'tgan</th>
+                  <th className="pb-3 font-semibold">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-t border-green/8 text-sm">
+                    <td className="py-3 pr-3">
+                      <span className="flex items-center gap-2.5">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xs font-bold text-green">{(u.name || u.email)[0]?.toUpperCase()}</span>
+                        <span><span className="block font-semibold">{u.name || "—"}</span><span className="block text-xs text-muted">{u.email}</span></span>
+                      </span>
+                    </td>
+                    <td className="py-3 pr-3"><span className={`rounded-md px-2 py-1 text-[11px] font-bold ${roleColors[u.role] || "bg-slate-100 text-slate-500"}`}>{u.role}</span></td>
+                    <td className="py-3 pr-3">
+                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${u.status === "active" ? "bg-green/10 text-green" : "bg-red-100 text-red-500"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${u.status === "active" ? "bg-green" : "bg-red-500"}`} />
+                        {u.status === "active" ? "Faol" : "To'xtatilgan"}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-3 text-muted text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("uz") : "—"}</td>
+                    <td className="py-3">
+                      <button onClick={() => toggleStatus(u)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
+                        {u.status === "active" ? "To'xtatish" : "Faollashtirish"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Contacts Management ---------- */
+type ContactMessage = { id: string; name: string; email: string; phone: string; subject: string; message: string; is_read: boolean; created_at: string }
+
+function AdminContacts() {
+  const [messages, setMessages] = useState<ContactMessage[]>([])
+  const [loading, setLoading] = useState(false)
+  const [selected, setSelected] = useState<ContactMessage | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api<{ messages: ContactMessage[] }>("/messages")
+      .then((d) => setMessages(d.messages || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const markRead = async (m: ContactMessage) => {
+    setSelected(m)
+    if (!m.is_read) {
+      await api(`/messages/${m.id}`, { method: "PATCH" })
+      setMessages((prev) => prev.map((msg) => msg.id === m.id ? { ...msg, is_read: true } : msg))
+    }
+  }
+
+  const remove = async (id: string) => {
+    if (!confirm("Xabarni o'chirishni tasdiqlaysizmi?")) return
+    await api(`/messages/${id}`, { method: "DELETE" })
+    setSelected(null)
+    load()
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Aloqa xabarlari</h2>
+          <p className="mt-1 text-sm text-muted">Foydalanuvchilardan kelgan xabarlar.</p>
+        </div>
+        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        </button>
+      </div>
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {!loading && messages.length === 0 && <div className="py-8 text-center text-muted">Xabarlar yo'q.</div>}
+        {!loading && messages.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold">Yuboruvchi</th>
+                  <th className="pb-3 font-semibold">Mavzu</th>
+                  <th className="pb-3 font-semibold">Holat</th>
+                  <th className="pb-3 font-semibold">Sana</th>
+                  <th className="pb-3 font-semibold">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {messages.map((m) => (
+                  <tr key={m.id} className={`border-t border-green/8 text-sm ${!m.is_read ? "bg-green/3" : ""}`}>
+                    <td className="py-3 pr-3"><span className="font-semibold">{m.name}</span> <span className="text-xs text-muted">({m.email})</span></td>
+                    <td className="py-3 pr-3 text-muted">{m.subject || "—"}</td>
+                    <td className="py-3 pr-3">
+                      <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${m.is_read ? "bg-slate-100 text-slate-500" : "bg-green/10 text-green"}`}>{m.is_read ? "O'qilgan" : "Yangi"}</span>
+                    </td>
+                    <td className="py-3 pr-3 text-muted text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString("uz") : "—"}</td>
+                    <td className="py-3 flex gap-1.5">
+                      <button onClick={() => markRead(m)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">Ko'rish</button>
+                      <button onClick={() => remove(m.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {selected && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setSelected(null)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-lg font-bold">{selected.subject || "Xabar"}</h3>
+              <button onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-soft"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-3 text-sm text-muted">Yuboruvchi: <strong>{selected.name}</strong> ({selected.email})</div>
+            {selected.phone && <div className="mt-1 text-sm text-muted">Telefon: {selected.phone}</div>}
+            <div className="mt-4 rounded-xl bg-soft p-4 text-sm leading-relaxed whitespace-pre-wrap">{selected.message}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------- Subscribers Management ---------- */
+type Subscriber = { id: string; email: string; is_active: boolean; created_at: string }
+
+function AdminSubscribers() {
+  const [subs, setSubs] = useState<Subscriber[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ subscribers: Subscriber[] }>("/subscribers")
+      .then((d) => setSubs(d.subscribers || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const remove = async (id: string) => {
+    if (!confirm("Obunachini o'chirishni tasdiqlaysizmi?")) return
+    await api(`/subscribers/${id}`, { method: "DELETE" })
+    load()
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Obunachilar</h2>
+          <p className="mt-1 text-sm text-muted">Newsletter obunachilari ro'yxati.</p>
+        </div>
+        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        </button>
+      </div>
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {!loading && subs.length === 0 && <div className="py-8 text-center text-muted">Obunachilar yo'q.</div>}
+        {!loading && subs.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold">Email</th>
+                  <th className="pb-3 font-semibold">Holat</th>
+                  <th className="pb-3 font-semibold">Obuna bo'lgan</th>
+                  <th className="pb-3 font-semibold">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subs.map((s) => (
+                  <tr key={s.id} className="border-t border-green/8 text-sm">
+                    <td className="py-3 pr-3 font-semibold">{s.email}</td>
+                    <td className="py-3 pr-3">
+                      <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${s.is_active ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>{s.is_active ? "Faol" : "Nofaol"}</span>
+                    </td>
+                    <td className="py-3 pr-3 text-muted text-xs">{s.created_at ? new Date(s.created_at).toLocaleDateString("uz") : "—"}</td>
+                    <td className="py-3">
+                      <button onClick={() => remove(s.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Categories Management ---------- */
+type NewsCategory = { id: string; key: string; name_uz: string; name_ru: string; name_en: string; is_active: boolean }
+
+function AdminCategories() {
+  const [cats, setCats] = useState<NewsCategory[]>([])
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState("")
+  const blank = { key: "", name_uz: "", name_ru: "", name_en: "" }
+  const [form, setForm] = useState(blank)
+
+  const load = () => api<{ categories: NewsCategory[] }>("/categories").then((d) => setCats(d.categories || [])).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); setError("")
+    if (!form.key.trim() || !form.name_uz.trim()) { setError("Kalit va nomi majburiy"); return }
+    try {
+      await api("/categories", { method: "POST", body: JSON.stringify(form) })
+      setForm(blank); setAdding(false); load()
+    } catch (err: any) { setError(err?.message || "Xatolik") }
+  }
+  const remove = async (id: string) => {
+    if (!confirm("Kategoriyani o'chirishni tasdiqlaysizmi?")) return
+    await api(`/categories/${id}`, { method: "DELETE" }); load()
+  }
+  const toggle = async (c: NewsCategory) => {
+    await api(`/categories/${c.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !c.is_active }) })
+    load()
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Kategoriyalar</h2>
+          <p className="mt-1 text-sm text-muted">Yangiliklar kategoriyalarini boshqarish.</p>
+        </div>
+        <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+          <Icon d={I.plus} className="h-4 w-4" /> Yangi kategoriya
+        </button>
+      </div>
+      {adding && (
+        <form onSubmit={add} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
+          {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <input value={form.key} onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))} placeholder="Kalit (masalan: texnologiya)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.name_uz} onChange={(e) => setForm((f) => ({ ...f, name_uz: e.target.value }))} placeholder="Nomi (uz)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.name_ru} onChange={(e) => setForm((f) => ({ ...f, name_ru: e.target.value }))} placeholder="Nomi (ru)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Nomi (en)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Qo'shish</button>
+          </div>
+        </form>
+      )}
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                <th className="pb-3 font-semibold">Kalit</th>
+                <th className="pb-3 font-semibold">Nomi (uz)</th>
+                <th className="pb-3 font-semibold">Nomi (ru)</th>
+                <th className="pb-3 font-semibold">Nomi (en)</th>
+                <th className="pb-3 font-semibold">Holat</th>
+                <th className="pb-3 font-semibold">Amallar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cats.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
+              {cats.map((c) => (
+                <tr key={c.id} className="border-t border-green/8 text-sm">
+                  <td className="py-3 pr-3 font-mono text-xs text-muted">{c.key}</td>
+                  <td className="py-3 pr-3 font-semibold">{c.name_uz}</td>
+                  <td className="py-3 pr-3 text-muted">{c.name_ru}</td>
+                  <td className="py-3 pr-3 text-muted">{c.name_en}</td>
+                  <td className="py-3 pr-3">
+                    <button onClick={() => toggle(c)}>
+                      {c.is_active
+                        ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Faol</span>
+                        : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Nofaol</span>}
+                    </button>
+                  </td>
+                  <td className="py-3">
+                    <button onClick={() => remove(c.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Homepage Management ---------- */
+type HomepageSection = { id: string; section_key: string; title: string; is_visible: boolean; items: HomepageItem[] }
+type HomepageItem = { id: string; section_id: string; title: string; subtitle: string; value: string; icon: string; image_url: string; sort_order: number; is_visible: boolean }
+
+function AdminHomepage() {
+  const [sections, setSections] = useState<HomepageSection[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ sections: HomepageSection[] }>("/homepage")
+      .then((d) => setSections(d.sections || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggleSection = async (s: HomepageSection) => {
+    await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ is_visible: !s.is_visible }) })
+    load()
+  }
+  const toggleItem = async (item: HomepageItem) => {
+    await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ is_visible: !item.is_visible }) })
+    load()
+  }
+  const updateSection = async (s: HomepageSection, title: string) => {
+    await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ title }) })
+  }
+  const updateItem = async (item: HomepageItem, field: string, value: string) => {
+    await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ [field]: value }) })
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Bosh sahifa boshqaruvi</h2>
+          <p className="mt-1 text-sm text-muted">Bosh sahifadagi bo'limlar va elementlarni boshqarish.</p>
+        </div>
+        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        </button>
+      </div>
+      {loading && <div className="mt-5 py-8 text-center text-muted">Yuklanmoqda…</div>}
+      {!loading && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}
+      <div className="mt-5 space-y-4">
+        {sections.map((s) => (
+          <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button onClick={() => toggleSection(s)}>
+                  {s.is_visible
+                    ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Ko'rinadi</span>
+                    : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Yashirin</span>}
+                </button>
+                <div>
+                  <h3 className="font-display font-bold">{s.title || s.section_key}</h3>
+                  <span className="text-xs text-muted">{s.section_key}</span>
+                </div>
+              </div>
+              <span className="text-xs text-muted">{s.items?.length || 0} ta element</span>
+            </div>
+            {s.items && s.items.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {s.items.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+                    <button onClick={() => toggleItem(item)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${item.is_visible ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
+                      {item.is_visible ? "Ko'rinadi" : "Yashirin"}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="block truncate text-sm font-medium">{item.title || item.subtitle || item.value || item.section_id}</span>
+                      {item.subtitle && <span className="block text-xs text-muted">{item.subtitle}</span>}
+                    </div>
+                    {item.icon && <span className="rounded-md bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">{item.icon}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
   const [active, setActive] = useState("Dashboard")
   const { user, logout } = useAuth()
   const nav2 = useNavigate()
   const initials = (user?.name || "AD").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
+
+  const renderSection = () => {
+    switch (active) {
+      case "Dashboard": return <Overview />
+      case "Bloggerlar": return <Bloggers />
+      case "Hamkorlar": return <AdminPartners />
+      case "Yangiliklar": return <AdminNews />
+      case "Kategoriyalar": return <AdminCategories />
+      case "Bosh sahifa": return <AdminHomepage />
+      case "Manbalar": return <AdminNewsSources />
+      case "Foydalanuvchilar": return <AdminUsers />
+      case "Xabarlar": return <AdminContacts />
+      case "Obunachilar": return <AdminSubscribers />
+      case "Statistika": return <StatsEditor />
+      case "Sozlamalar": return <AdminSettings />
+      case "Monitoring": return <AdminMonitoring />
+      default: return <Placeholder title={active} />
+    }
+  }
+
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: "Super Admin", initials }}>
-      {active === "Dashboard" ? <Overview /> : active === "Bloggerlar" ? <Bloggers /> : active === "Hamkorlar" ? <AdminPartners /> : active === "Yangiliklar" ? <AdminNews /> : active === "Manbalar" ? <AdminNewsSources /> : active === "Statistika" ? <StatsEditor /> : active === "Sozlamalar" ? <AdminSettings /> : active === "Monitoring" ? <AdminMonitoring /> : <Placeholder title={active} />}
+      {renderSection()}
     </DashboardLayout>
   )
 }
