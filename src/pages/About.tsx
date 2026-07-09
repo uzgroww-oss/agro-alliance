@@ -117,7 +117,7 @@ function Hero() {
 }
 
 function Pillars() {
-  const [pillars, setPillars] = useState(defaultPillars)
+  const [pillars, setPillars] = useState<Pillar[]>([])
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const pc = d.sections?.find((s) => s.section_key === "about_pillars")
@@ -168,7 +168,7 @@ function Pillars() {
 }
 
 function Team() {
-  const [team, setTeam] = useState(defaultTeam)
+  const [team, setTeam] = useState<TeamMember[]>([])
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const tc = d.sections?.find((s) => s.section_key === "team")
