@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
-import { cats, newsCatLabel as catLabel, type News as NewsType, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
+import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import Newsletter from "../components/Newsletter"
+
+const iconMap: Record<string, string> = {
+  grid: I.grid, cpu: I.cpu, sprout: I.sprout, chart: I.chart, doc: I.doc,
+  bolt: I.bolt, leaf: I.leaf, flask: I.flask, globe: I.globe,
+  user: I.user, users: I.users, building: I.building, shield: I.shield,
+}
+const getIcon = (key: string) => iconMap[key] || I.grid
 
 const mascot = "/mascot-news.webp"
 
@@ -196,7 +203,7 @@ const side = page === 1 && newsList.slice(1, 3)
                   return (
                     <li key={c.key}>
                       <button onClick={() => setCat(c.key)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-green/10 text-green" : "text-ink/70 hover:bg-soft"}`}
->                      <span className="flex items-center gap-2.5"><Icon d={c.icon} className="h-4 w-4" /> {c.label}</span>
+>                      <span className="flex items-center gap-2.5"><Icon d={getIcon(c.icon)} className="h-4 w-4" /> {c.label}</span>
                       <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${active ? "bg-green text-white" : "bg-soft text-muted"}`}>{c.count}</span>
                       </button>
                     </li>
