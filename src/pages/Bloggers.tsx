@@ -1,7 +1,7 @@
-﻿import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
-import { bloggers, categories, catLabel, regions, sorts, platforms, cover } from "../lib/bloggers"
+import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, type Blogger } from "../lib/bloggers"
 
 const mascot = "/mascot3.webp"
 
@@ -144,21 +144,22 @@ export default function Bloggers() {
   const [region, setRegion] = useState("Barchasi")
   const [platform, setPlatform] = useState("Barchasi")
   const [sort, setSort] = useState("Barchasi")
+  const [bloggersList, setBloggersList] = useState<Blogger[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const list = useMemo(() => {
-    let r = bloggers.filter((b) => {
-      const okCat = cat === "all" || b.cat === cat
-      const okRegion = region === "Barchasi" || b.region === region
-      const okQuery =
-        !query.trim() ||
-        b.name.toLowerCase().includes(query.toLowerCase()) ||
-        b.tag.toLowerCase().includes(query.toLowerCase())
-      return okCat && okRegion && okQuery
+  useEffect(() => {
+    setLoading(true)
+    loadBloggers({
+      category: cat !== "all" ? cat : undefined,
+      region: region !== "Barchasi" ? region : undefined,
+      search: query.trim() || undefined,
+      sort: sort !== "Barchasi" ? sort : undefined,
+      per_page: 50,
     })
-    if (sort === "Reyting bo'yicha") r = [...r].sort((a, b) => b.rating - a.rating)
-    if (sort === "Obunachilar bo'yicha") r = [...r].sort((a, b) => b.subsNum - a.subsNum)
-    return r
-  }, [query, cat, region, sort])
+      .then((res) => setBloggersList(res.bloggers))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [cat, region, query, sort])
 
   const reset = () => {
     setQuery(""); setCat("all"); setRegion("Barchasi"); setPlatform("Barchasi"); setSort("Barchasi")
@@ -216,13 +217,14 @@ export default function Bloggers() {
       </section>
 
       <section className="mx-auto max-w-[1320px] px-5 pb-10 lg:px-8">
-        {list.length === 0 ? (
+        {loading && <div className="text-center py-12 text-muted">Yuklanmoqda…</div>}
+        {!loading && bloggersList.length === 0 ? (
           <div className="rounded-3xl border border-green/10 bg-white py-20 text-center text-muted">
             Hech narsa topilmadi. Filtrlarni tozalab ko'ring.
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((b, i) => (
+            {bloggersList.map((b, i) => (
               <Reveal key={b.slug} delay={(i % 3) * 80}>
                 <div className="group overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
                   <div className="relative h-44 overflow-hidden">

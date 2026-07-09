@@ -1,7 +1,14 @@
-﻿import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { api } from "./api"
 
 export const logo = "/logo.webp"
+
+/* ---------- Shared helpers ---------- */
+export const fmtSom = (n: number) => {
+  if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + " mlrd"
+  if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + " mln"
+  return n.toLocaleString("ru-RU")
+}
 
 /* ---------- Scroll reveal ---------- */
 export function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {

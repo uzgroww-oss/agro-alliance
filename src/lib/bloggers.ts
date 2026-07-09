@@ -45,3 +45,46 @@ export const regions = ["Barchasi", "Toshkent shahri", "Toshkent viloyati", "Nam
 export const sorts = ["Barchasi", "Reyting bo'yicha", "Obunachilar bo'yicha"]
 export const platforms = ["Barchasi", "YouTube", "Instagram", "TikTok", "Telegram"]
 export const cover = (seed: string) => `https://picsum.photos/seed/${seed}/640/420`
+
+/* Live API loaders (fallback to mock data on error) */
+import { api } from "./api"
+
+export type BloggerListResponse = {
+  bloggers: Blogger[]
+  pagination: { page: number; per_page: number; total: number; total_pages: number }
+}
+
+export async function loadBloggers(params?: {
+  category?: string
+  region?: string
+  search?: string
+  sort?: string
+  page?: number
+  per_page?: number
+}): Promise<BloggerListResponse> {
+  try {
+    const q = new URLSearchParams()
+    if (params?.category && params.category !== "all") q.set("category", params.category)
+    if (params?.region && params.region !== "Barchasi") q.set("region", params.region)
+    if (params?.search) q.set("search", params.search)
+    if (params?.sort && params.sort !== "Barchasi") q.set("sort", params.sort === "Obunachilar bo'yicha" ? "subscribers" : "rating")
+    if (params?.page) q.set("page", String(params.page))
+    if (params?.per_page) q.set("per_page", String(params.per_page))
+    const qs = q.toString()
+    return await api<BloggerListResponse>(`/public/bloggers${qs ? `?${qs}` : ""}`)
+  } catch {
+    // fallback: apply filters to mock data
+    let r = [...bloggers]
+    if (params?.category && params.category !== "all") r = r.filter((b) => b.cat === params.category)
+    if (params?.region && params.region !== "Barchasi") r = r.filter((b) => b.region === params.region)
+    if (params?.search) { const s = params.search.toLowerCase(); r = r.filter((b) => b.name.toLowerCase().includes(s) || b.tag.toLowerCase().includes(s)) }
+    if (params?.sort === "Reyting bo'yicha") r.sort((a, b) => b.rating - a.rating)
+    if (params?.sort === "Obunachilar bo'yicha") r.sort((a, b) => b.subsNum - a.subsNum)
+    const perPage = params?.per_page || 12
+    const page = params?.page || 1
+    const total = r.length
+    const from = (page - 1) * perPage
+    const sliced = r.slice(from, from + perPage)
+    return { bloggers: sliced, pagination: { page, per_page: perPage, total, total_pages: Math.ceil(total / perPage) } }
+  }
+}

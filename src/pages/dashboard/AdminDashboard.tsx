@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I, statIcon, type StatItem } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem, fmtSom } from "../../lib/ui"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -11,8 +11,10 @@ const nav = [
   { label: "Bloggerlar", icon: I.users },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
+  { label: "Manbalar", icon: I.globe },
   { label: "Statistika", icon: I.chart },
   { label: "Sozlamalar", icon: I.gear },
+  { label: "Monitoring", icon: I.chart },
 ]
 
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
@@ -77,7 +79,7 @@ function Bloggers() {
             <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none">
               {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
-            <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Boshlang'ich parol" type="text" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Ro'yxatdan o'tkazish</button>
           </div>
         </form>
@@ -141,11 +143,6 @@ type Task = { id: number; title: string; status: "done" | "progress" | "pending"
 type PartnerClient = { id: number; name: string; email: string }
 type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
 
-const fmtSom = (n: number) => {
-  if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + " mlrd"
-  if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + " mln"
-  return n.toLocaleString("ru-RU")
-}
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
   done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
   progress: { label: "Jarayonda", cls: "bg-orange-100 text-orange-600", dot: "bg-orange-500" },
@@ -348,7 +345,7 @@ function AdminPartners() {
                     {clientErr[p.id] && <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{clientErr[p.id]}</div>}
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Mijoz emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                      <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="text" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <button onClick={() => createClient(p)} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white">Yaratish</button>
                     </div>
                   </div>
@@ -363,13 +360,21 @@ function AdminPartners() {
 }
 
 function Overview() {
-  const [count, setCount] = useState<number | null>(null)
-  useEffect(() => { api<{ bloggers: any[] }>("/bloggers").then((d) => setCount(d.bloggers.length)).catch(() => {}) }, [])
+  const [bloggerCount, setBloggerCount] = useState<number | null>(null)
+  const [partnerCount, setPartnerCount] = useState<number | null>(null)
+  const [newsCount, setNewsCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    api<{ bloggers: unknown[] }>("/bloggers").then((d) => setBloggerCount(d.bloggers.length)).catch(() => {})
+    api<{ partners: unknown[] }>("/partners").then((d) => setPartnerCount(d.partners.length)).catch(() => {})
+    api<{ news: unknown[] }>("/news").then((d) => setNewsCount(d.news.length)).catch(() => {})
+  }, [])
+
   const stats = [
-    { icon: I.users, t: "Jami bloggerlar", v: count === null ? "…" : String(count), delta: "real-time" },
-    { icon: I.handshake, t: "Hamkorlar", v: "50", delta: "+2 bu oy" },
-    { icon: I.doc, t: "Yangiliklar", v: "128", delta: "+12 bu oy" },
-    { icon: I.eye, t: "Oylik tashriflar", v: "1.2M", delta: "+8.4%" },
+    { icon: I.users, t: "Jami bloggerlar", v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
+    { icon: I.handshake, t: "Hamkorlar", v: partnerCount === null ? "…" : String(partnerCount), delta: "real-time" },
+    { icon: I.doc, t: "Yangiliklar", v: newsCount === null ? "…" : String(newsCount), delta: "real-time" },
+    { icon: I.eye, t: "Platforma", v: "Faol", delta: "online" },
   ]
   return (
     <>
@@ -477,6 +482,373 @@ function Placeholder({ title }: { title: string }) {
   )
 }
 
+/* ---------- News Management ---------- */
+type NewsArticle = { id: string; title: string; slug: string; status: string; language: string; is_featured: boolean; published_at: string; view_count: number; category: { name_uz: string; key: string } | null; author: { name: string } | null }
+
+function AdminNews() {
+  const [articles, setArticles] = useState<NewsArticle[]>([])
+  const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+
+  const load = (p = page) => {
+    setLoading(true)
+    const q = new URLSearchParams({ page: String(p), per_page: "12" })
+    if (query.trim()) q.set("search", query.trim())
+    api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${q}`)
+      .then((d) => { setArticles(d.data || []); setTotal(d.pagination?.total || 0) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load(1); setPage(1) }, [query])
+  useEffect(() => { load() }, [page])
+
+  const remove = async (id: string) => {
+    if (!confirm("Yangilikni o'chirishni tasdiqlaysizmi?")) return
+    await api(`/news/${id}`, { method: "DELETE" })
+    load()
+  }
+
+  const totalPages = Math.ceil(total / 12)
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Yangiliklar boshqaruvi</h2>
+          <p className="mt-1 text-sm text-muted">Platformadagi barcha yangiliklar.</p>
+        </div>
+      </div>
+
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="relative mb-4 max-w-sm">
+          <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangilik qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+        </div>
+
+        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+
+        {!loading && articles.length === 0 && (
+          <div className="py-8 text-center text-muted">Yangiliklar topilmadi.</div>
+        )}
+
+        {!loading && articles.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold">Sarlavha</th>
+                  <th className="pb-3 font-semibold">Kategoriya</th>
+                  <th className="pb-3 font-semibold">Holat</th>
+                  <th className="pb-3 font-semibold">Ko'rishlar</th>
+                  <th className="pb-3 font-semibold">Sana</th>
+                  <th className="pb-3 font-semibold">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {articles.map((a) => (
+                  <tr key={a.id} className="border-t border-green/8 text-sm">
+                    <td className="py-3 pr-3">
+                      <span className="flex items-center gap-2.5">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xs font-bold text-green">{a.title[0]?.toUpperCase()}</span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold truncate max-w-[200px]">{a.title}</span>
+                          <span className="block text-xs text-muted">{a.author?.name || "—"}</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td className="py-3 pr-3 text-muted">{a.category?.name_uz || "—"}</td>
+                    <td className="py-3 pr-3">
+                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${a.status === "published" ? "bg-green/10 text-green" : a.status === "draft" ? "bg-slate-100 text-slate-500" : "bg-orange-100 text-orange-600"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${a.status === "published" ? "bg-green" : a.status === "draft" ? "bg-slate-400" : "bg-orange-500"}`} />
+                        {a.status}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-3 font-semibold">{a.view_count || 0}</td>
+                    <td className="py-3 pr-3 text-muted text-xs">{a.published_at ? new Date(a.published_at).toLocaleDateString("uz") : "—"}</td>
+                    <td className="py-3">
+                      <button onClick={() => remove(a.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                        <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={`grid h-9 w-9 place-items-center rounded-lg border text-sm ${page === 1 ? "border-gray-200 text-gray-400" : "border-green/15 hover:border-green"}`}>
+              <Icon d={I.chevLeft} className="h-4 w-4" />
+            </button>
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => (
+              <button key={p} onClick={() => setPage(p)} className={`grid h-9 min-w-9 place-items-center rounded-lg px-3 text-sm font-bold ${p === page ? "bg-green text-white" : "border border-green/15 hover:border-green"}`}>{p}</button>
+            ))}
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className={`grid h-9 w-9 place-items-center rounded-lg border text-sm ${page === totalPages ? "border-gray-200 text-gray-400" : "border-green/15 hover:border-green"}`}>
+              <Icon d={I.chevRight} className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Settings Management ---------- */
+type Setting = { id: string; key: string; value: string; type: string; description: string; is_public: boolean }
+
+function AdminSettings() {
+  const [settings, setSettings] = useState<Setting[]>([])
+  const [loading, setLoading] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ settings: Setting[] }>("/settings")
+      .then((d) => setSettings(d.settings || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const set = (i: number, field: "value", v: string) =>
+    setSettings((arr) => arr.map((s, idx) => (idx === i ? { ...s, [field]: v } : s)))
+
+  const save = async () => {
+    for (const s of settings) {
+      await api(`/settings/${s.id}`, { method: "PATCH", body: JSON.stringify({ value: s.value }) })
+    }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Sozlamalar</h2>
+          <p className="mt-1 text-sm text-muted">Platforma sozlamalarini boshqarish.</p>
+        </div>
+        <button onClick={save} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+          <Icon d={I.check} className="h-4 w-4" /> Saqlash
+        </button>
+      </div>
+
+      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi!</div>}
+
+      {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+
+      {!loading && settings.length === 0 && (
+        <div className="py-8 text-center text-muted">Sozlamalar topilmadi.</div>
+      )}
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {settings.map((s, i) => (
+          <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
+              {s.is_public && <span className="rounded-md bg-green/10 px-2 py-0.5 text-[11px] font-bold text-green">Public</span>}
+            </div>
+            <label className="mt-3 block text-xs font-semibold text-muted">Qiymat</label>
+            <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            {s.description && <p className="mt-1 text-[11px] text-muted">{s.description}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Monitoring ---------- */
+function AdminMonitoring() {
+  const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ jobs: { id: string; job_type: string; status: string; created_at: string }[] }>("/news/jobs")
+      .then((d) => setNewsJobs(d.jobs || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const retry = async (id: string) => {
+    await api(`/news/jobs/${id}/retry`, { method: "POST" })
+    load()
+  }
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-yellow-100 text-yellow-700",
+    processing: "bg-blue-100 text-blue-700",
+    completed: "bg-green/10 text-green",
+    failed: "bg-red-100 text-red-600",
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Monitoring</h2>
+          <p className="mt-1 text-sm text-muted">Worker'lar, queue'lar va tizim holati.</p>
+        </div>
+        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
+          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        </button>
+      </div>
+
+      {/* Queue Stats */}
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <div className={card.replace("p-6", "p-5")}>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.doc} className="h-5 w-5" /></span>
+          <div className="mt-3 text-xs text-muted">Yangiliklar queue</div>
+          <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "pending").length}</div>
+        </div>
+        <div className={card.replace("p-6", "p-5")}>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.chart} className="h-5 w-5" /></span>
+          <div className="mt-3 text-xs text-muted">Jarayonda</div>
+          <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "processing").length}</div>
+        </div>
+        <div className={card.replace("p-6", "p-5")}>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.shield} className="h-5 w-5" /></span>
+          <div className="mt-3 text-xs text-muted">Bajarilgan</div>
+          <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "completed").length}</div>
+        </div>
+      </div>
+
+      {/* Job List */}
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <h3 className="font-display text-lg font-bold">Yangiliklar ishlari</h3>
+        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {!loading && newsJobs.length === 0 && <div className="py-8 text-center text-muted">Hech qanday ish topilmadi.</div>}
+        {!loading && newsJobs.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {newsJobs.slice(0, 20).map((j) => (
+              <div key={j.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+                <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${statusColor[j.status] || "bg-slate-100 text-slate-500"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${j.status === "completed" ? "bg-green" : j.status === "failed" ? "bg-red-500" : j.status === "processing" ? "bg-blue-500" : "bg-yellow-500"}`} />
+                  {j.status}
+                </span>
+                <span className="flex-1 text-sm font-medium">{j.job_type}</span>
+                <span className="text-xs text-muted">{new Date(j.created_at).toLocaleString("uz")}</span>
+                {j.status === "failed" && (
+                  <button onClick={() => retry(j.id)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">Qayta</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- News Sources Management ---------- */
+type NewsSource = { id: string; name: string; type: string; url: string; is_active: boolean; last_fetched_at: string | null }
+
+function AdminNewsSources() {
+  const [sources, setSources] = useState<NewsSource[]>([])
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState("")
+  const blank = { name: "", type: "rss", url: "" }
+  const [form, setForm] = useState(blank)
+
+  const reload = () => api<{ sources: NewsSource[] }>("/news-sources").then((d) => setSources(d.sources || [])).catch(() => {})
+  useEffect(() => { reload() }, [])
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); setError("")
+    if (!form.name.trim() || !form.url.trim()) { setError("Nomi va URL majburiy"); return }
+    try {
+      await api("/news-sources", { method: "POST", body: JSON.stringify(form) })
+      setForm(blank); setAdding(false); reload()
+    } catch (err: any) { setError(err?.message || "Xatolik") }
+  }
+  const remove = async (id: string) => {
+    if (!confirm("Manbani o'chirishni tasdiqlaysizmi?")) return
+    await api(`/news-sources/${id}`, { method: "DELETE" }); reload()
+  }
+
+  const typeLabel: Record<string, string> = { rss: "RSS", web: "Web Crawler", telegram: "Telegram" }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Yangilik manbalari</h2>
+          <p className="mt-1 text-sm text-muted">RSS, Telegram va veb-saytlardan yangiliklar yig'ish manbalari.</p>
+        </div>
+        <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+          <Icon d={I.plus} className="h-4 w-4" /> Yangi manba qo'shish
+        </button>
+      </div>
+
+      {adding && (
+        <form onSubmit={add} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
+          {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Manba nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none">
+              <option value="rss">RSS</option>
+              <option value="web">Web Crawler</option>
+              <option value="telegram">Telegram</option>
+            </select>
+            <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="URL" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Qo'shish</button>
+          </div>
+        </form>
+      )}
+
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                <th className="pb-3 font-semibold">Nomi</th>
+                <th className="pb-3 font-semibold">Turi</th>
+                <th className="pb-3 font-semibold">URL</th>
+                <th className="pb-3 font-semibold">Holat</th>
+                <th className="pb-3 font-semibold">Oxirgi yuklash</th>
+                <th className="pb-3 font-semibold">Amallar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.length === 0 && (
+                <tr><td colSpan={6} className="py-10 text-center text-muted">Manba yo'q. "Yangi manba qo'shish" orqali qo'shing.</td></tr>
+              )}
+              {sources.map((s) => (
+                <tr key={s.id} className="border-t border-green/8 text-sm">
+                  <td className="py-3 pr-3 font-semibold">{s.name}</td>
+                  <td className="py-3 pr-3"><span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">{typeLabel[s.type] || s.type}</span></td>
+                  <td className="py-3 pr-3 text-muted text-xs max-w-[200px] truncate">{s.url}</td>
+                  <td className="py-3 pr-3">
+                    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${s.is_active ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${s.is_active ? "bg-green" : "bg-slate-400"}`} />
+                      {s.is_active ? "Faol" : "O'chirilgan"}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-3 text-muted text-xs">{s.last_fetched_at ? new Date(s.last_fetched_at).toLocaleString("uz") : "—"}</td>
+                  <td className="py-3">
+                    <button onClick={() => remove(s.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                      <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
   const [active, setActive] = useState("Dashboard")
   const { user, logout } = useAuth()
@@ -485,7 +857,7 @@ export default function AdminDashboard() {
   const doLogout = () => { logout(); nav2("/kirish") }
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: "Super Admin", initials }}>
-      {active === "Dashboard" ? <Overview /> : active === "Bloggerlar" ? <Bloggers /> : active === "Hamkorlar" ? <AdminPartners /> : active === "Statistika" ? <StatsEditor /> : <Placeholder title={active} />}
+      {active === "Dashboard" ? <Overview /> : active === "Bloggerlar" ? <Bloggers /> : active === "Hamkorlar" ? <AdminPartners /> : active === "Yangiliklar" ? <AdminNews /> : active === "Manbalar" ? <AdminNewsSources /> : active === "Statistika" ? <StatsEditor /> : active === "Sozlamalar" ? <AdminSettings /> : active === "Monitoring" ? <AdminMonitoring /> : <Placeholder title={active} />}
     </DashboardLayout>
   )
 }

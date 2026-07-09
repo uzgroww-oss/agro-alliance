@@ -1,0 +1,12 @@
+-- Agro Alliance — Seed Data
+-- This file seeds initial data after migrations during `supabase db reset`.
+-- 
+-- IMPORTANT: Add seed data ONLY after Phase 1 migrations are created.
+-- Until then, this file is intentionally empty.
+
+-- TODO: Add seed data after schema creation:
+--   - Site stats (5 default entries)
+--   - News categories (9 entries)
+--   - Blogger niches (8 entries)
+--   - Sample admin account
+--   - FAQ entries

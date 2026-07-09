@@ -1,15 +1,41 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
-import { findNews, news, catLabel, newsImg as img } from "../lib/news"
+import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, type News } from "../lib/news"
 
 export default function NewsDetail() {
   const { slug } = useParams()
-  const article = findNews(slug)
+  const [article, setArticle] = useState<News | null>(null)
+  const [related, setRelated] = useState<News[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  useEffect(() => window.scrollTo(0, 0), [slug])
+  useEffect(() => {
+    if (!slug) return
+    let alive = true
+    setLoading(true)
+    setError("")
+    loadNewsDetail(slug)
+      .then((a) => { if (alive) setArticle(a) })
+      .catch((e) => { if (alive) setError(e?.message || "Yuklashda xatolik") })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [slug])
 
-  if (!article) {
+  useEffect(() => {
+    if (!slug) return
+    let alive = true
+    loadRelatedNews(slug).then((list) => { if (alive) setRelated(list) })
+    return () => { alive = false }
+  }, [slug])
+
+  useEffect(() => { window.scrollTo(0, 0) }, [slug])
+
+  if (loading) {
+    return <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center text-muted">Yuklanmoqda…</div>
+  }
+
+  if (error || !article) {
     return (
       <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center">
         <div>
@@ -24,9 +50,7 @@ export default function NewsDetail() {
     )
   }
 
-  const sameCat = news.filter((n) => n.cat === article.cat && n.slug !== article.slug)
-  const others = news.filter((n) => n.slug !== article.slug && n.cat !== article.cat)
-  const more = [...sameCat, ...others].slice(0, 3)
+  const more = related
 
   return (
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-16 lg:px-8">
@@ -54,7 +78,7 @@ export default function NewsDetail() {
 
         <Reveal delay={80}>
           <div className="mt-6 overflow-hidden rounded-3xl">
-            <img src={img(article.seed, 1000, 560)} alt={article.title} className="h-auto w-full object-cover" />
+            <img src={article.seed ? `https://picsum.photos/seed/${article.seed}/1000/560` : `https://picsum.photos/seed/${article.slug}/1000/560`} alt={article.title} className="h-auto w-full object-cover" />
           </div>
         </Reveal>
 
@@ -84,25 +108,29 @@ export default function NewsDetail() {
         <Reveal>
           <h2 className="mb-6 font-display text-2xl font-extrabold tracking-tight">O'xshash <span className="text-green">yangiliklar</span></h2>
         </Reveal>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {more.map((n, i) => (
-            <Reveal key={n.slug} delay={(i % 3) * 80}>
-              <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
-                <div className="h-40 overflow-hidden">
-                  <img src={img(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                </div>
-                <div className="p-5">
-                  <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(n.cat)}</span>
-                  <h3 className="mt-2 font-display font-bold leading-snug transition-colors group-hover:text-green">{n.title}</h3>
-                  <div className="mt-3 flex items-center justify-between text-xs text-muted">
-                    <span>{n.date}</span>
-                    <span className="flex items-center gap-1"><Icon d={I.eye} className="h-3.5 w-3.5" /> {n.views}</span>
+        {more.length === 0 ? (
+          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">O'xshash yangiliklar topilmadi.</div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {more.map((n, i) => (
+              <Reveal key={n.slug} delay={(i % 3) * 80}>
+                <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
+                  <div className="h-40 overflow-hidden">
+                    <img src={`https://picsum.photos/seed/${n.seed || n.slug}/400/260`} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
-                </div>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
+                  <div className="p-5">
+                    <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(n.cat)}</span>
+                    <h3 className="mt-2 font-display font-bold leading-snug transition-colors group-hover:text-green">{n.title}</h3>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                      <span>{n.date}</span>
+                      <span className="flex items-center gap-1"><Icon d={I.eye} className="h-3.5 w-3.5" /> {n.views}</span>
+                    </div>
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

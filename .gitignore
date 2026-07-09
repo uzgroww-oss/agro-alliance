@@ -8,11 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+dist
 dist-ssr
 *.local
-
-# server runtime data (seeded fresh on deploy)
-server/data.json
 
 # Editor directories and files
 .vscode/*
@@ -24,3 +22,16 @@ server/data.json
 *.njsproj
 *.sln
 *.sw?
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.keys
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Supabase signing keys (DO NOT COMMIT)
+supabase/signing_keys.json

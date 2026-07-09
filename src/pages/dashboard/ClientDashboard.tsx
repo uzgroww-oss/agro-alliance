@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout, { Donut } from "../../components/DashboardLayout"
-import { Icon, I } from "../../lib/ui"
+import { Icon, I, fmtSom } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 
@@ -17,11 +17,6 @@ type Partner = {
   amount: number; signedDate: string; status: string; tasks: Task[]
 }
 
-const fmtSom = (n: number) => {
-  if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + " mlrd"
-  if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + " mln"
-  return n.toLocaleString("ru-RU")
-}
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
   done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
   progress: { label: "Jarayonda", cls: "bg-orange-100 text-orange-600", dot: "bg-orange-500" },
@@ -64,12 +59,16 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
 export default function ClientDashboard() {
   const [active, setActive] = useState("Umumiy")
   const [partner, setPartner] = useState<Partner | null>(null)
+  const [loading, setLoading] = useState(true)
   const [err, setErr] = useState("")
   const { user, logout } = useAuth()
   const nav2 = useNavigate()
 
   useEffect(() => {
-    api<{ partner: Partner }>("/me/partner").then((d) => setPartner(d.partner)).catch((e) => setErr(e?.message || "Yuklashda xatolik"))
+    api<{ partner: Partner }>("/me/partner")
+      .then((d) => setPartner(d.partner))
+      .catch((e) => setErr(e?.message || "Yuklashda xatolik"))
+      .finally(() => setLoading(false))
   }, [])
 
   const counts = useMemo(() => {
@@ -102,8 +101,17 @@ export default function ClientDashboard() {
       onLogout={doLogout}
       user={{ name: user?.name || "Mijoz", role: "Buyurtmachi", initials }}
     >
-      {err && <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600">{err}</div>}
-      {!partner && !err && <div className="grid min-h-[50vh] place-items-center text-muted">Yuklanmoqda…</div>}
+      {loading && <div className="grid min-h-[50vh] place-items-center text-muted">Yuklanmoqda…</div>}
+      {err && !loading && <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600">{err}</div>}
+      {!loading && !err && !partner && (
+        <div className="grid min-h-[50vh] place-items-center text-center">
+          <div>
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.building} className="h-8 w-8" /></span>
+            <h2 className="mt-4 font-display text-xl font-bold">Partner topilmadi</h2>
+            <p className="mt-2 text-muted">Sizning hisobingizga biriktirilgan partner topilmadi.</p>
+          </div>
+        </div>
+      )}
 
       {partner && (
         <>

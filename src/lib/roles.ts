@@ -1,3 +1,9 @@
-// Rolega qarab dashboard manzili
-export const roleHome = (role?: string) =>
-  role === "superadmin" ? "/admin" : role === "client" ? "/mijoz" : "/dashboard"
+import { feRole, isDbRole } from "./role-map"
+
+export function roleHome(role?: string): string {
+  if (!role) return "/dashboard"
+  const fe = isDbRole(role) ? feRole(role) : role
+  if (fe === "superadmin") return "/admin"
+  if (fe === "client") return "/mijoz"
+  return "/dashboard"
+}

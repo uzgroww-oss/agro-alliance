@@ -1,7 +1,8 @@
-﻿import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
-import { news, cats, catLabel, popular, themes, dates, newsImg as img, type News } from "../lib/news"
+import { cats, newsCatLabel as catLabel, type News as NewsType, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
+import Newsletter from "../components/Newsletter"
 
 const mascot = "/mascot-news.webp"
 
@@ -21,7 +22,7 @@ function NewsCard({ n }: { n: News }) {
   return (
     <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
       <div className="h-40 overflow-hidden">
-        <img src={img(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <img src={newsImg(n.seed)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
       </div>
       <div className="p-5">
         <CatTag k={n.cat} />
@@ -39,7 +40,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
       <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
       <div className="relative">
         <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full appearance-none rounded-xl border border-green/15 bg-white px-4 py-3 pr-9 text-sm font-medium outline-none transition-colors hover:border-green/40 focus:border-green">
-          {options.map((o) => <option key={o} value={o}>{o}</option>)}
+          {options.map((o) => <option key={o} value={o}>{o}</option>) }
         </select>
         <Icon d={I.chevDown} className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
       </div>
@@ -86,25 +87,74 @@ function Hero() {
 
 /* ---------- Page ---------- */
 export default function News() {
+  // UI state
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("all")
   const [theme, setTheme] = useState("Barchasi")
   const [date, setDate] = useState("Barchasi")
+  const [page, setPage] = useState(1)
 
-  const filtered = useMemo(() => {
-    return news.filter((n) => {
-      const okCat = cat === "all" || n.cat === cat
-      const okQuery = !query.trim() || n.title.toLowerCase().includes(query.toLowerCase()) || n.desc.toLowerCase().includes(query.toLowerCase())
-      return okCat && okQuery
+  // data & status
+  const [data, setData] = useState<NewsListResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [popularNews, setPopularNews] = useState<{ title: string; date: string; views: string; seed: string; slug: string }[]>([])
+
+  // reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [cat, theme, date, query])
+
+  // load popular news
+  useEffect(() => {
+    loadPopularNews().then(setPopularNews).catch(() => {})
+  }, [])
+
+  // load data
+  useEffect(() => {
+    setLoading(true)
+    setError("")
+    loadNews({
+      category: cat !== "all" ? cat : undefined,
+      search: query.trim() || undefined,
+      page,
+      per_page: 12,
     })
-  }, [query, cat])
+      .then((res) => setData(res))
+      .catch((e) => setError(e?.message || "Xatolik"))
+      .finally(() => setLoading(false))
+  }, [cat, theme, date, query, page])
 
-  const isFiltered = cat !== "all" || query.trim() !== ""
+  // client‑side extra filters (theme & date) – simple contains check for illustration
+  const applyExtraFilters = (list: News[]) => {
+    return list.filter((n) => {
+      let okTheme = true
+      if (theme !== "Barchasi") {
+        const t = theme.toLowerCase()
+        okTheme = n.title.toLowerCase().includes(t) || n.desc.toLowerCase().includes(t)
+      }
+      // date filter – naive string match (real implementation would parse dates)
+      let okDate = true
+      if (date !== "Barchasi") {
+        okDate = n.date.includes(date)
+      }
+      return okTheme && okDate
+    })
+  }
+
+  const newsList = useMemo(() => {
+    if (!data) return []
+    const filtered = applyExtraFilters(data.news)
+    return filtered
+  }, [data, theme, date])
+
+  const pagination = data?.pagination
+
+  // featured / side logic – only on first page when there is enough data
+const featured = page === 1 && newsList[0]
+const side = page === 1 && newsList.slice(1, 3)
+
   const reset = () => { setQuery(""); setCat("all"); setTheme("Barchasi"); setDate("Barchasi") }
-
-  const featured = news[0]
-  const side = [news[1], news[2]]
-  const rest = news.slice(3)
 
   return (
     <>
@@ -118,7 +168,7 @@ export default function News() {
               <span className="mb-1.5 block text-xs font-medium text-muted">Qidiruv</span>
               <div className="relative">
                 <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
               </div>
             </label>
             <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => setCat(cats.find((c) => c.label === v)?.key ?? "all")} options={cats.map((c) => c.label)} />
@@ -144,9 +194,9 @@ export default function News() {
                   const active = c.key === cat
                   return (
                     <li key={c.key}>
-                      <button onClick={() => setCat(c.key)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-green/10 text-green" : "text-ink/70 hover:bg-soft"}`}>
-                        <span className="flex items-center gap-2.5"><Icon d={c.icon} className="h-4 w-4" /> {c.label}</span>
-                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${active ? "bg-green text-white" : "bg-soft text-muted"}`}>{c.count}</span>
+                      <button onClick={() => setCat(c.key)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-green/10 text-green" : "text-ink/70 hover:bg-soft"}`}
+>                      <span className="flex items-center gap-2.5"><Icon d={c.icon} className="h-4 w-4" /> {c.label}</span>
+                      <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${active ? "bg-green text-white" : "bg-soft text-muted"}`}>{c.count}</span>
                       </button>
                     </li>
                   )
@@ -157,27 +207,27 @@ export default function News() {
             <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
               <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">ENG KO'P O'QILGAN</h3>
               <ul className="mt-4 space-y-3">
-                {popular.map((p, i) => (
+                {popularNews.length > 0 ? popularNews.map((p, i) => (
                   <li key={p.title}>
                     <Link to={`/yangiliklar/${p.slug}`} className="group flex gap-3">
                       <span className="relative shrink-0">
-                        <img src={img(p.seed, 120, 120)} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                        <img src={newsImg(p.seed, 120, 120)} alt="" className="h-12 w-12 rounded-lg object-cover" />
                         <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-green text-[11px] font-bold text-white">{i + 1}</span>
                       </span>
                       <div className="min-w-0">
                         <p className="line-clamp-2 text-sm font-medium leading-snug transition-colors group-hover:text-green">{p.title}</p>
-                        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted">
-                          <span>{p.date}</span>·<span className="flex items-center gap-0.5"><Icon d={I.eye} className="h-3 w-3" /> {p.views}</span>
-                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted"><span>{p.date}</span>·<span className="flex items-center gap-0.5"><Icon d={I.eye} className="h-3 w-3" /> {p.views}</span></div>
                       </div>
                     </Link>
                   </li>
-                ))}
+                )) : (
+                  <li className="py-4 text-center text-sm text-muted">Hozircha mashhur yangiliklar yo'q</li>
+                )}
               </ul>
             </div>
 
             <div className="rounded-2xl border border-green/15 bg-soft p-5">
-              <h3 className="font-display font-extrabold leading-tight">Yangiliklardan xabardor bo'lib boring!</h3>
+              <h3 className="font-display font-extrabold leading-tight">Yangiliklardan xabardor bo'ling!</h3>
               <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklarni email orqali olib boring.</p>
               <input placeholder="Email manzilingiz" className="mt-4 w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02]">
@@ -188,86 +238,82 @@ export default function News() {
 
           {/* Main */}
           <div className="min-w-0">
-            {!isFiltered && (
-              <div className="mb-7 grid gap-6 lg:grid-cols-2">
-                {/* Featured */}
-                <Reveal>
-                  <Link to={`/yangiliklar/${featured.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_6px_28px_rgba(91,180,32,0.08)]">
-                    <div className="relative h-60 overflow-hidden">
-                      <img src={img(featured.seed, 800, 500)} alt={featured.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow"><Icon d={I.trophy} className="h-3.5 w-3.5" /> TOP</span>
-                    </div>
-                    <div className="flex flex-1 flex-col p-5">
-                      <CatTag k={featured.cat} />
-                      <h3 className="mt-2 font-display text-xl font-bold leading-snug transition-colors group-hover:text-green">{featured.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-muted">{featured.desc}</p>
-                      <div className="mt-auto"><Meta date={featured.date} views={featured.views} /></div>
-                    </div>
-                  </Link>
-                </Reveal>
-                {/* Two stacked side cards */}
-                <div className="flex flex-col gap-6">
-                  {side.map((n) => (
-                    <Reveal key={n.title} delay={80}>
-                      <Link to={`/yangiliklar/${n.slug}`} className="group flex overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-                        <div className="h-auto w-2/5 shrink-0 overflow-hidden">
-                          <img src={img(n.seed, 400, 400)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            {loading && <div className="text-center py-12 text-muted">Yuklanmoqda…</div>}
+            {error && <div className="text-center py-12 text-red-600">{error}</div>}
+            {!loading && !error && (
+              <>
+                {featured && (
+                  <div className="mb-7 grid gap-6 lg:grid-cols-2">
+                    {/* Featured */}
+                    <Reveal>
+                      <Link to={`/yangiliklar/${featured.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_6px_28px_rgba(91,180,32,0.08)]">
+                        <div className="relative h-60 overflow-hidden">
+                          <img src={newsImg(featured.seed, 800, 500)} alt={featured.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow"><Icon d={I.trophy} className="h-3.5 w-3.5" /> TOP</span>
                         </div>
-                        <div className="p-4">
-                          <CatTag k={n.cat} />
-                          <h3 className="mt-1.5 font-display font-bold leading-snug transition-colors group-hover:text-green">{n.title}</h3>
-                          <Meta date={n.date} views={n.views} />
+                        <div className="flex flex-1 flex-col p-5">
+                          <CatTag k={featured.cat} />
+                          <h3 className="mt-2 font-display text-xl font-bold leading-snug transition-colors group-hover:text-green">{featured.title}</h3>
+                          <p className="mt-2 text-sm leading-relaxed text-muted">{featured.desc}</p>
+                          <div className="mt-auto"><Meta date={featured.date} views={featured.views} /></div>
                         </div>
                       </Link>
                     </Reveal>
-                  ))}
-                </div>
-              </div>
+                    {/* Two stacked side cards */}
+                    <div className="flex flex-col gap-6">
+                      {side && side.map((n) => (
+                        <Reveal key={n.title} delay={80}>
+                          <Link to={`/yangiliklar/${n.slug}`} className="group flex overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
+                            <div className="h-auto w-2/5 shrink-0 overflow-hidden">
+                              <img src={newsImg(n.seed, 400, 400)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            </div>
+                            <div className="p-4">
+                              <CatTag k={n.cat} />
+                              <h3 className="mt-1.5 font-display font-bold leading-snug transition-colors group-hover:text-green">{n.title}</h3>
+                              <Meta date={n.date} views={n.views} />
+                            </div>
+                          </Link>
+                        </Reveal>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Grid */}
+                {newsList.length === 0 ? (
+                  <div className="rounded-2xl border border-green/10 bg-white py-20 text-center text-muted">Hech narsa topilmadi.</div>
+                ) : (
+                  <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                    {newsList.map((n, i) => (
+                      <Reveal key={n.slug} delay={(i % 3) * 70}><NewsCard n={n} /></Reveal>
+                    ))}
+                  </div>
+                )}
+                {/* Pagination */}
+                {pagination && pagination.total_pages > 1 && (
+                  <div className="mt-10 flex items-center justify-center gap-2">
+                    <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1}
+                      className={`grid h-10 w-10 place-items-center rounded-lg border ${page === 1 ? "border-gray-300 bg-gray-100 text-gray-400" : "border-green/15 bg-white text-muted hover:border-green hover:text-green"}`}
+                    >
+                      <Icon d={I.chevLeft} className="h-4 w-4" />
+                    </button>
+                    {Array.from({ length: pagination.total_pages }, (_, i) => i + 1).map((p) => (
+                      <button key={p} onClick={() => setPage(p)} className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${p === page ? "bg-green text-white shadow-lg shadow-green/30" : "border border-green/15 bg-white text-ink/70 hover:border-green hover:text-green"}`}>{p}</button>
+                    ))}
+                    <button onClick={() => setPage(p => Math.min(p + 1, pagination.total_pages))} disabled={page === pagination.total_pages}
+                      className={`grid h-10 w-10 place-items-center rounded-lg border ${page === pagination.total_pages ? "border-gray-300 bg-gray-100 text-gray-400" : "border-green/15 bg-white text-muted hover:border-green hover:text-green"}`}
+                    >
+                      <Icon d={I.chevRight} className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-
-            {/* Grid */}
-            {filtered.length === 0 ? (
-              <div className="rounded-2xl border border-green/10 bg-white py-20 text-center text-muted">Hech narsa topilmadi.</div>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {(isFiltered ? filtered : rest).map((n, i) => (
-                  <Reveal key={n.title} delay={(i % 3) * 70}><NewsCard n={n} /></Reveal>
-                ))}
-              </div>
-            )}
-
-            {/* Pagination */}
-            <div className="mt-10 flex items-center justify-center gap-2">
-              <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted hover:border-green hover:text-green"><Icon d={I.chevLeft} className="h-4 w-4" /></button>
-              {["1", "2", "3", "4", "…", "12"].map((p, i) => (
-                <button key={i} className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${p === "1" ? "bg-green text-white shadow-lg shadow-green/30" : "border border-green/15 bg-white text-ink/70 hover:border-green hover:text-green"}`}>{p}</button>
-              ))}
-              <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted hover:border-green hover:text-green"><Icon d={I.chevRight} className="h-4 w-4" /></button>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Bottom newsletter */}
-      <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-8">
-        <Reveal>
-          <div className="flex flex-col items-center gap-6 rounded-3xl border border-green/15 bg-soft px-8 py-9 lg:flex-row lg:justify-between">
-            <div className="flex items-center gap-4">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-green/15 text-green"><Icon d={I.mail} className="h-7 w-7" /></span>
-              <div>
-                <h3 className="font-display text-xl font-extrabold leading-tight">Yangiliklardan birinchilardan bo'lib xabardor bo'ling!</h3>
-                <p className="mt-1 text-sm text-muted">Eng so'nggi yangiliklar va maqolalarni email orqali oling.</p>
-              </div>
-            </div>
-            <div className="flex w-full gap-3 lg:w-auto">
-              <input placeholder="Email manzilingiz" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green lg:w-64" />
-              <button className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-                OBUNA BO'LISH <Icon d={I.send} className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </Reveal>
-      </section>
+      <Newsletter />
     </>
   )
 }

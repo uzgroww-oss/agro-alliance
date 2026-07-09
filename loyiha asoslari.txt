@@ -1,0 +1,12800 @@
+CHAPTER 1 — PROJECT VISION
+1.1 Project Name
+
+Agro Alliance
+
+1.2 Project Type
+
+Enterprise AI Media Platform.
+
+Platforma quyidagi tizimlarni bitta ekotizimga birlashtiradi:
+
+Media Portal
+News CMS
+AI News Engine
+Bloggers Platform
+Partner Management
+Client Portal
+Administration Panel
+Media Management
+Social Automation
+Analytics
+Notification Center
+1.3 Main Goal
+
+Agro Alliance'ning asosiy maqsadi O'zbekiston qishloq xo'jaligi bo'yicha yagona raqamli axborot platformasini yaratish.
+
+Platforma:
+
+yangiliklarni yig'adi;
+AI yordamida qayta ishlaydi;
+muharrir tasdiqlaydi;
+saytga chiqaradi;
+Telegram, Instagram va Facebook'ga joylaydi;
+statistikasini yig'adi;
+hamkor kompaniyalarni boshqaradi;
+bloggerlar bilan ishlaydi;
+media fayllarni boshqaradi;
+barcha jarayonlarni avtomatlashtiradi.
+1.4 Mission
+
+Qishloq xo'jaligi sohasidagi barcha ishtirokchilarni yagona platformada birlashtirish.
+
+1.5 Vision
+
+Kelajakda Agro Alliance:
+
+eng katta agro media platforma;
+AI yordamida ishlovchi CMS;
+hamkor kompaniyalar CRM;
+blogger marketplace;
+AI assistant;
+mobil ilova;
+ERP integratsiyasi;
+marketplace;
+analytics platformasi
+
+bo'ladi.
+
+1.6 Main Principles
+
+Platformada hech qachon quyidagilar buzilmaydi.
+
+Frontend
+
+Frontend dizayni doimo premium ko'rinishda qoladi.
+
+Backend frontendga moslashadi.
+
+Frontend backend uchun o'zgartirilmaydi.
+
+Backend
+
+Har bir modul mustaqil ishlaydi.
+
+Har bir modul API orqali bog'lanadi.
+
+Har bir action loglanadi.
+
+Har bir xatolik qayd qilinadi.
+
+AI
+
+AI yordamchi.
+
+AI administrator emas.
+
+AI tavsiya beradi.
+
+Muhim qarorlarni inson qabul qiladi (agar Auto Mode yoqilmagan bo'lsa).
+
+Security
+
+Har bir foydalanuvchi faqat o'ziga tegishli ma'lumotni ko'radi.
+
+Hech qachon boshqa kompaniya ma'lumotlari ko'rinmaydi.
+
+Har bir muhim action audit logga yoziladi.
+
+Performance
+
+Har bir sahifa imkon qadar tez ochilishi kerak.
+
+Media CDN orqali uzatiladi.
+
+AI background workerlarda ishlaydi.
+
+Og'ir ishlar queue orqali bajariladi.
+
+1.7 Success Criteria
+
+Platforma muvaffaqiyatli hisoblanadi agar:
+
+barcha public sahifalar ishlasa;
+AI pipeline to'liq ishlasa;
+media pipeline ishlasa;
+social publishing ishlasa;
+dashboardlar ishlasa;
+analytics ishlasa;
+partner management ishlasa;
+xavfsizlik talablariga javob bersa;
+production rejimida barqaror ishlasa.
+
+CHAPTER 2 — BUSINESS LOGIC
+2.1 Platforma qanday ishlaydi?
+
+Agro Alliance oddiy yangiliklar sayti emas.
+
+Bu bir vaqtning o'zida:
+
+Media Platform
+AI Platform
+CMS
+CRM
+Partner Management System
+Blogger Platform
+Analytics Platform
+Social Automation Platform
+
+hisoblanadi.
+
+Barcha modullar bir-biri bilan bog'langan bo'ladi.
+
+Misol:
+
+Yangilik
+        │
+        ▼
+AI tekshiradi
+        │
+        ▼
+Muharrir tasdiqlaydi
+        │
+        ▼
+Saytga chiqadi
+        │
+        ▼
+Homepage
+        │
+        ▼
+Telegram
+Instagram
+Facebook
+        │
+        ▼
+Analytics
+
+Har bir jarayon avtomatik loglanadi.
+
+2.2 Platformaning asosiy obyektlari
+
+Platformadagi eng muhim obyektlar:
+
+User
+Partner
+Blogger
+News
+Category
+Media
+Task
+Contract
+Notification
+AI Job
+Social Post
+Analytics
+
+Bular butun tizimning asosi hisoblanadi.
+
+2.3 User
+
+User — tizimdagi har qanday account.
+
+Har bir user:
+
+Login qiladi
+JWT oladi
+Profilega ega
+Rolega ega
+Permissionlarga ega
+
+User hech qachon rolesiz bo'lmaydi.
+
+Har bir user kamida bitta rolega ega.
+
+2.4 Partner
+
+Partner — Agro Alliance bilan ishlayotgan kompaniya.
+
+Partner:
+
+nomi
+logotipi
+tavsifi
+yo'nalishi
+statusi
+contract
+tasks
+media
+contact person
+client account
+
+ga ega bo'ladi.
+
+Partner oddiy user emas.
+
+Partner kompaniyani ifodalaydi.
+
+2.5 Client Account
+
+Har bir partnerga bitta yoki bir nechta login berilishi mumkin.
+
+Bu loginlar:
+
+Company roliga ega bo'ladi.
+
+Company dashboardga kira oladi.
+
+Faqat o'z partnerini ko'radi.
+
+Boshqa partnerlarni hech qachon ko'ra olmaydi.
+
+2.6 Blogger
+
+Blogger platformaning media hamkoridir.
+
+Har bir blogger:
+
+profil
+avatar
+banner
+portfolio
+xizmatlari
+videolari
+statistika
+hamkorliklar
+social linklar
+
+ga ega bo'ladi.
+
+Blogger o'z profilini o'zi boshqaradi.
+
+2.7 News
+
+News platformaning eng muhim kontenti hisoblanadi.
+
+Yangilik:
+
+AI orqali kelishi mumkin
+Muharrir yaratishi mumkin
+
+Har bir yangilik:
+
+title
+slug
+description
+content
+category
+tags
+cover image
+gallery
+SEO
+status
+author
+publish date
+
+ga ega bo'ladi.
+
+2.8 News Status
+
+Har bir yangilik quyidagi holatlardan birida bo'ladi:
+
+Draft
+
+↓
+
+Pending Review
+
+↓
+
+Approved
+
+↓
+
+Scheduled
+
+↓
+
+Published
+
+↓
+
+Archived
+
+↓
+
+Deleted
+
+AI hech qachon Approved bosqichidan o'tmaydi.
+
+Approved faqat muharrir yoki admin tomonidan beriladi (Auto Mode yoqilmagan bo'lsa).
+
+2.9 Categories
+
+Har bir yangilik kamida bitta kategoriyaga tegishli bo'ladi.
+
+Masalan:
+
+Texnologiya
+Sug'orish
+Chorvachilik
+Dehqonchilik
+Texnika
+Bozor
+Davlat
+Eksport
+Import
+
+Kategoriyalar administrator tomonidan boshqariladi.
+
+2.10 Tags
+
+Taglar qidiruvni yaxshilash uchun ishlatiladi.
+
+Taglar:
+
+AI yaratishi mumkin.
+Editor o'zgartirishi mumkin.
+2.11 Media
+
+Har bir media fayl:
+
+image
+video
+pdf
+document
+
+bo'lishi mumkin.
+
+Har bir media:
+
+original
+optimized
+thumbnail
+webp
+avif
+
+variantlariga ega bo'ladi.
+
+2.12 Homepage
+
+Homepage statik emas.
+
+Homepage administrator tomonidan boshqariladi.
+
+Admin:
+
+section qo'shadi
+section o'chiradi
+tartibini o'zgartiradi
+featured news tanlaydi
+partnerlarni chiqaradi
+bloggerlarni chiqaradi
+
+Homepage hech qachon kod orqali qo'lda o'zgartirilmaydi.
+
+2.13 AI
+
+AI platformaning yordamchisidir.
+
+AI:
+
+✅ Yangilik yozadi
+
+✅ Tarjima qiladi
+
+✅ SEO yozadi
+
+✅ Summary yozadi
+
+✅ Category tavsiya qiladi
+
+✅ Tag yaratadi
+
+✅ Duplicate tekshiradi
+
+❌ User yaratmaydi
+
+❌ Partner yaratmaydi
+
+❌ Database o'chirmaydi
+
+❌ Permission bermaydi
+
+❌ Admin o'rnini bosmaydi
+
+2.14 Dashboardlar
+
+Platformada 3 ta asosiy dashboard mavjud.
+
+Admin Dashboard
+
+Platformaning yuragi.
+
+Hammasi shu yerdan boshqariladi.
+
+Blogger Dashboard
+
+Faqat bloggerga tegishli ma'lumotlar.
+
+Client Dashboard
+
+Faqat partner kompaniyasiga tegishli ma'lumotlar.
+
+2.15 Notifications
+
+Har bir muhim voqea notification yaratadi.
+
+Masalan:
+
+yangi task
+contract
+publish
+reject
+comment
+AI xatolik
+worker xatolik
+
+Notification:
+
+Dashboard
+
+Email
+
+Telegram
+
+orqali yuborilishi mumkin.
+
+2.16 Analytics
+
+Platforma quyidagilarni hisoblaydi:
+
+View
+Click
+Read Time
+Shares
+Downloads
+Users
+Active Users
+Partners
+Bloggers
+AI Cost
+AI Tokens
+Media Usage
+
+Analytics real vaqtga yaqin yangilanadi.
+
+2.17 Asosiy biznes qoidalari
+
+Platforma quyidagi qoidalarga amal qiladi:
+
+Hech bir foydalanuvchi boshqa kompaniya ma'lumotlarini ko'ra olmaydi.
+Har bir muhim amal audit logga yoziladi.
+AI inson nazoratisiz muhim qaror qabul qilmaydi (Auto Mode o'chirilgan holatda).
+O'chirish imkon qadar soft delete orqali amalga oshiriladi.
+Har bir API foydalanuvchi roli va ruxsatlarini tekshiradi.
+Barcha og'ir vazifalar (AI, media, social) queue va workerlar orqali fon rejimida bajariladi.
+Frontend foydalanuvchi uchun sodda va tez ishlashi kerak; murakkab hisob-kitoblar backendda bajariladi.
+Tizim kengaytirishga tayyor bo'lishi kerak: yangi rollar, modullar va AI providerlar qo'shilganda mavjud arxitektura buzilmasligi kerak.
+
+
+CHAPTER 3 — ROLE & PERMISSION SYSTEM
+3.1 Umumiy tushuncha
+
+Platformadagi har bir foydalanuvchi Role (Rol) ga ega bo'ladi.
+
+Rol foydalanuvchi:
+
+nimani ko'rishi,
+nimani yaratishi,
+nimani o'zgartirishi,
+nimani o'chirishi,
+qaysi dashboardga kirishi,
+qaysi APIlarni ishlatishi,
+qaysi AI funksiyalarini ishlatishi
+
+mumkinligini belgilaydi.
+
+Platformada hech qachon rolesiz user bo'lmaydi.
+
+Har bir user kamida bitta rolga ega bo'lishi shart.
+
+3.2 Platformadagi rollar
+
+Platformada 7 ta asosiy rol mavjud.
+
+Guest
+
+↓
+
+User
+
+↓
+
+Company
+
+↓
+
+Blogger
+
+↓
+
+Editor
+
+↓
+
+Admin
+
+↓
+
+Super Admin
+
+Bu hierarchy emas.
+
+Bu faqat platformadagi rollar.
+
+Har biri mustaqil permissionlarga ega.
+
+3.3 Guest
+
+Guest bu login qilmagan foydalanuvchi.
+
+Guest:
+
+✅ Home
+
+✅ About
+
+✅ Platform
+
+✅ News
+
+✅ News Detail
+
+✅ Bloggers
+
+✅ Blogger Profile
+
+✅ Partners
+
+✅ Contact
+
+ko'ra oladi.
+
+Guest:
+
+❌ Dashboard
+
+❌ AI
+
+❌ Admin
+
+❌ Profile
+
+❌ Settings
+
+❌ Bookmark
+
+❌ Comment
+
+qila olmaydi.
+
+3.4 User
+
+Register qilgan oddiy foydalanuvchi.
+
+User:
+
+✅ Login
+
+✅ Logout
+
+✅ Profile
+
+✅ Profile Edit
+
+✅ Bookmark
+
+✅ Newsletter
+
+✅ Contact
+
+✅ News Reading
+
+✅ Search
+
+qila oladi.
+
+User:
+
+❌ News yaratmaydi.
+
+❌ Partner yarata olmaydi.
+
+❌ Dashboardga kira olmaydi (Admin/Blogger/Company dashboard).
+
+❌ AI ishlatmaydi.
+
+3.5 Company
+
+Company bu Partner account.
+
+Company:
+
+faqat
+
+o'z kompaniyasini boshqaradi.
+
+Company:
+
+✅ Dashboard
+
+✅ Company Info
+
+✅ Tasks
+
+✅ Contracts
+
+✅ Reports
+
+✅ Files
+
+✅ Messages
+
+ko'radi.
+
+Company:
+
+❌ boshqa partnerlarni ko'rmaydi.
+
+❌ boshqa tasklarni ko'rmaydi.
+
+❌ admin panelga kira olmaydi.
+
+❌ AI sozlamalarini ko'rmaydi.
+
+3.6 Blogger
+
+Blogger platformadagi media hamkor.
+
+Blogger:
+
+✅ Dashboard
+
+✅ Profile
+
+✅ Portfolio
+
+✅ Videos
+
+✅ Services
+
+✅ Statistics
+
+✅ Collaborations
+
+✅ Messages
+
+✅ Settings
+
+qila oladi.
+
+Blogger:
+
+faqat
+
+o'z profilini
+
+edit qiladi.
+
+Blogger:
+
+❌ boshqa bloggerlarni edit qilmaydi.
+
+❌ News publish qilmaydi.
+
+❌ Partnerlarni boshqarmaydi.
+
+❌ Homepage boshqarmaydi.
+
+3.7 Editor
+
+Editor CMS bilan ishlaydi.
+
+Editor:
+
+✅ News
+
+✅ Categories
+
+✅ Tags
+
+✅ Draft
+
+✅ Publish
+
+✅ SEO
+
+✅ AI Draft
+
+✅ AI Translate
+
+✅ AI Summary
+
+qila oladi.
+
+Editor:
+
+❌ User delete qilmaydi.
+
+❌ Partner delete qilmaydi.
+
+❌ Role bermaydi.
+
+❌ AI Provider o'zgartirmaydi.
+
+3.8 Admin
+
+Admin platformani boshqaradi.
+
+Admin:
+
+✅ Users
+
+✅ Bloggers
+
+✅ Partners
+
+✅ Homepage
+
+✅ News
+
+✅ Categories
+
+✅ Media
+
+✅ Subscribers
+
+✅ Contacts
+
+✅ Notifications
+
+✅ Analytics
+
+✅ Settings
+
+boshqaradi.
+
+Admin:
+
+AI Workerlarni
+
+Restart qilishi mumkin.
+
+Admin:
+
+Social publishni
+
+Retry qilishi mumkin.
+
+Admin:
+
+Media pipeline
+
+ko'rishi mumkin.
+
+Admin:
+
+❌ Super Adminni edit qilmaydi.
+
+❌ Secretlarni ko'rmaydi.
+
+❌ JWT Secretni ko'rmaydi.
+
+❌ API Keysni ko'rmaydi.
+
+3.9 Super Admin
+
+Platformaning eng yuqori roli.
+
+Super Admin:
+
+hamma narsani qiladi.
+
+Super Admin:
+
+✅ Users
+
+✅ Roles
+
+✅ Permissions
+
+✅ Settings
+
+✅ AI
+
+✅ Providers
+
+✅ Prompt Versions
+
+✅ Secrets
+
+✅ Workers
+
+✅ Queue
+
+✅ Logs
+
+✅ Metrics
+
+✅ Deploy
+
+✅ Homepage
+
+✅ News
+
+✅ Bloggers
+
+✅ Partners
+
+✅ Analytics
+
+hammasini boshqaradi.
+
+3.10 Permission System
+
+Rol va Permission boshqa-boshqa narsa.
+
+Masalan
+
+Admin
+
+↓
+
+Permissions
+
+↓
+
+news.create
+
+↓
+
+news.delete
+
+↓
+
+partner.create
+
+↓
+
+partner.delete
+
+↓
+
+worker.retry
+
+↓
+
+settings.update
+
+↓
+
+media.delete
+
+↓
+
+analytics.view
+
+Har bir API permission tekshiradi.
+
+Masalan
+
+news.delete
+
+permission bo'lmasa
+
+403 Forbidden
+
+qaytariladi.
+
+3.11 Dashboard Access
+
+Guest
+
+❌
+
+Dashboard yo'q.
+
+User
+
+❌
+
+Dashboard yo'q.
+
+Company
+
+✅
+
+Client Dashboard.
+
+Blogger
+
+✅
+
+Blogger Dashboard.
+
+Editor
+
+✅
+
+Editor Dashboard (CMS).
+
+Admin
+
+✅
+
+Admin Dashboard.
+
+Super Admin
+
+✅
+
+Admin Dashboard + System.
+
+3.12 Permission Rules
+
+Har bir action
+
+permission orqali ishlaydi.
+
+Misol.
+
+Create News
+
+↓
+
+Permission
+
+↓
+
+news.create
+
+Delete News
+
+↓
+
+news.delete
+
+Publish News
+
+↓
+
+news.publish
+
+Create Partner
+
+↓
+
+partner.create
+
+Delete Partner
+
+↓
+
+partner.delete
+
+Upload Media
+
+↓
+
+media.upload
+
+Delete Media
+
+↓
+
+media.delete
+
+Retry Worker
+
+↓
+
+worker.retry
+
+Cancel Queue
+
+↓
+
+queue.cancel
+
+Update Homepage
+
+↓
+
+homepage.update
+
+3.13 Role Management
+
+Faqat
+
+Super Admin
+
+yangi rol yaratadi.
+
+Admin
+
+rol bera oladi.
+
+Lekin
+
+Super Admin rolini
+
+bera olmaydi.
+
+3.14 Account Status
+
+Har bir user quyidagi holatlardan birida bo'ladi.
+
+Pending
+
+↓
+
+Active
+
+↓
+
+Suspended
+
+↓
+
+Blocked
+
+↓
+
+Deleted
+
+Deleted
+
+soft delete.
+
+3.15 Login Rules
+
+Har bir login:
+
+JWT oladi.
+
+Refresh Token oladi.
+
+Profile yuklanadi.
+
+Role yuklanadi.
+
+Permissions yuklanadi.
+
+Dashboard aniqlanadi.
+
+3.16 Logout
+
+Logout
+
+↓
+
+JWT o'chadi.
+
+↓
+
+Session tugaydi.
+
+↓
+
+Refresh token bekor qilinadi.
+
+↓
+
+Login sahifasiga qaytadi.
+
+3.17 Security Rules
+
+Har bir API:
+
+JWT tekshiradi.
+
+↓
+
+Role tekshiradi.
+
+↓
+
+Permission tekshiradi.
+
+↓
+
+Resource Ownership tekshiradi.
+
+↓
+
+CRUD bajaradi.
+
+↓
+
+Audit Log yozadi.
+
+↓
+
+Response qaytaradi.
+
+3.18 Audit Rules
+
+Quyidagi ishlar loglanadi:
+
+Login
+Logout
+Register
+Password Reset
+News Create
+News Update
+News Delete
+Partner Create
+Partner Delete
+Media Upload
+AI Publish
+Worker Error
+Settings Change
+Permission Change
+Role Change
+
+Har bir logda quyidagilar bo'ladi:
+
+User ID
+Role
+Action
+Resource
+Timestamp
+IP (agar mavjud bo'lsa)
+User Agent
+Natija (Success/Failure)
+📌 Chapter 3 yakuni
+
+Endi loyiha uchun quyidagilar aniq bo'ldi:
+
+Platformada qanday rollar bor.
+Har bir rol nima qiladi.
+Har bir rol nima qila olmaydi.
+Dashboardlarga kim kiradi.
+Permissionlar qanday ishlaydi.
+API xavfsizlik oqimi qanday ishlaydi.
+Audit va login qoidalari qanday.
+
+CHAPTER 4 — COMPLETE USER FLOWS
+4.1 Platformaning umumiy oqimi
+
+Platforma doimo quyidagi ketma-ketlikda ishlaydi.
+
+Visitor
+
+↓
+
+Public Website
+
+↓
+
+Register (optional)
+
+↓
+
+Login
+
+↓
+
+Role aniqlanadi
+
+↓
+
+Dashboard ochiladi
+
+↓
+
+Foydalanuvchi o'z vazifalarini bajaradi
+
+↓
+
+Logout
+
+Bu eng oddiy oqim.
+
+4.2 Guest Flow
+
+Guest saytga kiradi.
+
+Open Website
+
+↓
+
+Home
+
+↓
+
+About
+
+↓
+
+Platform
+
+↓
+
+News
+
+↓
+
+News Detail
+
+↓
+
+Bloggers
+
+↓
+
+Partners
+
+↓
+
+Contact
+
+Guest shu yerda:
+
+platformani o'rganadi;
+yangiliklarni o'qiydi;
+bloggerlarni ko'radi;
+partnerlarni ko'radi.
+
+Guest login qilmasdan ham platformadan foydalanishi mumkin.
+
+Lekin imkoniyatlari cheklangan.
+
+Guest quyidagilarni qilolmaydi:
+
+Dashboard
+Bookmark
+Settings
+Profile
+AI
+Contract
+Task
+Notification
+4.3 Register Flow
+Guest
+
+↓
+
+Register Page
+
+↓
+
+Name
+
+↓
+
+Email
+
+↓
+
+Password
+
+↓
+
+Validation
+
+↓
+
+Supabase Auth
+
+↓
+
+Profile
+
+↓
+
+Default Role = User
+
+↓
+
+Success
+
+↓
+
+Login
+
+Register paytida:
+
+profile yaratiladi.
+role biriktiriladi.
+audit log yoziladi.
+4.4 Login Flow
+Email
+
++
+
+Password
+
+↓
+
+JWT
+
+↓
+
+Refresh Token
+
+↓
+
+Profile
+
+↓
+
+Role
+
+↓
+
+Permission
+
+↓
+
+Dashboard Selection
+
+↓
+
+Redirect
+
+Redirect:
+
+User → Home
+
+Company → Client Dashboard
+
+Blogger → Blogger Dashboard
+
+Admin → Admin Dashboard
+
+Super Admin → Admin Dashboard
+
+4.5 Password Reset Flow
+Forgot Password
+
+↓
+
+Email
+
+↓
+
+Supabase
+
+↓
+
+Reset Link
+
+↓
+
+New Password
+
+↓
+
+Login
+4.6 Public News Flow
+Homepage
+
+↓
+
+News
+
+↓
+
+Search
+
+↓
+
+Category
+
+↓
+
+Article
+
+↓
+
+Related Articles
+
+↓
+
+Share
+
+↓
+
+Back
+
+Har bir maqola:
+
+SEO
+Analytics
+Related News
+Category
+Tags
+
+bilan bog'langan bo'ladi.
+
+4.7 AI News Flow
+
+Bu platformaning yuragi.
+
+RSS
+
+↓
+
+Crawler
+
+↓
+
+Duplicate Check
+
+↓
+
+Translate
+
+↓
+
+Validation
+
+↓
+
+Category
+
+↓
+
+SEO
+
+↓
+
+Draft
+
+↓
+
+Editor Review
+
+↓
+
+Publish
+
+↓
+
+Homepage
+
+↓
+
+Social
+
+↓
+
+Analytics
+
+Bu oqim 100% avtomatlashtirilgan bo'lishi mumkin.
+
+Lekin muharrir istasa Review bosqichini saqlab qoladi.
+
+4.8 Manual News Flow
+Editor Login
+
+↓
+
+Create Article
+
+↓
+
+Write Content
+
+↓
+
+Upload Images
+
+↓
+
+SEO
+
+↓
+
+Preview
+
+↓
+
+Publish
+
+↓
+
+Homepage
+
+↓
+
+Social
+
+↓
+
+Analytics
+4.9 Homepage Flow
+
+Homepage statik emas.
+
+Admin
+
+↓
+
+Homepage Manager
+
+↓
+
+Sections
+
+↓
+
+Featured News
+
+↓
+
+Partners
+
+↓
+
+Bloggers
+
+↓
+
+Statistics
+
+↓
+
+Save
+
+↓
+
+Homepage Updated
+
+Homepage real vaqtda o'zgaradi.
+
+4.10 Blogger Flow
+Blogger Login
+
+↓
+
+Dashboard
+
+↓
+
+Statistics
+
+↓
+
+Profile
+
+↓
+
+Portfolio
+
+↓
+
+Videos
+
+↓
+
+Services
+
+↓
+
+Collaborations
+
+↓
+
+Logout
+
+Blogger:
+
+hech qachon
+
+Partnerlarni boshqarmaydi.
+
+4.11 Partner Flow
+Admin
+
+↓
+
+Create Partner
+
+↓
+
+Create Company Account
+
+↓
+
+Email Sent
+
+↓
+
+Company Login
+
+↓
+
+Dashboard
+
+↓
+
+Tasks
+
+↓
+
+Contracts
+
+↓
+
+Reports
+
+↓
+
+Logout
+
+Partner hech qachon register orqali yaratilmaydi.
+
+Partnerni faqat Admin yaratadi.
+
+4.12 Client Task Flow
+Admin
+
+↓
+
+Create Task
+
+↓
+
+Assign Partner
+
+↓
+
+Notification
+
+↓
+
+Company Dashboard
+
+↓
+
+Progress
+
+↓
+
+Completed
+
+↓
+
+Archived
+
+Tasklar:
+
+Pending
+
+↓
+
+In Progress
+
+↓
+
+Review
+
+↓
+
+Completed
+
+↓
+
+Archived
+
+statuslariga ega bo'ladi.
+
+4.13 Media Upload Flow
+User
+
+↓
+
+Upload
+
+↓
+
+Validation
+
+↓
+
+Cloudflare R2
+
+↓
+
+Metadata
+
+↓
+
+Optimization
+
+↓
+
+Thumbnail
+
+↓
+
+WebP
+
+↓
+
+AVIF
+
+↓
+
+Ready
+
+Har bir media shu bosqichlardan o'tadi.
+
+4.14 Social Publish Flow
+Published Article
+
+↓
+
+Caption
+
+↓
+
+Hashtags
+
+↓
+
+Telegram
+
+↓
+
+Instagram
+
+↓
+
+Facebook
+
+↓
+
+Analytics
+
+↓
+
+History
+
+Agar publish muvaffaqiyatsiz bo'lsa:
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Dead Letter Queue
+4.15 Notification Flow
+
+Har qanday muhim hodisa.
+
+Action
+
+↓
+
+Notification
+
+↓
+
+Email
+
+↓
+
+Dashboard
+
+↓
+
+Telegram
+
+↓
+
+Read
+
+↓
+
+Archive
+4.16 Admin Flow
+Login
+
+↓
+
+Dashboard
+
+↓
+
+Users
+
+↓
+
+Partners
+
+↓
+
+News
+
+↓
+
+Homepage
+
+↓
+
+Media
+
+↓
+
+Analytics
+
+↓
+
+Settings
+
+↓
+
+Logout
+4.17 AI Worker Flow
+Queue
+
+↓
+
+Worker
+
+↓
+
+Provider
+
+↓
+
+Result
+
+↓
+
+Validation
+
+↓
+
+Metrics
+
+↓
+
+Logs
+
+↓
+
+Finish
+
+Har bir AI worker mustaqil ishlaydi.
+
+4.18 Error Flow
+
+Agar xatolik bo'lsa.
+
+Request
+
+↓
+
+Validation
+
+↓
+
+Error
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Dead Letter
+
+↓
+
+Admin Notification
+
+Hech qanday muhim ish yo'qolib ketmaydi.
+
+4.19 Logout Flow
+Logout
+
+↓
+
+Session Destroy
+
+↓
+
+JWT Remove
+
+↓
+
+Refresh Token Remove
+
+↓
+
+Login Page
+4.20 Complete Platform Flow
+
+Platformaning to'liq hayot sikli.
+
+Visitor
+
+↓
+
+Reads News
+
+↓
+
+Registers
+
+↓
+
+Login
+
+↓
+
+Uses Platform
+
+↓
+
+AI Creates Draft
+
+↓
+
+Editor Publishes
+
+↓
+
+Homepage Updates
+
+↓
+
+Social Publishing
+
+↓
+
+Analytics Updates
+
+↓
+
+Partner Works
+
+↓
+
+Tasks Completed
+
+↓
+
+Reports Generated
+
+↓
+
+Logs Stored
+
+↓
+
+Notifications Sent
+
+↓
+
+Logout
+4.21 Business Principles
+
+Platformada quyidagi oqimlar hech qachon buzilmaydi:
+
+Har bir foydalanuvchi faqat o'z roliga mos imkoniyatlarni ko'radi.
+Har bir API autentifikatsiya va ruxsatni tekshiradi.
+Har bir muhim amal audit logga yoziladi.
+Og'ir jarayonlar (AI, media, social) navbat (queue) orqali fon rejimida bajariladi.
+Xatolik yuz bersa, tizim qayta urinadi; muvaffaqiyatsiz bo'lsa administratorga xabar beradi.
+Ma'lumotlar imkon qadar soft delete orqali boshqariladi va tiklash imkoniyati saqlanadi.
+📌 Chapter 4 yakuni
+
+Bu bobdan keyin loyiha oqimlari aniq bo'ldi:
+
+Guest qanday harakat qiladi.
+User qanday ro'yxatdan o'tadi.
+Login qanday ishlaydi.
+Yangilik qanday yaratiladi.
+AI qanday ishlaydi.
+Partner qanday ishlaydi.
+Task qanday tugaydi.
+Media qanday qayta ishlanadi.
+Social qanday publish qiladi.
+Notification qanday ishlaydi.
+Admin butun tizimni qanday boshqaradi.
+
+CHAPTER 5 — PUBLIC WEBSITE SPECIFICATION
+5.1 Umumiy maqsad
+
+Public Website — bu platformaning barcha tashrif buyuruvchilar ko'radigan qismi.
+
+Bu qismning asosiy vazifasi:
+
+Platformani tanishtirish
+Yangiliklarni tarqatish
+Bloggerlarni ko'rsatish
+Hamkorlarni tanishtirish
+Kontakt yig'ish
+Newsletter yig'ish
+SEO trafik yig'ish
+
+Public qism login talab qilmaydi.
+
+5.2 Public Pages
+
+Platformada quyidagi public sahifalar mavjud.
+
+/
+
+Home
+
+/about
+
+/platforma
+
+/bloggerlar
+
+/bloggerlar/:slug
+
+/yangiliklar
+
+/yangiliklar/:slug
+
+/hamkorlar
+
+/aloqa
+
+/kirish
+
+/register
+
+/reset-password
+
+/privacy
+
+/terms
+5.3 Home Page
+
+Bu saytning eng muhim sahifasi.
+
+Homepage statik emas.
+
+Admin istalgan vaqtda boshqaradi.
+
+Homepage quyidagilardan tashkil topadi.
+
+Hero Section
+
+Ko'rsatadi:
+
+katta banner
+asosiy sarlavha
+qisqa tavsif
+CTA
+
+CTA:
+
+Platformaga kirish
+
+↓
+
+Login
+
+Hero background
+
+Admin o'zgartira oladi.
+
+Hero image
+
+Admin o'zgartira oladi.
+
+Hero video
+
+ixtiyoriy.
+
+Featured Statistics
+
+Statistika bloki.
+
+Masalan
+
+Partnerlar
+
+145
+
++
+
+Yangiliklar
+
+24 000
+
++
+
+Bloggerlar
+
+180
+
++
+
+Loyihalar
+
+920
+
++
+
+Real vaqt statistikasi.
+
+Featured News
+
+Homepage eng muhim yangiliklarni chiqaradi.
+
+Masalan
+
+8 ta.
+
+Har biri:
+
+image
+title
+excerpt
+date
+category
+
+bosilganda
+
+↓
+
+News Detail.
+
+Featured Bloggers
+
+Platformadagi TOP bloggerlar.
+
+Har biri:
+
+avatar
+ism
+kasbi
+qisqa tavsif
+statistikasi
+
+↓
+
+Profile.
+
+Featured Partners
+
+TOP partnerlar.
+
+Logo.
+
+Nomi.
+
+Qisqa tavsif.
+
+↓
+
+Partner Page.
+
+Platform Features
+
+Platforma nima qiladi.
+
+Masalan.
+
+AI
+
+Media
+
+Analytics
+
+Automation
+
+Marketing
+
+News
+
+CRM
+
+Monitoring
+CTA
+
+Oxirida.
+
+Platformaga qo'shiling.
+
+↓
+
+Login.
+
+Newsletter
+
+Email.
+
+↓
+
+Subscribe.
+
+↓
+
+Database.
+
+↓
+
+Success.
+
+Footer
+
+Har doim mavjud.
+
+5.4 About Page
+
+Platforma haqida.
+
+Bo'limlar.
+
+Mission.
+
+Vision.
+
+Values.
+
+History.
+
+Achievements.
+
+Team.
+
+Statistics.
+
+Video.
+
+ixtiyoriy.
+
+Timeline.
+
+Platformaning rivojlanishi.
+
+FAQ.
+
+Contact CTA.
+
+5.5 Platform Page
+
+Platformaning barcha imkoniyatlari.
+
+Bo'limlar.
+
+AI
+
+Media
+
+Automation
+
+Analytics
+
+CRM
+
+Monitoring
+
+Partner System
+
+Blogger System
+
+News System
+
+Har biri
+
+qanday ishlashi yoziladi.
+
+CTA.
+
+Login.
+
+5.6 News Page
+
+Yangiliklar ro'yxati.
+
+Elementlar.
+
+Search.
+
+Category.
+
+Theme.
+
+Date.
+
+Sort.
+
+Pagination.
+
+Har bir news.
+
+Image.
+
+Title.
+
+Excerpt.
+
+Author.
+
+Date.
+
+Category.
+
+Views.
+
+Bosilganda.
+
+↓
+
+News Detail.
+
+Loading.
+
+Error.
+
+Empty.
+
+Infinite emas.
+
+Pagination ishlaydi.
+
+5.7 News Detail
+
+Bitta maqola.
+
+Header.
+
+Image.
+
+Title.
+
+Date.
+
+Author.
+
+Category.
+
+Content.
+
+Gallery.
+
+Tags.
+
+Related News.
+
+Share.
+
+Telegram.
+
+Facebook.
+
+Copy Link.
+
+Instagram (copy).
+
+Previous.
+
+Next.
+
+Comments.
+
+(kelajakda)
+
+Bookmark.
+
+(login bo'lsa)
+
+Analytics.
+
+View count.
+
+5.8 Bloggers Page
+
+Platformadagi bloggerlar.
+
+Search.
+
+Region.
+
+Platform.
+
+Category.
+
+Sorting.
+
+Pagination.
+
+Card.
+
+Avatar.
+
+Name.
+
+Profession.
+
+Followers.
+
+Projects.
+
+Rating.
+
+↓
+
+Profile.
+
+5.9 Blogger Profile
+
+To'liq portfolio.
+
+Avatar.
+
+Banner.
+
+Biography.
+
+Skills.
+
+Experience.
+
+Achievements.
+
+Videos.
+
+Services.
+
+Brands.
+
+Gallery.
+
+Statistics.
+
+Contact.
+
+Collaboration.
+
+(login talab qilishi mumkin)
+
+5.10 Partners Page
+
+Hamkorlar.
+
+Search.
+
+Industry.
+
+Category.
+
+Featured.
+
+Grid.
+
+Logo.
+
+Description.
+
+Projects.
+
+↓
+
+Detail.
+
+(kelajakda)
+
+5.11 Contact Page
+
+Kontakt.
+
+Form.
+
+Name.
+
+Email.
+
+Phone.
+
+Subject.
+
+Message.
+
+Validation.
+
+Submit.
+
+↓
+
+Edge Function.
+
+↓
+
+Database.
+
+↓
+
+Admin Notification.
+
+Map.
+
+Address.
+
+Working Hours.
+
+Phone.
+
+Email.
+
+Newsletter.
+
+↓
+
+Subscribe.
+
+5.12 Login Page
+
+Login.
+
+Email.
+
+Password.
+
+Remember Me.
+
+Forgot Password.
+
+Google OAuth.
+
+Telegram.
+
+(coming soon)
+
+↓
+
+Role aniqlanadi.
+
+↓
+
+Dashboard.
+
+5.13 Register Page
+
+Name.
+
+Email.
+
+Password.
+
+Confirm Password.
+
+Validation.
+
+Create Account.
+
+↓
+
+Supabase.
+
+↓
+
+Profile.
+
+↓
+
+Role User.
+
+5.14 Reset Password
+
+Email.
+
+↓
+
+Reset Link.
+
+↓
+
+New Password.
+
+↓
+
+Login.
+
+5.15 Privacy
+
+Privacy Policy.
+
+Admin tahrir qilishi mumkin.
+
+5.16 Terms
+
+Terms of Service.
+
+Admin tahrir qilishi mumkin.
+
+5.17 Global Header
+
+Har bir sahifada.
+
+Logo.
+
+Menu.
+
+Search.
+
+Language.
+
+Theme.
+
+Login.
+
+Mobile.
+
+Hamburger.
+
+Sticky.
+
+Responsive.
+
+5.18 Global Footer
+
+Har doim.
+
+Logo.
+
+Navigation.
+
+Contact.
+
+Social.
+
+Newsletter.
+
+Copyright.
+
+Privacy.
+
+Terms.
+
+5.19 SEO Rules
+
+Har bir page.
+
+Meta Title.
+
+Description.
+
+OG Image.
+
+Twitter Card.
+
+Canonical.
+
+Structured Data.
+
+Sitemap.
+
+Robots.
+
+Breadcrumb.
+
+5.20 Performance Rules
+
+Har bir image.
+
+Lazy Load.
+
+WebP.
+
+AVIF.
+
+CDN.
+
+Responsive Images.
+
+Cache.
+
+5.21 Accessibility
+
+Keyboard.
+
+ARIA.
+
+Focus.
+
+Contrast.
+
+Screen Reader.
+
+Semantic HTML.
+
+5.22 Responsive
+
+Desktop.
+
+Tablet.
+
+Mobile.
+
+Hech bir sahifa buzilmaydi.
+
+5.23 Error Pages
+
+404
+
+403
+
+500
+
+Offline.
+
+Maintenance.
+
+5.24 Public Website Principles
+
+Public Website:
+
+Login talab qilmaydi.
+Maksimal tez ishlashi kerak.
+SEO uchun optimallashtirilgan bo'lishi kerak.
+Kontentni Admin boshqaradi.
+Dizayn bir xil uslubda bo'ladi.
+Har bir sahifa API orqali real ma'lumot oladi.
+Mock ma'lumot productionda ishlatilmaydi.
+Har bir forma backend bilan bog'langan bo'ladi.
+Har bir xatolik foydalanuvchiga tushunarli ko'rsatiladi.
+📌 Chapter 5 yakuni
+
+Endi public sayt to'liq aniq bo'ldi:
+
+Barcha public sahifalar.
+Har bir sahifaning vazifasi.
+Har bir blok nima qiladi.
+Har bir forma qanday ishlaydi.
+SEO va performance talablari.
+Responsive va accessibility qoidalari.
+Public frontendning to'liq arxitekturasi.
+
+
+6.1 Admin Panel maqsadi
+
+Admin Panel — bu platformaning boshqaruv markazi.
+
+Platformadagi deyarli barcha ma'lumotlar shu yer orqali boshqariladi.
+
+Admin panel orqali:
+
+foydalanuvchilar
+yangiliklar
+homepage
+AI
+media
+partnerlar
+bloggerlar
+analytics
+sozlamalar
+
+to'liq boshqariladi.
+
+6.2 Admin Rollari
+
+Admin panelda odatda ikki daraja bo'ladi.
+
+Super Admin
+
+Eng katta huquq.
+
+Qila oladi:
+
+barcha userlarni boshqarish
+role berish
+role olish
+AI providerlarni boshqarish
+API keylarni o'zgartirish
+homepage boshqarish
+settings
+categories
+partners
+news
+workers
+analytics
+media
+social
+system
+
+Hech qanday cheklov yo'q.
+
+Admin
+
+Qila oladi:
+
+News
+Homepage
+Media
+Subscribers
+Contacts
+Partners
+Bloggerlar
+Categories
+
+Ammo:
+
+Super Admin yaratolmaydi.
+API keylarni o'zgartirolmaydi.
+Database sozlamalarini o'zgartirolmaydi.
+6.3 Dashboard Home
+
+Admin kirganda birinchi ko'radi.
+
+Dashboard Cards.
+
+Today's News
+
+Published Today
+
+Drafts
+
+Partners
+
+Users
+
+Visitors
+
+Subscribers
+
+AI Jobs
+
+Failed Jobs
+
+Storage
+
+Revenue
+
+Active Sessions
+
+Har biri real vaqt yangilanadi.
+
+6.4 Sidebar
+
+Chap menu.
+
+Dashboard
+
+News
+
+Categories
+
+Homepage
+
+Media
+
+Partners
+
+Bloggers
+
+Users
+
+Subscribers
+
+Contacts
+
+AI
+
+Social
+
+Analytics
+
+Logs
+
+Settings
+
+Profile
+
+Logout
+
+Rolega qarab ko'rinadi.
+
+6.5 News Module
+
+Adminning eng ko'p ishlatadigan qismi.
+
+Imkoniyatlari.
+
+News List
+
+Create
+
+Edit
+
+Delete
+
+Preview
+
+Publish
+
+Unpublish
+
+Duplicate
+
+Archive
+
+Restore
+
+Search
+
+Filter
+
+Bulk Actions
+
+Har bir maqola.
+
+Title
+
+Slug
+
+Content
+
+Category
+
+Tags
+
+Images
+
+SEO
+
+Status
+
+Created By
+
+Updated By
+
+Publish Date
+
+Views
+
+Statuslar.
+
+Draft
+
+Review
+
+Scheduled
+
+Published
+
+Archived
+
+Deleted
+
+CRUD.
+
+Create
+
+Read
+
+Update
+
+Delete
+
+Restore
+
+Duplicate
+
+Bulk.
+
+Delete
+
+Publish
+
+Archive
+
+Category Change
+
+6.6 Categories
+
+Category boshqaruvi.
+
+CRUD.
+
+Tree.
+
+Sorting.
+
+Slug.
+
+SEO.
+
+Icon.
+
+Color.
+
+6.7 Homepage Manager
+
+Homepage bloklari.
+
+Masalan.
+
+Hero.
+
+Statistics.
+
+Featured News.
+
+Featured Bloggers.
+
+Partners.
+
+Banner.
+
+CTA.
+
+Footer Banner.
+
+Admin:
+
+Section qo'shadi.
+
+Section o'chiradi.
+
+Item qo'shadi.
+
+Item joyini almashtiradi.
+
+Sort qiladi.
+
+Hide qiladi.
+
+Publish qiladi.
+
+6.8 Media Library
+
+Barcha fayllar.
+
+Images.
+
+Videos.
+
+PDF.
+
+Documents.
+
+Ko'rish.
+
+Search.
+
+Filter.
+
+Folder.
+
+Preview.
+
+Delete.
+
+Restore.
+
+Move.
+
+Rename.
+
+Image.
+
+WebP.
+
+AVIF.
+
+Thumbnail.
+
+BlurHash.
+
+Metadata.
+
+6.9 Partner Manager
+
+Partnerlar.
+
+CRUD.
+
+Har bir partner.
+
+Name
+
+Logo
+
+Industry
+
+Direction
+
+Website
+
+Phone
+
+Email
+
+Contract
+
+Manager
+
+Status
+
+Partner Account.
+
+Create Login.
+
+Reset Password.
+
+Disable.
+
+Delete.
+
+Task.
+
+Assign.
+
+Progress.
+
+History.
+
+6.10 Blogger Manager
+
+CRUD.
+
+Avatar.
+
+Banner.
+
+Biography.
+
+Portfolio.
+
+Videos.
+
+Services.
+
+Achievements.
+
+Brands.
+
+Social Links.
+
+Status.
+
+Active.
+
+Hidden.
+
+Pending.
+
+Rejected.
+
+6.11 Users
+
+Barcha foydalanuvchilar.
+
+Search.
+
+Filter.
+
+Role.
+
+Status.
+
+Date.
+
+CRUD.
+
+Block.
+
+Unblock.
+
+Ban.
+
+Delete.
+
+Restore.
+
+Reset Password.
+
+Force Logout.
+
+6.12 Subscribers
+
+Newsletter.
+
+List.
+
+Email.
+
+Date.
+
+Source.
+
+Status.
+
+Export CSV.
+
+Delete.
+
+6.13 Contact Messages
+
+Barcha murojaatlar.
+
+Name.
+
+Email.
+
+Subject.
+
+Message.
+
+Date.
+
+Read.
+
+Unread.
+
+Reply.
+
+Archive.
+
+Delete.
+
+6.14 AI Center
+
+Platformaning AI markazi.
+
+Providers.
+
+OpenAI.
+
+Claude.
+
+Gemini.
+
+DeepSeek.
+
+Qwen.
+
+OpenRouter.
+
+Custom.
+
+Har biri.
+
+API Key.
+
+Model.
+
+Quota.
+
+Status.
+
+Latency.
+
+Errors.
+
+Promptlar.
+
+System Prompt.
+
+SEO Prompt.
+
+Translate Prompt.
+
+Validation Prompt.
+
+6.15 AI Jobs
+
+Queue.
+
+Pending.
+
+Running.
+
+Completed.
+
+Failed.
+
+Retry.
+
+Cancelled.
+
+Worker.
+
+Translate.
+
+SEO.
+
+Summary.
+
+Validation.
+
+Categorize.
+
+6.16 Social Manager
+
+Telegram.
+
+Instagram.
+
+Facebook.
+
+YouTube.
+
+LinkedIn.
+
+Accounts.
+
+Tokens.
+
+Permissions.
+
+Health.
+
+Publish Queue.
+
+Retry Queue.
+
+History.
+
+6.17 Analytics
+
+Statistika.
+
+Visitors.
+
+Views.
+
+Articles.
+
+Partners.
+
+Bloggers.
+
+Subscribers.
+
+Contacts.
+
+Storage.
+
+Bandwidth.
+
+AI Usage.
+
+Grafiklar.
+
+Kunlik.
+
+Haftalik.
+
+Oylik.
+
+Yillik.
+
+6.18 Logs
+
+System Logs.
+
+API Logs.
+
+Worker Logs.
+
+AI Logs.
+
+Login Logs.
+
+Error Logs.
+
+Audit Logs.
+
+Security Logs.
+
+Search.
+
+Export.
+
+Filter.
+
+6.19 Settings
+
+Platforma sozlamalari.
+
+General.
+
+Company.
+
+Logo.
+
+Favicon.
+
+Emails.
+
+Phones.
+
+Timezone.
+
+Language.
+
+Theme.
+
+SEO.
+
+Default Meta.
+
+OG.
+
+Twitter.
+
+Robots.
+
+Sitemap.
+
+SMTP.
+
+Telegram.
+
+Instagram.
+
+Facebook.
+
+Cloudflare.
+
+Supabase.
+
+OpenAI.
+
+6.20 Permissions
+
+Har bir tugma permission bilan ishlaydi.
+
+Masalan.
+
+news.create
+
+news.edit
+
+news.delete
+
+partner.create
+
+partner.delete
+
+user.create
+
+user.delete
+
+homepage.edit
+
+settings.edit
+
+analytics.view
+
+Role permission orqali tekshiriladi.
+
+6.21 Notifications
+
+Admin ko'radi.
+
+New Contact.
+
+New Subscriber.
+
+AI Failed.
+
+Worker Failed.
+
+Storage Full.
+
+Partner Registered.
+
+News Published.
+
+Security Alert.
+
+6.22 Search
+
+Global Search.
+
+News.
+
+Users.
+
+Partners.
+
+Bloggers.
+
+Media.
+
+Categories.
+
+Settings.
+
+6.23 Bulk Operations
+
+Ko'p element.
+
+Delete.
+
+Archive.
+
+Publish.
+
+Hide.
+
+Restore.
+
+Export.
+
+6.24 Security
+
+CSRF.
+
+JWT.
+
+RBAC.
+
+Rate Limit.
+
+Audit.
+
+2FA.
+
+IP Restriction.
+
+Session Timeout.
+
+Password Policy.
+
+6.25 Performance
+
+Pagination.
+
+Lazy Loading.
+
+Caching.
+
+Realtime.
+
+Optimistic UI.
+
+6.26 Admin Panel Principles
+
+Admin panel quyidagi qoidalarga amal qiladi:
+
+Har bir amal audit logga yoziladi.
+Har bir CRUD rollback qilinishi mumkin.
+Soft Delete ishlatiladi.
+Hard Delete faqat Super Admin qiladi.
+Har bir API permission tekshiradi.
+Hech bir forma mock ishlatmaydi.
+Har bir jadval pagination bilan ishlaydi.
+Bulk amallar qo'llab-quvvatlanadi.
+Xatoliklarda foydalanuvchiga aniq sabab ko'rsatiladi.
+AI va worker holati real vaqt monitoring qilinadi.
+📌 Chapter 6 yakuni
+
+Bu bobdan keyin Admin Panel to'liq hujjatlashtirildi:
+
+Dashboard
+News CMS
+Homepage Manager
+Media Library
+Partner Manager
+Blogger Manager
+User Manager
+Subscribers
+Contacts
+AI Center
+AI Jobs
+Social Manager
+Analytics
+Logs
+Settings
+Permissions
+Security
+Bulk Operations
+
+Bu hujjat asosida butun admin panelni noldan ishlab chiqish yoki mavjud tizimni tekshirish mumkin.
+
+CHAPTER 7 — BLOGGER DASHBOARD SPECIFICATION
+7.1 Blogger Dashboard maqsadi
+
+Blogger Dashboard — bu platformadagi bloggerlar uchun shaxsiy boshqaruv panelidir.
+
+Bu panel orqali blogger:
+
+o'z profilini boshqaradi;
+statistikalarini ko'radi;
+hamkorliklarni kuzatadi;
+xizmatlarini joylaydi;
+portfolio yaratadi;
+videolarini qo'shadi;
+xabarlarni boshqaradi;
+bildirishnomalarni ko'radi.
+
+Blogger boshqa bloggerlarning ma'lumotlarini boshqara olmaydi.
+
+7.2 Dashboard Home
+
+Login qilgandan keyin ochiladi.
+
+Dashboardda quyidagilar bo'ladi.
+
+Salom, Diyor 👋
+
+Bugungi statistika
+
+Views
+
+Followers
+
+Projects
+
+Revenue
+
+Rating
+
+Unread Messages
+
+Pending Collaborations
+
+Notifications
+7.3 Sidebar
+
+Chap menyu.
+
+Dashboard
+
+My Profile
+
+Portfolio
+
+Services
+
+Videos
+
+Collaborations
+
+Messages
+
+Statistics
+
+Notifications
+
+Settings
+
+Logout
+7.4 Dashboard Overview
+
+Asosiy sahifa.
+
+Kartalar.
+
+Total Views
+
+Followers
+
+Completed Projects
+
+Active Projects
+
+Revenue
+
+Average Rating
+
+Profile Completion
+
+Unread Messages
+
+Grafiklar.
+
+Haftalik.
+
+Oylik.
+
+Yillik.
+
+Recent Activity.
+
+New Collaboration
+
+Profile Updated
+
+Video Added
+
+Service Added
+
+Message Received
+
+Review Received
+7.5 My Profile
+
+Profilni tahrirlash.
+
+Maydonlar.
+
+Avatar
+Cover
+Full Name
+Username
+Profession
+Bio
+About
+Experience
+Location
+Languages
+Email
+Phone
+Website
+
+Social Links.
+
+Instagram
+Telegram
+YouTube
+TikTok
+Facebook
+LinkedIn
+
+Portfolio URL.
+
+CV.
+
+Profile Visibility.
+
+Public
+
+Private
+7.6 Portfolio
+
+Portfolio loyihalari.
+
+CRUD.
+
+Har bir loyiha.
+
+Cover Image
+Gallery
+Title
+Description
+Category
+Client
+Date
+Technologies
+Link
+
+Status.
+
+Published
+
+Hidden
+
+Draft
+
+Sorting.
+
+Drag & Drop.
+
+7.7 Services
+
+Blogger ko'rsatadigan xizmatlar.
+
+CRUD.
+
+Masalan.
+
+Video Editing
+
+Drone Shooting
+
+Photography
+
+SMM
+
+Brand Promotion
+
+Review
+
+Content Creation
+
+Har bir xizmat.
+
+Name
+Description
+Price
+Currency
+Duration
+Category
+
+Available.
+
+On/Off.
+
+7.8 Videos
+
+Video portfoliolar.
+
+CRUD.
+
+YouTube.
+
+Instagram.
+
+TikTok.
+
+Facebook.
+
+Thumbnail.
+
+Views.
+
+Duration.
+
+Platform.
+
+Preview.
+
+Featured.
+
+7.9 Collaborations
+
+Hamkorliklar.
+
+Har bir hamkorlik.
+
+Company
+Contact Person
+Status
+Start Date
+End Date
+Budget
+Progress
+
+Statuslar.
+
+Pending
+
+Accepted
+
+In Progress
+
+Completed
+
+Rejected
+
+Cancelled
+
+Har bir hamkorlik tarixga yoziladi.
+
+7.10 Messages
+
+Ichki xabarlar.
+
+Inbox.
+
+Sent.
+
+Archived.
+
+Deleted.
+
+Har bir xabar.
+
+From
+Subject
+Message
+Attachments
+Date
+
+Reply.
+
+Forward.
+
+Delete.
+
+7.11 Notifications
+
+Bildirishnomalar.
+
+Misollar.
+
+New Collaboration
+
+Profile Approved
+
+Service Approved
+
+Video Published
+
+New Message
+
+Admin Announcement
+
+System Update
+
+Har biri.
+
+Read.
+
+Unread.
+
+Archive.
+
+Delete.
+
+7.12 Statistics
+
+Blogger statistikasi.
+
+Views.
+
+Followers.
+
+Projects.
+
+Revenue.
+
+Rating.
+
+CTR.
+
+Engagement.
+
+Reach.
+
+Grafiklar.
+
+Daily.
+
+Weekly.
+
+Monthly.
+
+Yearly.
+
+Top Content.
+
+Audience.
+
+7.13 Reviews
+
+Kompaniyalar bergan baholar.
+
+Har bir review.
+
+Company
+Stars
+Comment
+Date
+
+Average Rating.
+
+7.14 Earnings
+
+Kelajak uchun modul.
+
+Total Revenue.
+
+Pending Payments.
+
+Completed Payments.
+
+Invoices.
+
+History.
+
+7.15 Files
+
+Shaxsiy fayllar.
+
+Images.
+
+Videos.
+
+Documents.
+
+Certificates.
+
+Upload.
+
+Preview.
+
+Delete.
+
+Rename.
+
+Cloudflare R2 ishlatiladi.
+
+7.16 Calendar
+
+Hamkorlik sanalari.
+
+Meeting.
+
+Deadline.
+
+Task.
+
+Event.
+
+Reminder.
+
+7.17 Settings
+
+Profil sozlamalari.
+
+Language.
+
+Theme.
+
+Timezone.
+
+Privacy.
+
+Notifications.
+
+Password.
+
+2FA.
+
+Delete Account.
+
+7.18 Profile Completion
+
+Profil to'liqligi.
+
+Masalan.
+
+Avatar
+
+✔
+
+Bio
+
+✔
+
+Services
+
+✔
+
+Videos
+
+✔
+
+Portfolio
+
+❌
+
+Social Links
+
+✔
+
+Phone
+
+✔
+
+Website
+
+❌
+
+Completion
+
+82%
+7.19 Permissions
+
+Blogger quyidagilarni qila oladi.
+
+✅ O'z profilini tahrirlash
+
+✅ Portfolio yaratish
+
+✅ Video qo'shish
+
+✅ Service qo'shish
+
+✅ Hamkorliklarni ko'rish
+
+✅ Xabar yozish
+
+✅ Statistikani ko'rish
+
+Blogger qila olmaydi.
+
+❌ Boshqa bloggerni edit qilish
+
+❌ Yangilik yaratish
+
+❌ Homepage edit qilish
+
+❌ Partner qo'shish
+
+❌ Userlarni boshqarish
+
+❌ Admin panelga kirish
+
+❌ AI Providerlarni boshqarish
+
+7.20 API Flow
+
+Dashboard ochilishi.
+
+Login
+
+↓
+
+JWT
+
+↓
+
+GET /me
+
+↓
+
+GET /blogger/profile
+
+↓
+
+GET /blogger/statistics
+
+↓
+
+GET /blogger/services
+
+↓
+
+GET /blogger/videos
+
+↓
+
+GET /blogger/collaborations
+
+↓
+
+Dashboard Render
+7.21 Data Ownership
+
+Blogger faqat o'z ma'lumotlarini ko'radi.
+
+Har bir API:
+
+JWT
+
+↓
+
+User ID
+
+↓
+
+Role Check
+
+↓
+
+Ownership Check
+
+↓
+
+Database
+
+↓
+
+Response
+
+Agar boshqa bloggerning ID'sini yuborsa:
+
+403 Forbidden
+7.22 Audit
+
+Log qilinadi.
+
+Login
+Logout
+Profile Update
+Avatar Change
+Service Create
+Service Delete
+Portfolio Create
+Portfolio Update
+Video Upload
+Collaboration Accept
+Collaboration Reject
+Password Change
+7.23 Error Handling
+
+Har bir forma.
+
+Loading.
+
+↓
+
+Validation.
+
+↓
+
+Success.
+
+↓
+
+Error.
+
+↓
+
+Retry.
+
+7.24 Future Modules
+
+Kelajakda qo'shiladi.
+
+Chat
+AI Assistant
+Invoice Generator
+Proposal Builder
+Contract Viewer
+Live Analytics
+Mobile App Sync
+Calendar Sync
+CRM Integration
+Payment History
+Brand Marketplace
+7.25 Blogger Dashboard Principles
+Blogger faqat o'z ma'lumotlarini boshqaradi.
+Hech qachon boshqa foydalanuvchi ma'lumotiga kira olmaydi.
+Har bir amal audit logga yoziladi.
+Har bir CRUD rollback qilinishi mumkin.
+Media avtomatik optimizatsiya qilinadi.
+Statistikalar real ma'lumotlardan hisoblanadi.
+Dashboard mobil qurilmalarda ham to'liq ishlaydi.
+Har bir API JWT + Role + Ownership tekshiruvini o'tadi.
+Barcha og'ir ishlar (video processing, AI tavsiyalari va h.k.) fon workerlari orqali bajariladi.
+📌 Chapter 7 yakuni
+
+Bu bob bilan Blogger Dashboard to'liq hujjatlashtirildi:
+
+Dashboard
+Profile
+Portfolio
+Services
+Videos
+Collaborations
+Messages
+Notifications
+Statistics
+Reviews
+Earnings
+Files
+Calendar
+Settings
+Permissionlar
+API Flow
+Audit va xavfsizlik
+
+8.1 Maqsad
+
+Client Dashboard — bu platformadagi Partner (Company) uchun shaxsiy boshqaruv panelidir.
+
+Bu panel orqali kompaniya:
+
+o'z kompaniyasi haqidagi ma'lumotlarni ko'radi;
+Admin tomonidan berilgan vazifalarni bajaradi;
+shartnomalarni ko'radi;
+fayllarni yuklaydi;
+hisobotlarni ko'radi;
+xabar almashadi;
+bildirishnomalarni oladi.
+
+Company boshqa kompaniyalarni ko'ra olmaydi.
+
+8.2 Company Workflow
+
+Company hech qachon Register orqali yaratilmaydi.
+
+Workflow:
+
+Admin
+
+↓
+
+Partner Create
+
+↓
+
+Company Account Create
+
+↓
+
+Email Invitation
+
+↓
+
+Company Login
+
+↓
+
+Dashboard
+
+↓
+
+Tasks
+
+↓
+
+Contracts
+
+↓
+
+Reports
+
+↓
+
+Logout
+8.3 Dashboard Home
+
+Dashboard ochilganda.
+
+Ko'rinadi.
+
+Company Name
+
+Partner Status
+
+Contract Status
+
+Tasks
+
+Completed Tasks
+
+Pending Tasks
+
+Reports
+
+Messages
+
+Notifications
+
+Grafik.
+
+Tasks Progress
+
+Monthly Activity
+
+Completed Projects
+
+Performance
+8.4 Sidebar
+Dashboard
+
+Company
+
+Tasks
+
+Contracts
+
+Files
+
+Reports
+
+Messages
+
+Notifications
+
+Settings
+
+Logout
+8.5 Company Profile
+
+Ma'lumotlar.
+
+Company Name
+Logo
+Industry
+Address
+Website
+Email
+Phone
+Manager
+Description
+
+Company faqat ayrim maydonlarni o'zgartira oladi.
+
+Masalan.
+
+Phone.
+
+Website.
+
+Description.
+
+Logo.
+
+Nomi.
+
+INN.
+
+Contract Number.
+
+Admin tomonidan boshqariladi.
+
+8.6 Tasks
+
+Asosiy modul.
+
+Har bir task.
+
+Title
+
+Description
+
+Priority
+
+Deadline
+
+Assigned Date
+
+Progress
+
+Status
+
+Files
+
+Comments
+
+Status.
+
+Pending
+
+Accepted
+
+In Progress
+
+Review
+
+Completed
+
+Rejected
+
+Cancelled
+
+Priority.
+
+Low
+
+Medium
+
+High
+
+Critical
+
+Har bir task.
+
+↓
+
+History.
+
+↓
+
+Audit.
+
+↓
+
+Comments.
+
+8.7 Task Workflow
+Admin
+
+↓
+
+Create Task
+
+↓
+
+Assign Company
+
+↓
+
+Notification
+
+↓
+
+Company Accept
+
+↓
+
+In Progress
+
+↓
+
+Upload Files
+
+↓
+
+Complete
+
+↓
+
+Admin Review
+
+↓
+
+Approved
+
+↓
+
+Archive
+8.8 Contracts
+
+Company shartnomalari.
+
+Har biri.
+
+Contract Number.
+
+Start Date.
+
+End Date.
+
+Amount.
+
+Currency.
+
+Status.
+
+PDF.
+
+Attachments.
+
+Status.
+
+Draft
+
+Active
+
+Expired
+
+Cancelled
+
+Completed
+
+PDF Preview.
+
+Download.
+
+History.
+
+8.9 Reports
+
+Hisobotlar.
+
+Monthly.
+
+Quarterly.
+
+Yearly.
+
+Charts.
+
+Tables.
+
+Export.
+
+PDF.
+
+Excel.
+
+8.10 Files
+
+Task fayllari.
+
+Upload.
+
+Preview.
+
+Download.
+
+Delete.
+
+Version.
+
+History.
+
+Har bir fayl.
+
+↓
+
+Cloudflare R2.
+
+↓
+
+Optimization.
+
+↓
+
+Virus Scan.
+
+↓
+
+Ready.
+
+8.11 Messages
+
+Company.
+
+↓
+
+Admin.
+
+Inbox.
+
+Sent.
+
+Archive.
+
+Delete.
+
+Attachment.
+
+Read.
+
+Unread.
+
+8.12 Notifications
+
+Bildirishnomalar.
+
+Examples.
+
+New Task
+
+Task Updated
+
+Contract Signed
+
+Deadline Reminder
+
+Report Ready
+
+Admin Message
+
+System Notification
+
+Read.
+
+Unread.
+
+Archive.
+
+8.13 Calendar
+
+Company Calendar.
+
+Deadlines.
+
+Meetings.
+
+Tasks.
+
+Reports.
+
+Events.
+
+Reminder.
+
+8.14 Statistics
+
+Ko'rsatkichlar.
+
+Completed Tasks.
+
+Pending Tasks.
+
+Average Completion Time.
+
+Active Contracts.
+
+Performance.
+
+Response Time.
+
+Charts.
+
+8.15 Documents
+
+Kompaniya hujjatlari.
+
+Certificates.
+
+Contracts.
+
+Invoices.
+
+Licenses.
+
+Reports.
+
+Preview.
+
+Download.
+
+History.
+
+8.16 Settings
+
+Language.
+
+Timezone.
+
+Password.
+
+Notifications.
+
+2FA.
+
+Theme.
+
+Privacy.
+
+8.17 Company Permissions
+
+Company qila oladi.
+
+✅ Dashboard ko'radi
+
+✅ O'z tasklarini ko'radi
+
+✅ O'z contractlarini ko'radi
+
+✅ File yuklaydi
+
+✅ Report ko'radi
+
+✅ Message yuboradi
+
+✅ Notification ko'radi
+
+Qila olmaydi.
+
+❌ Boshqa companyni ko'rmaydi
+
+❌ Partner yaratmaydi
+
+❌ User yaratmaydi
+
+❌ News yaratmaydi
+
+❌ Homepage edit qilmaydi
+
+❌ AI sozlamalarini ko'rmaydi
+
+❌ Workerlarni boshqarmaydi
+
+8.18 Ownership Rules
+
+Har bir API.
+
+JWT
+
+↓
+
+Role = Company
+
+↓
+
+Partner Lookup
+
+↓
+
+client_profile_id
+
+↓
+
+Partner ID
+
+↓
+
+Resource Ownership
+
+↓
+
+Response
+
+Company faqat o'ziga tegishli ma'lumotni oladi.
+
+8.19 Admin → Company Flow
+
+Admin.
+
+↓
+
+Partner yaratadi.
+
+↓
+
+Company Login yaratadi.
+
+↓
+
+Role = Company.
+
+↓
+
+Partner bilan bog'laydi.
+
+↓
+
+Email yuboradi.
+
+↓
+
+Company login qiladi.
+
+↓
+
+Dashboard ishlaydi.
+
+Bu oqim buzilmaydi.
+
+Self Register Company emas.
+
+8.20 File Upload Flow
+Upload
+
+↓
+
+Signed URL
+
+↓
+
+Cloudflare R2
+
+↓
+
+Validation
+
+↓
+
+Thumbnail
+
+↓
+
+Metadata
+
+↓
+
+Virus Check
+
+↓
+
+Ready
+8.21 Report Flow
+Task
+
+↓
+
+Completed
+
+↓
+
+Statistics
+
+↓
+
+Report
+
+↓
+
+Dashboard
+
+↓
+
+Export
+8.22 Security
+
+Har bir API.
+
+↓
+
+JWT.
+
+↓
+
+Role.
+
+↓
+
+Ownership.
+
+↓
+
+Audit.
+
+↓
+
+CRUD.
+
+↓
+
+Response.
+
+Hech qachon boshqa company ma'lumotlari chiqmaydi.
+
+8.23 Audit
+
+Log qilinadi.
+
+Login
+Logout
+Task Accept
+Task Reject
+Task Complete
+File Upload
+File Delete
+Contract View
+Report Export
+Message Send
+Password Change
+8.24 Error Handling
+
+Loading.
+
+↓
+
+Validation.
+
+↓
+
+Success.
+
+↓
+
+Error.
+
+↓
+
+Retry.
+
+8.25 Future Modules
+
+Kelajak uchun.
+
+Invoice
+Online Payment
+Digital Signature
+Video Meeting
+AI Assistant
+CRM Integration
+ERP Integration
+Calendar Sync
+Mobile App
+Push Notifications
+8.26 Company Dashboard Principles
+Company faqat o'z ma'lumotlarini ko'radi.
+Har bir task audit qilinadi.
+Har bir upload tekshiriladi.
+Shartnomalar o'zgarmas tarix bilan saqlanadi.
+Har bir API JWT + Role + Ownership tekshiradi.
+Dashboard real vaqt ma'lumotlari bilan ishlaydi.
+Og'ir jarayonlar (media, AI, hisobot) fon workerlari orqali bajariladi.
+Soft delete va versiyalash qo'llaniladi.
+📌 Chapter 8 yakuni
+
+Bu bob bilan Company Dashboard ham to'liq hujjatlashtirildi:
+
+Dashboard
+Company Profile
+Tasks
+Task Lifecycle
+Contracts
+Reports
+Files
+Messages
+Notifications
+Calendar
+Statistics
+Documents
+Settings
+Ownership Rules
+Admin → Company Workflow
+Security
+Audit
+
+9.1 Maqsad
+
+Bu platformaning eng muhim moduli.
+
+Oddiy CMS emas.
+
+Oddiy News Website emas.
+
+Bu AI yordamida ishlaydigan avtomatlashtirilgan Media Platforma.
+
+AI quyidagilarni bajaradi:
+
+Yangilik topadi
+Tekshiradi
+Tarjima qiladi
+SEO qiladi
+Rasm tayyorlaydi
+Kategoriyalaydi
+Muharrirga yuboradi
+Publish qiladi
+Social tarmoqlarga tarqatadi
+Statistikani yig'adi
+
+Bu jarayonlarning deyarli hammasi avtomatik ishlaydi.
+
+9.2 AI Architecture
+Internet
+
+↓
+
+RSS
+
+↓
+
+Telegram
+
+↓
+
+Website
+
+↓
+
+Crawler
+
+↓
+
+Queue
+
+↓
+
+AI Workers
+
+↓
+
+Validation
+
+↓
+
+Database
+
+↓
+
+Editor
+
+↓
+
+Publish
+
+↓
+
+Homepage
+
+↓
+
+Social
+
+↓
+
+Analytics
+9.3 AI Modules
+
+Platformada quyidagi AI modullar bo'ladi.
+
+RSS Reader
+
+Telegram Monitor
+
+Web Crawler
+
+Duplicate Detector
+
+Language Detector
+
+Translator
+
+Summarizer
+
+SEO Generator
+
+Category AI
+
+Tag AI
+
+Keyword AI
+
+Image AI
+
+Fact Checker
+
+Quality Checker
+
+Publisher
+
+Analytics AI
+9.4 RSS Engine
+
+RSS doimiy ishlaydi.
+
+Masalan.
+
+kun.uz
+
+gazeta.uz
+
+agro.uz
+
+uza.uz
+
+worldbank
+
+fao
+
+usda
+
+reuters
+
+bbc
+
+apnews
+
+Har 5–15 daqiqada tekshiradi.
+
+Workflow.
+
+RSS
+
+↓
+
+New Article
+
+↓
+
+Queue
+
+↓
+
+AI Pipeline
+9.5 Telegram Monitor
+
+AI Telegram kanallarini kuzatadi.
+
+Masalan.
+
+Agro News
+
+Qishloq Xo'jaligi
+
+Farm News
+
+Export
+
+Import
+
+Government
+
+Workflow.
+
+Telegram
+
+↓
+
+New Post
+
+↓
+
+Parser
+
+↓
+
+Duplicate Check
+
+↓
+
+AI
+9.6 Website Crawler
+
+RSS bo'lmasa.
+
+Crawler ishlaydi.
+
+AI:
+
+Website ochadi.
+
+↓
+
+Article topadi.
+
+↓
+
+Extract.
+
+↓
+
+Queue.
+
+9.7 Duplicate Detection
+
+Har yangi maqola.
+
+↓
+
+SHA256
+
+↓
+
+Similarity
+
+↓
+
+Embedding
+
+↓
+
+Title
+
+↓
+
+Content
+
+↓
+
+Database
+
+↓
+
+Duplicate?
+
+
+YES
+
+↓
+
+Discard
+
+NO
+
+↓
+
+Continue
+
+---
+
+# 9.8 Language Detection
+
+AI aniqlaydi.
+
+```text
+Uzbek
+
+English
+
+Russian
+
+Turkish
+
+Kazakh
+
+Arabic
+
+Chinese
+9.9 Translation
+
+Platformadagi barcha maqolalar.
+
+↓
+
+O'zbek tiliga o'tkaziladi.
+
+AI.
+
+↓
+
+Translate.
+
+↓
+
+Grammar.
+
+↓
+
+Style.
+
+↓
+
+Proofread.
+
+9.10 Summarization
+
+Uzun maqola.
+
+↓
+
+Qisqartiriladi.
+
+Masalan.
+
+5000 words.
+
+↓
+
+800 words.
+
+↓
+
+300 words.
+
+↓
+
+Short Description.
+
+9.11 SEO Generator
+
+AI yaratadi.
+
+SEO Title
+Meta Description
+Keywords
+Open Graph
+Twitter Card
+Slug
+Canonical
+9.12 Category AI
+
+AI maqolani kategoriya qiladi.
+
+Masalan.
+
+Texnologiya
+
+Eksport
+
+Import
+
+Fermer
+
+Sug'orish
+
+Texnika
+
+Iqtisodiyot
+
+Davlat
+
+Qonunchilik
+9.13 Tags
+
+AI.
+
+↓
+
+5–20 tag.
+
+Masalan.
+
+cotton
+
+tractor
+
+export
+
+grain
+
+drone
+
+AI
+
+agriculture
+9.14 Image AI
+
+Agar rasm bo'lmasa.
+
+AI.
+
+↓
+
+Image Search.
+
+yoki
+
+↓
+
+Image Generation.
+
+Rasm.
+
+↓
+
+Cloudflare R2.
+
+↓
+
+Optimization.
+
+↓
+
+Ready.
+
+9.15 Fact Validation
+
+AI.
+
+↓
+
+Fact Check.
+
+↓
+
+Source Count.
+
+↓
+
+Confidence.
+
+↓
+
+Safe?
+
+Past confidence.
+
+↓
+
+Editor Review.
+
+9.16 Quality Score
+
+Har maqola.
+
+0–100.
+
+Hisoblanadi.
+
+Masalan.
+
+Grammar
+
+SEO
+
+Uniqueness
+
+Sources
+
+Length
+
+Images
+
+Category
+
+Tags
+
+↓
+
+Overall Score.
+
+9.17 Draft Creation
+
+AI.
+
+↓
+
+Database.
+
+↓
+
+Draft.
+
+↓
+
+Editor Notification.
+
+Status.
+
+Draft.
+
+9.18 Editor Review
+
+Editor.
+
+↓
+
+Open Draft.
+
+↓
+
+Edit.
+
+↓
+
+Approve.
+
+↓
+
+Reject.
+
+↓
+
+Publish.
+
+9.19 Auto Publish
+
+Agar.
+
+Quality.
+
+95+
+
+Fact.
+
+High.
+
+↓
+
+Auto Publish.
+
+Aks holda.
+
+↓
+
+Review.
+
+9.20 Social Automation
+
+Publish bo'ldi.
+
+↓
+
+Telegram.
+
+↓
+
+Instagram.
+
+↓
+
+Facebook.
+
+↓
+
+LinkedIn.
+
+↓
+
+YouTube Community.
+
+Caption.
+
+AI yaratadi.
+
+9.21 AI Caption
+
+AI.
+
+↓
+
+Title.
+
+↓
+
+Summary.
+
+↓
+
+Hashtags.
+
+↓
+
+Emoji.
+
+↓
+
+CTA.
+
+↓
+
+Post.
+
+9.22 Queue System
+
+Har ish.
+
+↓
+
+Queue.
+
+↓
+
+Worker.
+
+↓
+
+Done.
+
+Queue.
+
+Pending
+
+Running
+
+Completed
+
+Failed
+
+Retry
+
+Dead
+9.23 Workers
+
+Platformada workerlar.
+
+RSS Worker
+
+Crawler Worker
+
+Translate Worker
+
+SEO Worker
+
+Image Worker
+
+Validation Worker
+
+Publish Worker
+
+Telegram Worker
+
+Instagram Worker
+
+Facebook Worker
+
+Har biri mustaqil.
+
+9.24 Retry Logic
+
+Error.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Dead Queue.
+
+9.25 Dead Letter Queue
+
+3 martadan keyin.
+
+↓
+
+DLQ.
+
+↓
+
+Admin Alert.
+
+↓
+
+Manual Retry.
+
+9.26 Provider Management
+
+Providerlar.
+
+OpenAI
+
+Claude
+
+Gemini
+
+DeepSeek
+
+Qwen
+
+OpenRouter
+
+Local LLM
+
+Har biri.
+
+Enabled.
+
+Disabled.
+
+Priority.
+
+Quota.
+
+Price.
+
+Latency.
+
+9.27 Cost Optimizer
+
+AI.
+
+↓
+
+Cheap Model.
+
+↓
+
+Medium.
+
+↓
+
+Premium.
+
+Masalan.
+
+SEO.
+
+↓
+
+Cheap.
+
+Fact.
+
+↓
+
+Premium.
+
+9.28 Metrics
+
+Har worker.
+
+↓
+
+Latency.
+
+↓
+
+Tokens.
+
+↓
+
+Cost.
+
+↓
+
+Errors.
+
+↓
+
+Duration.
+
+↓
+
+Retries.
+
+9.29 Logs
+
+Har AI.
+
+↓
+
+Prompt.
+
+↓
+
+Response.
+
+↓
+
+Provider.
+
+↓
+
+Latency.
+
+↓
+
+Tokens.
+
+↓
+
+Cost.
+
+↓
+
+Error.
+
+9.30 Prompt Library
+
+Har AI.
+
+System Prompt.
+
+↓
+
+SEO Prompt.
+
+↓
+
+Translate Prompt.
+
+↓
+
+Summary Prompt.
+
+↓
+
+Validation Prompt.
+
+↓
+
+Caption Prompt.
+
+Admin o'zgartira oladi.
+
+9.31 AI Permissions
+
+AI hech qachon:
+
+❌ Database delete qilmaydi.
+
+❌ User delete qilmaydi.
+
+❌ Permission bermaydi.
+
+❌ Role o'zgartirmaydi.
+
+❌ Contract yaratmaydi.
+
+❌ Admin Settings o'zgartirmaydi.
+
+AI faqat:
+
+✅ Tavsiya qiladi.
+
+✅ Draft yaratadi.
+
+✅ SEO qiladi.
+
+✅ Translate qiladi.
+
+✅ Caption yaratadi.
+
+✅ Analytics beradi.
+
+9.32 Human Override
+
+Har doim.
+
+Admin.
+
+↓
+
+Override.
+
+↓
+
+Reject.
+
+↓
+
+Republish.
+
+↓
+
+Rollback.
+
+AI oxirgi qarorni qabul qilmaydi.
+
+Inson ustun.
+
+9.33 AI Security
+
+API Keys.
+
+Encrypted.
+
+↓
+
+Secret Manager.
+
+↓
+
+Rotation.
+
+↓
+
+Quota.
+
+↓
+
+Audit.
+
+9.34 AI Principles
+
+Platformaning AI qismi quyidagi tamoyillarga amal qiladi:
+
+AI yordamchi, administrator emas.
+Har bir AI natijasi tekshirilishi mumkin.
+Barcha AI ishlari queue orqali bajariladi.
+Workerlar bir-biridan mustaqil ishlaydi.
+Bitta worker ishdan chiqsa butun tizim to'xtamaydi.
+AI providerlari almashtirilishi mumkin.
+Promptlar kodga qattiq bog'lanmaydi, Admin Panel orqali boshqariladi.
+Har bir AI chaqiruvi loglanadi.
+Xarajatlar va tokenlar doim kuzatiladi.
+Zarur bo'lsa AI o'chirib qo'yilishi va tizim qo'lda ishlashi mumkin.
+📌 Chapter 9 yakuni
+
+Bu bob bilan platformaning AI qismi to'liq hujjatlashtirildi:
+
+RSS Engine
+Telegram Monitor
+Web Crawler
+Duplicate Detection
+Translation
+Summarization
+SEO
+Category AI
+Tag AI
+Image AI
+Fact Validation
+Draft Creation
+Auto Publish
+Social Automation
+Queue System
+Workers
+Retry
+Dead Letter Queue
+Provider Management
+Prompt Library
+Metrics
+Logs
+Security
+Human Override
+
+Bu loyiha boshqa oddiy CMS'lardan aynan shu AI avtomatlashtirish qatlami bilan ajralib turadi.
+
+
+10.1 Database Philosophy
+
+Platforma PostgreSQL (Supabase) asosida quriladi.
+
+Bu oddiy database emas.
+
+Bu butun platformaning yuragi.
+
+Database quyidagi tamoyillarga amal qiladi.
+
+Normalize qilingan bo'lishi kerak.
+Foreign Key ishlatiladi.
+Soft Delete ishlatiladi.
+Audit mavjud.
+Versioning qo'llab-quvvatlanadi.
+RLS (Row Level Security) yoqilgan.
+UUID Primary Key ishlatiladi.
+JSONB faqat kerak bo'lganda ishlatiladi.
+Har bir jadval indekslangan bo'ladi.
+10.2 Database Modules
+
+Database taxminan quyidagi modullarga bo'linadi.
+
+Identity
+
+Users
+
+Roles
+
+Permissions
+
+Homepage
+
+Partners
+
+Bloggers
+
+News CMS
+
+Media
+
+AI
+
+Social
+
+Analytics
+
+Notifications
+
+Contacts
+
+Newsletter
+
+System
+
+Logs
+
+Workers
+
+Queue
+
+Settings
+
+Har biri mustaqil ishlaydi.
+
+10.3 Identity Module
+
+Autentifikatsiya qismi.
+
+Asosiy jadvallar.
+
+profiles
+
+roles
+
+permissions
+
+user_roles
+
+role_permissions
+profiles
+
+Har bir foydalanuvchi.
+
+Saqlaydi.
+
+ID
+Name
+Email
+Avatar
+Phone
+Bio
+Language
+Timezone
+Status
+Metadata
+roles
+
+Masalan.
+
+super_admin
+
+admin
+
+editor
+
+blogger
+
+company
+
+user
+permissions
+
+Masalan.
+
+news.create
+
+news.update
+
+news.delete
+
+media.upload
+
+homepage.update
+
+partner.create
+
+user.delete
+
+analytics.view
+user_roles
+
+User.
+
+↓
+
+Role.
+
+Ko'p rol bo'lishi mumkin.
+
+role_permissions
+
+Role.
+
+↓
+
+Permission.
+
+10.4 Homepage Module
+
+Jadvallar.
+
+homepage_sections
+
+homepage_section_items
+
+homepage_stats
+
+public_settings
+
+Sections.
+
+Hero.
+
+Featured.
+
+Partners.
+
+Statistics.
+
+CTA.
+
+Banner.
+
+Footer.
+
+10.5 Partner Module
+partners
+
+partner_tasks
+
+Partner.
+
+↓
+
+Task.
+
+↓
+
+History.
+
+Partner.
+
+Saqlaydi.
+
+Name
+Industry
+Logo
+Manager
+Contract
+Client Login
+Status
+
+Task.
+
+Saqlaydi.
+
+Title
+Status
+Priority
+Deadline
+Progress
+Files
+10.6 Blogger Module
+
+Jadvallar.
+
+bloggers
+
+blogger_services
+
+blogger_videos
+
+blogger_portfolio
+
+blogger_reviews
+
+blogger_statistics
+
+Har biri alohida.
+
+10.7 News CMS
+
+Asosiy modul.
+
+news_articles
+
+news_categories
+
+news_tags
+
+news_article_tags
+
+news_comments
+
+news_views
+
+news_bookmarks
+
+news_versions
+
+news_related_articles
+
+Article.
+
+↓
+
+Category.
+
+↓
+
+Tags.
+
+↓
+
+Views.
+
+↓
+
+Bookmarks.
+
+↓
+
+History.
+
+10.8 Media Module
+
+Jadvallar.
+
+media_files
+
+media_folders
+
+media_versions
+
+media_usage
+
+media_tags
+
+media_file_tags
+
+media_transformations
+
+media_jobs
+
+media_files
+
+Asosiy fayl.
+
+media_transformations
+
+Thumbnail.
+
+WebP.
+
+AVIF.
+
+Preview.
+
+BlurHash.
+
+media_jobs
+
+Queue.
+
+Pending.
+
+Running.
+
+Completed.
+
+Failed.
+
+10.9 AI Module
+
+Jadvallar.
+
+ai_jobs
+
+ai_job_logs
+
+ai_metrics
+
+ai_providers
+
+ai_prompts
+
+ai_rate_limits
+
+Provider.
+
+↓
+
+Prompt.
+
+↓
+
+Worker.
+
+↓
+
+Metrics.
+
+↓
+
+Logs.
+
+10.10 Social Module
+social_platforms
+
+social_accounts
+
+social_posts
+
+social_jobs
+
+publish_history
+
+failed_social_jobs
+
+publish_analytics
+
+Telegram.
+
+Instagram.
+
+Facebook.
+
+LinkedIn.
+
+10.11 Analytics Module
+analytics_events
+
+analytics_daily
+
+analytics_monthly
+
+analytics_yearly
+
+Saqlaydi.
+
+Views.
+
+Visitors.
+
+CTR.
+
+Sessions.
+
+Referrers.
+
+10.12 Contact Module
+contact_messages
+
+Har bir.
+
+Name.
+
+Email.
+
+Phone.
+
+Subject.
+
+Message.
+
+Read.
+
+Archive.
+
+10.13 Newsletter Module
+newsletter_subscribers
+
+Email.
+
+↓
+
+Status.
+
+↓
+
+Date.
+
+↓
+
+Source.
+
+10.14 Notification Module
+notifications
+
+notification_templates
+
+Dashboard.
+
+↓
+
+Email.
+
+↓
+
+Telegram.
+
+↓
+
+Push.
+
+10.15 Settings Module
+settings
+
+feature_flags
+
+General.
+
+SMTP.
+
+SEO.
+
+AI.
+
+Storage.
+
+Theme.
+
+Language.
+
+10.16 Queue Module
+
+Har qanday og'ir ish.
+
+↓
+
+Queue.
+
+Jadvallar.
+
+media_jobs
+
+social_jobs
+
+ai_jobs
+
+Status.
+
+Pending
+
+Running
+
+Completed
+
+Failed
+
+Retry
+
+Dead
+10.17 Logging Module
+
+Jadvallar.
+
+audit_logs
+
+system_logs
+
+api_logs
+
+worker_logs
+
+security_logs
+
+Har bir amal.
+
+↓
+
+Log.
+
+10.18 Audit Fields
+
+Har bir jadvalda.
+
+id
+
+created_at
+
+updated_at
+
+deleted_at
+
+created_by
+
+updated_by
+
+deleted_by
+
+Soft Delete.
+
+↓
+
+deleted_at.
+
+10.19 Primary Keys
+
+Har bir jadval.
+
+UUID.
+
+Masalan.
+
+id UUID PRIMARY KEY
+
+Integer ishlatilmaydi.
+
+10.20 Foreign Keys
+
+Misollar.
+
+profiles
+
+↓
+
+user_roles
+
+↓
+
+roles
+
+↓
+
+role_permissions
+
+↓
+
+permissions
+news_articles
+
+↓
+
+news_article_tags
+
+↓
+
+news_tags
+partners
+
+↓
+
+partner_tasks
+media_files
+
+↓
+
+media_transformations
+social_posts
+
+↓
+
+social_jobs
+10.21 Index Strategy
+
+Indexlar.
+
+Har doim.
+
+email
+slug
+status
+created_at
+updated_at
+foreign keys
+search fields
+
+Qo'shimcha.
+
+GIN.
+
+JSONB.
+
+Full Text.
+
+Trigram.
+
+10.22 RLS
+
+Har bir jadval.
+
+Policy.
+
+Masalan.
+
+User
+
+↓
+
+Only Own Data
+
+Company
+
+↓
+
+Only Own Partner
+
+Blogger
+
+↓
+
+Only Own Profile
+
+Admin
+
+↓
+
+Everything
+
+Super Admin
+
+↓
+
+Everything
+10.23 Soft Delete
+
+Hech narsa darhol o'chmaydi.
+
+↓
+
+deleted_at.
+
+↓
+
+Archive.
+
+↓
+
+Restore.
+
+↓
+
+Hard Delete.
+
+(Super Admin)
+
+10.24 Versioning
+
+Yangilik.
+
+↓
+
+Update.
+
+↓
+
+Old Version.
+
+↓
+
+History.
+
+↓
+
+Rollback.
+
+Media.
+
+↓
+
+Replace.
+
+↓
+
+Old Version.
+
+↓
+
+Restore.
+
+10.25 Transactions
+
+Quyidagi ishlar transaction bilan bajariladi.
+
+User yaratish.
+Partner yaratish.
+Company Account yaratish.
+News Publish.
+AI Publish.
+Social Publish.
+Media Processing.
+Contract Update.
+
+Yarim holatda ma'lumot qolmasligi kerak.
+
+10.26 Data Integrity Rules
+
+Platformada quyidagi qoidalar buzilmaydi.
+
+Har bir FK mavjud bo'lishi shart.
+Yetim (orphan) yozuvlar qolmasligi kerak.
+Duplicate ma'lumotlar nazorat qilinadi.
+Status qiymatlari cheklangan bo'ladi.
+Enum qiymatlar ishlatiladi.
+Audit maydonlari doim to'ldiriladi.
+Soft Delete mavjud bo'lsa, oddiy SELECT so'rovlar o'chirilgan yozuvlarni qaytarmaydi.
+10.27 Backup Strategy
+Kunlik avtomatik backup.
+Haftalik to'liq backup.
+Oylik arxiv backup.
+Point-in-Time Recovery.
+Backup muntazam sinovdan o'tkaziladi.
+10.28 Database Principles
+Database biznes mantiqining asosiy manbai hisoblanadi.
+Har bir modul o'z jadvallariga ega bo'ladi.
+Modul chegaralari saqlanadi.
+Jadvallar orasidagi bog'lanishlar aniq va hujjatlashtirilgan bo'ladi.
+Har bir jadval audit qilinadi.
+Har bir jadval RLS bilan himoyalanadi.
+Indekslarsiz katta jadval bo'lmaydi.
+Migrationlar orqaga qaytarilishi (rollback) rejalashtirilgan bo'ladi.
+Har qanday schema o'zgarishi migration orqali amalga oshiriladi.
+📌 Chapter 10 yakuni
+
+Bu bob bilan platformaning Database Architecture to'liq hujjatlashtirildi:
+
+Identity
+Users
+Roles
+Permissions
+Homepage
+Partners
+Bloggers
+News CMS
+Media
+AI
+Social
+Analytics
+Contacts
+Newsletter
+Notifications
+Settings
+Queue
+Logging
+Audit
+Transactions
+Foreign Keys
+RLS
+Backup
+Versioning
+
+Endi loyiha ma'lumotlar bazasining mantiqi to'liq aniq.
+
+11.1 API Philosophy
+
+Platformadagi barcha Frontend va Backend aloqasi Supabase Edge Functions orqali amalga oshiriladi.
+
+Frontend hech qachon database bilan to'g'ridan-to'g'ri ishlamaydi.
+
+Har bir so'rov quyidagi qatlamlardan o'tadi.
+
+Frontend
+
+↓
+
+API Layer
+
+↓
+
+Edge Function
+
+↓
+
+Authentication
+
+↓
+
+Authorization
+
+↓
+
+Business Logic
+
+↓
+
+Database
+
+↓
+
+Response
+
+Bu qatlamlar bir-biridan mustaqil ishlaydi.
+
+11.2 API Categories
+
+Platformadagi barcha API lar quyidagi guruhlarga bo'linadi.
+
+Public API
+
+Authentication API
+
+User API
+
+Blogger API
+
+Company API
+
+Admin API
+
+Homepage API
+
+News API
+
+Media API
+
+AI API
+
+Social API
+
+Analytics API
+
+System API
+
+Har biri alohida Edge Function orqali ishlaydi.
+
+11.3 Public API
+
+Login talab qilmaydi.
+
+Misollar.
+
+GET /homepage
+
+GET /stats
+
+GET /partners
+
+GET /bloggers
+
+GET /news
+
+GET /news/{slug}
+
+GET /categories
+
+POST /contact
+
+POST /newsletter
+
+Faqat o'qish yoki umumiy forma yuborish uchun.
+
+11.4 Authentication API
+
+Login jarayoni.
+
+POST /auth/login
+
+POST /auth/logout
+
+POST /auth/register
+
+POST /auth/reset-password
+
+POST /auth/change-password
+
+POST /auth/google
+
+JWT yaratadi.
+
+Session boshqaradi.
+
+11.5 User API
+
+Har bir foydalanuvchi.
+
+GET /me
+
+PUT /me/profile
+
+PUT /me/avatar
+
+PUT /me/password
+
+DELETE /me
+
+Faqat o'z ma'lumotlari.
+
+11.6 Blogger API
+GET /blogger/profile
+
+PUT /blogger/profile
+
+GET /blogger/services
+
+POST /blogger/services
+
+PUT /blogger/services
+
+DELETE /blogger/services
+
+GET /blogger/videos
+
+POST /blogger/videos
+
+GET /blogger/statistics
+
+GET /blogger/messages
+
+GET /blogger/notifications
+11.7 Company API
+GET /company/profile
+
+GET /company/tasks
+
+PUT /company/tasks
+
+GET /company/contracts
+
+GET /company/files
+
+POST /company/files
+
+GET /company/reports
+
+GET /company/messages
+
+GET /company/notifications
+11.8 Admin API
+
+Admin uchun.
+
+/admin/users
+
+/admin/bloggers
+
+/admin/partners
+
+/admin/news
+
+/admin/categories
+
+/admin/homepage
+
+/admin/settings
+
+/admin/contacts
+
+/admin/subscribers
+
+/admin/statistics
+
+/admin/media
+
+/admin/social
+
+/admin/ai
+
+CRUD mavjud.
+
+11.9 Homepage API
+
+Homepage.
+
+GET /homepage
+
+PATCH /homepage/sections
+
+PATCH /homepage/items
+
+PATCH /homepage/stats
+
+Faqat Admin.
+
+11.10 News API
+GET /news
+
+GET /news/{slug}
+
+POST /news
+
+PUT /news
+
+DELETE /news
+
+POST /news/publish
+
+POST /news/unpublish
+11.11 Media API
+
+Media.
+
+POST /media/upload-url
+
+POST /media/download-url
+
+POST /media/process
+
+DELETE /media
+
+GET /media
+
+Cloudflare R2.
+
+11.12 AI API
+POST /ai/translate
+
+POST /ai/summarize
+
+POST /ai/seo
+
+POST /ai/categorize
+
+POST /ai/tags
+
+POST /ai/image
+
+POST /ai/validate
+
+Admin.
+
+Worker.
+
+Cron.
+
+11.13 Social API
+POST /social/telegram
+
+POST /social/facebook
+
+POST /social/instagram
+
+POST /social/linkedin
+
+GET /social/history
+
+GET /social/statistics
+11.14 Analytics API
+GET /analytics
+
+GET /analytics/news
+
+GET /analytics/bloggers
+
+GET /analytics/partners
+
+GET /analytics/social
+11.15 Response Format
+
+Har bir API.
+
+Success.
+
+{
+  "success": true,
+  "data": {}
+}
+
+Error.
+
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Topilmadi"
+  }
+}
+
+Validation.
+
+{
+  "success": false,
+  "errors": [
+    {
+      "field": "email",
+      "message": "Email noto'g'ri"
+    }
+  ]
+}
+11.16 HTTP Status Codes
+
+Standart.
+
+200 OK
+
+201 Created
+
+204 No Content
+
+400 Bad Request
+
+401 Unauthorized
+
+403 Forbidden
+
+404 Not Found
+
+409 Conflict
+
+422 Validation Error
+
+429 Too Many Requests
+
+500 Internal Server Error
+
+503 Service Unavailable
+11.17 Pagination
+
+Katta listlar.
+
+?page=1
+
+&limit=20
+
+Response.
+
+{
+  "items": [],
+  "page": 1,
+  "limit": 20,
+  "total": 156,
+  "totalPages": 8
+}
+11.18 Filtering
+
+Masalan.
+
+?status=published
+
+?category=technology
+
+?search=drone
+
+?sort=created_at
+
+?order=desc
+
+Bir nechta filter birgalikda ishlaydi.
+
+11.19 Authentication Flow
+Login
+
+↓
+
+JWT
+
+↓
+
+Authorization Header
+
+↓
+
+Edge Function
+
+↓
+
+verifyAuth()
+
+↓
+
+Role Check
+
+↓
+
+Ownership Check
+
+↓
+
+Business Logic
+
+↓
+
+Response
+11.20 Authorization
+
+Har bir API.
+
+↓
+
+Role.
+
+↓
+
+Permission.
+
+↓
+
+Ownership.
+
+Tekshiradi.
+
+11.21 Ownership
+
+Masalan.
+
+Blogger.
+
+↓
+
+Faqat o'z profile.
+
+Company.
+
+↓
+
+Faqat o'z partner.
+
+User.
+
+↓
+
+Faqat o'z account.
+
+11.22 Validation
+
+Har bir request.
+
+Tekshiriladi.
+
+Required Fields
+Types
+Length
+Email
+Phone
+UUID
+Enum
+File Size
+MIME Type
+11.23 Rate Limiting
+
+Quyidagilar cheklanadi.
+
+Login.
+
+Register.
+
+Reset Password.
+
+Contact.
+
+Newsletter.
+
+AI.
+
+Media Upload.
+
+Masalan.
+
+100 request / minute
+
+yoki
+
+10 login / minute
+11.24 Idempotency
+
+Takror yuborilgan so'rovlar.
+
+Ikki marta bajarilmaydi.
+
+Masalan.
+
+Payment.
+
+Publish.
+
+Upload.
+
+Contract.
+
+11.25 Transactions
+
+Quyidagi API lar transaction ishlatadi.
+
+User Create
+Partner Create
+Company Create
+Publish News
+Media Upload
+Social Publish
+11.26 Logging
+
+Har bir API.
+
+Log qiladi.
+
+User
+Endpoint
+Time
+Duration
+Status
+Error
+IP
+User Agent
+11.27 API Versioning
+
+Kelajak uchun.
+
+/v1/
+
+/v2/
+
+/v3/
+
+Eski ilovalar ishlashda davom etadi.
+
+11.28 API Security
+
+Har bir API.
+
+JWT
+HTTPS
+CORS
+Rate Limit
+RBAC
+RLS
+Audit
+Input Validation
+Output Sanitization
+11.29 Edge Function Principles
+
+Har bir Edge Function:
+
+bitta vazifani bajaradi;
+mustaqil deploy qilinadi;
+rollback qilinishi mumkin;
+log yozadi;
+transaction ishlatadi (zarur joyda);
+aniq xatolik qaytaradi;
+boshqa funksiyalarga minimal bog'liq bo'ladi.
+11.30 API Documentation
+
+Har bir endpoint uchun hujjat mavjud bo'lishi kerak.
+
+Endpoint nomi
+HTTP Method
+Maqsadi
+Parametrlar
+Request namunasi
+Response namunasi
+Error kodlari
+Permission talablari
+Misollar
+11.31 API Principles
+Frontend hech qachon databasega bevosita ulanmaydi.
+Har bir API yagona mas'uliyatga ega.
+Response formati butun loyiha bo'yicha bir xil bo'ladi.
+Edge Functionlar stateless bo'ladi.
+JWT, Role va Ownership tekshiruvi majburiy.
+Har bir endpoint audit qilinadi.
+Katta operatsiyalar queue orqali bajariladi.
+API backward compatibility imkon qadar saqlanadi.
+📌 Chapter 11 yakuni
+
+Bu bob bilan backend API qatlami to'liq hujjatlashtirildi:
+
+Public API
+Authentication API
+User API
+Blogger API
+Company API
+Admin API
+Homepage API
+News API
+Media API
+AI API
+Social API
+Analytics API
+Response formatlari
+Status kodlari
+Pagination
+Filtering
+Validation
+JWT oqimi
+Security
+Versioning
+Logging
+
+12.1 Media System Maqsadi
+
+Platformadagi barcha media fayllari Supabase Storage orqali boshqariladi.
+
+Media tizimi quyidagi turdagi fayllarni qo'llab-quvvatlaydi:
+
+Rasmlar
+Videolar
+PDF hujjatlar
+Word hujjatlar
+Excel fayllar
+Audio fayllar
+AI tomonidan yaratilgan media
+Foydalanuvchi yuklagan media
+
+Barcha fayllar markazlashtirilgan media tizimi orqali boshqariladi.
+
+12.2 Storage Architecture
+Frontend
+
+↓
+
+Supabase Edge Function
+
+↓
+
+JWT Verification
+
+↓
+
+Permission Check
+
+↓
+
+Supabase Storage
+
+↓
+
+PostgreSQL Metadata
+
+↓
+
+Frontend
+
+Frontend Storage bilan to'g'ridan-to'g'ri ishlamaydi.
+
+Har doim Edge Function orqali ishlaydi.
+
+12.3 Storage Buckets
+
+Platformada bir nechta bucket bo'ladi.
+
+avatars
+
+covers
+
+news
+
+partners
+
+bloggers
+
+documents
+
+videos
+
+ai
+
+temp
+
+system
+
+Har bucketning o'z vazifasi mavjud.
+
+12.4 Bucket Purpose
+
+avatars
+
+↓
+
+User avatarlari
+
+covers
+
+↓
+
+Cover rasmlar
+
+news
+
+↓
+
+Yangilik rasmlari
+
+partners
+
+↓
+
+Hamkor logotiplari
+
+bloggers
+
+↓
+
+Portfolio media
+
+documents
+
+↓
+
+PDF
+
+DOCX
+
+XLSX
+
+videos
+
+↓
+
+Videolar
+
+ai
+
+↓
+
+AI yaratgan media
+
+temp
+
+↓
+
+Vaqtinchalik uploadlar
+
+system
+
+↓
+
+Platforma ichki fayllari
+
+12.5 Upload Flow
+Frontend
+
+↓
+
+Select File
+
+↓
+
+Validation
+
+↓
+
+Edge Function
+
+↓
+
+Permission Check
+
+↓
+
+Supabase Storage Upload
+
+↓
+
+Metadata Save
+
+↓
+
+Success
+12.6 Upload Validation
+
+Har upload tekshiriladi.
+
+MIME Type
+File Size
+Extension
+Virus (agar keyinchalik qo'shilsa)
+Duplicate
+Ownership
+12.7 Supported File Types
+
+Images
+
+jpg
+
+jpeg
+
+png
+
+webp
+
+gif
+
+svg
+
+Videos
+
+mp4
+
+mov
+
+webm
+
+Documents
+
+pdf
+
+docx
+
+xlsx
+
+pptx
+
+txt
+
+Archives
+
+zip
+
+rar
+12.8 File Size Limits
+
+Avatar
+
+↓
+
+5 MB
+
+Cover
+
+↓
+
+10 MB
+
+News Image
+
+↓
+
+10 MB
+
+Video
+
+↓
+
+500 MB
+
+Documents
+
+↓
+
+50 MB
+
+AI Media
+
+↓
+
+20 MB
+
+Administrator bu limitlarni Settings orqali o'zgartira oladi.
+
+12.9 Media Metadata
+
+Har bir media uchun saqlanadi.
+
+File ID
+Bucket
+Path
+File Name
+Original Name
+MIME Type
+Extension
+Size
+Width
+Height
+Duration
+Uploaded By
+Created At
+Updated At
+Status
+12.10 File Status
+Uploading
+
+Processing
+
+Ready
+
+Deleted
+
+Archived
+
+Failed
+12.11 Folder Structure
+
+Masalan.
+
+avatars/
+
+avatars/{userId}/
+
+news/
+
+news/{year}/
+
+news/{year}/{month}/
+
+partners/
+
+partners/{partnerId}/
+
+videos/
+
+videos/{bloggerId}/
+
+documents/
+
+documents/{companyId}/
+12.12 File Naming
+
+Har fayl UUID bilan saqlanadi.
+
+Masalan.
+
+7e4d9b1f.webp
+
+29ab31df.pdf
+
+71df81ce.mp4
+
+Original nom faqat metadata sifatida saqlanadi.
+
+12.13 Image Optimization
+
+Uploaddan keyin.
+
+Agar kerak bo'lsa.
+
+↓
+
+Resize
+
+↓
+
+Compress
+
+↓
+
+Optimize
+
+↓
+
+Ready
+
+Asl fayl saqlanib qoladi.
+
+12.14 Public & Private Files
+
+Public
+
+↓
+
+News
+
+Logo
+
+Homepage
+
+Cover
+
+Private
+
+↓
+
+Contracts
+
+Invoices
+
+Documents
+
+Reports
+
+User Files
+
+Private fayllar faqat JWT orqali olinadi.
+
+12.15 Signed URLs
+
+Private media uchun.
+
+JWT
+
+↓
+
+Verify
+
+↓
+
+Generate Signed URL
+
+↓
+
+Temporary Access
+
+↓
+
+Expire
+
+Signed URL muddati.
+
+Masalan.
+
+15 daqiqa.
+
+yoki
+
+1 soat.
+
+12.16 Media Permissions
+
+Admin
+
+↓
+
+Barcha media
+
+Blogger
+
+↓
+
+Faqat o'z media
+
+Company
+
+↓
+
+Faqat o'z hujjatlari
+
+User
+
+↓
+
+Faqat o'z avatari
+
+Guest
+
+↓
+
+Faqat public media
+
+12.17 Delete Flow
+
+Delete bosilganda.
+
+↓
+
+Ownership Check
+
+↓
+
+Soft Delete Metadata
+
+↓
+
+Storage Delete
+
+↓
+
+Audit Log
+
+↓
+
+Success
+
+12.18 Restore
+
+Agar soft delete ishlatilsa.
+
+↓
+
+Restore
+
+↓
+
+Ready
+
+12.19 Duplicate Detection
+
+Upload vaqtida.
+
+Tekshiriladi.
+
+File Size
+Hash
+Original Name
+
+Bir xil fayl qayta yuklansa.
+
+Admin siyosatiga qarab:
+
+Rad etiladi.
+Yoki mavjud fayl ishlatiladi.
+12.20 Media Usage
+
+Har media qayerda ishlatilayotgani saqlanadi.
+
+Masalan.
+
+News
+
+Homepage
+
+Partner
+
+Blogger
+
+Profile
+
+Service
+
+Portfolio
+
+Shuning uchun ishlatilayotgan media tasodifan o'chirilmaydi.
+
+12.21 Audit
+
+Har amal yoziladi.
+
+Upload
+Download
+Delete
+Restore
+Replace
+Rename
+12.22 Security
+
+Har upload.
+
+↓
+
+JWT
+
+↓
+
+Role
+
+↓
+
+Ownership
+
+↓
+
+Validation
+
+↓
+
+Storage
+
+↓
+
+Database
+
+↓
+
+Response
+
+12.23 Error Handling
+
+Har upload.
+
+Loading
+
+↓
+
+Validation
+
+↓
+
+Progress
+
+↓
+
+Success
+
+↓
+
+Retry
+
+↓
+
+Error
+
+12.24 Backup
+
+Storage Supabase infratuzilmasiga tayanadi.
+
+Qo'shimcha ravishda:
+
+Muhim hujjatlar eksport qilinishi mumkin.
+Metadata PostgreSQL backup bilan birga saqlanadi.
+12.25 Media Principles
+Frontend hech qachon Storage bilan bevosita ishlamaydi.
+Har upload JWT orqali tekshiriladi.
+Private fayllar Signed URL orqali beriladi.
+Metadata va fayl alohida boshqariladi.
+UUID nomlash ishlatiladi.
+Media ownership majburiy tekshiriladi.
+Barcha amallar audit qilinadi.
+Storage bucketlari vazifalar bo'yicha ajratiladi.
+O'chirish va tiklash siyosati aniq belgilanadi.
+📌 Chapter 12 yakuni
+
+Bu bob bilan Supabase Storage asosidagi media tizimi to'liq hujjatlashtirildi:
+
+Storage Architecture
+Bucket Structure
+Upload Flow
+Validation
+File Types
+File Size Limits
+Metadata
+Folder Structure
+UUID Naming
+Public / Private Files
+Signed URLs
+Permissions
+Delete & Restore
+Duplicate Detection
+Media Usage
+Audit
+Security
+Backup
+
+13.1 System Maqsadi
+
+Social Automation moduli platformada chop etilgan kontentni ijtimoiy tarmoqlarga avtomatik yoki qo'lda tarqatish uchun xizmat qiladi.
+
+Bu modul quyidagilarni bajaradi:
+
+Yangiliklarni publish qilish
+Telegram post yaratish
+Instagram post yaratish
+Facebook post yaratish
+LinkedIn post yaratish
+YouTube Community post yaratish
+Rejalashtirilgan postlar
+Qayta publish qilish
+Publish tarixini saqlash
+Analitika yig'ish
+13.2 Supported Platforms
+
+Platforma quyidagi ijtimoiy tarmoqlarni qo'llab-quvvatlaydi.
+
+Telegram
+
+Instagram
+
+Facebook
+
+LinkedIn
+
+YouTube Community
+
+X (Twitter) (Future)
+
+Threads (Future)
+
+TikTok (Future)
+13.3 Publish Flow
+News Published
+
+↓
+
+Generate Social Content
+
+↓
+
+Queue
+
+↓
+
+Worker
+
+↓
+
+Platform API
+
+↓
+
+Publish
+
+↓
+
+Save History
+
+↓
+
+Analytics
+13.4 Publish Types
+
+Platformada 3 xil publish mavjud.
+
+Manual
+
+Editor tugmani bosadi.
+
+↓
+
+Publish.
+
+Scheduled
+
+Belgilangan vaqtda.
+
+↓
+
+Avtomatik publish.
+
+Auto Publish
+
+AI yoki tizim qoidalari asosida.
+
+↓
+
+Publish.
+
+13.5 Telegram Publishing
+
+Telegram uchun.
+
+AI quyidagilarni tayyorlaydi.
+
+Title
+Short Summary
+Hashtags
+Link
+Emoji
+CTA
+
+Misol.
+
+🌾 Yangi Agro Yangilik!
+
+Qisqa tavsif...
+
+👉 Batafsil:
+https://...
+
+#Agro #Export
+13.6 Instagram Publishing
+
+Instagram.
+
+↓
+
+Image
+
+↓
+
+Caption
+
+↓
+
+Hashtags
+
+↓
+
+Location (optional)
+
+↓
+
+Publish
+
+Carousel ham qo'llab-quvvatlanadi.
+
+13.7 Facebook Publishing
+
+Facebook uchun.
+
+Title
+Description
+Link
+Preview Image
+13.8 LinkedIn Publishing
+
+Professional format.
+
+AI.
+
+↓
+
+Business Style.
+
+↓
+
+Professional Caption.
+
+↓
+
+Publish.
+
+13.9 YouTube Community
+
+Agar maqola muhim bo'lsa.
+
+↓
+
+Community Post.
+
+↓
+
+Image.
+
+↓
+
+Link.
+
+↓
+
+CTA.
+
+13.10 Caption Generation
+
+AI avtomatik yaratadi.
+
+Har platforma uchun alohida.
+
+Masalan.
+
+Telegram.
+
+↓
+
+Qisqa.
+
+Instagram.
+
+↓
+
+Ko'proq hashtag.
+
+LinkedIn.
+
+↓
+
+Professional.
+
+Facebook.
+
+↓
+
+Oddiy.
+
+13.11 Hashtag Generation
+
+AI.
+
+↓
+
+10-30 hashtag.
+
+Masalan.
+
+#Agro
+
+#Farming
+
+#Export
+
+#Cotton
+
+#Uzbekistan
+
+#Technology
+
+#Innovation
+13.12 Social Queue
+
+Publish hech qachon to'g'ridan-to'g'ri amalga oshmaydi.
+
+Har doim Queue.
+
+Pending
+
+↓
+
+Running
+
+↓
+
+Completed
+
+↓
+
+Failed
+
+↓
+
+Retry
+
+↓
+
+Dead Queue
+13.13 Workers
+
+Har platforma uchun worker.
+
+Telegram Worker
+
+Instagram Worker
+
+Facebook Worker
+
+LinkedIn Worker
+
+YouTube Worker
+
+Bir worker ishdan chiqsa.
+
+Qolganlari ishlashda davom etadi.
+
+13.14 Retry Logic
+
+API xatosi.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Dead Queue.
+
+Retry soni.
+
+Masalan.
+
+3 attempts
+13.15 Dead Letter Queue
+
+Retry tugadi.
+
+↓
+
+Dead Queue.
+
+↓
+
+Admin Notification.
+
+↓
+
+Manual Retry.
+
+13.16 Publish History
+
+Har publish saqlanadi.
+
+Platform
+Date
+Time
+User
+AI
+Worker
+Status
+Error
+13.17 Publish Status
+Pending
+
+Scheduled
+
+Publishing
+
+Published
+
+Failed
+
+Cancelled
+
+Deleted
+13.18 Schedule System
+
+Admin vaqt belgilaydi.
+
+Masalan.
+
+Today
+
+15:30
+
+↓
+
+Queue.
+
+↓
+
+Worker.
+
+↓
+
+Publish.
+
+13.19 Multi Publish
+
+Bir tugma.
+
+↓
+
+Telegram
+
+↓
+
+Instagram
+
+↓
+
+Facebook
+
+↓
+
+LinkedIn
+
+↓
+
+YouTube
+
+Hammasi parallel ishlaydi.
+
+13.20 Platform Tokens
+
+Har platforma uchun.
+
+Access Token
+Refresh Token
+Expire Time
+Status
+
+Tokenlar shifrlangan holda saqlanadi.
+
+13.21 Token Refresh
+
+Token muddati tugasa.
+
+↓
+
+Refresh.
+
+↓
+
+Yangi Token.
+
+↓
+
+Continue.
+
+13.22 Analytics
+
+Har publish uchun.
+
+Saqlanadi.
+
+Views
+Reach
+Clicks
+Shares
+Comments
+Likes
+Saves
+13.23 UTM Tracking
+
+Har link.
+
+↓
+
+UTM qo'shiladi.
+
+Masalan.
+
+utm_source=telegram
+
+utm_medium=social
+
+utm_campaign=news
+13.24 Error Handling
+
+Platform API.
+
+↓
+
+Timeout.
+
+↓
+
+Retry.
+
+↓
+
+↓
+
+Retry Later.
+
+↓
+
+↓
+
+Retry.
+
+↓
+
+Dead Queue.
+
+13.25 Moderation
+
+Publishdan oldin.
+
+AI.
+
+↓
+
+Validation.
+
+↓
+
+Spam Check.
+
+↓
+
+Profanity Check.
+
+↓
+
+Safe.
+
+↓
+
+Publish.
+
+13.26 Manual Override
+
+Admin.
+
+↓
+
+Publish Now.
+
+↓
+
+Cancel.
+
+↓
+
+Retry.
+
+↓
+
+Delete.
+
+↓
+
+Edit Caption.
+
+13.27 Security
+
+Har publish.
+
+↓
+
+JWT.
+
+↓
+
+Role.
+
+↓
+
+Permission.
+
+↓
+
+Audit.
+
+↓
+
+Worker.
+
+↓
+
+API.
+
+13.28 Permissions
+
+Super Admin.
+
+↓
+
+Everything.
+
+Admin.
+
+↓
+
+Publish.
+
+Retry.
+
+Cancel.
+
+Editor.
+
+↓
+
+Publish Draft.
+
+Blogger.
+
+↓
+
+Cannot Publish.
+
+Company.
+
+↓
+
+No Access.
+
+13.29 Audit
+
+Har publish.
+
+Log qilinadi.
+
+User
+Platform
+Caption
+Time
+Worker
+Result
+Error
+Retry Count
+13.30 Platform Health
+
+Platforma doim tekshiradi.
+
+Token validmi.
+API ishlayaptimi.
+Rate limit qolganmi.
+Worker sog'lommi.
+
+Muammo bo'lsa Admin ogohlantiriladi.
+
+13.31 Social Settings
+
+Admin sozlay oladi.
+
+Auto Publish
+Platform Enable/Disable
+Publish Delay
+Retry Count
+Default Hashtags
+AI Caption
+Schedule
+Timezone
+13.32 Future Features
+
+Kelajakda.
+
+TikTok Publish
+Threads Publish
+X (Twitter) Publish
+Pinterest
+WhatsApp Channel
+Telegram Stories
+AI Video Generator
+AI Voice Post
+13.33 Social Automation Principles
+Har publish Queue orqali amalga oshadi.
+Platformalar bir-biridan mustaqil ishlaydi.
+Retry va Dead Queue majburiy.
+Tokenlar shifrlangan holda saqlanadi.
+AI har platforma uchun alohida caption yaratadi.
+Publish tarixini o'chirib bo'lmaydi.
+Analitika real vaqt rejimida yangilanadi.
+Har publish audit logga yoziladi.
+Admin istalgan publishni qayta ishga tushira oladi.
+Bir platformadagi xato boshqalariga ta'sir qilmaydi.
+📌 Chapter 13 yakuni
+
+Bu bob bilan Social Automation tizimi to'liq hujjatlashtirildi:
+
+Telegram
+Instagram
+Facebook
+LinkedIn
+YouTube Community
+Auto Publish
+Manual Publish
+Scheduled Publish
+Queue System
+Workers
+Retry Logic
+Dead Letter Queue
+Publish History
+Token Management
+Analytics
+UTM Tracking
+Moderation
+Security
+Audit
+Future Integrations
+
+14.1 Security Philosophy
+
+Platformaning eng muhim qismi — xavfsizlik.
+
+Platforma Zero Trust Security tamoyiliga asoslanadi.
+
+Hech bir foydalanuvchi, API yoki so'rov oldindan ishonchli deb hisoblanmaydi.
+
+Har bir amal tekshiriladi.
+
+Authentication
+Authorization
+Ownership
+Validation
+Audit
+
+Shundan keyingina amal bajariladi.
+
+14.2 Security Layers
+
+Platforma quyidagi qatlamlardan himoyalanadi.
+
+Internet
+
+↓
+
+HTTPS
+
+↓
+
+CDN
+
+↓
+
+Supabase Edge Functions
+
+↓
+
+JWT Verification
+
+↓
+
+Role Validation
+
+↓
+
+Permission Validation
+
+↓
+
+Ownership Validation
+
+↓
+
+Business Logic
+
+↓
+
+RLS
+
+↓
+
+Database
+
+Bir qatlam buzilsa ham qolganlari himoya qiladi.
+
+14.3 Authentication
+
+Platforma Supabase Auth ishlatadi.
+
+Qo'llab-quvvatlanadi.
+
+Email Login
+Google OAuth
+Password Reset
+Session Refresh
+Logout
+
+Kelajakda:
+
+Microsoft
+GitHub
+Telegram Login
+Apple Login
+14.4 JWT Authentication
+
+Har login.
+
+↓
+
+JWT Token.
+
+↓
+
+Frontend.
+
+↓
+
+Authorization Header.
+
+Authorization: Bearer <JWT>
+
+↓
+
+Edge Function.
+
+↓
+
+verifyAuth()
+
+↓
+
+User.
+
+14.5 Session Management
+
+Session.
+
+Saqlaydi.
+
+Access Token
+Refresh Token
+Login Time
+Device
+Last Activity
+
+Session muddati tugasa.
+
+↓
+
+Refresh Token.
+
+↓
+
+New JWT.
+
+14.6 Roles
+
+Platformada quyidagi rollar mavjud.
+
+super_admin
+
+admin
+
+editor
+
+blogger
+
+company
+
+user
+
+Har bir rol alohida permissionlarga ega.
+
+14.7 RBAC (Role-Based Access Control)
+
+Har bir API.
+
+↓
+
+Role.
+
+↓
+
+Permission.
+
+↓
+
+Resource.
+
+↓
+
+Response.
+
+Masalan.
+
+Editor.
+
+↓
+
+News Publish.
+
+YES.
+
+↓
+
+Homepage Update.
+
+NO.
+
+14.8 Ownership Validation
+
+Role yetarli emas.
+
+Ownership ham tekshiriladi.
+
+Misol.
+
+User A
+
+↓
+
+Own Profile
+
+YES
+
+↓
+
+Edit
+
+Allowed
+User A
+
+↓
+
+User B Profile
+
+↓
+
+403 Forbidden
+14.9 Row Level Security (RLS)
+
+Supabase RLS barcha muhim jadvallarda yoqilgan bo'ladi.
+
+Misollar.
+
+profiles.
+
+↓
+
+Faqat o'z profili.
+
+partners.
+
+↓
+
+Faqat bog'langan company.
+
+bloggers.
+
+↓
+
+Faqat o'z bloggeri.
+
+notifications.
+
+↓
+
+Faqat o'z notificationlari.
+
+14.10 API Authorization Flow
+Request
+
+↓
+
+JWT
+
+↓
+
+verifyAuth()
+
+↓
+
+Role
+
+↓
+
+Permission
+
+↓
+
+Ownership
+
+↓
+
+Business Logic
+
+↓
+
+Database
+
+↓
+
+Response
+14.11 Input Validation
+
+Har request.
+
+Tekshiriladi.
+
+Required
+Length
+Email
+UUID
+Enum
+URL
+Phone
+Date
+JSON
+MIME
+14.12 Output Sanitization
+
+Database javobi.
+
+↓
+
+Filter.
+
+↓
+
+Sensitive Fields Remove.
+
+↓
+
+Frontend.
+
+Masalan.
+
+Hech qachon chiqmaydi.
+
+Password
+Refresh Token
+Secret Keys
+Internal IDs
+OAuth Secrets
+14.13 SQL Injection Protection
+
+Platforma.
+
+Parameterized Query ishlatadi.
+
+Hech qachon.
+
+SELECT * FROM users WHERE id=' + input
+
+ishlatilmaydi.
+
+Faqat Supabase Query Builder.
+
+14.14 XSS Protection
+
+Frontend.
+
+React Escape.
+
+↓
+
+Sanitize.
+
+↓
+
+Render.
+
+HTML faqat ishonchli joylarda ishlatiladi.
+
+14.15 CSRF Protection
+
+JWT.
+
+Authorization Header.
+
+CORS.
+
+↓
+
+CSRF xavfi kamayadi.
+
+14.16 CORS Policy
+
+Faqat ruxsat berilgan domenlar.
+
+Masalan.
+
+agroalliance.uz
+
+admin.agroalliance.uz
+
+localhost
+
+Boshqa domenlar rad etiladi.
+
+14.17 Rate Limiting
+
+Cheklanadi.
+
+Login
+Register
+Contact
+Newsletter
+AI
+Upload
+Password Reset
+
+Misol.
+
+Login
+
+10/min
+
+AI
+
+30/min
+
+Contact
+
+5/min
+14.18 Brute Force Protection
+
+Ketma-ket noto'g'ri login.
+
+↓
+
+Temporary Lock.
+
+↓
+
+Retry Later.
+
+Admin loglarda ko'radi.
+
+14.19 Password Policy
+
+Minimal.
+
+8+ belgidan iborat
+Harf
+Raqam
+
+Tavsiya etiladi.
+
+Maxsus belgi
+Katta harf
+
+Password hash faqat Supabase Auth tomonidan boshqariladi.
+
+14.20 Secrets Management
+
+Quyidagilar hech qachon frontendga chiqmaydi.
+
+Service Role Key
+AI Keys
+SMTP Password
+Social Tokens
+Internal Secrets
+
+Faqat Edge Function ichida ishlatiladi.
+
+14.21 Storage Security
+
+Public bucket.
+
+↓
+
+Read.
+
+Private bucket.
+
+↓
+
+JWT.
+
+↓
+
+Signed URL.
+
+↓
+
+Expire.
+
+14.22 File Validation
+
+Har upload.
+
+↓
+
+Extension.
+
+↓
+
+MIME.
+
+↓
+
+Size.
+
+↓
+
+Ownership.
+
+↓
+
+Save.
+
+14.23 Audit Logging
+
+Har xavfsizlikka oid amal yoziladi.
+
+Login
+Logout
+Password Change
+Role Change
+Permission Change
+Upload
+Delete
+Publish
+AI Action
+Admin Action
+14.24 Security Logs
+
+Saqlanadi.
+
+User
+IP
+Browser
+Device
+Endpoint
+Status
+Duration
+Error
+14.25 Incident Detection
+
+Platforma kuzatadi.
+
+Ko'p login xatolari
+Juda ko'p API chaqiruvlari
+G'ayrioddiy IP
+Token xatolari
+Ruxsatsiz urinishlar
+
+Muammo aniqlansa.
+
+↓
+
+Admin Notification.
+
+14.26 Account Lock
+
+Xavfli faoliyat aniqlansa.
+
+↓
+
+Temporary Lock.
+
+↓
+
+Admin Review.
+
+↓
+
+Unlock.
+
+14.27 Two-Factor Authentication (Future)
+
+Kelajakda.
+
+Authenticator App
+Email OTP
+
+2FA faqat Admin va Super Admin uchun majburiy bo'lishi mumkin.
+
+14.28 Backup Security
+
+Database Backup.
+
+↓
+
+Encrypted.
+
+↓
+
+Storage Backup.
+
+↓
+
+Encrypted.
+
+↓
+
+Recovery.
+
+14.29 Security Monitoring
+
+Monitoring.
+
+API Errors
+Failed Logins
+JWT Errors
+Storage Errors
+Worker Errors
+AI Errors
+
+Dashboard orqali kuzatiladi.
+
+14.30 Disaster Recovery
+
+Agar tizimda katta nosozlik yuz bersa.
+
+↓
+
+Backup Restore.
+
+↓
+
+Database Restore.
+
+↓
+
+Storage Restore.
+
+↓
+
+System Check.
+
+↓
+
+Online.
+
+14.31 Security Principles
+Hech bir foydalanuvchi oldindan ishonchli emas.
+Har bir API JWT tekshiradi.
+Har bir amal Role va Ownership tekshiruvdan o'tadi.
+RLS oxirgi himoya qatlami hisoblanadi.
+Maxfiy kalitlar hech qachon frontendga chiqmaydi.
+Audit loglar o'chirilmaydi.
+Har upload tekshiriladi.
+Har xato loglanadi.
+Security monitoring doim ishlaydi.
+Recovery rejasi oldindan tayyor bo'ladi.
+📌 Chapter 14 yakuni
+
+Bu bob bilan platformaning xavfsizlik arxitekturasi to'liq hujjatlashtirildi:
+
+Authentication
+JWT
+Session Management
+RBAC
+Ownership
+RLS
+API Security
+Input Validation
+Output Sanitization
+SQL Injection himoyasi
+XSS himoyasi
+CSRF himoyasi
+CORS
+Rate Limiting
+Brute Force Protection
+Password Policy
+Secrets Management
+Storage Security
+Audit Logging
+Incident Detection
+Account Lock
+2FA
+Monitoring
+Disaster Recovery
+
+15.1 Analytics System Maqsadi
+
+Analytics moduli platformadagi barcha faoliyatni kuzatadi, tahlil qiladi va hisobotlarga aylantiradi.
+
+Bu modul orqali:
+
+Platforma holati kuzatiladi.
+Foydalanuvchilar faoliyati tahlil qilinadi.
+Yangiliklar samaradorligi o'lchanadi.
+Bloggerlar statistikasi yig'iladi.
+Hamkorlar faoliyati baholanadi.
+AI ishlashi kuzatiladi.
+Social media natijalari tahlil qilinadi.
+
+Analytics qaror qabul qilish uchun asosiy modul hisoblanadi.
+
+15.2 Analytics Architecture
+Frontend
+
+↓
+
+Edge Functions
+
+↓
+
+Analytics Engine
+
+↓
+
+Database
+
+↓
+
+Aggregation
+
+↓
+
+Charts
+
+↓
+
+Dashboard
+
+↓
+
+Reports
+
+Analytics real vaqt va tarixiy ma'lumotlarni birlashtiradi.
+
+15.3 Analytics Modules
+
+Platformada quyidagi analytics modullari mavjud.
+
+Platform Analytics
+
+News Analytics
+
+Blogger Analytics
+
+Company Analytics
+
+Social Analytics
+
+AI Analytics
+
+Media Analytics
+
+Visitor Analytics
+
+Security Analytics
+
+Performance Analytics
+15.4 Dashboard Analytics
+
+Admin Dashboard.
+
+Ko'rsatadi.
+
+Total Users
+Total Bloggers
+Total Companies
+Total News
+Published Today
+Draft News
+Active Users
+New Registrations
+Total Views
+Active Sessions
+15.5 News Analytics
+
+Har bir maqola uchun.
+
+Saqlanadi.
+
+Views
+Unique Views
+Reading Time
+Shares
+CTR
+Bookmarks
+Comments
+Publish Time
+Category
+Author
+15.6 Popular News
+
+Tizim avtomatik hisoblaydi.
+
+Top.
+
+Today
+
+This Week
+
+This Month
+
+This Year
+
+All Time
+15.7 Category Analytics
+
+Har kategoriya.
+
+↓
+
+Views
+
+↓
+
+Articles
+
+↓
+
+Average Reading Time
+
+↓
+
+Shares
+
+↓
+
+Popularity Score
+
+15.8 Blogger Analytics
+
+Har blogger.
+
+↓
+
+Followers
+
+↓
+
+Views
+
+↓
+
+Projects
+
+↓
+
+Services
+
+↓
+
+Revenue
+
+↓
+
+Average Rating
+
+↓
+
+Response Time
+
+↓
+
+Collaboration Success
+
+15.9 Company Analytics
+
+Har kompaniya.
+
+↓
+
+Completed Tasks
+
+↓
+
+Pending Tasks
+
+↓
+
+Contracts
+
+↓
+
+Average Completion Time
+
+↓
+
+Performance
+
+↓
+
+Reports Submitted
+
+↓
+
+File Uploads
+
+15.10 User Analytics
+
+Platforma kuzatadi.
+
+Login Count
+Last Login
+Active Days
+Sessions
+Devices
+Browsers
+Countries
+15.11 Visitor Analytics
+
+Anonymous foydalanuvchilar.
+
+↓
+
+Visits
+
+↓
+
+Pages
+
+↓
+
+Referrer
+
+↓
+
+Device
+
+↓
+
+Browser
+
+↓
+
+Country
+
+↓
+
+Language
+
+↓
+
+Screen Size
+
+15.12 Social Analytics
+
+Har platforma.
+
+↓
+
+Views
+
+↓
+
+Reach
+
+↓
+
+Impressions
+
+↓
+
+Clicks
+
+↓
+
+Likes
+
+↓
+
+Comments
+
+↓
+
+Shares
+
+↓
+
+Saves
+
+↓
+
+CTR
+
+15.13 AI Analytics
+
+Har AI Provider.
+
+↓
+
+Requests
+
+↓
+
+Tokens
+
+↓
+
+Latency
+
+↓
+
+Errors
+
+↓
+
+Cost
+
+↓
+
+Average Response Time
+
+↓
+
+Success Rate
+
+15.14 Worker Analytics
+
+Har Worker.
+
+↓
+
+Jobs
+
+↓
+
+Average Duration
+
+↓
+
+Success
+
+↓
+
+Failed
+
+↓
+
+Retry
+
+↓
+
+Dead Queue
+
+15.15 Storage Analytics
+
+Supabase Storage.
+
+↓
+
+Used Space
+
+↓
+
+File Count
+
+↓
+
+Uploads
+
+↓
+
+Downloads
+
+↓
+
+Deleted Files
+
+↓
+
+Largest Files
+
+15.16 API Analytics
+
+Har API.
+
+↓
+
+Requests
+
+↓
+
+Errors
+
+↓
+
+Average Response Time
+
+↓
+
+Success Rate
+
+↓
+
+429 Count
+
+↓
+
+500 Count
+
+↓
+
+Traffic
+
+15.17 Security Analytics
+
+Monitoring.
+
+↓
+
+Failed Logins
+
+↓
+
+Blocked Users
+
+↓
+
+Rate Limit Hits
+
+↓
+
+Invalid Tokens
+
+↓
+
+Forbidden Requests
+
+↓
+
+Attack Attempts
+
+15.18 KPI Dashboard
+
+Platformaning asosiy KPI lari.
+
+Growth
+
+Engagement
+
+Retention
+
+Publishing Speed
+
+Conversion
+
+Performance
+
+Revenue
+
+Satisfaction
+15.19 Charts
+
+Dashboard.
+
+Ko'rsatadi.
+
+Line Chart
+Bar Chart
+Pie Chart
+Area Chart
+Table
+Heatmap
+Timeline
+15.20 Reports
+
+Admin yaratadi.
+
+Daily Report
+Weekly Report
+Monthly Report
+Quarterly Report
+Yearly Report
+15.21 Export
+
+Har report.
+
+Export qilinadi.
+
+PDF
+Excel
+CSV
+
+Kelajakda.
+
+Google Sheets
+Power BI
+Looker Studio
+15.22 Scheduled Reports
+
+Admin.
+
+↓
+
+Schedule.
+
+↓
+
+Daily
+
+Weekly
+
+Monthly
+
+↓
+
+Email.
+
+15.23 Real-Time Dashboard
+
+Real vaqt.
+
+Yangilanadi.
+
+Active Users
+Online Users
+Live Visitors
+Publishing Queue
+Worker Status
+AI Requests
+15.24 Search Analytics
+
+Platforma kuzatadi.
+
+↓
+
+Most Searched Keywords
+
+↓
+
+No Result Searches
+
+↓
+
+Trending Searches
+
+↓
+
+Search CTR
+
+15.25 Performance Analytics
+
+Platforma.
+
+↓
+
+Frontend Load Time
+
+↓
+
+API Response
+
+↓
+
+Database Query Time
+
+↓
+
+Worker Duration
+
+↓
+
+AI Response Time
+
+↓
+
+Storage Upload Time
+
+15.26 Historical Data
+
+Analytics.
+
+Saqlanadi.
+
+Daily
+Weekly
+Monthly
+Yearly
+
+Eski ma'lumotlar arxivlanadi, lekin yo'qolmaydi.
+
+15.27 Business Intelligence
+
+Analytics asosida.
+
+AI tavsiya beradi.
+
+Masalan.
+
+Qaysi kategoriya ommabop.
+Qaysi blogger faol.
+Qaysi kompaniya sust ishlayapti.
+Qaysi vaqtda post qilish foydaliroq.
+Qaysi AI Provider samaraliroq.
+
+AI faqat tavsiya beradi, qaror qabul qilmaydi.
+
+15.28 Permissions
+
+Super Admin.
+
+↓
+
+Barcha Analytics.
+
+Admin.
+
+↓
+
+Ko'pchilik Analytics.
+
+Editor.
+
+↓
+
+News Analytics.
+
+Blogger.
+
+↓
+
+Faqat o'z statistikasi.
+
+Company.
+
+↓
+
+Faqat o'z statistikasi.
+
+User.
+
+↓
+
+Analytics ko'rmaydi.
+
+15.29 Audit
+
+Har report.
+
+↓
+
+Kim yaratdi.
+
+↓
+
+Qachon yaratdi.
+
+↓
+
+Kim export qildi.
+
+↓
+
+Qayerga yuborildi.
+
+↓
+
+Log qilinadi.
+
+15.30 Analytics Principles
+Har statistik ma'lumot aniq manbadan olinadi.
+Rejalashtirilgan hisobotlar avtomatik yaratiladi.
+Real-time va tarixiy ma'lumotlar alohida boshqariladi.
+Analytics tizimi platforma ishlashiga sezilarli ta'sir qilmaydi.
+Hisobotlar eksport qilinishi mumkin.
+Har bir foydalanuvchi faqat o'ziga tegishli statistikani ko'radi.
+AI analitika asosida tavsiya beradi, lekin qaror qabul qilmaydi.
+Analytics ma'lumotlari audit qilinadi.
+📌 Chapter 15 yakuni
+
+Bu bob bilan platformaning Analytics & Reporting tizimi to'liq hujjatlashtirildi:
+
+Dashboard Analytics
+News Analytics
+Blogger Analytics
+Company Analytics
+Visitor Analytics
+Social Analytics
+AI Analytics
+Worker Analytics
+Storage Analytics
+API Analytics
+Security Analytics
+KPI Dashboard
+Charts
+Reports
+Export
+Scheduled Reports
+Real-Time Dashboard
+Search Analytics
+Performance Analytics
+Historical Data
+Business Intelligence
+
+16.1 Notification System Maqsadi
+
+Notification System platformadagi barcha foydalanuvchilarga kerakli va o'z vaqtida xabarlarni yetkazish uchun xizmat qiladi.
+
+Bu modul quyidagilarni boshqaradi:
+
+Dashboard Notifications
+Email Notifications
+Telegram Notifications
+Push Notifications (Future)
+SMS Notifications (Future)
+Reminder System
+Broadcast Messages
+Notification History
+
+Har bir xabar markazlashtirilgan tizim orqali boshqariladi.
+
+16.2 Notification Architecture
+System Event
+
+↓
+
+Notification Queue
+
+↓
+
+Notification Worker
+
+↓
+
+Template Engine
+
+↓
+
+Delivery Channel
+
+↓
+
+User
+
+↓
+
+Delivery Log
+
+Har qanday notification avval Queue ga tushadi.
+
+16.3 Notification Types
+
+Platformada quyidagi notification turlari mavjud.
+
+System
+
+Information
+
+Warning
+
+Success
+
+Error
+
+Reminder
+
+Announcement
+
+Security
+
+Har biri turli rang va ikon bilan ko'rsatiladi.
+
+16.4 Delivery Channels
+
+Platforma quyidagi kanallarni qo'llab-quvvatlaydi.
+
+Dashboard
+
+Email
+
+Telegram
+
+Push (Future)
+
+SMS (Future)
+
+Bir notification bir nechta kanal orqali yuborilishi mumkin.
+
+16.5 Dashboard Notifications
+
+Foydalanuvchi Dashboardiga keladi.
+
+Misollar.
+
+New Task
+New Collaboration
+News Approved
+Contract Updated
+New Message
+Password Changed
+System Update
+16.6 Email Notifications
+
+Email orqali yuboriladi.
+
+Masalan.
+
+Register
+Email Verification
+Password Reset
+New Task
+Contract Update
+Newsletter
+Admin Announcement
+
+SMTP sozlamalari Admin tomonidan boshqariladi.
+
+16.7 Telegram Notifications
+
+Telegram Bot orqali.
+
+Masalan.
+
+New Article Published
+
+AI Worker Failed
+
+Server Error
+
+Daily Report Ready
+
+New Contact Message
+
+Backup Completed
+
+Asosan Admin uchun.
+
+16.8 Reminder System
+
+Tizim eslatmalar yuboradi.
+
+Misollar.
+
+Deadline Tomorrow
+Contract Expiring
+Password Expiring
+Pending Review
+Scheduled Publish
+16.9 Broadcast Messages
+
+Admin barcha foydalanuvchilarga xabar yuborishi mumkin.
+
+Masalan.
+
+System Maintenance
+
+Platform Update
+
+Holiday Notice
+
+Emergency Announcement
+16.10 Personal Messages
+
+Shaxsiy notificationlar.
+
+Masalan.
+
+Your task approved
+Your profile updated
+Your article rejected
+New collaboration
+
+Faqat egasiga yuboriladi.
+
+16.11 Notification Priorities
+
+Har notification ustuvorlikka ega.
+
+Low
+
+Normal
+
+High
+
+Critical
+
+Critical notificationlar bir nechta kanal orqali yuborilishi mumkin.
+
+16.12 Notification Status
+
+Har notification quyidagi holatlardan birida bo'ladi.
+
+Pending
+
+Queued
+
+Sending
+
+Delivered
+
+Read
+
+Failed
+
+Cancelled
+16.13 Read Status
+
+Dashboard notificationlari.
+
+↓
+
+Unread
+
+↓
+
+Read
+
+↓
+
+Archived
+
+↓
+
+Deleted
+
+16.14 Notification Templates
+
+Har notification shablon orqali yaratiladi.
+
+Template quyidagilarni o'z ichiga oladi.
+
+Title
+Body
+Variables
+Language
+Channel
+
+Masalan.
+
+Hello {{name}}
+
+Your task "{{task}}" has been completed.
+16.15 Variables
+
+Template ichida ishlatiladi.
+
+{{user}}
+
+{{partner}}
+
+{{article}}
+
+{{task}}
+
+{{date}}
+
+{{company}}
+16.16 Multi-language Support
+
+Har notification.
+
+↓
+
+Uzbek
+
+English
+
+Russian
+
+Kelajakda boshqa tillar ham qo'shilishi mumkin.
+
+16.17 Notification Queue
+
+Har notification.
+
+↓
+
+Queue.
+
+↓
+
+Worker.
+
+↓
+
+Delivery.
+
+Bu tizim server yuklamasini kamaytiradi.
+
+16.18 Retry Logic
+
+Email yuborilmadi.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Dead Queue.
+
+16.19 Notification History
+
+Saqlanadi.
+
+Recipient
+Channel
+Template
+Status
+Date
+Retry Count
+Delivery Time
+
+History o'chirilmaydi.
+
+16.20 User Preferences
+
+Har foydalanuvchi tanlay oladi.
+
+Misol.
+
+Email Notifications
+
+ON/OFF
+
+Telegram Notifications
+
+ON/OFF
+
+Dashboard Notifications
+
+ON/OFF
+
+Admin xavfsizlik xabarlarini o'chira olmaydi.
+
+16.21 Admin Notification Center
+
+Admin quyidagilarni ko'radi.
+
+Failed Notifications
+Queue
+Delivery Status
+Broadcast History
+Scheduled Messages
+16.22 Scheduled Notifications
+
+Oldindan rejalashtiriladi.
+
+Masalan.
+
+Tomorrow
+
+09:00
+
+↓
+
+Reminder
+16.23 Security Notifications
+
+Muhim xavfsizlik xabarlari.
+
+Masalan.
+
+Login From New Device
+Password Changed
+Role Changed
+Failed Login Attempts
+Suspicious Activity
+
+Bularni o'chirib bo'lmaydi.
+
+16.24 Notification Analytics
+
+Har notification uchun.
+
+Delivered
+Opened
+Clicked
+Failed
+Read Time
+
+Admin samaradorlikni ko'ra oladi.
+
+16.25 Communication Between Roles
+
+Platforma ichida quyidagi aloqa mavjud.
+
+Admin ↔ Editor
+
+Admin ↔ Blogger
+
+Admin ↔ Company
+
+Company ↔ Admin
+
+Blogger ↔ Admin
+
+Blogger ↔ Company to'g'ridan-to'g'ri yozisha olmaydi (agar loyiha keyinchalik buni qo'llab-quvvatlamasa).
+
+16.26 Notification Permissions
+
+Super Admin.
+
+↓
+
+Everything.
+
+Admin.
+
+↓
+
+Broadcast
+
+Templates
+
+History
+
+Retry
+
+Delete
+
+Editor.
+
+↓
+
+News-related notifications.
+
+Blogger.
+
+↓
+
+Own notifications.
+
+Company.
+
+↓
+
+Own notifications.
+
+User.
+
+↓
+
+Own notifications.
+
+16.27 Audit
+
+Har notification.
+
+Log qilinadi.
+
+Sender
+Recipient
+Channel
+Template
+Time
+Status
+Retry
+Error
+16.28 Notification Security
+
+Har notification.
+
+↓
+
+JWT
+
+↓
+
+Role
+
+↓
+
+Ownership
+
+↓
+
+Queue
+
+↓
+
+Worker
+
+↓
+
+Delivery
+
+↓
+
+Audit
+
+16.29 Future Features
+
+Kelajakda.
+
+WhatsApp Notifications
+Discord Notifications
+Slack Notifications
+Browser Push
+Mobile Push
+Voice Call Notifications
+AI Smart Reminder
+Smart Delivery Time
+16.30 Notification Principles
+Notificationlar Queue orqali yuboriladi.
+Har kanal mustaqil ishlaydi.
+Retry va Dead Queue mavjud.
+Notification tarixini o'chirib bo'lmaydi.
+Shablonlar Admin tomonidan boshqariladi.
+Har foydalanuvchi o'z notificationlarini boshqarishi mumkin.
+Muhim xavfsizlik xabarlari majburiy yetkaziladi.
+Har yuborilgan notification audit logga yoziladi.
+Notification tizimi platformaning boshqa modullaridan mustaqil ishlaydi.
+📌 Chapter 16 yakuni
+
+Bu bob bilan Notification & Communication System to'liq hujjatlashtirildi:
+
+Dashboard Notifications
+Email Notifications
+Telegram Notifications
+Broadcast Messages
+Reminder System
+Notification Templates
+Variables
+Multi-language
+Queue
+Retry
+History
+User Preferences
+Analytics
+Security Notifications
+Admin Notification Center
+Audit
+Security
+Future Integrations
+
+17.1 Maqsad
+
+System Settings moduli platformadagi barcha global konfiguratsiyalarni boshqaradi.
+
+Bu modul orqali Administrator butun platformani boshqarishi mumkin.
+
+Bu yerda:
+
+Platforma nomi
+Logo
+SEO
+AI
+Email
+Storage
+Notification
+Security
+Theme
+Feature Flags
+Maintenance
+
+kabi barcha global sozlamalar joylashadi.
+
+17.2 Settings Architecture
+Super Admin
+
+↓
+
+Admin Panel
+
+↓
+
+Settings Module
+
+↓
+
+Validation
+
+↓
+
+Database
+
+↓
+
+Cache Refresh
+
+↓
+
+Entire Platform
+
+Har qanday sozlama o'zgargandan keyin tizim kerakli cache'ni yangilaydi.
+
+17.3 Settings Categories
+
+Platforma sozlamalari quyidagi bo'limlarga bo'linadi.
+
+General
+
+Branding
+
+Homepage
+
+SEO
+
+Authentication
+
+Security
+
+Email
+
+Notifications
+
+Storage
+
+Media
+
+AI
+
+Social
+
+Analytics
+
+Feature Flags
+
+Localization
+
+Maintenance
+
+System
+
+Developer
+17.4 General Settings
+
+Asosiy platforma ma'lumotlari.
+
+Platform Name
+Short Name
+Description
+Contact Email
+Contact Phone
+Company Address
+Website URL
+Copyright
+Timezone
+Date Format
+Currency
+17.5 Branding
+
+Platforma brendi.
+
+Logo
+White Logo
+Favicon
+App Icon
+Splash Image
+Default Banner
+Brand Colors
+
+Kelajakda Dark/Light logo ham qo'llab-quvvatlanadi.
+
+17.6 Homepage Settings
+
+Homepage uchun.
+
+Hero Title
+Hero Subtitle
+Hero Buttons
+Featured Section
+Statistics
+Partner Section
+CTA Banner
+Footer Content
+
+Admin kod yozmasdan Homepage kontentini o'zgartira oladi.
+
+17.7 SEO Settings
+
+SEO uchun.
+
+Default Meta Title
+Default Description
+Keywords
+Robots.txt
+Sitemap
+Canonical URL
+Open Graph
+Twitter Card
+17.8 Authentication Settings
+
+Login tizimi.
+
+Email Login
+Google Login
+Telegram Login
+Register Enabled
+Password Reset
+Session Lifetime
+Remember Me
+Email Verification
+17.9 Security Settings
+
+Platforma xavfsizligi.
+
+Password Policy
+Max Login Attempts
+Lock Duration
+Rate Limit
+Allowed Origins
+Allowed Domains
+Allowed File Types
+Max Upload Size
+Force HTTPS
+17.10 Email Settings
+
+SMTP.
+
+SMTP Host
+SMTP Port
+SMTP User
+SMTP Password
+From Email
+From Name
+
+Test Email yuborish imkoniyati bo'ladi.
+
+17.11 Notification Settings
+
+Notification.
+
+Email Notifications
+Telegram Notifications
+Dashboard Notifications
+Reminder System
+Retry Count
+Queue Size
+17.12 Storage Settings
+
+Supabase Storage.
+
+Public Buckets
+Private Buckets
+Max Upload Size
+Signed URL Lifetime
+Default Folder
+Auto Cleanup
+
+Cloudflare R2 ishlatilmaydi.
+
+Storage to'liq Supabase Storage orqali boshqariladi.
+
+17.13 Media Settings
+
+Media.
+
+Allowed Formats
+Image Compression
+Video Compression
+Thumbnail Size
+Preview Size
+Watermark
+Auto Optimize
+17.14 AI Settings
+
+AI.
+
+Provider Priority
+Enabled Providers
+Default Model
+Max Tokens
+Temperature
+Retry Count
+Timeout
+Daily Budget
+
+AI Promptlari alohida Prompt Library orqali boshqariladi.
+
+17.15 Social Settings
+
+Social Automation.
+
+Telegram Bot
+Facebook
+Instagram
+LinkedIn
+YouTube
+Auto Publish
+Schedule
+Retry
+17.16 Analytics Settings
+
+Analytics.
+
+Enable Tracking
+Retention Days
+Real-Time Enabled
+Export Formats
+Dashboard Refresh Interval
+17.17 Feature Flags
+
+Har bir modulni yoqish yoki o'chirish.
+
+Masalan.
+
+AI Engine
+
+ON
+
+Newsletter
+
+ON
+
+Bloggers
+
+ON
+
+Company Portal
+
+ON
+
+Comments
+
+OFF
+
+Bookmarks
+
+OFF
+
+Chat
+
+OFF
+
+Deployment qilmasdan yangi modulni yoqish/o'chirish mumkin.
+
+17.18 Localization
+
+Til sozlamalari.
+
+Uzbek
+English
+Russian
+
+Default Language.
+
+Fallback Language.
+
+RTL Support (Future).
+
+17.19 Maintenance Mode
+
+Platformani vaqtinchalik yopish.
+
+↓
+
+Maintenance ON.
+
+↓
+
+Visitors.
+
+↓
+
+Maintenance Page.
+
+↓
+
+Admins.
+
+↓
+
+Normal Access.
+
+17.20 Cache Settings
+
+Platforma cache.
+
+Homepage Cache
+News Cache
+Statistics Cache
+Settings Cache
+
+Admin.
+
+↓
+
+Clear Cache.
+
+↓
+
+Refresh.
+
+17.21 Search Settings
+
+Global qidiruv.
+
+Search Enabled
+Search Suggestions
+Search Limit
+Index Refresh
+17.22 Backup Settings
+
+Platforma.
+
+Automatic Backup
+Backup Frequency
+Backup Retention
+Export Database
+Export Media Metadata
+17.23 Logging Settings
+
+Loglar.
+
+API Logs
+AI Logs
+Worker Logs
+Security Logs
+Audit Logs
+
+Retention muddati ham sozlanadi.
+
+17.24 Developer Settings
+
+Faqat Super Admin.
+
+Debug Mode
+API Playground
+Worker Status
+Queue Inspector
+Edge Functions
+Health Checks
+
+Productionda Debug Mode o'chirilgan bo'lishi kerak.
+
+17.25 Permissions
+
+Super Admin.
+
+↓
+
+Barcha sozlamalarni boshqaradi.
+
+Admin.
+
+↓
+
+Ko'p sozlamalarni boshqaradi.
+
+Ammo:
+
+Security
+Developer
+Feature Flags
+
+bo'limlarini o'zgartira olmaydi (agar ruxsat berilmagan bo'lsa).
+
+Editor.
+
+↓
+
+Settings ko'rmaydi.
+
+Blogger.
+
+↓
+
+Settings ko'rmaydi.
+
+Company.
+
+↓
+
+Settings ko'rmaydi.
+
+17.26 Audit
+
+Har bir sozlama o'zgarishi loglanadi.
+
+Saqlanadi.
+
+Kim o'zgartirdi
+Eski qiymat
+Yangi qiymat
+Vaqt
+IP
+Qurilma
+
+Rollback imkoniyati mavjud bo'lishi tavsiya etiladi.
+
+17.27 Validation
+
+Har bir sozlama.
+
+Tekshiriladi.
+
+Type
+Required
+URL
+Email
+Integer
+Boolean
+Enum
+JSON
+
+Noto'g'ri qiymatlar saqlanmaydi.
+
+17.28 Settings Principles
+Platformadagi barcha global sozlamalar bitta markaziy modulda boshqariladi.
+Sozlamalar kodni o'zgartirmasdan yangilanadi.
+O'zgarishlar audit logga yoziladi.
+Xavfsizlikka oid sozlamalar faqat yuqori rollar uchun mavjud.
+Feature Flags yangi funksiyalarni xavfsiz yoqish/o'chirish imkonini beradi.
+Sozlamalar o'zgarganda kerakli cache avtomatik yangilanadi.
+Maxfiy ma'lumotlar (API kalitlari, parollar) shifrlangan holda saqlanadi.
+📌 Chapter 17 yakuni
+
+Bu bob bilan System Settings & Platform Configuration to'liq hujjatlashtirildi:
+
+General Settings
+Branding
+Homepage Settings
+SEO
+Authentication
+Security
+Email (SMTP)
+Notifications
+Supabase Storage Settings
+Media
+AI
+Social
+Analytics
+Feature Flags
+Localization
+Maintenance Mode
+Cache
+Search
+Backup
+Logging
+Developer Settings
+Permissions
+Audit
+Validation
+
+18.1 Maqsad
+
+Bu bob platformaning production infratuzilmasini, deploy jarayonlarini va tizimning uzluksiz ishlashini tavsiflaydi.
+
+Platforma quyidagi asosiy infratuzilmaga tayanadi:
+
+Frontend
+Backend
+Database
+Storage
+Authentication
+Edge Functions
+AI Services
+Monitoring
+Backup
+18.2 Overall Architecture
+Users
+
+↓
+
+Frontend (Vercel)
+
+↓
+
+Supabase Edge Functions
+
+↓
+
+Authentication
+
+↓
+
+Business Logic
+
+↓
+
+PostgreSQL
+
+↓
+
+Supabase Storage
+
+↓
+
+Analytics
+
+↓
+
+Monitoring
+18.3 Technology Stack
+
+Frontend
+
+React
+TypeScript
+Vite
+TailwindCSS
+React Router
+
+Backend
+
+Supabase Edge Functions
+TypeScript
+Deno Runtime
+
+Database
+
+PostgreSQL (Supabase)
+
+Authentication
+
+Supabase Auth
+
+Storage
+
+Supabase Storage
+
+Deployment
+
+Vercel
+Supabase
+18.4 Frontend Deployment
+
+Frontend ishlab chiqish tugagach.
+
+↓
+
+GitHub.
+
+↓
+
+Vercel.
+
+↓
+
+Production Build.
+
+↓
+
+Deploy.
+
+Har push avtomatik deploy qilinishi mumkin.
+
+18.5 Backend Deployment
+
+Backend.
+
+↓
+
+Supabase CLI.
+
+↓
+
+Edge Functions Deploy.
+
+↓
+
+Production.
+
+Har Edge Function mustaqil deploy qilinadi.
+
+18.6 Database Management
+
+Database faqat Migration orqali boshqariladi.
+
+Hech qachon Production bazasida qo'lda schema o'zgartirilmaydi.
+
+Jarayon:
+
+Migration
+
+↓
+
+Review
+
+↓
+
+Test
+
+↓
+
+Production
+18.7 Migration Policy
+
+Har migration:
+
+Version raqamiga ega bo'ladi.
+Orqaga qaytarilishi mumkin bo'lishi kerak.
+Audit qilinadi.
+Git orqali kuzatiladi.
+18.8 Environment Variables
+
+Platformada quyidagi maxfiy o'zgaruvchilar mavjud.
+
+Supabase URL
+Supabase Anon Key
+Service Role Key
+AI API Keys
+SMTP Credentials
+Social API Keys
+
+Ular hech qachon frontend kodiga yozilmaydi.
+
+18.9 Secrets Management
+
+Barcha maxfiy kalitlar.
+
+↓
+
+Environment Variables.
+
+↓
+
+Encrypted Storage.
+
+↓
+
+Edge Functions.
+
+Frontend faqat kerakli public ma'lumotlarni oladi.
+
+18.10 Domain Structure
+
+Asosiy domen.
+
+agroalliance.uz
+
+Kelajakda.
+
+admin.agroalliance.uz
+
+api.agroalliance.uz
+
+cdn.agroalliance.uz (agar kerak bo'lsa)
+18.11 HTTPS
+
+Platforma faqat HTTPS orqali ishlaydi.
+
+HTTP avtomatik HTTPS ga yo'naltiriladi.
+
+18.12 CI/CD
+
+Kod.
+
+↓
+
+GitHub.
+
+↓
+
+Build.
+
+↓
+
+Tests.
+
+↓
+
+Deploy.
+
+↓
+
+Health Check.
+
+↓
+
+Production.
+
+Deployment muvaffaqiyatsiz bo'lsa.
+
+Rollback bajariladi.
+
+18.13 Build Process
+
+Har build.
+
+↓
+
+Install.
+
+↓
+
+TypeScript Check.
+
+↓
+
+Lint.
+
+↓
+
+Build.
+
+↓
+
+Artifacts.
+
+↓
+
+Deploy.
+
+18.14 Health Checks
+
+Platforma quyidagilarni tekshiradi.
+
+Frontend
+API
+Database
+Storage
+Auth
+Edge Functions
+AI
+Workers
+18.15 Monitoring
+
+Monitoring tizimi kuzatadi.
+
+CPU
+Memory
+Requests
+Errors
+Response Time
+Queue
+Workers
+Storage Usage
+18.16 Logging
+
+Har bir xizmat log yozadi.
+
+Frontend Logs
+API Logs
+Database Logs
+Worker Logs
+AI Logs
+Security Logs
+18.17 Error Reporting
+
+Har xato.
+
+↓
+
+Log.
+
+↓
+
+Alert.
+
+↓
+
+Admin Notification.
+
+↓
+
+Investigation.
+
+18.18 Backup Strategy
+
+Quyidagilar muntazam backup qilinadi.
+
+PostgreSQL
+Storage Metadata
+Settings
+Audit Logs
+
+Backup siyosati:
+
+Daily
+Weekly
+Monthly
+18.19 Restore Strategy
+
+Nosozlik yuz bersa.
+
+↓
+
+Restore Backup.
+
+↓
+
+Integrity Check.
+
+↓
+
+Health Check.
+
+↓
+
+Production.
+
+18.20 Rollback Strategy
+
+Deploy muvaffaqiyatsiz bo'lsa.
+
+↓
+
+Previous Version.
+
+↓
+
+Rollback.
+
+↓
+
+Verify.
+
+↓
+
+Production.
+
+18.21 Scaling
+
+Platforma quyidagi yo'nalishlarda kengayishi mumkin.
+
+Ko'proq foydalanuvchilar
+Ko'proq AI Workerlar
+Ko'proq Edge Functions
+Ko'proq Storage
+Ko'proq API Traffic
+
+Kod arxitekturasi gorizontal kengayishga tayyor bo'lishi kerak.
+
+18.22 Performance Optimization
+
+Platforma.
+
+Lazy Loading
+Code Splitting
+Image Optimization
+Database Indexes
+Query Optimization
+API Caching
+
+orqali optimallashtiriladi.
+
+18.23 Release Management
+
+Har release.
+
+↓
+
+Version.
+
+↓
+
+Release Notes.
+
+↓
+
+Migration.
+
+↓
+
+Deploy.
+
+↓
+
+Verification.
+
+↓
+
+Production.
+
+18.24 Testing Pipeline
+
+Productiondan oldin.
+
+Unit Tests
+Integration Tests
+API Tests
+UI Tests
+Security Tests
+Performance Tests
+
+o'tkazilishi tavsiya etiladi.
+
+18.25 Disaster Recovery
+
+Katta nosozlik bo'lsa.
+
+↓
+
+Backup Restore.
+
+↓
+
+Database Restore.
+
+↓
+
+Storage Verification.
+
+↓
+
+API Verification.
+
+↓
+
+Production.
+
+18.26 Maintenance Workflow
+
+Maintenance Mode.
+
+↓
+
+Users Maintenance Page ko'radi.
+
+↓
+
+Admin tizimga kira oladi.
+
+↓
+
+Ish tugagach.
+
+↓
+
+Maintenance OFF.
+
+18.27 Infrastructure Permissions
+
+Super Admin.
+
+↓
+
+Infrastructure Monitoring.
+
+↓
+
+Deploy.
+
+↓
+
+Rollback.
+
+↓
+
+Settings.
+
+Admin.
+
+↓
+
+Monitoring.
+
+↓
+
+Logs.
+
+↓
+
+Health.
+
+Editor.
+
+↓
+
+Infrastructure ko'rmaydi.
+
+Company.
+
+↓
+
+Infrastructure ko'rmaydi.
+
+18.28 Infrastructure Principles
+Har deploy tekshiruvdan o'tadi.
+Production faqat testdan o'tgan kodni qabul qiladi.
+Migrationlar versiyalanadi.
+Backup doim mavjud bo'ladi.
+Rollback rejasi oldindan tayyor bo'ladi.
+Monitoring 24/7 ishlaydi.
+Secrets faqat Environment Variables orqali boshqariladi.
+Frontend va Backend mustaqil deploy qilinadi.
+Har release audit qilinadi.
+Platforma kengayishga tayyor bo'lishi kerak.
+📌 Chapter 18 yakuni
+
+Bu bob bilan platformaning Infrastructure, Deployment & DevOps qismi to'liq hujjatlashtirildi:
+
+Architecture
+Deployment
+Database Management
+Migrations
+Environment Variables
+Secrets Management
+Domains
+HTTPS
+CI/CD
+Build Pipeline
+Health Checks
+Monitoring
+Logging
+Backup
+Restore
+Rollback
+Scaling
+Performance
+Release Management
+Testing Pipeline
+Disaster Recovery
+Maintenance
+
+
+19.1 AI Engine Maqsadi
+
+AI Engine platformaning eng muhim modullaridan biridir.
+
+Uning vazifasi:
+
+kontent yaratish
+kontentni tekshirish
+tarjima qilish
+SEO optimizatsiya
+kategoriyalash
+tag yaratish
+xulosa chiqarish
+ijtimoiy tarmoqlar uchun post tayyorlash
+administrator va editor ishini tezlashtirish
+
+AI hech qachon butun platformani mustaqil boshqarmaydi.
+
+AI faqat yordamchi hisoblanadi.
+
+Yakuniy qaror har doim inson tomonidan qabul qilinadi.
+
+19.2 AI Architecture
+Frontend
+
+↓
+
+Edge Functions
+
+↓
+
+AI Gateway
+
+↓
+
+Provider Manager
+
+↓
+
+AI Queue
+
+↓
+
+AI Workers
+
+↓
+
+AI Provider
+
+↓
+
+Response
+
+↓
+
+Database
+
+AI bilan ishlaydigan barcha so'rovlar AI Gateway orqali o'tadi.
+
+19.3 Multi Provider Architecture
+
+Platforma bitta AI modelga bog'lanib qolmaydi.
+
+Bir nechta Provider ishlaydi.
+
+Masalan.
+
+OpenAI
+
+Google Gemini
+
+Anthropic Claude
+
+DeepSeek
+
+OpenRouter
+
+Local LLM (Future)
+19.4 Provider Priority
+
+Administrator Provider prioritetini belgilaydi.
+
+Masalan.
+
+1.
+
+Gemini
+
+↓
+
+2.
+
+OpenAI
+
+↓
+
+3.
+
+Claude
+
+↓
+
+4.
+
+DeepSeek
+
+Agar birinchi ishlamasa,
+
+ikkinchisi ishlaydi.
+
+19.5 AI Gateway
+
+AI Gateway barcha AI chaqiruvlarini boshqaradi.
+
+Vazifalari:
+
+Authentication
+Rate Limit
+Queue
+Retry
+Cost Tracking
+Provider Selection
+Logging
+
+Frontend hech qachon Provider API lariga to'g'ridan-to'g'ri ulanmaydi.
+
+19.6 AI Queue
+
+Har AI request.
+
+↓
+
+Queue.
+
+↓
+
+Worker.
+
+↓
+
+Provider.
+
+↓
+
+Response.
+
+AI requestlar bir vaqtda minglab bo'lishi mumkin.
+
+Queue serverni himoya qiladi.
+
+19.7 AI Workers
+
+Platformada bir nechta Worker mavjud.
+
+News Worker
+
+SEO Worker
+
+Translate Worker
+
+Summarize Worker
+
+Moderation Worker
+
+Image Worker
+
+Social Worker
+
+Category Worker
+
+Tag Worker
+
+Har Worker alohida ishlaydi.
+
+19.8 AI News Generation
+
+AI.
+
+↓
+
+Internet Source
+
+↓
+
+Extraction
+
+↓
+
+Cleaning
+
+↓
+
+Translation
+
+↓
+
+Summarization
+
+↓
+
+SEO
+
+↓
+
+Category
+
+↓
+
+Tags
+
+↓
+
+Draft
+
+↓
+
+Editor Review
+
+↓
+
+Publish
+
+19.9 AI Translation
+
+AI quyidagi tillarni qo'llab-quvvatlaydi.
+
+Uzbek
+English
+Russian
+
+Kelajakda.
+
+Turkish
+Kazakh
+Arabic
+19.10 AI Summarization
+
+Uzun maqolalar.
+
+↓
+
+AI.
+
+↓
+
+Qisqa xulosa.
+
+Bu Homepage va Telegram uchun ishlatiladi.
+
+19.11 AI SEO
+
+AI avtomatik yaratadi.
+
+Meta Title
+Meta Description
+Keywords
+Slug
+SEO Score
+19.12 AI Categorization
+
+AI maqolani avtomatik kategoriyalaydi.
+
+Masalan.
+
+Agriculture
+
+Technology
+
+Export
+
+Livestock
+
+Government
+
+Education
+19.13 AI Tag Generator
+
+AI.
+
+↓
+
+10-20 tag.
+
+↓
+
+Database.
+
+19.14 AI Moderation
+
+AI tekshiradi.
+
+Spam
+Toxic Content
+Hate Speech
+Adult Content
+Fake Information
+Duplicate
+
+Shubhali kontent avtomatik publish qilinmaydi.
+
+19.15 AI Image Generation
+
+Kelajakda.
+
+AI.
+
+↓
+
+Generate Image.
+
+↓
+
+News Cover.
+
+↓
+
+Social Image.
+
+↓
+
+Banner.
+
+↓
+
+Illustration.
+
+Administrator yoqishi yoki o'chirishi mumkin.
+
+19.16 AI Social Writer
+
+AI har platforma uchun alohida post yaratadi.
+
+Telegram.
+
+↓
+
+Qisqa.
+
+Instagram.
+
+↓
+
+Caption.
+
+Facebook.
+
+↓
+
+Professional.
+
+LinkedIn.
+
+↓
+
+Business Style.
+
+19.17 AI Prompt Library
+
+Barcha Promptlar markazlashtirilgan.
+
+Har Prompt:
+
+Name
+Version
+Purpose
+Variables
+Status
+Provider
+
+Promptlarni Admin yangilashi mumkin.
+
+19.18 Prompt Versioning
+
+Prompt o'zgarsa.
+
+Eski versiya saqlanadi.
+
+Masalan.
+
+v1
+
+v2
+
+v3
+
+v4
+
+Rollback mumkin.
+
+19.19 AI Memory
+
+AI foydalanuvchining shaxsiy ma'lumotlarini doimiy xotirada saqlamaydi.
+
+Faqat:
+
+joriy so'rov
+kerakli kontekst
+prompt
+
+ishlatiladi.
+
+Maxfiy ma'lumotlar AI Providerga yuborilmaydi.
+
+19.20 AI Cost Control
+
+Har Provider uchun.
+
+Saqlanadi.
+
+Total Requests
+Tokens
+Cost
+Average Cost
+Daily Budget
+Monthly Budget
+
+Limitdan oshsa.
+
+↓
+
+Keyingi Provider ishlaydi.
+
+19.21 AI Rate Limiting
+
+Har foydalanuvchi uchun.
+
+Masalan.
+
+Guest
+
+5/day
+
+User
+
+50/day
+
+Editor
+
+500/day
+
+Admin
+
+Unlimited
+19.22 AI Retry
+
+Provider javob bermadi.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Retry.
+
+↓
+
+Failover.
+
+19.23 AI Failover
+
+Misol.
+
+Gemini
+
+↓
+
+Timeout
+
+↓
+
+OpenAI
+
+↓
+
+Success
+
+Frontend buni sezmaydi.
+
+19.24 AI Analytics
+
+Platforma kuzatadi.
+
+Requests
+Success
+Failed
+Provider Usage
+Average Response Time
+Cost
+Tokens
+Queue Size
+19.25 AI Security
+
+AI hech qachon olmaydi.
+
+Service Role Key
+JWT
+Password
+API Secrets
+SMTP Password
+OAuth Tokens
+
+Sensitive ma'lumotlar promptga qo'shilmaydi.
+
+19.26 AI Permissions
+
+Super Admin.
+
+↓
+
+Everything.
+
+Admin.
+
+↓
+
+AI Settings.
+
+↓
+
+Prompt Library.
+
+Editor.
+
+↓
+
+AI Draft.
+
+↓
+
+AI SEO.
+
+↓
+
+AI Translate.
+
+Blogger.
+
+↓
+
+AI ishlata olmaydi (agar ruxsat berilmasa).
+
+Company.
+
+↓
+
+AI ishlata olmaydi.
+
+19.27 AI Error Handling
+
+AI ishlamasa.
+
+↓
+
+Retry.
+
+↓
+
+Failover.
+
+↓
+
+Queue.
+
+↓
+
+Log.
+
+↓
+
+Admin Notification.
+
+19.28 AI Audit
+
+Har AI request.
+
+Log qilinadi.
+
+User
+Prompt
+Provider
+Tokens
+Cost
+Duration
+Status
+19.29 Future AI Features
+
+Kelajakda.
+
+AI Chat Assistant
+AI Voice Assistant
+AI Video Generator
+AI Meeting Summary
+AI Document Analysis
+AI OCR
+AI Speech To Text
+AI Text To Speech
+AI Recommendation Engine
+AI Predictive Analytics
+19.30 AI Engine Principles
+Platforma bitta AI Providerga bog'lanmaydi.
+AI Gateway barcha AI chaqiruvlarini boshqaradi.
+Har AI request Queue orqali o'tadi.
+Prompt Library markazlashtirilgan bo'ladi.
+AI inson o'rnini bosmaydi, yordamchi sifatida ishlaydi.
+Sensitive ma'lumotlar AI Providerga yuborilmaydi.
+AI natijalari audit qilinadi.
+Provider ishlamasa avtomatik Failover ishlaydi.
+Xarajatlar doim nazorat qilinadi.
+AI tizimi kengaytiriladigan (extensible) arxitektura asosida quriladi.
+📌 Chapter 19 yakuni
+
+Bu bob bilan AI Engine & Automation tizimi to'liq hujjatlashtirildi:
+
+AI Architecture
+Multi-Provider System
+AI Gateway
+Queue
+Workers
+AI News Generation
+AI Translation
+AI SEO
+AI Summarization
+AI Categorization
+AI Tag Generation
+AI Moderation
+AI Image Generation
+AI Social Writer
+Prompt Library
+Prompt Versioning
+AI Memory
+Cost Control
+Rate Limiting
+Failover
+Analytics
+Security
+Permissions
+Audit
+Future AI Features
+
+CHAPTER 20 — PROJECT ROADMAP, FUTURE MODULES & LONG-TERM VISION SPECIFICATION
+20.1 Project Vision
+
+Agro Alliance Platform oddiy yangiliklar sayti emas.
+
+Bu platformaning asosiy maqsadi:
+
+O'zbekiston qishloq xo'jaligi sohasidagi kompaniyalar, bloggerlar, media va sun'iy intellektni bitta ekotizimga birlashtirish.
+
+Platforma kelajakda quyidagilarni o'z ichiga oluvchi raqamli ekotizimga aylanishi kerak.
+
+Media Portal
+Company Portal
+Blogger Platform
+AI News Center
+AI Automation Platform
+Analytics Center
+CRM
+Collaboration Hub
+20.2 MVP (Minimum Viable Product)
+
+Birinchi versiyada quyidagilar to'liq ishlashi kerak.
+
+Public Website
+Homepage
+About
+News
+News Detail
+Bloggers
+Blogger Profile
+Partners
+Contact
+Login
+Register
+Reset Password
+Authentication
+Login
+Register
+Logout
+Password Reset
+Google OAuth
+Dashboards
+Admin Dashboard
+Blogger Dashboard
+Company Dashboard
+CMS
+News CRUD
+Categories
+Homepage
+Partners
+Bloggers
+AI
+AI News Draft
+AI Translation
+AI SEO
+AI Summary
+Social
+Telegram Publish
+20.3 Version Roadmap
+Version 1.0
+
+Production Launch.
+
+Asosiy platforma.
+
+Version 1.1
+AI Improvements
+Better Analytics
+More Reports
+Version 1.2
+Instagram Automation
+Facebook Automation
+LinkedIn Automation
+Version 1.5
+AI Image Generation
+AI Video Summaries
+Version 2.0
+Mobile App
+Public API
+Marketplace
+Version 3.0
+International Platform
+Multi-language Expansion
+AI Recommendation System
+20.4 Sprint Roadmap
+
+Sprint 1
+
+↓
+
+Frontend Integration
+
+Sprint 2
+
+↓
+
+Backend Integration
+
+Sprint 3
+
+↓
+
+AI Engine
+
+Sprint 4
+
+↓
+
+Social Automation
+
+Sprint 5
+
+↓
+
+Analytics
+
+Sprint 6
+
+↓
+
+Optimization
+
+Sprint 7
+
+↓
+
+Testing
+
+Sprint 8
+
+↓
+
+Production Release
+
+20.5 Future Modules
+
+Kelajakda qo'shilishi mumkin.
+
+Comments
+Bookmarks
+Likes
+Chat
+Marketplace
+Courses
+Events
+Jobs
+CRM
+ERP Integration
+Payments
+Subscription System
+AI Chatbot
+20.6 Mobile Application
+
+Kelajakda.
+
+Android.
+
+↓
+
+iOS.
+
+↓
+
+Flutter yoki React Native.
+
+Funktsiyalar.
+
+News
+Notifications
+Dashboard
+Upload
+Messaging
+20.7 Desktop Application
+
+Kelajakda.
+
+Electron.
+
+↓
+
+Windows.
+
+↓
+
+macOS.
+
+↓
+
+Linux.
+
+Asosan Administrator va Editorlar uchun.
+
+20.8 Public API
+
+Kelajakda.
+
+REST API.
+
+GraphQL (Future).
+
+Developerlar platforma ma'lumotlaridan foydalanishlari mumkin.
+
+Masalan.
+
+News API
+Partners API
+Blogger API
+Statistics API
+20.9 Marketplace
+
+Kelajakda.
+
+Platforma ichida.
+
+Blogger Services
+Company Requests
+Collaboration Marketplace
+
+Har ikki tomon tizim ichida ishlaydi.
+
+20.10 AI Marketplace
+
+Kelajakda.
+
+AI Prompt Library.
+
+↓
+
+AI Plugins.
+
+↓
+
+Custom AI Agents.
+
+↓
+
+Workflow Templates.
+
+20.11 Plugin System
+
+Platformaga.
+
+Pluginlar qo'shilishi mumkin.
+
+Masalan.
+
+Payment
+CRM
+ERP
+Maps
+Weather
+SMS
+BI Tools
+20.12 Multi-Tenant Support (Future)
+
+Kelajakda.
+
+Bitta platformada.
+
+Bir nechta tashkilot.
+
+↓
+
+Alohida Workspace.
+
+↓
+
+Alohida Database Policy.
+
+20.13 International Expansion
+
+Platforma.
+
+Kelajakda.
+
+Uzbekistan
+Kazakhstan
+Kyrgyzstan
+Turkey
+Azerbaijan
+
+Ko'p tilli ishlashni qo'llab-quvvatlaydi.
+
+20.14 Performance Goals
+
+Production uchun maqsadlar.
+
+Frontend.
+
+First Load < 2 soniya
+Lighthouse > 90
+
+API.
+
+Average < 300 ms
+
+Database.
+
+Query < 100 ms
+
+AI.
+
+Average < 15 soniya
+20.15 Scalability Goals
+
+Platforma.
+
+100 foydalanuvchi emas.
+
+Balki.
+
+10 000 Users
+100 000 Articles
+1 Million Views
+1000 Companies
+5000 Bloggers
+
+uchun tayyor bo'lishi kerak.
+
+20.16 Business Goals
+
+Platforma.
+
+Quyidagilarni ta'minlashi kerak.
+
+Digital Agriculture Ecosystem
+Reliable Media Platform
+Company Collaboration
+Blogger Network
+AI Assisted Publishing
+20.17 Success Metrics
+
+Platforma muvaffaqiyati.
+
+Quyidagilar bilan o'lchanadi.
+
+Active Users
+Published News
+AI Usage
+Companies
+Bloggers
+Revenue
+User Satisfaction
+Platform Stability
+20.18 Long-Term Vision
+
+5 yil ichida.
+
+Platforma.
+
+Quyidagiga aylanishi kerak.
+
+O'zbekistonning eng katta Agro Media Platformasi.
+AI bilan ishlovchi to'liq Media CMS.
+Kompaniyalar va bloggerlarni bog'lovchi platforma.
+AI yordamida avtomatlashtirilgan kontent markazi.
+Qishloq xo'jaligi uchun raqamli ekotizim.
+20.19 Project Principles
+
+Loyiha quyidagi tamoyillarga amal qiladi.
+
+UI va Backend bir-biridan mustaqil rivojlanadi.
+Kod modul ko'rinishida yoziladi.
+Har modul mustaqil test qilinadi.
+Security har doim birinchi o'rinda turadi.
+AI yordamchi sifatida ishlaydi.
+Platforma kengaytiriladigan bo'lishi kerak.
+Har o'zgarish audit qilinadi.
+Har yangi modul Feature Flag orqali boshqariladi.
+Documentation kod bilan birga yangilanadi.
+Production sifati har bir sprint yakunida tekshiriladi.
+20.20 Final Project Structure
+Agro Alliance Platform
+
+├── Public Website
+├── Authentication
+├── Admin Dashboard
+├── Blogger Dashboard
+├── Company Dashboard
+├── News CMS
+├── Homepage CMS
+├── Partner Management
+├── Blogger Management
+├── User Management
+├── AI Engine
+├── Social Automation
+├── Analytics
+├── Notification System
+├── Settings System
+├── Media Management
+├── Security Layer
+├── API Layer
+├── Supabase Backend
+├── Storage
+├── Monitoring
+├── Audit
+├── DevOps
+└── Documentation
+20.21 Documentation Standards
+
+Har yangi modul uchun quyidagilar yozilishi shart.
+
+Maqsad
+Arxitektura
+Data Flow
+Database
+API
+Permissions
+Validation
+Error Handling
+Security
+Audit
+Analytics
+Testing
+
+Documentation kod bilan birga yangilanadi.
+
+20.22 Maintenance Policy
+
+Productionga chiqqandan keyin.
+
+Bug Fixes
+Security Updates
+Performance Improvements
+Dependency Updates
+Documentation Updates
+
+doimiy ravishda olib boriladi.
+
+20.23 End of Specification
+
+Ushbu hujjatlar to'plami Agro Alliance Platform loyihasining:
+
+biznes mantiqini,
+texnik arxitekturasini,
+foydalanuvchi rollarini,
+funksional imkoniyatlarini,
+xavfsizlik siyosatini,
+AI tizimini,
+DevOps infratuzilmasini,
+va uzoq muddatli rivojlanish strategiyasini
+
+to'liq tavsiflaydi.
+
+Kod yozish, testlash yoki yangi modul ishlab chiqishdan oldin ushbu hujjatlar asosiy manba sifatida ishlatilishi kerak.
+
+📚 Specification Complete
+
+Shu bilan 20 ta bobdan iborat to'liq loyiha spetsifikatsiyasi yakunlandi.
+
+U quyidagilarni qamrab oladi:
+
+✅ Platforma arxitekturasi
+✅ Barcha foydalanuvchi rollari va vakolatlari
+✅ Frontend va Backend oqimlari
+✅ Supabase Database
+✅ Supabase Storage
+✅ Edge Functions
+✅ Authentication & Security
+✅ AI Engine
+✅ Social Automation
+✅ Analytics
+✅ Notification System
+✅ Settings
+✅ DevOps
+✅ Roadmap
+✅ Uzoq muddatli rivojlanish strategiyasi

@@ -1,0 +1,982 @@
+[
+  {
+    "name": "public-stats",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["homepage_stats"],
+    "methods": ["GET"],
+    "description": "Returns homepage statistics (key/value/label)"
+  },
+  {
+    "name": "public-bloggers-list",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["bloggers", "blogger_specializations", "blogger_regions", "blogger_social_summary"],
+    "methods": ["GET"],
+    "description": "Paginated list of verified bloggers with filters (category, region, search)"
+  },
+  {
+    "name": "public-bloggers-profile",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["bloggers", "social_accounts", "social_platforms"],
+    "methods": ["GET"],
+    "description": "Returns a single blogger's public profile by slug"
+  },
+  {
+    "name": "public-categories",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["categories"],
+    "methods": ["GET"],
+    "description": "Returns categories filtered by type (blogger/news/partner)"
+  },
+  {
+    "name": "public-news-list",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories"],
+    "methods": ["GET"],
+    "description": "Paginated published news articles with category filter and search"
+  },
+  {
+    "name": "public-news-related",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories"],
+    "methods": ["GET"],
+    "description": "Returns up to 3 related news articles by same category, then fills from others"
+  },
+  {
+    "name": "public-news-detail",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories"],
+    "methods": ["GET"],
+    "description": "Returns a single published news article by slug with full content"
+  },
+  {
+    "name": "public-news-popular",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories"],
+    "methods": ["GET"],
+    "description": "Returns top 5 most-viewed published news articles"
+  },
+  {
+    "name": "public-partners",
+    "category": "public",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["partners"],
+    "methods": ["GET"],
+    "description": "Returns list of active partners with stats summary"
+  },
+  {
+    "name": "admin-bloggers-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["bloggers", "blogger_specializations", "blogger_regions"],
+    "methods": ["GET"],
+    "description": "Lists all non-deleted bloggers with profile, specializations, and regions"
+  },
+  {
+    "name": "admin-bloggers-create",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["bloggers"],
+    "methods": ["POST"],
+    "description": "Creates a new blogger via seed_new_blogger RPC with validation"
+  },
+  {
+    "name": "admin-bloggers-status",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["profiles"],
+    "methods": ["PATCH"],
+    "description": "Updates a blogger's profile status (active/pending)"
+  },
+  {
+    "name": "admin-bloggers-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["bloggers", "profiles"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a blogger and sets profile status to pending"
+  },
+  {
+    "name": "admin-partners-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partners", "partner_tasks", "profiles"],
+    "methods": ["GET"],
+    "description": "Lists all partners with their tasks and client profile details"
+  },
+  {
+    "name": "admin-partners-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a partner and all related tasks"
+  },
+  {
+    "name": "admin-partners-tasks-add",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partner_tasks"],
+    "methods": ["POST"],
+    "description": "Creates a new task for a partner"
+  },
+  {
+    "name": "admin-partners-client-create",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partners", "roles", "user_roles", "profiles"],
+    "methods": ["POST"],
+    "description": "Creates a company user and assigns as client to a partner"
+  },
+  {
+    "name": "admin-partners-client-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partners"],
+    "methods": ["DELETE"],
+    "description": "Deletes a partner's client profile and removes association"
+  },
+  {
+    "name": "admin-stats-update",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["homepage_stats"],
+    "methods": ["PUT"],
+    "description": "Upserts homepage stats (key/value/label) with upsert logic"
+  },
+  {
+    "name": "admin-users-status",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["profiles"],
+    "methods": ["PATCH"],
+    "description": "Updates a user's profile status (active/pending/banned)"
+  },
+  {
+    "name": "admin-users-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["profiles", "user_roles"],
+    "methods": ["GET"],
+    "description": "Lists all non-deleted profiles with their highest-priority role"
+  },
+  {
+    "name": "admin-news-create",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["news_articles"],
+    "methods": ["POST"],
+    "description": "Creates a news article (requires super_admin or admin role)"
+  },
+  {
+    "name": "admin-news-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories"],
+    "methods": ["GET"],
+    "description": "Paginated news list for admin with status/search filters (super_admin/admin)"
+  },
+  {
+    "name": "admin-news-update",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["news_articles"],
+    "methods": ["PATCH", "PUT"],
+    "description": "Updates a news article fields with optional slug regeneration (super_admin/admin)"
+  },
+  {
+    "name": "admin-news-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["news_articles"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a news article (super_admin/admin)"
+  },
+  {
+    "name": "admin-news-detail",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["news_articles", "news_categories", "news_article_tags", "news_tags"],
+    "methods": ["GET"],
+    "description": "Returns full news article with tags for admin editing (super_admin/admin)"
+  },
+  {
+    "name": "admin-categories-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["categories"],
+    "methods": ["GET"],
+    "description": "Lists all non-deleted categories ordered by type and sort_order"
+  },
+  {
+    "name": "admin-categories-create",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["categories"],
+    "methods": ["POST"],
+    "description": "Creates a new category (blogger/news/partner type)"
+  },
+  {
+    "name": "admin-categories-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["categories"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a category"
+  },
+  {
+    "name": "admin-categories-update",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["categories"],
+    "methods": ["PATCH"],
+    "description": "Updates a category's allowed fields (key/label/type/icon/sort_order)"
+  },
+  {
+    "name": "admin-homepage-get",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["homepage_sections", "homepage_section_items"],
+    "methods": ["GET"],
+    "description": "Returns all homepage sections with their items"
+  },
+  {
+    "name": "admin-homepage-item-update",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["section_items"],
+    "methods": ["PATCH"],
+    "description": "Updates a homepage section item's title/description/icon/link/sort/is_active"
+  },
+  {
+    "name": "admin-settings-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["public_settings"],
+    "methods": ["GET"],
+    "description": "Lists all public settings"
+  },
+  {
+    "name": "admin-settings-update",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["public_settings"],
+    "methods": ["PATCH"],
+    "description": "Updates a single setting's value by ID"
+  },
+  {
+    "name": "admin-contacts-read",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["contact_messages"],
+    "methods": ["PATCH"],
+    "description": "Marks a contact message as read/unread"
+  },
+  {
+    "name": "admin-contacts-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["contact_messages"],
+    "methods": ["GET"],
+    "description": "Lists contact messages with optional is_read filter"
+  },
+  {
+    "name": "admin-contacts-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["contact_messages"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a contact message"
+  },
+  {
+    "name": "admin-subscribers-list",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["newsletter_subscribers"],
+    "methods": ["GET"],
+    "description": "Lists newsletter subscribers with optional is_active filter"
+  },
+  {
+    "name": "admin-subscribers-delete",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["newsletter_subscribers"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a newsletter subscriber"
+  },
+  {
+    "name": "admin-stats-get",
+    "category": "admin",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["homepage_stats"],
+    "methods": ["GET"],
+    "description": "Returns homepage stats (key/value/label) for admin"
+  },
+  {
+    "name": "auth-me",
+    "category": "auth",
+    "deployed": true,
+    "auth_type": "direct",
+    "required_role": null,
+    "tables_used": ["profiles", "user_roles", "social_accounts", "social_platforms", "social_statistics", "partners"],
+    "methods": ["GET"],
+    "description": "Returns authenticated user's profile, social accounts with subscriber counts, partner info, and videos"
+  },
+  {
+    "name": "auth-login",
+    "category": "auth",
+    "deployed": true,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["profiles", "user_roles"],
+    "methods": ["POST"],
+    "description": "Authenticates user with email/password, returns JWT token and user object"
+  },
+  {
+    "name": "me-profile-update",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["PUT"],
+    "description": "Updates own profile name, avatar, and metadata fields (age/gender/region/language/niche)"
+  },
+  {
+    "name": "me-socials-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["social_platforms", "social_accounts"],
+    "methods": ["POST"],
+    "description": "Adds a social media account by detecting platform from URL"
+  },
+  {
+    "name": "me-socials-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["social_accounts", "social_statistics"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes own social account and related statistics"
+  },
+  {
+    "name": "me-services-list",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_services"],
+    "methods": ["GET"],
+    "description": "Lists own blogger services ordered by sort_order"
+  },
+  {
+    "name": "me-services-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_services"],
+    "methods": ["POST"],
+    "description": "Adds a new service for own blogger profile"
+  },
+  {
+    "name": "me-services-update",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_services"],
+    "methods": ["PATCH", "PUT"],
+    "description": "Updates own blogger service by ID"
+  },
+  {
+    "name": "me-services-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_services"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes own blogger service by ID"
+  },
+  {
+    "name": "me-videos-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["POST"],
+    "description": "Adds a video entry to own profile metadata (detects platform from URL)"
+  },
+  {
+    "name": "me-videos-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["DELETE"],
+    "description": "Removes a video entry from own profile metadata"
+  },
+  {
+    "name": "me-achievements-list",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_achievements"],
+    "methods": ["GET"],
+    "description": "Lists own blogger achievements ordered by sort_order"
+  },
+  {
+    "name": "me-achievements-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_achievements"],
+    "methods": ["POST"],
+    "description": "Adds a new achievement for own blogger profile"
+  },
+  {
+    "name": "me-achievements-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_achievements"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes own blogger achievement by ID"
+  },
+  {
+    "name": "me-achievements-update",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_achievements"],
+    "methods": ["PATCH", "PUT"],
+    "description": "Updates own blogger achievement by ID"
+  },
+  {
+    "name": "me-availability-get",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_availability"],
+    "methods": ["GET"],
+    "description": "Returns own availability settings"
+  },
+  {
+    "name": "me-availability-update",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_availability"],
+    "methods": ["PUT", "PATCH"],
+    "description": "Upserts own availability settings"
+  },
+  {
+    "name": "me-regions-list",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_regions"],
+    "methods": ["GET"],
+    "description": "Lists own blogger regions"
+  },
+  {
+    "name": "me-regions-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_regions"],
+    "methods": ["POST"],
+    "description": "Adds a region for own blogger profile"
+  },
+  {
+    "name": "me-regions-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_regions"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes own blogger region by ID"
+  },
+  {
+    "name": "me-specializations-add",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_specializations"],
+    "methods": ["POST"],
+    "description": "Adds a specialization for own blogger profile"
+  },
+  {
+    "name": "me-specializations-list",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_specializations"],
+    "methods": ["GET"],
+    "description": "Lists own blogger specializations"
+  },
+  {
+    "name": "me-specializations-delete",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_specializations"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes own blogger specialization by ID"
+  },
+  {
+    "name": "me-analytics",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["blogger_social_summary", "social_accounts"],
+    "methods": ["GET"],
+    "description": "Returns own analytics: total subscribers, views, engagement, videos, active platforms"
+  },
+  {
+    "name": "me-notifications-list",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": [],
+    "methods": ["GET"],
+    "description": "Stub - returns empty notifications array"
+  },
+  {
+    "name": "me-settings-get",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["GET"],
+    "description": "Returns own settings from profile metadata"
+  },
+  {
+    "name": "me-settings-update",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["PUT", "PATCH"],
+    "description": "Updates own settings in profile metadata (merge)"
+  },
+  {
+    "name": "me-partner",
+    "category": "me",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["GET"],
+    "description": "Returns partner info and tasks for the authenticated company user"
+  },
+  {
+    "name": "client-partner-update",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners"],
+    "methods": ["PUT", "PATCH"],
+    "description": "Updates own partner profile fields (name/sphere/contractNo/amount)"
+  },
+  {
+    "name": "client-tasks-add",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["POST"],
+    "description": "Creates a new task for own partner with auto-incremented sort_order"
+  },
+  {
+    "name": "client-tasks-delete",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a task owned by own partner"
+  },
+  {
+    "name": "client-tasks-update",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["PATCH", "PUT"],
+    "description": "Updates a task's title and/or status (pending/progress/done) for own partner"
+  },
+  {
+    "name": "client-notifications-list",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": [],
+    "methods": ["GET"],
+    "description": "Stub - returns empty notifications array"
+  },
+  {
+    "name": "client-settings-update",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["profiles"],
+    "methods": ["PUT", "PATCH"],
+    "description": "Updates own settings in profile metadata (merge)"
+  },
+  {
+    "name": "client-settings-get",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["profiles"],
+    "methods": ["GET"],
+    "description": "Returns own settings from profile metadata"
+  },
+  {
+    "name": "client-statistics",
+    "category": "client",
+    "deployed": true,
+    "auth_type": "requireRole",
+    "required_role": "company",
+    "tables_used": ["partners", "partner_tasks"],
+    "methods": ["GET"],
+    "description": "Returns task statistics (total/done/progress/pending) and total partners count"
+  },
+  {
+    "name": "admin-homepage-section-update",
+    "category": "admin",
+    "deployed": false,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["homepage_sections"],
+    "methods": ["PATCH"],
+    "description": "Updates a homepage section's title/subtitle/is_active/sort_order"
+  },
+  {
+    "name": "admin-partners-create",
+    "category": "admin",
+    "deployed": false,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partners"],
+    "methods": ["POST"],
+    "description": "Creates a new partner with name/sphere/contract details"
+  },
+  {
+    "name": "admin-partners-tasks-cycle",
+    "category": "admin",
+    "deployed": false,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partner_tasks"],
+    "methods": ["PATCH"],
+    "description": "Cycles task status through pending -> progress -> done -> pending"
+  },
+  {
+    "name": "admin-partners-tasks-delete",
+    "category": "admin",
+    "deployed": false,
+    "auth_type": "requireRole",
+    "required_role": "super_admin",
+    "tables_used": ["partner_tasks"],
+    "methods": ["DELETE"],
+    "description": "Soft-deletes a partner task by ID"
+  },
+  {
+    "name": "check-profile",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": ["profiles"],
+    "methods": ["GET"],
+    "description": "Debug function that fetches a hardcoded profile by UUID"
+  },
+  {
+    "name": "contact-submit",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": ["POST"],
+    "description": "Stub - validates contact form fields but does not persist (TODO: Phase 3)"
+  },
+  {
+    "name": "me-profile",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "verifyAuth",
+    "required_role": null,
+    "tables_used": [],
+    "methods": ["GET"],
+    "description": "Stub - returns bare auth user (TODO: Phase 4)"
+  },
+  {
+    "name": "newsletter-subscribe",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": ["POST"],
+    "description": "Stub - validates email but does not persist (TODO: Phase 3)"
+  },
+  {
+    "name": "newsletter-unsubscribe",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": ["GET"],
+    "description": "Stub - accepts token param but does not process (TODO: Phase 3)"
+  },
+  {
+    "name": "ai",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "analytics",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "auth",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "cron",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "health",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "media",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "notifications",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "public",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "queue",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "settings",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "social",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "system",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  },
+  {
+    "name": "workers",
+    "category": "local-unused",
+    "deployed": false,
+    "auth_type": "none",
+    "required_role": null,
+    "tables_used": [],
+    "methods": [],
+    "description": "Empty directory - no index.ts found"
+  }
+]

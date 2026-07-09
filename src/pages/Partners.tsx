@@ -1,5 +1,11 @@
-﻿import { Link } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
+import { api } from "../lib/api"
+import Newsletter from "../components/Newsletter"
+
+type LivePartner = { name: string; slug: string; sphere: string; logo: string | null; direction: string }
+type PartnerStats = { total: number; countries: number; strategic: number; coverage: string }
 
 const mascot = "/mascot-partners.webp"
 
@@ -182,6 +188,12 @@ function Directions() {
 }
 
 function PartnerLogos() {
+  const [livePartners, setLivePartners] = useState<LivePartner[]>([])
+  useEffect(() => {
+    api<{ partners: LivePartner[] }>("/public/partners").then((d) => setLivePartners(d.partners)).catch(() => {})
+  }, [])
+  const list = livePartners.length > 0 ? livePartners : partners.map((p) => ({ name: p, slug: p.toLowerCase(), sphere: "", logo: null, direction: "" }))
+
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
       <Reveal>
@@ -194,18 +206,13 @@ function PartnerLogos() {
         </div>
       </Reveal>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {partners.map((p, i) => (
-          <Reveal key={p} delay={(i % 5) * 50}>
+        {list.map((p, i) => (
+          <Reveal key={p.name} delay={(i % 5) * 50}>
             <div className="grid h-24 place-items-center rounded-2xl border border-green/10 bg-white px-4 text-center font-display text-base font-extrabold tracking-tight text-ink/75 shadow-[0_4px_20px_rgba(91,180,32,0.05)] transition-all hover:-translate-y-1 hover:text-green hover:shadow-[0_12px_32px_rgba(91,180,32,0.12)]">
-              {p}
+              {p.logo ? <img src={p.logo} alt={p.name} className="max-h-12 max-w-full object-contain" /> : p.name}
             </div>
           </Reveal>
         ))}
-      </div>
-      <div className="mt-10 text-center">
-        <a href="#" className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 bg-white px-7 py-3.5 font-bold text-ink transition-colors hover:border-green hover:text-green">
-          BARCHA HAMKORLARNI KO'RISH <Icon d={I.arrow} className="h-5 w-5" />
-        </a>
       </div>
     </section>
   )
@@ -238,30 +245,6 @@ function CtaBanner() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </Reveal>
-    </section>
-  )
-}
-
-function Newsletter() {
-  return (
-    <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-8">
-      <Reveal>
-        <div className="flex flex-col items-center gap-6 rounded-3xl border border-green/15 bg-soft px-8 py-9 lg:flex-row lg:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-green/15 text-green"><Icon d={I.mail} className="h-7 w-7" /></span>
-            <div>
-              <h3 className="font-display text-xl font-extrabold leading-tight">Yangi hamkorlik va imkoniyatlardan xabardor bo'lib boring!</h3>
-              <p className="mt-1 text-sm text-muted">Yangiliklar va takliflar haqida birinchilardan bo'lib xabar oling.</p>
-            </div>
-          </div>
-          <div className="flex w-full gap-3 lg:w-auto">
-            <input placeholder="Email manzilingiz" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green lg:w-64" />
-            <button className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-              OBUNA BO'LISH <Icon d={I.send} className="h-5 w-5" />
-            </button>
           </div>
         </div>
       </Reveal>

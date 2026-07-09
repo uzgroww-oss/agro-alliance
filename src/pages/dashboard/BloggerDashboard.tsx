@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import DashboardLayout, { LineChart, Donut } from "../../components/DashboardLayout"
+import DashboardLayout from "../../components/DashboardLayout"
 import { Icon, I } from "../../lib/ui"
 import { api, type User } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -11,10 +11,10 @@ const nav = [
   { label: "Profilim", icon: I.user },
   { label: "Ijtimoiy tarmoqlar", icon: I.link2 },
   { label: "Videolar", icon: I.media },
-  { label: "Statistika", icon: I.chart },
-  { label: "Hamkorliklar", icon: I.handshake },
-  { label: "Xabarlar", icon: I.message },
-  { label: "Sozlamalar", icon: I.gear },
+  { label: "Xizmatlar", icon: I.check },
+  { label: "Hududlar", icon: I.pin },
+  { label: "Yo'nalishlar", icon: I.sprout },
+  { label: "Yutuqlar", icon: I.trophy },
 ]
 
 const platIcon: Record<string, { d: string; color: string }> = {
@@ -26,22 +26,6 @@ const platIcon: Record<string, { d: string; color: string }> = {
 }
 const catLabel = (k: string) => categories.find((c) => c.key === k)?.label ?? k
 
-const statCards = [
-  { icon: I.users, t: "Jami obunachilar", v: "1.2M+", delta: "12.5% o'tgan oyga nisbatan" },
-  { icon: I.eye, t: "Oylik ko'rishlar", v: "870K+", delta: "8.4% o'tgan oyga nisbatan" },
-  { icon: I.chart, t: "Engagement", v: "8.7%", delta: "1.1% o'tgan oyga nisbatan" },
-  { icon: I.media, t: "Joylangan videolar", v: "126", delta: "6 ta yangi video" },
-  { icon: I.link2, t: "Faol platformalar", v: "5", delta: "Barchasi faol" },
-]
-const donutSegs = [
-  { label: "YouTube", value: 55.2, color: "#22c55e" },
-  { label: "Instagram", value: 19.8, color: "#E1306C" },
-  { label: "TikTok", value: 7.8, color: "#0f172a" },
-  { label: "Telegram", value: 7.4, color: "#229ED9" },
-  { label: "Facebook", value: 4.6, color: "#1877F2" },
-  { label: "Boshqalar", value: 5.2, color: "#94a3b8" },
-]
-const ageBars = [{ l: "18-24", v: 18 }, { l: "25-34", v: 42 }, { l: "35-44", v: 25 }, { l: "45+", v: 15 }]
 const quickActions = [
   { icon: I.upload, t: "Video yuklash" }, { icon: I.link2, t: "Silka biriktirish" },
   { icon: I.refresh, t: "Profilni yangilash" }, { icon: I.chart, t: "Statistikani ko'rish" },
@@ -233,6 +217,14 @@ function VideosCard({ me, reload }: { me: User; reload: () => void }) {
 }
 
 function Overview({ me, reload }: { me: User; reload: () => void }) {
+  const socialCount = me.socials?.length || 0
+  const videoCount = me.videos?.length || 0
+  const statCards = [
+    { icon: I.link2, t: "Ijtimoiy tarmoqlar", v: String(socialCount), delta: `${socialCount} ta ulangan` },
+    { icon: I.media, t: "Joylangan videolar", v: String(videoCount), delta: videoCount ? `${videoCount} ta video` : "Hali yo'q" },
+    { icon: I.chart, t: "Profil holati", v: me.status === "active" ? "Faol" : "Yangi", delta: me.status === "active" ? "Tasdiqlangan" : "Kutilmoqda" },
+  ]
+
   return (
     <>
       <h1 className="font-display text-2xl font-extrabold tracking-tight">Bloger Dashboard</h1>
@@ -241,7 +233,7 @@ function Overview({ me, reload }: { me: User; reload: () => void }) {
         <SocialsCard me={me} reload={reload} />
       </div>
 
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((s) => (
           <div key={s.t} className={card.replace("p-6", "p-5")}>
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
@@ -252,28 +244,7 @@ function Overview({ me, reload }: { me: User; reload: () => void }) {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <div className={card}>
-          <div className="flex items-center justify-between"><h3 className="font-display text-lg font-bold">Video ko'rishlar statistikasi</h3><span className="rounded-lg border border-green/15 px-2.5 py-1 text-xs font-semibold text-muted">6 oy ▾</span></div>
-          <div className="mt-4"><LineChart points={[520, 580, 720, 650, 820, 980]} labels={["Noy 2023", "Dek 2023", "Yan 2024", "Fev 2024", "Mar 2024", "Apr 2024"]} /></div>
-        </div>
-        <div className={card}>
-          <h3 className="font-display text-lg font-bold">Platformalar bo'yicha taqsimot</h3>
-          <div className="mt-4 flex items-center gap-5">
-            <div className="relative grid shrink-0 place-items-center"><Donut segments={donutSegs} /><div className="absolute text-center"><div className="font-display text-lg font-extrabold">870K+</div><div className="text-[10px] text-muted">Jami ko'rishlar</div></div></div>
-            <ul className="flex-1 space-y-1.5 text-sm">{donutSegs.map((s) => <li key={s.label} className="flex items-center justify-between"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold">{s.value}%</span></li>)}</ul>
-          </div>
-        </div>
-        <div className={card}>
-          <h3 className="font-display text-lg font-bold">Auditoriya</h3>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div><div className="text-xs text-muted">Jins bo'yicha</div><div className="mt-2 space-y-2"><div className="flex items-center gap-2 text-sm"><Icon d={I.users} className="h-4 w-4 text-green" /> Erkaklar <span className="ml-auto font-bold">68%</span></div><div className="flex items-center gap-2 text-sm"><Icon d={I.users} className="h-4 w-4 text-pink-500" /> Ayollar <span className="ml-auto font-bold">32%</span></div></div></div>
-            <div><div className="text-xs text-muted">Yosh oralig'i</div><div className="mt-2 space-y-1.5">{ageBars.map((a) => <div key={a.l} className="flex items-center gap-2 text-xs"><span className="w-9 text-muted">{a.l}</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-green" style={{ width: `${a.v / 42 * 100}%` }} /></div><span className="w-8 text-right font-semibold">{a.v}%</span></div>)}</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <VideosCard me={me} reload={reload} />
         <div className={card}>
           <h3 className="font-display text-lg font-bold">Tezkor amallar</h3>
@@ -290,6 +261,176 @@ function Placeholder({ title }: { title: string }) {
   )
 }
 
+/* ---------- Services Tab ---------- */
+function ServicesTab() {
+  const [items, setItems] = useState<{ id: string; title: string; description: string }[]>([])
+  const [title, setTitle] = useState("")
+  const [desc, setDesc] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const load = () => api<{ services: { id: string; title: string; description: string }[] }>("/me/services").then((d) => setItems(d.services || [])).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const add = async () => {
+    if (!title.trim()) return
+    setBusy(true)
+    try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load() }
+    finally { setBusy(false) }
+  }
+  const remove = async (id: string) => { await api(`/me/services/${id}`, { method: "DELETE" }); load() }
+
+  return (
+    <div>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">Xizmatlarim</h2>
+      <p className="mt-1 text-sm text-muted">Taqdim etayotgan xizmatlaringiz.</p>
+      <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Xizmat nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Tavsif (ixtiyoriy)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali xizmat qo'shilmagan.</p>}
+          {items.map((s) => (
+            <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+              <Icon d={I.check} className="h-4 w-4 shrink-0 text-green" />
+              <span className="flex-1 text-sm font-medium">{s.title}</span>
+              {s.description && <span className="text-xs text-muted">{s.description}</span>}
+              <button onClick={() => remove(s.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Regions Tab ---------- */
+function RegionsTab() {
+  const [items, setItems] = useState<{ id: string; region: string }[]>([])
+  const [region, setRegion] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const load = () => api<{ regions: { id: string; region: string }[] }>("/me/regions").then((d) => setItems(d.regions || [])).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const add = async () => {
+    if (!region.trim()) return
+    setBusy(true)
+    try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load() }
+    finally { setBusy(false) }
+  }
+  const remove = async (id: string) => { await api(`/me/regions/${id}`, { method: "DELETE" }); load() }
+
+  return (
+    <div>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">Hududlarim</h2>
+      <p className="mt-1 text-sm text-muted">Faoliyat yuritayotgan hududlaringiz.</p>
+      <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="flex gap-3">
+          <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Hudud nomi" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>}
+          {items.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+              <Icon d={I.pin} className="h-4 w-4 shrink-0 text-green" />
+              <span className="flex-1 text-sm font-medium">{r.region}</span>
+              <button onClick={() => remove(r.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Specializations Tab ---------- */
+function SpecializationsTab() {
+  const [items, setItems] = useState<{ id: string; specialization_key: string }[]>([])
+  const [key, setKey] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const load = () => api<{ specializations: { id: string; specialization_key: string }[] }>("/me/specializations").then((d) => setItems(d.specializations || [])).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const add = async () => {
+    if (!key.trim()) return
+    setBusy(true)
+    try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load() }
+    finally { setBusy(false) }
+  }
+  const remove = async (id: string) => { await api(`/me/specializations/${id}`, { method: "DELETE" }); load() }
+
+  return (
+    <div>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">Yo'nalishlarim</h2>
+      <p className="mt-1 text-sm text-muted">Mutaxassislik yo'nalishlaringiz.</p>
+      <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="flex gap-3">
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Yo'nalish kalit so'zi (masalan: fermerlik)" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali yo'nalish qo'shilmagan.</p>}
+          {items.map((s) => (
+            <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+              <Icon d={I.sprout} className="h-4 w-4 shrink-0 text-green" />
+              <span className="flex-1 text-sm font-medium">{s.specialization_key}</span>
+              <button onClick={() => remove(s.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Achievements Tab ---------- */
+function AchievementsTab() {
+  const [items, setItems] = useState<{ id: string; title: string; subtitle: string }[]>([])
+  const [title, setTitle] = useState("")
+  const [subtitle, setSubtitle] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const load = () => api<{ achievements: { id: string; title: string; subtitle: string }[] }>("/me/achievements").then((d) => setItems(d.achievements || [])).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const add = async () => {
+    if (!title.trim()) return
+    setBusy(true)
+    try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load() }
+    finally { setBusy(false) }
+  }
+  const remove = async (id: string) => { await api(`/me/achievements/${id}`, { method: "DELETE" }); load() }
+
+  return (
+    <div>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">Yutuqlarim</h2>
+      <p className="mt-1 text-sm text-muted">Erishgan yutuqlaringiz.</p>
+      <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yutuq nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Qo'shimcha ma'lumot" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali yutuq qo'shilmagan.</p>}
+          {items.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+              <Icon d={I.trophy} className="h-4 w-4 shrink-0 text-gold" />
+              <span className="flex-1 text-sm font-medium">{a.title}</span>
+              {a.subtitle && <span className="text-xs text-muted">{a.subtitle}</span>}
+              <button onClick={() => remove(a.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function BloggerDashboard() {
   const [active, setActive] = useState("Dashboard")
   const [me, setMe] = useState<User | null>(null)
@@ -302,7 +443,12 @@ export default function BloggerDashboard() {
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: "Blogger", initials }}>
       {!me ? <div className="grid min-h-[60vh] place-items-center text-muted">Yuklanmoqda…</div>
-        : active === "Dashboard" ? <Overview me={me} reload={reload} /> : <Placeholder title={active} />}
+        : active === "Dashboard" ? <Overview me={me} reload={reload} />
+        : active === "Xizmatlar" ? <ServicesTab />
+        : active === "Hududlar" ? <RegionsTab />
+        : active === "Yo'nalishlar" ? <SpecializationsTab />
+        : active === "Yutuqlar" ? <AchievementsTab />
+        : <Placeholder title={active} />}
     </DashboardLayout>
   )
 }

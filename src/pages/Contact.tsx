@@ -1,15 +1,10 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
+import { api } from "../lib/api"
+import { usePublicSettings } from "../lib/settings"
 
 const mascot = "/mascot-contact.webp"
-
-const contactInfo = [
-  { icon: I.phone, t: "Telefon", v: "+998 90 123 45 67" },
-  { icon: I.mail, t: "Email", v: "info@agroalliance.uz" },
-  { icon: I.pin, t: "Manzil", v: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy" },
-  { icon: I.clock, t: "Ish vaqti", v: "Dushanba - Shanba\n09:00 - 18:00" },
-]
 
 const features = [
   { icon: I.headset, t: "Tezkor javob", d: "24 soat ichida javob berishga harakat qilamiz" },
@@ -32,7 +27,65 @@ const faqs = [
 
 const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
 
+function NewsletterInline() {
+  const [email, setEmail] = useState("")
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setBusy(true)
+    try {
+      await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
+      setSent(true)
+    } catch (err: any) {
+      setError(err?.message || "Obunada xatolik")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="mt-6 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green">
+        <Icon d="M9 12l2 2 4-4" className="h-4 w-4" /> Obuna muvaffaqiyatli!
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Email manzilingiz"
+        className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green"
+      />
+      <button type="submit" disabled={busy} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+        {busy ? "..." : <><Icon d={I.send} className="h-5 w-5" /> OBUNA</>}
+      </button>
+      {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
+    </form>
+  )
+}
+
 function Hero() {
+  const { settings } = usePublicSettings()
+  const phone = settings.contact_phone || "+998 90 123 45 67"
+  const email = settings.contact_email || "info@agroalliance.uz"
+  const address = settings.contact_address || "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy"
+  const hours = settings.working_hours || "Dushanba - Shanba\n09:00 - 18:00"
+
+  const contactInfo = [
+    { icon: I.phone, t: "Telefon", v: phone },
+    { icon: I.mail, t: "Email", v: email },
+    { icon: I.pin, t: "Manzil", v: address },
+    { icon: I.clock, t: "Ish vaqti", v: hours },
+  ]
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -101,11 +154,29 @@ function Hero() {
 
 function ContactForm() {
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
   const [form, setForm] = useState({ name: "", email: "", topic: "Tanlang", message: "" })
+  const [file, setFile] = useState<File | null>(null)
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
-  const submit = (e: React.FormEvent) => {
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSent(true)
+    setError("")
+    try {
+      const payload: Record<string, unknown> = { name: form.name, email: form.email, subject: form.topic, message: form.message }
+      if (file) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string)
+          reader.readAsDataURL(file)
+        })
+        payload.file = { name: file.name, type: file.type, size: file.size, data: base64 }
+      }
+      await api("/contact-submit", { method: "POST", body: JSON.stringify(payload) })
+      setSent(true)
+    } catch (err: any) {
+      setError(err?.message || "Yuborishda xatolik")
+    }
   }
   const inputCls = "w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
 
@@ -114,14 +185,15 @@ function ContactForm() {
       <h2 className="font-display text-xl font-extrabold tracking-tight">Bizga xabar yuboring</h2>
       <p className="mt-2 text-sm text-muted">Quyidagi formani to'ldirib, bizga xabar yuboring. Tez orada siz bilan bog'lanamiz.</p>
 
-      {sent ? (
-        <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-soft py-12 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-full bg-green text-white"><Icon d="M9 12l2 2 4-4" className="h-7 w-7" sw={2.5} /></span>
-          <h3 className="font-display text-lg font-bold">Xabaringiz yuborildi!</h3>
-          <p className="max-w-xs text-sm text-muted">Rahmat, {form.name || "do'st"}! Tez orada siz bilan bog'lanamiz.</p>
-          <button onClick={() => { setSent(false); setForm({ name: "", email: "", topic: "Tanlang", message: "" }) }} className="mt-2 text-sm font-bold text-green hover:underline">Yana xabar yuborish</button>
-        </div>
-      ) : (
+  {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">{error}</div>}
+  {sent ? (
+    <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-soft py-12 text-center">
+      <span className="grid h-14 w-14 place-items-center rounded-full bg-green text-white"><Icon d="M9 12l2 2 4-4" className="h-7 w-7" sw={2.5} /></span>
+      <h3 className="font-display text-lg font-bold">Xabaringiz yuborildi!</h3>
+      <p className="max-w-xs text-sm text-muted">Rahmat, {form.name || "do'st"}! Tez orada siz bilan bog'lanamiz.</p>
+      <button onClick={() => { setSent(false); setForm({ name: "", email: "", topic: "Tanlang", message: "" }) }} className="mt-2 text-sm font-bold text-green hover:underline">Yana xabar yuborish</button>
+    </div>
+  ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Ismingiz" className={inputCls} />
@@ -138,7 +210,11 @@ function ContactForm() {
           </label>
           <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder="Xabaringiz" rows={5} className={`${inputCls} resize-none`} />
           <div className="flex items-center justify-between text-xs text-muted">
-            <span className="flex items-center gap-1.5"><Icon d={I.paperclip} className="h-4 w-4" /> Fayl qo'shish (ixtiyoriy)</span>
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <Icon d={I.paperclip} className="h-4 w-4" />
+              {file ? <span className="font-medium text-green">{file.name}</span> : "Fayl qo'shish (ixtiyoriy)"}
+              <input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
+            </label>
             <span>Maks. 10MB</span>
           </div>
           <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02]">
@@ -287,12 +363,7 @@ function FaqAndNewsletter() {
                 <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklar, imkoniyatlar va foydali ma'lumotlarni email orqali oling.</p>
               </div>
             </div>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <input placeholder="Email manzilingiz" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green" />
-              <button className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-                OBUNA BO'LISH <Icon d={I.send} className="h-5 w-5" />
-              </button>
-            </div>
+            <NewsletterInline />
           </div>
         </Reveal>
       </div>

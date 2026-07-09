@@ -1,30 +1,17 @@
-﻿import { Link } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar } from "../lib/ui"
+import { api } from "../lib/api"
 
 const mascot = "/mascot2.webp"
 
-const pillars = [
-  {
-    icon: I.target,
-    t: "MISSIYAMIZ",
-    type: "text" as const,
-    body: "Agro soha uchun sifatli media kontent yaratish, agro blogerlarni qo'llab-quvvatlash, fermerlar va kompaniyalar o'rtasida ishonchli ko'prik bo'lish.",
-  },
-  {
-    icon: I.eye,
-    t: "VIZYONIMIZ",
-    type: "text" as const,
-    body: "Markaziy Osiyodagi eng yirik agro media ekotizimiga aylanish va global miqyosda qishloq xo'jaligi rivojiga hissa qo'shish.",
-  },
-  {
-    icon: I.gem,
-    t: "QADRIYATLARIMIZ",
-    type: "list" as const,
-    items: ["Ishonchlilik va halollik", "Innovatsiya va texnologiya", "Sifatli kontent", "Hamkorlik va rivojlanish"],
-  },
+const defaultPillars = [
+  { icon: I.target, t: "MISSIYAMIZ", type: "text" as const, body: "Agro soha uchun sifatli media kontent yaratish, agro blogerlarni qo'llab-quvvatlash, fermerlar va kompaniyalar o'rtasida ishonchli ko'prik bo'lish." },
+  { icon: I.eye, t: "VIZYONIMIZ", type: "text" as const, body: "Markaziy Osiyodagi eng yirik agro media ekotizimiga aylanish va global miqyosda qishloq xo'jaligi rivojiga hissa qo'shish." },
+  { icon: I.gem, t: "QADRIYATLARIMIZ", type: "list" as const, items: ["Ishonchlilik va halollik", "Innovatsiya va texnologiya", "Sifatli kontent", "Hamkorlik va rivojlanish"] },
 ]
 
-const team = [
+const defaultTeam = [
   { name: "Jasur Xolmirzayev", role: "Asoschi & CEO", img: 12 },
   { name: "Akmal To'raqulov", role: "Operatsion direktor", img: 33 },
   { name: "Otabek Karimov", role: "Media direktor", img: 51 },
@@ -32,13 +19,38 @@ const team = [
   { name: "Abdulloh Yo'ldoshev", role: "Texnologiya direktori", img: 60 },
 ]
 
-const teamSocial: Record<string, string> = {
-  linkedin: "M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z M6 9H2v12h4z M4 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
-  instagram: "M2 6a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z M16 11.4a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M17.5 6.5h.01",
-  telegram: "M22 2 11 13 M22 2l-7 20-4-9-9-4 20-7z",
-}
+const iconMap: Record<string, string> = { target: I.target, eye: I.eye, gem: I.gem, check: I.check, brain: I.brain, task: I.task, doc: I.doc, trophy: I.trophy, play: I.play, robot: I.robot, sprout: I.sprout, book: I.book, media: I.media, chart: I.chart, send: I.send, building: I.building, shield: I.shield, users: I.users, globe: I.globe, leaf: I.leaf }
+
+type SectionItem = { title: string; description: string; icon: string; link: string }
+type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
+  const [pillars, setPillars] = useState(defaultPillars)
+  const [team, setTeam] = useState(defaultTeam)
+
+  useEffect(() => {
+    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
+      const pc = d.sections?.find((s) => s.section_key === "about_pillars")
+      if (pc?.items?.length) {
+        setPillars(pc.items.map((item, i) => ({
+          icon: iconMap[item.icon] || I.star,
+          t: item.title,
+          type: (i === 2 ? "list" : "text") as "text" | "list",
+          body: item.description,
+          items: i === 2 ? item.description.split(",").map((s) => s.trim()) : undefined,
+        })))
+      }
+      const tc = d.sections?.find((s) => s.section_key === "team")
+      if (tc?.items?.length) {
+        setTeam(tc.items.map((item, i) => ({
+          name: item.title,
+          role: item.description,
+          img: (i + 1) * 12,
+        })))
+      }
+    }).catch(() => {})
+  }, [])
+
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -49,7 +61,6 @@ function Hero() {
       </div>
 
       <div className="mx-auto max-w-[1320px] px-5 pt-7 lg:px-8">
-        {/* Breadcrumb */}
         <Reveal>
           <nav className="flex items-center gap-2 text-sm text-muted">
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
@@ -62,7 +73,6 @@ function Hero() {
         </Reveal>
 
         <div className="grid gap-8 pt-8 pb-10 xl:grid-cols-[1fr_0.8fr_320px]">
-          {/* Left text */}
           <div className="flex flex-col justify-center">
             <Reveal>
               <h1 className="font-display text-[clamp(2.6rem,6.5vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.03em]">
@@ -91,17 +101,15 @@ function Hero() {
             </Reveal>
           </div>
 
-          {/* Center visual */}
           <div className="relative hidden items-center justify-center xl:flex">
             <div className="absolute h-72 w-72 rounded-full bg-white/40 blur-2xl" />
             <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
           </div>
 
-          {/* Right card */}
           <Reveal delay={160}>
             <div className="relative flex h-full flex-col justify-center rounded-3xl border border-green/10 bg-white p-7 shadow-[0_12px_44px_rgba(91,180,32,0.10)]">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green">
-                <Icon d="M12 2a4 4 0 0 0-4 4 4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0 4-4 4 4 0 0 0-4-4 4 4 0 0 0-4-4z" className="h-5 w-5" />
+                <Icon d="M12 2a4 4 0 0 0-4 4 4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0 4-4 4 4 0 0 0-4-4z" className="h-5 w-5" />
               </span>
               <h3 className="mt-5 font-display text-xl font-extrabold leading-snug tracking-tight">
                 AGRO KELAJAKNI<br />BIRGA YARATAMIZ
@@ -110,7 +118,7 @@ function Hero() {
                 Media, texnologiya va bilim — agro sohaning yangi imkoniyatlarini ochadi.
                 Agro Alliance ana shu imkoniyatlarni hamma uchun kengaytiradi.
               </p>
-              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">”</span>
+              <span className="mt-4 self-end font-display text-6xl leading-none text-green/20">"</span>
             </div>
           </Reveal>
         </div>
@@ -120,6 +128,22 @@ function Hero() {
 }
 
 function Pillars() {
+  const [pillars, setPillars] = useState(defaultPillars)
+  useEffect(() => {
+    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
+      const pc = d.sections?.find((s) => s.section_key === "about_pillars")
+      if (pc?.items?.length) {
+        setPillars(pc.items.map((item, i) => ({
+          icon: iconMap[item.icon] || I.star,
+          t: item.title,
+          type: (i === 2 ? "list" : "text") as "text" | "list",
+          body: item.description,
+          items: i === 2 ? item.description.split(",").map((s) => s.trim()) : undefined,
+        })))
+      }
+    }).catch(() => {})
+  }, [])
+
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
@@ -155,6 +179,16 @@ function Pillars() {
 }
 
 function Team() {
+  const [team, setTeam] = useState(defaultTeam)
+  useEffect(() => {
+    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
+      const tc = d.sections?.find((s) => s.section_key === "team")
+      if (tc?.items?.length) {
+        setTeam(tc.items.map((item, i) => ({ name: item.title, role: item.description, img: (i + 1) * 12 })))
+      }
+    }).catch(() => {})
+  }, [])
+
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
       <Reveal>
@@ -166,20 +200,9 @@ function Team() {
         {team.map((m, i) => (
           <Reveal key={m.name} delay={(i % 5) * 70}>
             <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
-              <img
-                src={`https://i.pravatar.cc/160?img=${m.img}`}
-                alt={m.name}
-                className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-soft"
-              />
+              <img src={`https://i.pravatar.cc/160?img=${m.img}`} alt={m.name} className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-soft" />
               <h3 className="mt-4 font-display font-bold">{m.name}</h3>
               <p className="mt-0.5 text-sm text-muted">{m.role}</p>
-              <div className="mt-4 flex justify-center gap-2">
-                {Object.keys(teamSocial).map((s) => (
-                  <a key={s} href="#" aria-label={s} className="grid h-8 w-8 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white">
-                    <Icon d={teamSocial[s]} className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
             </div>
           </Reveal>
         ))}

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 
@@ -12,6 +12,10 @@ type Live = {
   profile?: Record<string, string>
   socials?: { id: number; platform: string; link: string; name?: string; avatar?: string; subscribers?: string }[]
   videos?: { id: number; name: string; link: string; views: string; plats?: string[]; date: string; thumbnail?: string; author?: string }[]
+  achievements?: { id: string; title: string; subtitle: string }[]
+  services?: { id: string; title: string; description: string }[]
+  regions?: { id: string; region: string }[]
+  specializations?: { id: string; specialization_key: string }[]
 }
 
 const platIconMap: Record<string, string> = { YouTube: I.youtube, Instagram: I.instagram, TikTok: I.tiktok, Telegram: I.telegram, Facebook: I.facebook }
@@ -307,13 +311,15 @@ function Content({ live }: { live: Live | null }) {
   )
 }
 
-function AchievementsAndServices() {
+function AchievementsAndServices({ live }: { live: Live | null }) {
+  const liveAchievements = live?.achievements || []
+  const liveServices = live?.services || []
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
         <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">YUTUQLARI</h3>
         <div className="mt-4 grid grid-cols-3 gap-3">
-          {achievements.map((a) => (
+          {(liveAchievements.length > 0 ? liveAchievements.map((a) => ({ icon: I.trophy, t: a.title, s: a.subtitle })) : achievements).map((a) => (
             <div key={a.t} className="rounded-xl bg-soft p-3 text-center">
               <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-white text-gold"><Icon d={a.icon} className="h-5 w-5" /></span>
               <div className="mt-2 text-xs font-bold leading-tight">{a.t}</div>
@@ -325,7 +331,7 @@ function AchievementsAndServices() {
       <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
         <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">XIZMATLARI</h3>
         <ul className="mt-4 space-y-3">
-          {services.map((s) => (
+          {(liveServices.length > 0 ? liveServices.map((s) => s.title) : services).map((s) => (
             <li key={s} className="flex items-center gap-2.5 text-sm">
               <Icon d={I.check} className="h-4 w-4 text-green" sw={2.4} /> {s}
             </li>
@@ -472,7 +478,7 @@ export default function BloggerProfile() {
         {/* Center */}
         <div className="flex flex-col gap-6">
           <Reveal><Content live={live} /></Reveal>
-          <Reveal delay={80}><AchievementsAndServices /></Reveal>
+          <Reveal delay={80}><AchievementsAndServices live={live} /></Reveal>
         </div>
         {/* Right */}
         <div className="flex flex-col gap-6">
