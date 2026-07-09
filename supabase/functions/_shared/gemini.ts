@@ -1,5 +1,5 @@
 /**
- * Gemini AI helper — direct API calls without provider framework.
+ * Gemini AI helper — direct API calls with retry and rate-limit awareness.
  * Uses GEMINI_API_KEY from Supabase Secrets.
  */
 
@@ -11,38 +11,63 @@ function getApiKey(): string {
   return key;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function geminiChat(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? "gemini-2.0-flash";
-  const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
+  const maxRetries = opts?.retries ?? 3;
 
-  const body = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: opts?.temperature ?? 0.7,
-      maxOutputTokens: opts?.maxTokens ?? 2048,
-    },
-  };
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      // Short backoff: 5s, 10s (must stay under 50s Edge Function timeout)
+      const delay = 5000 * Math.pow(2, attempt - 1);
+      await sleep(delay);
+    }
 
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+    const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: opts?.temperature ?? 0.7,
+        maxOutputTokens: opts?.maxTokens ?? 2048,
+      },
+    };
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Gemini API error ${resp.status}: ${err}`);
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (resp.status === 429) {
+        // Rate limited — wait and retry
+        if (attempt < maxRetries) continue;
+        throw new Error("Gemini API rate limited — all retries exhausted");
+      }
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(`Gemini API error ${resp.status}: ${err}`);
+      }
+
+      const data = await resp.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const tokens = data.usageMetadata?.totalTokenCount ?? 0;
+
+      return { text, tokens };
+    } catch (e) {
+      if (attempt === maxRetries) throw e;
+    }
   }
 
-  const data = await resp.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  const tokens = data.usageMetadata?.totalTokenCount ?? 0;
-
-  return { text, tokens };
+  throw new Error("Gemini API — unexpected end of retry loop");
 }
 
 /**
@@ -50,7 +75,7 @@ export async function geminiChat(
  */
 export async function geminiJson<T = unknown>(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<T> {
   const { text } = await geminiChat(prompt, opts);
   const cleaned = text

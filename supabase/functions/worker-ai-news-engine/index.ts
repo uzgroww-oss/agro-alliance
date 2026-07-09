@@ -98,11 +98,12 @@ Deno.serve(async (_req) => {
       .select("id", { count: "exact", head: true })
       .gte("created_at", todayStart.toISOString())
       .is("deleted_at", null)
+      .not("source_name", "is", null)
 
-    const DAILY_TARGET = 5
+    const DAILY_TARGET = 3
     const remaining = DAILY_TARGET - (count || 0)
     if (remaining <= 0) {
-      return new Response(JSON.stringify({ message: "Daily limit reached", today_count: count }), { status: 200 })
+      return new Response(JSON.stringify({ message: "Daily AI limit reached", today_ai_count: count }), { status: 200 })
     }
 
     // Fetch from all RSS feeds in parallel (max 8 at a time to avoid timeouts)
@@ -158,11 +159,74 @@ Return JSON array of ${remaining} objects with:
       ).slice(0, remaining)
     }
 
+    // BULK TRANSLATE: send all articles to Gemini in ONE call
+    const articlesInput = selected.slice(0, remaining).map((item, i) => 
+      `[${i + 1}] Title: ${item.title}\nDescription: ${item.description}\nSource: ${item.source}\nLink: ${item.link}`
+    ).join("\n\n")
+
+    let allTranslated: Array<{
+      index: number; title_uz: string; content_uz: string; summary_uz: string;
+      seo_title: string; seo_description: string; tags: string[]; category: string;
+    }>
+
+    try {
+      allTranslated = await geminiJson<Array<{
+        index: number; title_uz: string; content_uz: string; summary_uz: string;
+        seo_title: string; seo_description: string; tags: string[]; category: string;
+      }>>(
+        `You are a professional agricultural news translator for Uzbekistan. Translate ALL articles below to Uzbek (Latin script).
+
+For EACH article, write a professional 200-300 word news article in Uzbek with agricultural terminology.
+
+Articles to translate:
+${articlesInput}
+
+Return a JSON array (one object per article, matching the [N] number):
+[{
+  "index": 1,
+  "title_uz": "catchy Uzbek title",
+  "content_uz": "full Uzbek article (200-300 words, use \\n\\n for paragraphs)",
+  "summary_uz": "2-3 sentence summary",
+  "seo_title": "SEO title max 60 chars",
+  "seo_description": "meta description max 160 chars",
+  "tags": ["tag1", "tag2", "tag3"],
+  "category": "texnologiya|qishloq|bozor|davlat|innovatsiya|ekologiya|tadqiqotlar|xalqaro"
+}]`,
+        { temperature: 0.7, maxTokens: 4096, retries: 1 },
+      )
+    } catch {
+      // Fallback: basic translation without Gemini
+      allTranslated = selected.slice(0, remaining).map((item, i) => ({
+        index: i + 1,
+        title_uz: item.title,
+        content_uz: item.description || item.title,
+        summary_uz: item.description?.substring(0, 200) || item.title,
+        seo_title: item.title.substring(0, 60),
+        seo_description: item.description?.substring(0, 160) || "",
+        tags: ["agro", "yangilik", "qishloq"],
+        category: "xalqaro",
+      }))
+    }
+
+    // Find categories once
+    const { data: categories } = await supabaseAdmin
+      .from("news_categories")
+      .select("id, key")
+      .eq("is_active", true)
+      .is("deleted_at", null)
+
     let published = 0
     const results: string[] = []
 
-    for (const item of selected.slice(0, remaining)) {
+    for (let i = 0; i < selected.length && i < remaining; i++) {
+      const item = selected[i]
       try {
+        const translated = allTranslated.find((t) => t.index === i + 1)
+        if (!translated) {
+          results.push(`SKIP: ${item.title} — no translation`)
+          continue
+        }
+
         const fingerprint = simpleHash(item.title + item.link)
 
         // Check duplicate
@@ -174,67 +238,19 @@ Return JSON array of ${remaining} objects with:
           .maybeSingle()
         if (existing) continue
 
-        // Translate to Uzbek and generate full content using Gemini
-        const translated = await geminiJson<{
-          title_uz: string
-          content_uz: string
-          summary_uz: string
-          seo_title: string
-          seo_description: string
-          tags: string[]
-          category: string
-        }>(
-          `You are a professional agricultural news translator and writer for Uzbekistan. 
-Translate and rewrite this article for Uzbek audience.
-
-Original title: ${item.title}
-Original description: ${item.description}
-Source: ${item.source}
-
-Write a professional agricultural news article in Uzbek (Latin script). The article should be:
-- Informative and well-structured
-- 300-500 words
-- Include relevant agricultural terminology
-- Mention real statistics and data when available
-- Professional journalistic tone
-
-Return JSON only:
-{
-  "title_uz": "Uzbek title (catchy, SEO-friendly)",
-  "content_uz": "Full article in Uzbek (300-500 words, HTML paragraphs)",
-  "summary_uz": "2-3 sentence summary in Uzbek",
-  "seo_title": "SEO title (max 60 chars)",
-  "seo_description": "Meta description (max 160 chars)",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "category": "texnologiya|qishloq|bozor|davlat|innovatsiya|ekologiya|tadqiqotlar|xalqaro"
-}`,
-          { temperature: 0.7, maxTokens: 2048 },
-        )
-
         const slug = slugify(translated.title_uz) || "agro-" + Date.now()
-
-        // Find category
-        const { data: categories } = await supabaseAdmin
-          .from("news_categories")
-          .select("id, key")
-          .eq("is_active", true)
-          .is("deleted_at", null)
-
         const matchedCat = categories?.find((c: any) => c.key === translated.category)
-
-        // Image: use Unsplash source API with relevant keywords
         const imageKeywords = [translated.category, "agriculture", "farming"].join(",")
         const imageUrl = `https://source.unsplash.com/800x500/?${encodeURIComponent(imageKeywords)}`
 
-        // Insert article
-        const { data: article, error: insertError } = await supabaseAdmin
+        const { error: insertError } = await supabaseAdmin
           .from("news_articles")
           .insert({
             title: translated.title_uz,
             slug,
             excerpt: translated.summary_uz,
             content: `<p>${translated.content_uz.split("\n\n").join("</p><p>")}</p>`,
-            status: "draft",
+            status: "published",
             source_name: item.source,
             source_url: item.link,
             language: "uz",
@@ -249,10 +265,8 @@ Return JSON only:
             seo_title: translated.seo_title,
             seo_description: translated.seo_description,
             ai_summary_uz: translated.summary_uz,
-            featured_image_url: imageUrl,
+            cover_image: imageUrl,
           })
-          .select("id")
-          .single()
 
         if (insertError) {
           results.push(`FAIL: ${item.title} — ${insertError.message}`)
