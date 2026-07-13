@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin")
   if (auth.response) return auth.response
 
   try {
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       .filter((p) => p.client_profile_id)
       .map((p) => p.client_profile_id)
 
-    let clientProfiles: Record<string, { id: string; name: string; email: string }> = {}
+    const clientProfiles: Record<string, { id: string; name: string; email: string }> = {}
     if (clientProfileIds.length > 0) {
       const { data: profiles, error: profilesError } = await supabaseAdmin
         .from("profiles")

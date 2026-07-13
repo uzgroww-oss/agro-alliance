@@ -16,8 +16,8 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
       if (error) throw error
       setSent(true)
-    } catch (err: any) {
-      setError(err?.message || "Parolni tiklashda xatolik")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Parolni tiklashda xatolik")
     } finally {
       setBusy(false)
     }

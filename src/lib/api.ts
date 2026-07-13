@@ -1,8 +1,27 @@
 const TOKEN_KEY = "aa_token"
+const REMEMBER_KEY = "aa_remember"
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY)
-export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t)
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
+export const getRememberPref = (): boolean => localStorage.getItem(REMEMBER_KEY) !== "false"
+export const setRememberPref = (v: boolean) => localStorage.setItem(REMEMBER_KEY, String(v))
+
+export const getToken = (): string | null => {
+  const t = localStorage.getItem(TOKEN_KEY)
+  if (t) return t
+  return sessionStorage.getItem(TOKEN_KEY)
+}
+export const setToken = (t: string) => {
+  if (getRememberPref()) {
+    localStorage.setItem(TOKEN_KEY, t)
+    sessionStorage.removeItem(TOKEN_KEY)
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, t)
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+export const clearToken = () => {
+  localStorage.removeItem(TOKEN_KEY)
+  sessionStorage.removeItem(TOKEN_KEY)
+}
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
 const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : "http://localhost:3001/api")
@@ -24,6 +43,13 @@ function resolvePublicUrl(path: string): string {
 
   const fn = PUBLIC_ROUTES[basePath]
   if (fn) return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+
+  const bloggerProfileMatch = basePath.match(/^\/public\/bloggers\/([^/]+)$/)
+  if (bloggerProfileMatch) {
+    const qs = new URLSearchParams(qsRaw)
+    qs.set("slug", bloggerProfileMatch[1])
+    return `${SUPABASE_FUNCTIONS_URL}/public-bloggers-profile?${qs.toString()}`
+  }
 
   const detailMatch = basePath.match(/^\/public\/news\/([^/]+)$/)
   if (detailMatch) {
@@ -58,6 +84,11 @@ function resolveAdminUrl(path: string, method: string): string {
     if (segments.length === 1) {
       const fn = method === "POST" ? "admin-bloggers-create" : "admin-bloggers-list"
       return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+    }
+    if (segments.length === 3 && segments[2] === "social") {
+      const qs = new URLSearchParams(qsRaw)
+      qs.set("blogger_id", segments[1])
+      return `${SUPABASE_FUNCTIONS_URL}/admin-bloggers-social-add?${qs.toString()}`
     }
     if (segments.length === 3 && segments[2] === "status") {
       const qs = new URLSearchParams(qsRaw)
@@ -111,13 +142,13 @@ function resolveAdminUrl(path: string, method: string): string {
       return `${SUPABASE_FUNCTIONS_URL}/me-profile-update${qsRaw ? `?${qsRaw}` : ""}`
     }
 
-    // Socials: POST /me/socials (add), DELETE /me/socials/{id} (delete)
+    // Socials: POST /me/socials (add), DELETE /me/socials/{id} (delete) — birlashtirilgan me-socials
     if (resource === "socials") {
-      if (segments.length === 2) return `${SUPABASE_FUNCTIONS_URL}/me-socials-add${qsRaw ? `?${qsRaw}` : ""}`
+      if (segments.length === 2) return `${SUPABASE_FUNCTIONS_URL}/me-socials${qsRaw ? `?${qsRaw}` : ""}`
       if (segments.length === 3) {
         const qs = new URLSearchParams(qsRaw)
         qs.set("id", segments[2])
-        return `${SUPABASE_FUNCTIONS_URL}/me-socials-delete?${qs.toString()}`
+        return `${SUPABASE_FUNCTIONS_URL}/me-socials?${qs.toString()}`
       }
     }
 
@@ -127,7 +158,7 @@ function resolveAdminUrl(path: string, method: string): string {
       if (segments.length === 3) {
         const qs = new URLSearchParams(qsRaw)
         qs.set("id", segments[2])
-        return `${SUPABASE_FUNCTIONS_URL}/me-videos-delete?${qs.toString()}`
+        return `${SUPABASE_FUNCTIONS_URL}/me-videos-add?${qs.toString()}`
       }
     }
 
@@ -182,6 +213,37 @@ function resolveAdminUrl(path: string, method: string): string {
         const qs = new URLSearchParams(qsRaw)
         qs.set("id", segments[2])
         return `${SUPABASE_FUNCTIONS_URL}/me-specializations-delete?${qs.toString()}`
+      }
+    }
+
+    // Youtube-videos: GET /me/youtube-videos
+    if (resource === "youtube-videos") {
+      return `${SUPABASE_FUNCTIONS_URL}/me-youtube-videos${qsRaw ? `?${qsRaw}` : ""}`
+    }
+
+    // Images: GET /me/images, POST /me/images, DELETE /me/images/{id}
+    if (resource === "images") {
+      if (segments.length === 2) {
+        const fn = method === "POST" ? "me-images-add" : "me-images-list"
+        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+      }
+      if (segments.length === 3) {
+        const qs = new URLSearchParams(qsRaw)
+        qs.set("id", segments[2])
+        return `${SUPABASE_FUNCTIONS_URL}/me-images-delete?${qs.toString()}`
+      }
+    }
+
+    // Brands: GET /me/brands, POST /me/brands, DELETE /me/brands/{id}
+    if (resource === "brands") {
+      if (segments.length === 2) {
+        const fn = method === "POST" ? "me-brands-add" : "me-brands-list"
+        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+      }
+      if (segments.length === 3) {
+        const qs = new URLSearchParams(qsRaw)
+        qs.set("id", segments[2])
+        return `${SUPABASE_FUNCTIONS_URL}/me-brands-delete?${qs.toString()}`
       }
     }
 
@@ -264,6 +326,7 @@ function resolveAdminUrl(path: string, method: string): string {
   }
 
   if (segments[0] === "categories") {
+    if (segments.length === 1 && method === "POST") return `${SUPABASE_FUNCTIONS_URL}/admin-categories-create${qsRaw ? `?${qsRaw}` : ""}`
     if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-categories-list${qsRaw ? `?${qsRaw}` : ""}`
     if (segments.length === 2) {
       const qs = new URLSearchParams(qsRaw)
@@ -303,6 +366,7 @@ function resolveAdminUrl(path: string, method: string): string {
 
   if (segments[0] === "users") {
     if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-users-list${qsRaw ? `?${qsRaw}` : ""}`
+    if (segments.length === 2 && segments[1] === "create") return `${SUPABASE_FUNCTIONS_URL}/admin-users-create${qsRaw ? `?${qsRaw}` : ""}`
     if (segments.length === 2) {
       const qs = new URLSearchParams(qsRaw)
       qs.set("id", segments[1])
@@ -324,6 +388,32 @@ function resolveAdminUrl(path: string, method: string): string {
     }
   }
 
+  if (segments[0] === "roles") {
+    if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-roles-list${qsRaw ? `?${qsRaw}` : ""}`
+    if (segments.length === 2 && segments[1] === "create") return `${SUPABASE_FUNCTIONS_URL}/admin-roles-create${qsRaw ? `?${qsRaw}` : ""}`
+    if (segments.length === 2 && segments[1] === "update") {
+      const qs = new URLSearchParams(qsRaw)
+      return `${SUPABASE_FUNCTIONS_URL}/admin-roles-update?${qs.toString()}`
+    }
+    if (segments.length === 2 && segments[1] === "delete") {
+      const qs = new URLSearchParams(qsRaw)
+      return `${SUPABASE_FUNCTIONS_URL}/admin-roles-delete?${qs.toString()}`
+    }
+  }
+
+  if (segments[0] === "permissions") {
+    if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-permissions-list${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
+  if (segments[0] === "role-permissions") {
+    if (segments.length === 1 && method === "GET") return `${SUPABASE_FUNCTIONS_URL}/admin-role-permissions-get${qsRaw ? `?${qsRaw}` : ""}`
+    if (segments.length === 1 && method === "PUT") return `${SUPABASE_FUNCTIONS_URL}/admin-role-permissions-update${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
+  if (segments[0] === "user-role") {
+    return `${SUPABASE_FUNCTIONS_URL}/admin-user-role-update${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
   if (segments[0] === "media-get-signed-upload-url") {
     return `${SUPABASE_FUNCTIONS_URL}/media-get-signed-upload-url${qsRaw ? `?${qsRaw}` : ""}`
   }
@@ -334,25 +424,60 @@ function resolveAdminUrl(path: string, method: string): string {
     return `${SUPABASE_FUNCTIONS_URL}/worker-ai-news-engine${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  // Instagram OAuth va Fetch
+  if (segments[0] === "instagram-oauth-start") {
+    return `${SUPABASE_FUNCTIONS_URL}/instagram-oauth-start${qsRaw ? `?${qsRaw}` : ""}`
+  }
+  if (segments[0] === "instagram-fetch") {
+    return `${SUPABASE_FUNCTIONS_URL}/instagram-fetch${qsRaw ? `?${qsRaw}` : ""}`
+  }
+  if (segments[0] === "instagram-status") {
+    return `${SUPABASE_FUNCTIONS_URL}/instagram-status${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
+  // YouTube Videos
+  if (segments[0] === "me-youtube-videos") {
+    return `${SUPABASE_FUNCTIONS_URL}/me-youtube-videos${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
   const fnName = basePath.replace(/^\//, "admin-").replace(/\//g, "-")
   return `${SUPABASE_FUNCTIONS_URL}/${fnName}${qsRaw ? `?${qsRaw}` : ""}`
 }
 
-export async function api<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
+const REQUEST_TIMEOUT = 15_000
+
+async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal })
+    return res
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+// Login talab qilmaydigan, lekin /public/ prefiksisiz Edge Function'lar
+const PUBLIC_FUNCTIONS = ["/contact-submit", "/newsletter-subscribe", "/blogger-reviews"]
+
+export async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken()
+  const publicFn = PUBLIC_FUNCTIONS.some((p) => path === p || path.startsWith(p + "?"))
   const isPublic = path.startsWith("/public/")
   const method = opts.method || "GET"
-  const isAdmin = !isPublic && token !== null
-  const url = isPublic ? resolvePublicUrl(path) : isAdmin ? resolveAdminUrl(path, method) : `/api${path}`
+  const isAdmin = !isPublic && !publicFn && token !== null
+  const url = publicFn
+    ? `${SUPABASE_FUNCTIONS_URL}${path}`
+    : isPublic ? resolvePublicUrl(path) : isAdmin ? resolveAdminUrl(path, method) : `/api${path}`
 
   const h = new Headers(opts.headers)
   h.set("Content-Type", "application/json")
   if (token) h.set("Authorization", `Bearer ${token}`)
-  if (isPublic) h.set("apikey", SUPABASE_ANON_KEY)
+  if (isPublic || publicFn) h.set("apikey", SUPABASE_ANON_KEY)
 
-  const res = await fetch(url, { ...opts, headers: h })
+  const res = await fetchWithTimeout(url, { ...opts, headers: h })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as any)?.error || "Xatolik yuz berdi")
+  if (!res.ok) throw new Error((data as { error?: string })?.error || "Xatolik yuz berdi")
   return data as T
 }
 
@@ -360,10 +485,11 @@ export type User = {
   id: string
   name: string
   email: string
-  role: "superadmin" | "blogger" | "client"
+  role: "superadmin" | "blogger" | "partner"
+  adminRole?: string
   partnerId: string | null
   status?: string
-  profile?: Record<string, string>
-  socials?: { id: string; platform: string; link: string; connected: boolean; name?: string; avatar?: string; subscribers?: string }[]
+  profile?: Record<string, unknown>
+  socials?: { id: string; platform: string; link: string; connected: boolean; name?: string; avatar?: string; subscribers?: string; views?: string }[]
   videos?: { id: string; name: string; link: string; views: string; plats: string[]; date: string; status: string; thumbnail?: string; author?: string }[]
 }

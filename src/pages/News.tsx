@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import Newsletter from "../components/Newsletter"
+import { useHomeSection } from "../lib/sections"
 
 const iconMap: Record<string, string> = {
   grid: I.grid, cpu: I.cpu, sprout: I.sprout, chart: I.chart, doc: I.doc,
@@ -12,6 +13,40 @@ const iconMap: Record<string, string> = {
 const getIcon = (key: string) => iconMap[key] || I.grid
 
 const mascot = "/mascot-news.webp"
+
+function SidebarSubscribe() {
+  const [email, setEmail] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState("")
+  const submit = async () => {
+    setErr("")
+    if (!email.trim() || !email.includes("@")) { setErr("Yaroqli email kiriting"); return }
+    setBusy(true)
+    try {
+      const { api } = await import("../lib/api")
+      await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
+      setDone(true); setEmail("")
+    } catch (e) { setErr(e instanceof Error ? e.message : "Xatolik") } finally { setBusy(false) }
+  }
+  return (
+    <div className="rounded-2xl border border-green/15 bg-soft p-5">
+      <h3 className="font-display font-extrabold leading-tight">Yangiliklardan xabardor bo'ling!</h3>
+      {done ? (
+        <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Obuna bo'ldingiz! Rahmat.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklarni email orqali olib boring.</p>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Email manzilingiz" type="email" className="mt-4 w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
+          <button onClick={submit} disabled={busy} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
+            {busy ? "..." : "OBUNA BO'LISH"} <Icon d={I.send} className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
 
 /* ---------- Small components ---------- */
 function CatTag({ k }: { k: string }) {
@@ -57,6 +92,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 /* ---------- Hero ---------- */
 function Hero() {
+  const heroSec = useHomeSection("news_hero", { title: "YANGILIKLAR", subtitle: "Qishloq xo'jaligi, agro texnologiyalar va sohadagi so'nggi yangiliklar bilan tanishing." })
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -80,9 +116,7 @@ function Hero() {
               </h1>
             </Reveal>
             <Reveal delay={90}>
-              <p className="mt-4 max-w-md leading-relaxed text-muted">
-                Qishloq xo'jaligi, agro texnologiyalar va sohadagi so'nggi yangiliklar bilan tanishing.
-              </p>
+              <p className="mt-4 max-w-md leading-relaxed text-muted">{heroSec.subtitle}</p>
             </Reveal>
           </div>
           <img src={mascot} alt="" className="animate-float hidden h-52 object-contain drop-shadow-2xl lg:block" />
@@ -103,27 +137,23 @@ export default function News() {
 
   // data & status
   const [data, setData] = useState<NewsListResponse | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [popularNews, setPopularNews] = useState<{ title: string; date: string; views: string; seed: string; slug: string }[]>([])
-
-  // reset page when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [cat, theme, date, query])
+  const [popularLoading, setPopularLoading] = useState(true)
 
   // load popular news
   useEffect(() => {
-    loadPopularNews().then(setPopularNews).catch(() => {})
+    loadPopularNews().then(setPopularNews).catch(() => {}).finally(() => setPopularLoading(false))
   }, [])
 
   // load data
   useEffect(() => {
-    setLoading(true)
-    setError("")
     loadNews({
       category: cat !== "all" ? cat : undefined,
       search: query.trim() || undefined,
+      theme: theme !== "Barchasi" ? theme : undefined,
+      date: date !== "Barchasi" ? date : undefined,
       page,
       per_page: 12,
     })
@@ -132,28 +162,10 @@ export default function News() {
       .finally(() => setLoading(false))
   }, [cat, theme, date, query, page])
 
-  // client‑side extra filters (theme & date) – simple contains check for illustration
-  const applyExtraFilters = (list: News[]) => {
-    return list.filter((n) => {
-      let okTheme = true
-      if (theme !== "Barchasi") {
-        const t = theme.toLowerCase()
-        okTheme = n.title.toLowerCase().includes(t) || n.desc.toLowerCase().includes(t)
-      }
-      // date filter – naive string match (real implementation would parse dates)
-      let okDate = true
-      if (date !== "Barchasi") {
-        okDate = n.date.includes(date)
-      }
-      return okTheme && okDate
-    })
-  }
-
   const newsList = useMemo(() => {
     if (!data) return []
-    const filtered = applyExtraFilters(data.news)
-    return filtered
-  }, [data, theme, date])
+    return data.news
+  }, [data])
 
   const pagination = data?.pagination
   const apiCategories = data?.categories?.length ? data.categories : cats
@@ -162,7 +174,7 @@ export default function News() {
 const featured = page === 1 && newsList[0]
 const side = page === 1 && newsList.slice(1, 3)
 
-  const reset = () => { setQuery(""); setCat("all"); setTheme("Barchasi"); setDate("Barchasi") }
+  const reset = () => { setQuery(""); setCat("all"); setTheme("Barchasi"); setDate("Barchasi"); setPage(1) }
 
   return (
     <>
@@ -176,12 +188,12 @@ const side = page === 1 && newsList.slice(1, 3)
               <span className="mb-1.5 block text-xs font-medium text-muted">Qidiruv</span>
               <div className="relative">
                 <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
+                <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
               </div>
             </label>
-            <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => setCat(apiCategories.find((c) => c.label === v)?.key ?? "all")} options={apiCategories.map((c) => c.label)} />
-            <Select label="Mavzu" value={theme} onChange={setTheme} options={themes} />
-            <Select label="Sana" value={date} onChange={setDate} options={dates} />
+            <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => { setCat(apiCategories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={apiCategories.map((c) => c.label)} />
+            <Select label="Mavzu" value={theme} onChange={(v) => { setTheme(v); setPage(1) }} options={themes} />
+            <Select label="Sana" value={date} onChange={(v) => { setDate(v); setPage(1) }} options={dates} />
             <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green/30 bg-white px-5 py-3 text-sm font-bold transition-colors hover:border-green hover:text-green">
               FILTRNI TOZALASH
               <Icon d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5" className="h-4 w-4" />
@@ -202,7 +214,7 @@ const side = page === 1 && newsList.slice(1, 3)
                   const active = c.key === cat
                   return (
                     <li key={c.key}>
-                      <button onClick={() => setCat(c.key)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-green/10 text-green" : "text-ink/70 hover:bg-soft"}`}
+                      <button onClick={() => { setCat(c.key); setPage(1) }} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "bg-green/10 text-green" : "text-ink/70 hover:bg-soft"}`}
 >                      <span className="flex items-center gap-2.5"><Icon d={getIcon(c.icon)} className="h-4 w-4" /> {c.label}</span>
                       <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${active ? "bg-green text-white" : "bg-soft text-muted"}`}>{c.count}</span>
                       </button>
@@ -215,7 +227,14 @@ const side = page === 1 && newsList.slice(1, 3)
             <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
               <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">ENG KO'P O'QILGAN</h3>
               <ul className="mt-4 space-y-3">
-                {popularNews.length > 0 ? popularNews.map((p, i) => (
+                {popularLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <li key={i} className="flex gap-3">
+                      <Skeleton className="h-12 w-12 shrink-0 rounded-lg" />
+                      <div className="min-w-0 flex-1 space-y-2 py-1"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></div>
+                    </li>
+                  ))
+                ) : popularNews.length > 0 ? popularNews.map((p, i) => (
                   <li key={p.title}>
                     <Link to={`/yangiliklar/${p.slug}`} className="group flex gap-3">
                       <span className="relative shrink-0">
@@ -234,19 +253,21 @@ const side = page === 1 && newsList.slice(1, 3)
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-green/15 bg-soft p-5">
-              <h3 className="font-display font-extrabold leading-tight">Yangiliklardan xabardor bo'ling!</h3>
-              <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklarni email orqali olib boring.</p>
-              <input placeholder="Email manzilingiz" className="mt-4 w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-              <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02]">
-                OBUNA BO'LISH <Icon d={I.send} className="h-4 w-4" />
-              </button>
-            </div>
+            <SidebarSubscribe />
           </aside>
 
           {/* Main */}
           <div className="min-w-0">
-            {loading && <div className="text-center py-12 text-muted">Yuklanmoqda…</div>}
+            {loading && (
+              <div className="grid gap-6 sm:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="overflow-hidden rounded-2xl border border-green/10 bg-white">
+                    <Skeleton className="h-44 w-full" />
+                    <div className="space-y-3 p-4"><Skeleton className="h-3 w-24" /><Skeleton className="h-5 w-full" /><Skeleton className="h-4 w-3/4" /></div>
+                  </div>
+                ))}
+              </div>
+            )}
             {error && <div className="text-center py-12 text-red-600">{error}</div>}
             {!loading && !error && (
               <>

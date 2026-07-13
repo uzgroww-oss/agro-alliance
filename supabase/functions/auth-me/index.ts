@@ -12,9 +12,9 @@ function feRole(role: string): string {
       return "blogger"
     case "company":
     case "user":
-      return "client"
+      return "partner"
     default:
-      return "client"
+      return "partner"
   }
 }
 
@@ -59,8 +59,30 @@ Deno.serve(async (req) => {
     if (typeof meta.region === "string") profileFields.region = meta.region
     if (typeof meta.language === "string") profileFields.language = meta.language
     if (typeof meta.niche === "string") profileFields.niche = meta.niche
+    if (typeof meta.about === "string") profileFields.about = meta.about
     if (profile.bio) profileFields.bio = profile.bio
     if (profile.phone) profileFields.phone = profile.phone
+
+    // YouTube va Instagram ma'lumotlarini qo'shish
+    if (meta.youtube_channel) profileFields.youtube_channel = meta.youtube_channel as string
+    if (meta.youtube_channel_name) profileFields.youtube_channel_name = meta.youtube_channel_name as string
+    if (meta.instagram_url) profileFields.instagram_url = meta.instagram_url as string
+    if (meta.instagram_username) profileFields.instagram_username = meta.instagram_username as string
+
+    // Auditoriya analitikasini qo'shish (obyekt sifatida)
+    const genderDistribution = meta.genderDistribution as { male: number; female: number } || { male: 68, female: 32 }
+    const ageDistribution = meta.ageDistribution as Record<string, number> || { "18-24": 18, "25-34": 42, "35-44": 25, "45+": 15 }
+    const regionDistribution = meta.regionDistribution as Record<string, number> || { "Toshkent": 38, "Toshkent viloyati": 22, "Farg'ona viloyati": 12, "Namangan viloyati": 8, "Boshqalar": 20 }
+
+    let banner = ""
+    const { data: bloggerData } = await supabaseAdmin
+      .from("bloggers")
+      .select("cover")
+      .eq("id", profile.id)
+      .is("deleted_at", null)
+      .maybeSingle()
+    if (bloggerData?.cover) banner = bloggerData.cover
+    profileFields.banner = banner
 
     const { data: socialAccounts } = await supabaseAdmin
       .from("social_accounts")
@@ -70,18 +92,20 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
 
     const accountIds = (socialAccounts || []).map((s: any) => s.id)
-    const statsMap: Record<string, number> = {}
+    const subsMap: Record<string, number> = {}
+    const viewsMap: Record<string, number> = {}
     if (accountIds.length > 0) {
       const { data: allStats } = await supabaseAdmin
         .from("social_statistics")
-        .select("account_id, subscribers_count, snapshot_date")
+        .select("account_id, subscribers_count, views_count, snapshot_date")
         .in("account_id", accountIds)
         .is("deleted_at", null)
         .order("snapshot_date", { ascending: false })
 
       for (const stat of allStats || []) {
-        if (!(stat.account_id in statsMap)) {
-          statsMap[stat.account_id] = stat.subscribers_count
+        if (!(stat.account_id in subsMap)) {
+          subsMap[stat.account_id] = stat.subscribers_count
+          viewsMap[stat.account_id] = stat.views_count || 0
         }
       }
     }
@@ -100,9 +124,10 @@ Deno.serve(async (req) => {
       name: profile.name,
       email: profile.email,
       role: feRole(roleName),
+      adminRole: roleName,
       partnerId: partner?.id || undefined,
       status: profile.status,
-      profile: Object.keys(profileFields).length > 0 ? profileFields : undefined,
+      profile: { ...profileFields, genderDistribution, ageDistribution, regionDistribution },
       socials: (socialAccounts || []).map((acc: any) => ({
         id: acc.id,
         platform: acc.platform?.name || acc.platform?.key || "",
@@ -110,7 +135,8 @@ Deno.serve(async (req) => {
         connected: true,
         name: acc.account_name,
         avatar: acc.avatar_url,
-        subscribers: statsMap[acc.id]?.toString() || "0",
+        subscribers: subsMap[acc.id]?.toString() || "0",
+        views: viewsMap[acc.id]?.toString() || "0",
       })),
       videos: rawVideos.map((v: any) => ({
         id: v.id,

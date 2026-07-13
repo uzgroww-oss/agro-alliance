@@ -11,20 +11,17 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   try {
     const id = new URL(req.url).searchParams.get("id")
     if (!id) return errorResponse("id kerak", 400)
 
-    const now = new Date().toISOString()
-
     const { error } = await supabaseAdmin
-      .from("categories")
-      .update({ deleted_at: now, deleted_by: auth.user.id })
+      .from("news_categories")
+      .delete()
       .eq("id", id)
-      .is("deleted_at", null)
 
     if (error) throw error
 

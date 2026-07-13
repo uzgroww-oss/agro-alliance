@@ -123,25 +123,24 @@ export function LineChart({ points, labels }: { points: number[]; labels: string
 export function Donut({ segments }: { segments: { label: string; value: number; color: string }[] }) {
   const total = segments.reduce((s, x) => s + x.value, 0) || 1
   const r = 42, c = 2 * Math.PI * r
-  const gap = 3 // segmentlar orasidagi bo'shliq (svg birligida)
-  let offset = 0
+  const gap = 3
+  const visible = segments.filter((s) => s.value > 0)
+  const enriched = visible.map((s, i) => {
+    const len = (s.value / total) * c
+    const seg = Math.max(len - gap, 0.5)
+    const offset = visible.slice(0, i).reduce((sum, p) => sum + (p.value / total) * c, 0)
+    return { label: s.label, color: s.color, seg, offset }
+  })
   return (
     <svg viewBox="0 0 110 110" className="h-44 w-44 -rotate-90">
-      {/* fon halqasi */}
       <circle cx="55" cy="55" r={r} fill="none" stroke="#eef4e8" strokeWidth="12" />
-      {segments.filter((s) => s.value > 0).map((s) => {
-        const len = (s.value / total) * c
-        const seg = Math.max(len - gap, 0.5)
-        const el = (
-          <circle
-            key={s.label} cx="55" cy="55" r={r} fill="none"
-            stroke={s.color} strokeWidth="12" strokeLinecap="round"
-            strokeDasharray={`${seg} ${c - seg}`} strokeDashoffset={-offset}
-          />
-        )
-        offset += len
-        return el
-      })}
+      {enriched.map((s) => (
+        <circle
+          key={s.label} cx="55" cy="55" r={r} fill="none"
+          stroke={s.color} strokeWidth="12" strokeLinecap="round"
+          strokeDasharray={`${s.seg} ${c - s.seg}`} strokeDashoffset={-s.offset}
+        />
+      ))}
     </svg>
   )
 }

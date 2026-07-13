@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   try {
@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     if (!id) return errorResponse("ID kerak", 400)
 
     const body = await req.json().catch(() => ({}))
-    const allowedFields = ["key", "label", "type", "icon", "sort_order"]
+    const allowedFields = ["key", "name_uz", "name_ru", "name_en", "icon", "sort_order", "is_active"]
     const updates: Record<string, unknown> = {}
 
     for (const field of allowedFields) {
@@ -36,19 +36,16 @@ Deno.serve(async (req) => {
     updates.updated_by = auth.user.id
 
     const { data: category, error } = await supabaseAdmin
-      .from("categories")
+      .from("news_categories")
       .update(updates)
       .eq("id", id)
       .is("deleted_at", null)
-      .select("id, key, label, type, icon, sort_order")
+      .select("id, key, name_uz, name_ru, name_en, icon, sort_order, is_active")
       .single()
 
     if (error) throw error
 
-    return jsonResponse({
-      success: true,
-      category,
-    })
+    return jsonResponse({ success: true, category })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

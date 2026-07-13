@@ -1,5 +1,5 @@
 import { handleCors } from "../_shared/cors.ts"
-import { requireRole, verifyAuth } from "../_shared/auth.ts"
+import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 
@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireRole(req, "super_admin")
+    const auth = await requireRole(req, "super_admin", "admin")
     if (auth.response) return auth.response
 
     const url = new URL(req.url)
@@ -28,23 +28,17 @@ Deno.serve(async (req) => {
 
     if (fetchError || !blogger) return errorResponse("Blogger topilmadi", 404)
 
-    const now = new Date().toISOString()
+    // Hard delete — remove auth user; cascades to profiles, bloggers, social, etc.
+    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(id)
+    if (deleteAuthError) {
+      // Fallback: soft-delete if auth admin API unavailable
+      const now = new Date().toISOString()
+      await supabaseAdmin.from("bloggers").update({ deleted_at: now, deleted_by: auth.user.id }).eq("id", id)
+      await supabaseAdmin.from("profiles").update({ status: "pending", deleted_at: now }).eq("id", id)
+      return jsonResponse({ success: true, hard_deleted: false })
+    }
 
-    const { error: updateBloggerError } = await supabaseAdmin
-      .from("bloggers")
-      .update({ deleted_at: now, deleted_by: auth.user.id })
-      .eq("id", id)
-
-    if (updateBloggerError) return errorResponse(updateBloggerError.message, 500)
-
-    const { error: updateProfileError } = await supabaseAdmin
-      .from("profiles")
-      .update({ status: "pending", deleted_at: now })
-      .eq("id", id)
-
-    if (updateProfileError) return errorResponse(updateProfileError.message, 500)
-
-    return jsonResponse({ success: true })
+    return jsonResponse({ success: true, hard_deleted: true })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

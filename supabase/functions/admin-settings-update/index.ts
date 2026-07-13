@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin")
   if (auth.response) return auth.response
 
   try {

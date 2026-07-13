@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useMemo, useState, Fragment } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I, statIcon, type StatItem, fmtSom } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard } from "../../lib/ui"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -12,6 +12,7 @@ const nav = [
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
   { label: "Kategoriyalar", icon: I.grid },
+  { label: "Rollar", icon: I.shield },
   { label: "Bosh sahifa", icon: I.dashboard },
   { label: "Manbalar", icon: I.globe },
   { label: "Foydalanuvchilar", icon: I.users },
@@ -25,7 +26,7 @@ const nav = [
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
 const catLabel = (k: string) => categories.find((c) => c.key === k)?.label ?? k
 
-type Row = { id: number; name: string; cat: string; region: string; email: string; status: string }
+type Row = { id: number; name: string; cat: string; region: string; email: string; status: string; slug: string }
 
 /* ---------- Blogger management ---------- */
 function Bloggers() {
@@ -33,6 +34,9 @@ function Bloggers() {
   const [query, setQuery] = useState("")
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState("")
+  const [registering, setRegistering] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const blank = { name: "", email: "", cat: "fermerlik", region: "", password: "" }
   const [form, setForm] = useState(blank)
 
@@ -44,22 +48,62 @@ function Bloggers() {
     [rows, query],
   )
 
+  const [createdBlogger, setCreatedBlogger] = useState<{ id: string; name: string; slug: string } | null>(null)
+  const [socialLink, setSocialLink] = useState("")
+  const [addingSocial, setAddingSocial] = useState(false)
+  const [socialResults, setSocialResults] = useState<Array<{ url: string; platform: string; name: string; subscribers: number; views: number; engagement: number; error?: string }>>([])
+
   const register = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setError("Ism, email va parol majburiy"); return }
+    setRegistering(true)
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setError("Ism, email va parol majburiy"); setRegistering(false); return }
     try {
-      await api("/bloggers", { method: "POST", body: JSON.stringify({ name: form.name, email: form.email, password: form.password, region: form.region, niche: form.cat }) })
-      setForm(blank); setAdding(false); reload()
-    } catch (err: any) { setError(err?.message || "Xatolik") }
+      const res = await api<{ success: boolean; blogger: { id: string; slug: string; name: string } }>("/bloggers", { method: "POST", body: JSON.stringify({ name: form.name, email: form.email, password: form.password, region: form.region, niche: form.cat }) })
+      setForm(blank); setAdding(false)
+      setCreatedBlogger({ id: res.blogger.id, name: res.blogger.name, slug: res.blogger.slug })
+      setSocialResults([]); setSocialLink("")
+      reload()
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
+    finally { setRegistering(false) }
   }
-  const remove = async (id: number) => {
-    if (!confirm("Bu blogerni o'chirishni tasdiqlaysizmi?")) return
-    await api(`/bloggers/${id}`, { method: "DELETE" }); reload()
+
+  const addSocialLink = async () => {
+    if (!socialLink.trim() || !createdBlogger) return
+    setAddingSocial(true)
+    try {
+      const res = await api<{ success: boolean; results: Array<{ url: string; platform: string; name: string; subscribers: number; views: number; engagement: number; error?: string }> }>(`/bloggers/${createdBlogger.id}/social`, { method: "POST", body: JSON.stringify({ links: [socialLink.trim()] }) })
+      setSocialResults((prev) => [...res.results, ...prev])
+      setSocialLink("")
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
+    finally { setAddingSocial(false) }
+  }
+  const remove = (id: number) => {
+    setRows((prev) => prev.filter((r) => r.id !== id))
+    setDeleteTarget(null)
+    api(`/bloggers/${id}`, { method: "DELETE" }).catch(() => {}).then(() => reload())
   }
   const toggle = async (r: Row) => {
     await api(`/bloggers/${r.id}/status`, { method: "PATCH", body: JSON.stringify({ status: r.status === "active" ? "pending" : "active" }) })
     reload()
+  }
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === list.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(list.map((r) => r.id)))
+  }
+  const bulkRemove = () => {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return
+    setRows((prev) => prev.filter((r) => !ids.includes(r.id)))
+    setSelectedIds(new Set())
+    Promise.allSettled(ids.map((id) => api(`/bloggers/${id}`, { method: "DELETE" }))).then(() => reload())
   }
 
   return (
@@ -74,23 +118,83 @@ function Bloggers() {
         </button>
       </div>
 
+      {/* Add Blogger Modal */}
       {adding && (
-        <form onSubmit={register} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
-          {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="Hudud" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none">
-              {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Ro'yxatdan o'tkazish</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Yangi bloger qo'shish</h3>
+            <form onSubmit={register} className="mt-5 space-y-4">
+              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="Hudud" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+              <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Boshlang'ich parol" type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={registering} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  {registering && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                  {registering ? "Ro'yxatdan o'tkazilmoqda…" : "Ro'yxatdan o'tkazish"}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
+      )}
+
+      {/* Social Links Section (shown after creating a blogger) */}
+      {createdBlogger && (
+        <div className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-display text-base font-extrabold text-green">Bloger yaratildi: {createdBlogger.name}</h3>
+              <p className="mt-0.5 text-xs text-muted">Endi ijtimoiy tarmoq linklarini qo'shing</p>
+            </div>
+            <button onClick={() => { setCreatedBlogger(null); setSocialResults([]) }} className="rounded-lg border border-green/30 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">Yopish</button>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input value={socialLink} onChange={(e) => setSocialLink(e.target.value)} placeholder="Ijtimoiy tarmoq linki — YouTube, Instagram, Telegram..." className="flex-1 min-w-[200px] rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <button onClick={addSocialLink} disabled={addingSocial || !socialLink.trim()} className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
+              {addingSocial && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+              {addingSocial ? "Olinmoqda…" : "Qo'shish"}
+            </button>
+          </div>
+          {socialResults.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {socialResults.map((sr, i) => (
+                <div key={i} className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm ${sr.error ? "border-red-200 bg-red-50" : "border-green/15 bg-white"}`}>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green/10 font-bold text-green">{sr.platform.slice(0, 2)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{sr.name || sr.platform}</span>
+                    <span className="block text-xs text-muted truncate">{sr.url}</span>
+                  </span>
+                  {sr.error ? (
+                    <span className="text-xs text-red-500">{sr.error}</span>
+                  ) : (
+                    <span className="flex flex-wrap gap-3 text-xs">
+                      <span className="font-semibold text-green">{sr.subscribers.toLocaleString()} obunachi</span>
+                      <span className="text-muted">{sr.views.toLocaleString()} ko'rish</span>
+                      {sr.engagement > 0 && <span className="text-muted">{sr.engagement}% engagement</span>}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta blogger tanlandi</span>
+            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+              <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
+            </button>
+          </div>
+        )}
         <div className="relative mb-4 max-w-sm">
           <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Bloger qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
@@ -99,6 +203,9 @@ function Bloggers() {
           <table className="w-full min-w-[680px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                <th className="pb-3 font-semibold w-10">
+                  <input type="checkbox" checked={list.length > 0 && selectedIds.size === list.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                </th>
                 <th className="pb-3 font-semibold">Bloger</th>
                 <th className="pb-3 font-semibold">Yo'nalish</th>
                 <th className="pb-3 font-semibold">Hudud</th>
@@ -108,10 +215,13 @@ function Bloggers() {
             </thead>
             <tbody>
               {list.length === 0 && (
-                <tr><td colSpan={5} className="py-10 text-center text-muted">Bloger yo'q. "Yangi bloger qo'shish" orqali qo'shing.</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-muted">Bloger yo'q. "Yangi bloger qo'shish" orqali qo'shing.</td></tr>
               )}
               {list.map((r) => (
                 <tr key={r.id} className="border-t border-green/8 text-sm">
+                  <td className="py-3 pr-3 w-10">
+                    <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                  </td>
                   <td className="py-3 pr-3">
                     <span className="flex items-center gap-2.5">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xs font-bold text-green">{r.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}</span>
@@ -129,8 +239,8 @@ function Bloggers() {
                   </td>
                   <td className="py-3">
                     <span className="flex gap-1.5">
-                      <button className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Tahrirlash"><Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" /></button>
-                      <button onClick={() => remove(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                      <Link to={`/bloger/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Profilni ko'rish"><Icon d={I.external} className="h-4 w-4" /></Link>
+                      <button onClick={() => setDeleteTarget(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </span>
                   </td>
                 </tr>
@@ -139,6 +249,27 @@ function Bloggers() {
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
+                <Icon d="M12 9v4 M12 17h.01 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" className="h-7 w-7 text-red-500" />
+              </span>
+              <h3 className="mt-4 font-display text-lg font-extrabold">Blogerni o'chirish</h3>
+              <p className="mt-2 text-sm text-muted">Bu blogerni ro'yxatdan o'chirishni tasdiqlaysizmi?</p>
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+              <button type="button" onClick={() => remove(deleteTarget)} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105">
+                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -146,7 +277,7 @@ function Bloggers() {
 /* ---------- Partners (hamkorlar) management ---------- */
 type Task = { id: number; title: string; status: "done" | "progress" | "pending" }
 type PartnerClient = { id: number; name: string; email: string }
-type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
+type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number | null; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
 
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
   done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
@@ -161,16 +292,20 @@ const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
 
 function AdminPartners() {
   const [list, setList] = useState<Partner[]>([])
+  const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState("")
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [taskDrafts, setTaskDrafts] = useState<Record<number, string>>({})
   const [clientDrafts, setClientDrafts] = useState<Record<number, { email: string; password: string }>>({})
   const [openClient, setOpenClient] = useState<Record<number, boolean>>({})
   const [clientErr, setClientErr] = useState<Record<number, string>>({})
-  const blank = { name: "", sphere: "", contractNo: "", amount: "", status: "active" }
+  const blank = { name: "", sphere: "", contractNo: "", amount: "", status: "active", logo: "", clientEmail: "", clientPassword: "" }
   const [form, setForm] = useState(blank)
+  const [saving, setSaving] = useState(false)
 
-  const reload = () => api<{ partners: Partner[] }>("/partners").then((d) => setList(d.partners)).catch(() => {})
+  const reload = () => { setLoading(true); api<{ partners: Partner[] }>("/partners").then((d) => setList(d.partners)).catch(() => {}).finally(() => setLoading(false)) }
   useEffect(() => { reload() }, [])
 
   const totals = useMemo(() => {
@@ -186,14 +321,47 @@ function AdminPartners() {
   }, [list])
 
   const add = async (e: React.FormEvent) => {
-    e.preventDefault(); setError("")
-    if (!form.name.trim() || !form.contractNo.trim()) { setError("Tashkilot nomi va shartnoma raqami majburiy"); return }
+    e.preventDefault(); setError(""); setSaving(true)
+    if (!form.name.trim() || !form.contractNo.trim()) { setError("Tashkilot nomi va shartnoma raqami majburiy"); setSaving(false); return }
     try {
-      await api("/partners", { method: "POST", body: JSON.stringify({ ...form, amount: Number(form.amount) || 0 }) })
+      await api("/partners", { method: "POST", body: JSON.stringify({
+        name: form.name,
+        sphere: form.sphere,
+        contractNo: form.contractNo,
+        amount: Number(form.amount) || 0,
+        status: form.status,
+        logo: form.logo.trim() || undefined,
+        clientName: form.name,
+        clientEmail: form.clientEmail.trim() || undefined,
+        clientPassword: form.clientPassword.trim() || undefined,
+      })})
       setForm(blank); setAdding(false); reload()
-    } catch (err: any) { setError(err?.message || "Xatolik") }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
+    finally { setSaving(false) }
   }
-  const remove = async (id: number) => { if (confirm("Hamkorni o'chirishni tasdiqlaysizmi?")) { await api(`/partners/${id}`, { method: "DELETE" }); reload() } }
+  const remove = (id: number) => {
+    setList((prev) => prev.filter((p) => p.id !== id))
+    setDeleteTarget(null)
+    api(`/partners/${id}`, { method: "DELETE" }).catch(() => {}).then(() => reload())
+  }
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === list.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(list.map((p) => p.id)))
+  }
+  const bulkRemove = () => {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return
+    setList((prev) => prev.filter((p) => !ids.includes(p.id)))
+    setSelectedIds(new Set())
+    Promise.allSettled(ids.map((id) => api(`/partners/${id}`, { method: "DELETE" }))).then(() => reload())
+  }
   const cycleTask = async (pid: number, tid: number) => { await api(`/partners/${pid}/tasks/${tid}`, { method: "PATCH", body: "{}" }); reload() }
   const removeTask = async (pid: number, tid: number) => { await api(`/partners/${pid}/tasks/${tid}`, { method: "DELETE" }); reload() }
   const addTask = async (pid: number) => {
@@ -208,10 +376,10 @@ function AdminPartners() {
       await api(`/partners/${p.id}/client`, { method: "POST", body: JSON.stringify({ name: p.name, email: draft.email, password: draft.password }) })
       setClientDrafts((d) => ({ ...d, [p.id]: { email: "", password: "" } }))
       setClientErr((e) => ({ ...e, [p.id]: "" })); setOpenClient((o) => ({ ...o, [p.id]: false })); reload()
-    } catch (err: any) { setClientErr((e) => ({ ...e, [p.id]: err?.message || "Xatolik" })) }
+    } catch (err: unknown) { setClientErr((e) => ({ ...e, [p.id]: err instanceof Error ? err.message : "Xatolik" })) }
   }
   const removeClient = async (pid: number) => {
-    if (!confirm("Mijoz loginini o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm("Hamkor loginini o'chirishni tasdiqlaysizmi?")) return
     await api(`/partners/${pid}/client`, { method: "DELETE" }); reload()
   }
 
@@ -245,36 +413,69 @@ function AdminPartners() {
         ))}
       </div>
 
-      {/* add form */}
+      {/* Add Partner Modal */}
       {adding && (
-        <form onSubmit={add} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
-          {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.sphere} onChange={(e) => setForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.contractNo} onChange={(e) => setForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none">
-              <option value="active">Faol</option>
-              <option value="pending">Kutilmoqda</option>
-              <option value="completed">Yakunlangan</option>
-            </select>
-            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Qo'shish</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Yangi hamkor qo'shish</h3>
+            <form onSubmit={add} className="mt-5 space-y-4">
+              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.sphere} onChange={(e) => setForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <div>
+                <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Logo rasmi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                {form.logo.trim() && <img src={form.logo.trim()} alt="" className="mt-2 max-h-12 object-contain" />}
+              </div>
+              <input value={form.contractNo} onChange={(e) => setForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                <option value="active">Faol</option>
+                <option value="pending">Kutilmoqda</option>
+                <option value="completed">Yakunlangan</option>
+              </select>
+              <hr className="border-green/10" />
+              <p className="text-xs font-semibold text-muted">Hamkor kompaniya logini (ixtiyoriy — email + parol)</p>
+              <input value={form.clientEmail} onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))} placeholder="Email (login)" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={form.clientPassword} onChange={(e) => setForm((f) => ({ ...f, clientPassword: e.target.value }))} placeholder="Parol (kamida 6 belgi)" type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                  {saving ? "Qo'shilmoqda…" : "Qo'shish"}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       )}
 
       {/* partner cards */}
       <div className="mt-5 space-y-4">
-        {list.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Hamkor yo'q. "Yangi hamkor qo'shish" orqali qo'shing.</div>}
+        {!loading && selectedIds.size > 0 && (
+          <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta hamkor tanlandi</span>
+            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+              <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
+            </button>
+          </div>
+        )}
+        {loading && <SkeletonStatGrid />}
+        {!loading && list.length > 0 && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+            <input type="checkbox" checked={selectedIds.size === list.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+            Hammasini tanlash
+          </label>
+        )}
+        {!loading && list.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Hamkor yo'q. "Yangi hamkor qo'shish" orqali qo'shing.</div>}
         {list.map((p) => {
           const ps = partnerStatusMeta[p.status] || partnerStatusMeta.active
           const done = p.tasks.filter((t) => t.status === "done").length
           const pct = p.tasks.length ? Math.round((done / p.tasks.length) * 100) : 0
           return (
-            <div key={p.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+            <div key={p.id} className={`min-w-0 rounded-2xl border bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)] ${selectedIds.has(p.id) ? "border-red-300 ring-2 ring-red-200" : "border-green/10"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="h-5 w-5 shrink-0 rounded border-green/30 text-green accent-green" />
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={I.building} className="h-6 w-6" /></span>
                   <div>
                     <div className="flex items-center gap-2">
@@ -284,7 +485,7 @@ function AdminPartners() {
                     <p className="text-sm text-muted">{p.sphere}</p>
                   </div>
                 </div>
-                <button onClick={() => remove(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                <button onClick={() => setDeleteTarget(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
                   <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
                 </button>
               </div>
@@ -324,14 +525,14 @@ function AdminPartners() {
                 </div>
               </div>
 
-              {/* client (buyurtmachi) login */}
+              {/* hamkor kompaniya login */}
               <div className="mt-4 rounded-xl border border-green/15 bg-[#fafdf7] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.user} className="h-5 w-5" /></span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.building} className="h-5 w-5" /></span>
                     <div>
-                      <div className="text-sm font-bold">Mijoz kabineti</div>
-                      <div className="text-xs text-muted">{p.client ? "Buyurtmachi ishlarini kuzata oladi" : "Login yarating — buyurtmachi o'ziga qilingan ishlarni ko'radi"}</div>
+                      <div className="text-sm font-bold">Hamkor kabineti (login)</div>
+                      <div className="text-xs text-muted">{p.client ? "Hamkor o'z kabinetiga kira oladi" : "Login yarating — hamkor o'z kabinetiga kiradi"}</div>
                     </div>
                   </div>
                   {p.client ? (
@@ -349,7 +550,7 @@ function AdminPartners() {
                   <div className="mt-3">
                     {clientErr[p.id] && <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{clientErr[p.id]}</div>}
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                      <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Mijoz emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Hamkor emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <button onClick={() => createClient(p)} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white">Yaratish</button>
                     </div>
@@ -360,6 +561,27 @@ function AdminPartners() {
           )
         })}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
+                <Icon d="M12 9v4 M12 17h.01 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" className="h-7 w-7 text-red-500" />
+              </span>
+              <h3 className="mt-4 font-display text-lg font-extrabold">Hamkorni o'chirish</h3>
+              <p className="mt-2 text-sm text-muted">Bu hamkorni ro'yxatdan o'chirishni tasdiqlaysizmi?</p>
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+              <button type="button" onClick={() => remove(deleteTarget)} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105">
+                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -407,13 +629,13 @@ function Overview() {
         <div className={card}>
           <h3 className="font-display text-lg font-bold">Platforma o'sishi</h3>
           <div className="mt-4">
-            {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
+              {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
               <LineChart
                 points={[bloggerCount || 0, partnerCount || 0, newsCount || 0, (bloggerCount || 0) + (partnerCount || 0), (bloggerCount || 0) + (newsCount || 0), (partnerCount || 0) + (newsCount || 0)]}
                 labels={["Blogerlar", "Hamkorlar", "Yangiliklar", "Blog+Hamkor", "Blog+Yangilik", "Hamk+Yangilik"]}
               />
             ) : (
-              <div className="py-8 text-center text-sm text-muted">Yuklanmoqda…</div>
+              <SkeletonCard />
             )}
           </div>
         </div>
@@ -481,13 +703,13 @@ function StatsEditor() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={statIcon[s.key] || I.star} className="h-5 w-5" /></span>
               <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
             </div>
-            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat</label>
-            <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} placeholder="120+" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 font-display text-lg font-extrabold outline-none focus:border-green" />
-            <label className="mt-3 block text-xs font-semibold text-muted">Izoh</label>
+            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat (Tizim tomonidan avtomatik hisoblanadi)</label>
+            <input value={s.value} disabled className="mt-1 w-full rounded-lg border border-green/10 bg-gray-50 px-3 py-2.5 font-display text-lg font-extrabold text-muted-foreground outline-none cursor-not-allowed opacity-75" />
+            <label className="mt-3 block text-xs font-semibold text-muted">Izoh (Sarlavha)</label>
             <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder="Agro blogerlar" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
           </div>
         ))}
-        {items.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Yuklanmoqda…</div>}
+        {items.length === 0 && <div className="sm:col-span-2 lg:col-span-3"><SkeletonStatGrid /></div>}
       </div>
     </div>
   )
@@ -513,25 +735,42 @@ function AdminNews() {
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const load = (p = page) => {
-    setLoading(true)
-    const q = new URLSearchParams({ page: String(p), per_page: "12" })
-    if (query.trim()) q.set("search", query.trim())
-    api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${q}`)
+  const fetchNews = (p: number, q: string) => {
+    const params = new URLSearchParams({ page: String(p), per_page: "12" })
+    if (q.trim()) params.set("search", q.trim())
+    api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${params}`)
       .then((d) => { setArticles(d.data || []); setTotal(d.pagination?.total || 0) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load(1); setPage(1) }, [query])
-  useEffect(() => { load() }, [page])
+  useEffect(() => { fetchNews(page, query) }, [query, page])
 
   const remove = async (id: string) => {
     if (!confirm("Yangilikni o'chirishni tasdiqlaysizmi?")) return
     await api(`/news/${id}`, { method: "DELETE" })
-    load()
+    fetchNews(page, query)
+  }
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === articles.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(articles.map((a) => a.id)))
+  }
+  const bulkRemove = () => {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return
+    setArticles((prev) => prev.filter((a) => !ids.includes(a.id)))
+    setSelectedIds(new Set())
+    Promise.allSettled(ids.map((id) => api(`/news/${id}`, { method: "DELETE" }))).then(() => fetchNews(page, query))
   }
 
   const totalPages = Math.ceil(total / 12)
@@ -548,20 +787,31 @@ function AdminNews() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <div className="relative mb-4 max-w-sm">
           <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Yangilik qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Yangilik qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
         </div>
 
-        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {loading && <SkeletonTable rows={6} cols={5} />}
 
         {!loading && articles.length === 0 && (
           <div className="py-8 text-center text-muted">Yangiliklar topilmadi.</div>
         )}
 
+        {!loading && selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta yangilik tanlandi</span>
+            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+              <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
+            </button>
+          </div>
+        )}
         {!loading && articles.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold w-10">
+                    <input type="checkbox" checked={articles.length > 0 && selectedIds.size === articles.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                  </th>
                   <th className="pb-3 font-semibold">Sarlavha</th>
                   <th className="pb-3 font-semibold">Kategoriya</th>
                   <th className="pb-3 font-semibold">Holat</th>
@@ -573,6 +823,9 @@ function AdminNews() {
               <tbody>
                 {articles.map((a) => (
                   <tr key={a.id} className="border-t border-green/8 text-sm">
+                    <td className="py-3 pr-3 w-10">
+                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                    </td>
                     <td className="py-3 pr-3">
                       <span className="flex items-center gap-2.5">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green/10 font-display text-xs font-bold text-green">{a.title[0]?.toUpperCase()}</span>
@@ -626,18 +879,42 @@ type Setting = { id: string; key: string; value: string; type: string; descripti
 
 function AdminSettings() {
   const [settings, setSettings] = useState<Setting[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
+  const [igConnected, setIgConnected] = useState(false)
+  const [igUsername, setIgUsername] = useState<string | null>(null)
+  const [igChecking, setIgChecking] = useState(true)
 
   const load = () => {
-    setLoading(true)
     api<{ settings: Setting[] }>("/settings")
       .then((d) => setSettings(d.settings || []))
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  const checkIgStatus = () => {
+    api<{ connected: boolean; username: string | null }>("/instagram-status")
+      .then((d) => { setIgConnected(d.connected); setIgUsername(d.username) })
+      .catch(() => { setIgConnected(false); setIgUsername(null) })
+      .finally(() => setIgChecking(false))
+  }
+
+  useEffect(() => { load(); checkIgStatus() }, [])
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "instagram-connected") {
+        setIgConnected(true)
+        setIgUsername(e.data.username || "Unknown")
+      }
+      if (e.data?.type === "instagram-error") {
+        setIgConnected(false)
+        setIgUsername(null)
+      }
+    }
+    window.addEventListener("message", handler)
+    return () => window.removeEventListener("message", handler)
+  }, [])
 
   const set = (i: number, field: "value", v: string) =>
     setSettings((arr) => arr.map((s, idx) => (idx === i ? { ...s, [field]: v } : s)))
@@ -664,7 +941,43 @@ function AdminSettings() {
 
       {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi!</div>}
 
-      {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+      {/* Instagram/Facebook ulash */}
+      <div className="mt-5 rounded-2xl border border-pink-200 bg-pink-50/50 p-5">
+        <div className="flex items-center justify-between gap-2 text-pink-600">
+          <div className="flex items-center gap-2">
+            <Icon d={I.instagram} className="h-5 w-5" />
+            <span className="font-display text-base font-bold">Instagram akkaunt ulash</span>
+          </div>
+          {!igChecking && igConnected && (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-green/10 px-2.5 py-1 text-xs font-bold text-green">
+              <span className="h-1.5 w-1.5 rounded-full bg-green" /> Ulangan
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted">Facebook orqali Instagram Business akkauntni ulang. Bu bir martalik sozlama — barcha bloggerlar Instagram ma'lumotlarini olish imkoniga ega bo'ladi.</p>
+        {!igChecking && igConnected && igUsername ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-green/20 bg-green/5 p-3">
+            <Icon d={I.instagram} className="h-5 w-5 text-pink-500" />
+            <span className="text-sm font-semibold">@{igUsername}</span>
+            <button onClick={checkIgStatus} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">
+              <Icon d={I.refresh} className="h-3.5 w-3.5" /> Yangilash
+            </button>
+          </div>
+        ) : !igChecking && !igConnected ? (
+          <button onClick={async () => {
+            try {
+              const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
+              if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
+            } catch (e) {
+              alert(e instanceof Error ? e.message : "Xatolik")
+            }
+          }} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-pink-500/25 transition-transform hover:scale-105">
+            <Icon d={I.external} className="h-4 w-4" /> Facebook bilan kirish
+          </button>
+        ) : null}
+      </div>
+
+      {loading && <SkeletonStatGrid />}
 
       {!loading && settings.length === 0 && (
         <div className="py-8 text-center text-muted">Sozlamalar topilmadi.</div>
@@ -690,12 +1003,11 @@ function AdminSettings() {
 /* ---------- Monitoring ---------- */
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [engineBusy, setEngineBusy] = useState(false)
   const [engineResult, setEngineResult] = useState("")
 
   const load = () => {
-    setLoading(true)
     api<{ jobs: { id: string; job_type: string; status: string; created_at: string }[] }>("/news/jobs")
       .then((d) => setNewsJobs(d.jobs || []))
       .catch(() => {})
@@ -719,8 +1031,8 @@ function AdminMonitoring() {
       )
       setEngineResult(`✅ ${d.published} ta yangilik yaratildi (${d.fetched} ta manbadan). Kunlik target: ${d.target}`)
       load()
-    } catch (e: any) {
-      setEngineResult(`❌ Xatolik: ${e?.message || "Noma'lum xatolik"}`)
+    } catch (e: unknown) {
+      setEngineResult(`❌ Xatolik: ${e instanceof Error ? e.message : "Noma'lum xatolik"}`)
     } finally {
       setEngineBusy(false)
     }
@@ -775,7 +1087,7 @@ function AdminMonitoring() {
       {/* Job List */}
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <h3 className="font-display text-lg font-bold">Yangiliklar ishlari</h3>
-        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {loading && <div className="py-8"><SkeletonTable rows={4} cols={3} /></div>}
         {!loading && newsJobs.length === 0 && <div className="py-8 text-center text-muted">Hech qanday ish topilmadi.</div>}
         {!loading && newsJobs.length > 0 && (
           <div className="mt-4 space-y-2">
@@ -818,7 +1130,7 @@ function AdminNewsSources() {
     try {
       await api("/news-sources", { method: "POST", body: JSON.stringify(form) })
       setForm(blank); setAdding(false); reload()
-    } catch (err: any) { setError(err?.message || "Xatolik") }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
   }
   const remove = async (id: string) => {
     if (!confirm("Manbani o'chirishni tasdiqlaysizmi?")) return
@@ -901,23 +1213,34 @@ function AdminNewsSources() {
 
 /* ---------- Users Management ---------- */
 type AdminUser = { id: string; email: string; name: string; role: string; status: string; created_at: string }
+type RoleOption = { id: string; name: string }
 
 function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [roles, setRoles] = useState<RoleOption[]>([])
+  const [changingRole, setChangingRole] = useState<string | null>(null)
 
   const load = () => {
-    setLoading(true)
-    api<{ users: AdminUser[] }>("/users")
-      .then((d) => setUsers(d.users || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      api<{ users: AdminUser[] }>("/users"),
+      api<{ roles: RoleOption[] }>("/roles"),
+    ]).then(([u, r]) => {
+      setUsers(u.users || [])
+      setRoles(r.roles || [])
+    }).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
   const toggleStatus = async (u: AdminUser) => {
     const newStatus = u.status === "active" ? "suspended" : "active"
     await api(`/users/${u.id}`, { method: "PATCH", body: JSON.stringify({ status: newStatus }) })
+    load()
+  }
+
+  const changeRole = async (userId: string, roleId: string) => {
+    await api("/user-role", { method: "PATCH", body: JSON.stringify({ user_id: userId, role_id: roleId }) })
+    setChangingRole(null)
     load()
   }
 
@@ -942,11 +1265,11 @@ function AdminUsers() {
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && users.length === 0 && <div className="py-8 text-center text-muted">Foydalanuvchilar topilmadi.</div>}
         {!loading && users.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
                   <th className="pb-3 font-semibold">Foydalanuvchi</th>
@@ -965,7 +1288,27 @@ function AdminUsers() {
                         <span><span className="block font-semibold">{u.name || "—"}</span><span className="block text-xs text-muted">{u.email}</span></span>
                       </span>
                     </td>
-                    <td className="py-3 pr-3"><span className={`rounded-md px-2 py-1 text-[11px] font-bold ${roleColors[u.role] || "bg-slate-100 text-slate-500"}`}>{u.role}</span></td>
+                    <td className="py-3 pr-3">
+                      {changingRole === u.id ? (
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val) changeRole(u.id, val)
+                          }}
+                          onBlur={() => setChangingRole(null)}
+                          autoFocus
+                          className="rounded-lg border border-green/30 px-2 py-1 text-xs font-bold outline-none"
+                        >
+                          <option value="" disabled>Rolni tanlang</option>
+                          {roles.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${roleColors[u.role] || "bg-slate-100 text-slate-500"}`}>{u.role}</span>
+                      )}
+                    </td>
                     <td className="py-3 pr-3">
                       <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${u.status === "active" ? "bg-green/10 text-green" : "bg-red-100 text-red-500"}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${u.status === "active" ? "bg-green" : "bg-red-500"}`} />
@@ -974,9 +1317,16 @@ function AdminUsers() {
                     </td>
                     <td className="py-3 pr-3 text-muted text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3">
-                      <button onClick={() => toggleStatus(u)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
-                        {u.status === "active" ? "To'xtatish" : "Faollashtirish"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {changingRole !== u.id && (
+                          <button onClick={() => setChangingRole(u.id)} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-500 transition-colors hover:bg-blue-50">
+                            Rolni o'zgartirish
+                          </button>
+                        )}
+                        <button onClick={() => toggleStatus(u)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
+                          {u.status === "active" ? "To'xtatish" : "Faollashtirish"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -994,11 +1344,10 @@ type ContactMessage = { id: string; name: string; email: string; phone: string; 
 
 function AdminContacts() {
   const [messages, setMessages] = useState<ContactMessage[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ContactMessage | null>(null)
 
   const load = () => {
-    setLoading(true)
     api<{ messages: ContactMessage[] }>("/messages")
       .then((d) => setMessages(d.messages || []))
       .catch(() => {})
@@ -1033,7 +1382,7 @@ function AdminContacts() {
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && messages.length === 0 && <div className="py-8 text-center text-muted">Xabarlar yo'q.</div>}
         {!loading && messages.length > 0 && (
           <div className="overflow-x-auto">
@@ -1089,10 +1438,9 @@ type Subscriber = { id: string; email: string; is_active: boolean; created_at: s
 
 function AdminSubscribers() {
   const [subs, setSubs] = useState<Subscriber[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const load = () => {
-    setLoading(true)
     api<{ subscribers: Subscriber[] }>("/subscribers")
       .then((d) => setSubs(d.subscribers || []))
       .catch(() => {})
@@ -1118,7 +1466,7 @@ function AdminSubscribers() {
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-        {loading && <div className="py-8 text-center text-muted">Yuklanmoqda…</div>}
+        {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && subs.length === 0 && <div className="py-8 text-center text-muted">Obunachilar yo'q.</div>}
         {!loading && subs.length > 0 && (
           <div className="overflow-x-auto">
@@ -1158,25 +1506,49 @@ type NewsCategory = { id: string; key: string; name_uz: string; name_ru: string;
 
 function AdminCategories() {
   const [cats, setCats] = useState<NewsCategory[]>([])
+  const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const blank = { key: "", name_uz: "", name_ru: "", name_en: "" }
   const [form, setForm] = useState(blank)
 
-  const load = () => api<{ categories: NewsCategory[] }>("/categories").then((d) => setCats(d.categories || [])).catch(() => {})
+  const load = () => { setLoading(true); api<{ categories: NewsCategory[] }>("/categories").then((d) => setCats(d.categories || [])).catch(() => {}).finally(() => setLoading(false)) }
   useEffect(() => { load() }, [])
 
   const add = async (e: React.FormEvent) => {
-    e.preventDefault(); setError("")
-    if (!form.key.trim() || !form.name_uz.trim()) { setError("Kalit va nomi majburiy"); return }
+    e.preventDefault(); setError(""); setSaving(true)
+    if (!form.key.trim() || !form.name_uz.trim()) { setError("Kalit va nomi majburiy"); setSaving(false); return }
+    const temp = { id: crypto.randomUUID(), ...form, is_active: true }
+    setCats((prev) => [...prev, temp])
+    setForm(blank); setAdding(false)
     try {
       await api("/categories", { method: "POST", body: JSON.stringify(form) })
-      setForm(blank); setAdding(false); load()
-    } catch (err: any) { setError(err?.message || "Xatolik") }
+    } catch { setError("Xatolik yuz berdi") }
+    finally { setSaving(false); load() }
   }
   const remove = async (id: string) => {
     if (!confirm("Kategoriyani o'chirishni tasdiqlaysizmi?")) return
     await api(`/categories/${id}`, { method: "DELETE" }); load()
+  }
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === cats.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(cats.map((c) => c.id)))
+  }
+  const bulkRemove = () => {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return
+    setCats((prev) => prev.filter((c) => !ids.includes(c.id)))
+    setSelectedIds(new Set())
+    Promise.allSettled(ids.map((id) => api(`/categories/${id}`, { method: "DELETE" }))).then(() => load())
   }
   const toggle = async (c: NewsCategory) => {
     await api(`/categories/${c.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !c.is_active }) })
@@ -1190,27 +1562,28 @@ function AdminCategories() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Kategoriyalar</h2>
           <p className="mt-1 text-sm text-muted">Yangiliklar kategoriyalarini boshqarish.</p>
         </div>
-        <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+        <button onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi kategoriya
         </button>
       </div>
-      {adding && (
-        <form onSubmit={add} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
-          {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <input value={form.key} onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))} placeholder="Kalit (masalan: texnologiya)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.name_uz} onChange={(e) => setForm((f) => ({ ...f, name_uz: e.target.value }))} placeholder="Nomi (uz)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.name_ru} onChange={(e) => setForm((f) => ({ ...f, name_ru: e.target.value }))} placeholder="Nomi (ru)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Nomi (en)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Qo'shish</button>
-          </div>
-        </form>
-      )}
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {loading && <SkeletonTable rows={6} cols={6} />}
+        {!loading && selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta kategoriya tanlandi</span>
+            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+              <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
+            </button>
+          </div>
+        )}
+        {!loading && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                <th className="pb-3 font-semibold w-10">
+                  <input type="checkbox" checked={cats.length > 0 && selectedIds.size === cats.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                </th>
                 <th className="pb-3 font-semibold">Kalit</th>
                 <th className="pb-3 font-semibold">Nomi (uz)</th>
                 <th className="pb-3 font-semibold">Nomi (ru)</th>
@@ -1220,9 +1593,12 @@ function AdminCategories() {
               </tr>
             </thead>
             <tbody>
-              {cats.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
+              {cats.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
               {cats.map((c) => (
                 <tr key={c.id} className="border-t border-green/8 text-sm">
+                  <td className="py-3 pr-3 w-10">
+                    <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                  </td>
                   <td className="py-3 pr-3 font-mono text-xs text-muted">{c.key}</td>
                   <td className="py-3 pr-3 font-semibold">{c.name_uz}</td>
                   <td className="py-3 pr-3 text-muted">{c.name_ru}</td>
@@ -1242,21 +1618,61 @@ function AdminCategories() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
+
+      {/* Add Category Modal */}
+      {adding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Yangi kategoriya qo'shish</h3>
+            <form onSubmit={add} className="mt-5 space-y-4">
+              {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Kalit</label>
+                <input value={form.key} onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))} placeholder="masalan: texnologiya" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (uz)</label>
+                <input value={form.name_uz} onChange={(e) => setForm((f) => ({ ...f, name_uz: e.target.value }))} placeholder="O'zbekcha nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (ru)</label>
+                <input value={form.name_ru} onChange={(e) => setForm((f) => ({ ...f, name_ru: e.target.value }))} placeholder="Russkiy" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (en)</label>
+                <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="English" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                  {saving ? "Qo'shilmoqda…" : "Qo'shish"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 /* ---------- Homepage Management ---------- */
-type HomepageSection = { id: string; section_key: string; title: string; is_visible: boolean; items: HomepageItem[] }
-type HomepageItem = { id: string; section_id: string; title: string; subtitle: string; value: string; icon: string; image_url: string; sort_order: number; is_visible: boolean }
+type HomepageSection = { id: string; section_key: string; title: string; subtitle: string; is_active: boolean; items: HomepageItem[] }
+type HomepageItem = { id: string; section_id: string; item_key: string; title: string; description: string; icon: string; link: string; sort_order: number; is_active: boolean }
 
 function AdminHomepage() {
   const [sections, setSections] = useState<HomepageSection[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [editSec, setEditSec] = useState<string | null>(null)
+  const [secForm, setSecForm] = useState<{ title: string; subtitle: string }>({ title: "", subtitle: "" })
+  const [editItem, setEditItem] = useState<string | null>(null)
+  const [itemForm, setItemForm] = useState<{ title: string; description: string; icon: string; link: string }>({ title: "", description: "", icon: "", link: "" })
+  const [saving, setSaving] = useState(false)
 
   const load = () => {
-    setLoading(true)
     api<{ sections: HomepageSection[] }>("/homepage")
       .then((d) => setSections(d.sections || []))
       .catch(() => {})
@@ -1265,62 +1681,100 @@ function AdminHomepage() {
   useEffect(() => { load() }, [])
 
   const toggleSection = async (s: HomepageSection) => {
-    await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ is_visible: !s.is_visible }) })
+    await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !s.is_active }) })
     load()
   }
   const toggleItem = async (item: HomepageItem) => {
-    await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ is_visible: !item.is_visible }) })
+    await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !item.is_active }) })
     load()
   }
-  const updateSection = async (s: HomepageSection, title: string) => {
-    await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ title }) })
+  const startEditSec = (s: HomepageSection) => { setEditSec(s.id); setSecForm({ title: s.title || "", subtitle: s.subtitle || "" }); setEditItem(null) }
+  const saveSec = async (id: string) => {
+    setSaving(true)
+    try { await api(`/homepage/sections/${id}`, { method: "PATCH", body: JSON.stringify(secForm) }); setEditSec(null); load() }
+    finally { setSaving(false) }
   }
-  const updateItem = async (item: HomepageItem, field: string, value: string) => {
-    await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ [field]: value }) })
+  const startEditItem = (item: HomepageItem) => { setEditItem(item.id); setItemForm({ title: item.title || "", description: item.description || "", icon: item.icon || "", link: item.link || "" }); setEditSec(null) }
+  const saveItem = async (id: string) => {
+    setSaving(true)
+    try { await api(`/homepage/items/${id}`, { method: "PATCH", body: JSON.stringify(itemForm) }); setEditItem(null); load() }
+    finally { setSaving(false) }
   }
+  const inp = "w-full rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green"
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-extrabold tracking-tight">Bosh sahifa boshqaruvi</h2>
-          <p className="mt-1 text-sm text-muted">Bosh sahifadagi bo'limlar va elementlarni boshqarish.</p>
+          <p className="mt-1 text-sm text-muted">Sayt kontenti: sarlavhalar, matnlar, aloqa ma'lumotlari va linklarni tahrirlang.</p>
         </div>
         <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
           <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
         </button>
       </div>
-      {loading && <div className="mt-5 py-8 text-center text-muted">Yuklanmoqda…</div>}
+      {loading && <div className="mt-5"><SkeletonTable rows={5} cols={3} /></div>}
       {!loading && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}
       <div className="mt-5 space-y-4">
         {sections.map((s) => (
           <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={() => toggleSection(s)}>
-                  {s.is_visible
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button onClick={() => toggleSection(s)} title="Ko'rsatish/yashirish">
+                  {s.is_active
                     ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Ko'rinadi</span>
                     : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Yashirin</span>}
                 </button>
-                <div>
-                  <h3 className="font-display font-bold">{s.title || s.section_key}</h3>
-                  <span className="text-xs text-muted">{s.section_key}</span>
+                <div className="min-w-0">
+                  <h3 className="font-display font-bold truncate">{s.title || s.section_key}</h3>
+                  {s.subtitle && <span className="block text-xs text-muted truncate">{s.subtitle}</span>}
                 </div>
               </div>
-              <span className="text-xs text-muted">{s.items?.length || 0} ta element</span>
+              <button onClick={() => startEditSec(s)} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">
+                <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" /> Tahrirlash
+              </button>
             </div>
+
+            {editSec === s.id && (
+              <div className="mt-4 space-y-2 rounded-xl bg-soft p-3">
+                <div><label className="text-xs font-semibold text-muted">Sarlavha</label><input value={secForm.title} onChange={(e) => setSecForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                <div><label className="text-xs font-semibold text-muted">Tavsif / matn</label><textarea value={secForm.subtitle} onChange={(e) => setSecForm((f) => ({ ...f, subtitle: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
+                <div className="flex gap-2">
+                  <button onClick={() => saveSec(s.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
+                  <button onClick={() => setEditSec(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">Bekor</button>
+                </div>
+              </div>
+            )}
+
             {s.items && s.items.length > 0 && (
               <div className="mt-4 space-y-2">
                 {s.items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
-                    <button onClick={() => toggleItem(item)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${item.is_visible ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
-                      {item.is_visible ? "Ko'rinadi" : "Yashirin"}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <span className="block truncate text-sm font-medium">{item.title || item.subtitle || item.value || item.section_id}</span>
-                      {item.subtitle && <span className="block text-xs text-muted">{item.subtitle}</span>}
+                  <div key={item.id} className="rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggleItem(item)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${item.is_active ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
+                        {item.is_active ? "Ko'rinadi" : "Yashirin"}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate text-sm font-medium">{item.title || item.item_key}</span>
+                        {item.description && <span className="block truncate text-xs text-muted">{item.description}</span>}
+                      </div>
+                      {item.icon && <span className="rounded-md bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">{item.icon}</span>}
+                      <button onClick={() => startEditItem(item)} className="shrink-0 grid h-7 w-7 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title="Tahrirlash">
+                        <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    {item.icon && <span className="rounded-md bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">{item.icon}</span>}
+                    {editItem === item.id && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div><label className="text-xs font-semibold text-muted">Sarlavha</label><input value={itemForm.title} onChange={(e) => setItemForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">Matn / tavsif</label><input value={itemForm.description} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">Ikon</label><input value={itemForm.icon} onChange={(e) => setItemForm((f) => ({ ...f, icon: e.target.value }))} placeholder="masalan: phone, mail" className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">Link</label><input value={itemForm.link} onChange={(e) => setItemForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://..." className={inp} /></div>
+                        <div className="sm:col-span-2 flex gap-2">
+                          <button onClick={() => saveItem(item.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
+                          <button onClick={() => setEditItem(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">Bekor</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1332,20 +1786,354 @@ function AdminHomepage() {
   )
 }
 
+/* ---------- Roles & Permissions Management ---------- */
+type AdminRole = { id: string; name: string; description: string | null; is_system: boolean; priority: number; created_at: string }
+type PermissionItem = { id: string; code: string; name: string; resource: string; action: string }
+
+function AdminRoles() {
+  const [roles, setRoles] = useState<AdminRole[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [savingUser, setSavingUser] = useState(false)
+  const [userName, setUserName] = useState("")
+  const [userEmail, setUserEmail] = useState("")
+  const [userPassword, setUserPassword] = useState("")
+  const [userRole, setUserRole] = useState("admin")
+  const [error, setError] = useState("")
+  const [expandedRole, setExpandedRole] = useState<string | null>(null)
+  const [groupedPerms, setGroupedPerms] = useState<Record<string, PermissionItem[]>>({})
+  const [rolePermIds, setRolePermIds] = useState<Set<string>>(new Set())
+  const [savingPerms, setSavingPerms] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const loadRoles = () => api<{ roles: AdminRole[] }>("/roles")
+    .then((d) => setRoles(d.roles || []))
+
+  const loadPermissions = () => api<{ permissions: PermissionItem[]; grouped: Record<string, PermissionItem[]> }>("/permissions")
+    .then((d) => setGroupedPerms(d.grouped || {}))
+
+  const loadAll = () => {
+    Promise.all([loadRoles(), loadPermissions()])
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadRolePerms = async (roleId: string) => {
+    const d = await api<{ permission_ids: string[] }>(`/role-permissions?role_id=${roleId}`)
+    setRolePermIds(new Set(d.permission_ids || []))
+  }
+
+  const toggleExpand = (roleId: string) => {
+    if (expandedRole === roleId) {
+      setExpandedRole(null)
+      return
+    }
+    setExpandedRole(roleId)
+    loadRolePerms(roleId)
+  }
+
+  const togglePerm = (permId: string) => {
+    setRolePermIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(permId)) next.delete(permId)
+      else next.add(permId)
+      return next
+    })
+  }
+
+  const savePerms = async () => {
+    if (!expandedRole) return
+    setSavingPerms(true)
+    try {
+      await api("/role-permissions", {
+        method: "PUT",
+        body: JSON.stringify({ role_id: expandedRole, permission_ids: Array.from(rolePermIds) }),
+      })
+    } catch { setError("Ruxsatlarni saqlashda xatolik") }
+    finally { setSavingPerms(false) }
+  }
+
+  const openCreate = () => {
+    setUserName("")
+    setUserEmail("")
+    setUserPassword("")
+    setUserRole("admin")
+    setError("")
+    setShowForm(true)
+  }
+
+  const saveUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    if (!userName.trim() || !userEmail.trim() || !userPassword.trim()) { setError("Ism, email va parol majburiy"); return }
+    setSavingUser(true)
+    try {
+      await api("/users/create", {
+        method: "POST",
+        body: JSON.stringify({ name: userName.trim(), email: userEmail.trim(), password: userPassword, role: userRole }),
+      })
+      setShowForm(false)
+      loadRoles()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi")
+    } finally {
+      setSavingUser(false)
+    }
+  }
+
+  const roleInfo: Record<string, string> = {
+    super_admin: "To'liq boshqaruv — barcha ruxsatlar, rollar, foydalanuvchilar",
+    admin: "Kundalik boshqaruv — bloggerlar, hamkorlar, yangiliklar, kategoriyalar",
+    editor: "Faqat kontent — yangiliklar yozish va tahrirlash",
+    company: "Hamkor kabineti — o'z hamkorlik ma'lumotlarini ko'rish",
+  }
+
+  const deleteRole = async (r: AdminRole) => {
+    if (r.is_system) return
+    if (!confirm(`"${r.name}" rolini o'chirishni tasdiqlaysizmi?`)) return
+    try {
+      await api(`/roles/delete?id=${r.id}`, { method: "DELETE" })
+      loadRoles()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi")
+    }
+  }
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    const selectable = roles.filter((r) => !r.is_system)
+    if (selectedIds.size === selectable.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(selectable.map((r) => r.id)))
+  }
+  const bulkRemove = () => {
+    const ids = Array.from(selectedIds).filter((id) => !roles.find((r) => r.id === id)?.is_system)
+    if (!ids.length) return
+    setRoles((prev) => prev.filter((r) => !ids.includes(r.id)))
+    setSelectedIds(new Set())
+    Promise.allSettled(ids.map((id) => api(`/roles/delete?id=${id}`, { method: "DELETE" }))).then(() => loadRoles())
+  }
+
+  const resourceLabel: Record<string, string> = {
+    auth: "Auth",
+    profiles: "Profillar",
+    bloggers: "Blogerlar",
+    partners: "Hamkorlar",
+    news: "Yangiliklar",
+    stats: "Statistika",
+    socials: "Ijtimoiy tarmoqlar",
+    videos: "Videolar",
+    contact: "Aloqa",
+    newsletter: "Newsletter",
+    media: "Media",
+    storage: "Storage",
+    settings: "Sozlamalar",
+    "feature-flags": "Feature Flaglar",
+    system: "Tizim",
+    ai: "AI",
+    workers: "Workerlar",
+    queue: "Navbat",
+    monitoring: "Monitoring",
+    analytics: "Analitika",
+    social: "Social",
+    cron: "Cron",
+    functions: "Funksiyalar",
+    deployment: "Deployment",
+    notifications: "Bildirishnomalar",
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Rollar va Ruxsatlar</h2>
+          <p className="mt-1 text-sm text-muted">Rol yaratish, tahrirlash va ruxsatlarni boshqarish.</p>
+        </div>
+        <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+          <Icon d={I.plus} className="h-4 w-4" /> Yangi foydalanuvchi
+        </button>
+      </div>
+
+      {error && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+
+      <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+        {loading && <SkeletonTable rows={6} cols={5} />}
+        {!loading && selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta rol tanlandi</span>
+            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+              <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
+            </button>
+          </div>
+        )}
+        {!loading && roles.length === 0 && <div className="py-8 text-center text-muted">Rollar topilmadi.</div>}
+        {!loading && roles.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="pb-3 font-semibold w-10">
+                    <input type="checkbox" checked={roles.length > 0 && selectedIds.size === roles.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
+                  </th>
+                  <th className="pb-3 font-semibold">Rol nomi</th>
+                  <th className="pb-3 font-semibold">Tavsif</th>
+                  <th className="pb-3 font-semibold">Priority</th>
+                  <th className="pb-3 font-semibold">Turi</th>
+                  <th className="pb-3 font-semibold">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roles.map((r) => (
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-green/8 text-sm">
+                      <td className="py-3 pr-3 w-10">
+                        <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} disabled={r.is_system} className="h-4 w-4 rounded border-green/30 text-green accent-green disabled:opacity-30" />
+                      </td>
+                      <td className="py-3 pr-3 font-semibold">{r.name}</td>
+                      <td className="py-3 pr-3 text-muted">{r.description || "—"}</td>
+                      <td className="py-3 pr-3">{r.priority}</td>
+                      <td className="py-3 pr-3">
+                        {r.is_system
+                          ? <span className="rounded-md bg-soft px-2 py-1 text-[11px] font-bold text-muted">Tizim</span>
+                          : <span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">Maxsus</span>}
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleExpand(r.id)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${expandedRole === r.id ? "bg-green text-white border-green" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
+                            Ruxsatlar
+                          </button>
+                          {!r.is_system && (
+                            <>
+                              <button className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-50">
+                                <Icon d={I.gear} className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => deleteRole(r)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50">
+                                <Icon d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1z" className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedRole === r.id && (
+                      <tr key={`${r.id}-perms`}>
+                        <td colSpan={6} className="bg-[#fafdf7] px-4 pb-4">
+                          <div className="rounded-xl border border-green/10 bg-white p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                              <h4 className="font-display text-sm font-bold">Ruxsatlar: <span className="text-green">{r.name}</span></h4>
+                              <button onClick={savePerms} disabled={savingPerms} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-green-deep disabled:opacity-60">
+                                {savingPerms ? "Saqlanmoqda..." : "Ruxsatlarni saqlash"}
+                              </button>
+                            </div>
+                            {Object.keys(groupedPerms).length === 0 && <div className="py-4 text-center text-sm text-muted">Ruxsatlar yuklanmoqda...</div>}
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                              {Object.entries(groupedPerms).map(([resource, perms]) => (
+                                <div key={resource} className="rounded-lg border border-green/8 bg-[#fafdf7] p-3">
+                                  <h5 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">{resourceLabel[resource] || resource}</h5>
+                                  <div className="space-y-1.5">
+                                    {perms.map((p) => (
+                                      <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-green/5">
+                                        <input
+                                          type="checkbox"
+                                          checked={rolePermIds.has(p.id)}
+                                          onChange={() => togglePerm(p.id)}
+                                          className="h-3.5 w-3.5 rounded border-green/30 text-green accent-green"
+                                        />
+                                        <span className="font-medium">{p.name}</span>
+                                        <span className="ml-auto text-[10px] text-muted">{p.action}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Create User Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Yangi foydalanuvchi qo'shish</h3>
+            <form onSubmit={saveUser} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Rolni tanlang</label>
+                <select value={userRole} onChange={(e) => setUserRole(e.target.value)} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                  {["super_admin", "admin", "editor", "company"].map((r) => (
+                    <option key={r} value={r}>{r.replace("_", " ")}</option>
+                  ))}
+                </select>
+                {userRole && <p className="mt-1.5 text-xs text-muted">{roleInfo[userRole]}</p>}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Ism</label>
+                <input value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="Foydalanuvchi ismi" required />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Email</label>
+                <input value={userEmail} onChange={(e) => setUserEmail(e.target.value)} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="email@example.com" required />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">Parol</label>
+                <input value={userPassword} onChange={(e) => setUserPassword(e.target.value)} type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="Kamida 6 belgi" required />
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={savingUser} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  {savingUser && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                  {savingUser ? "Yaratilmoqda…" : "Yaratish"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring"]
+const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
+const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
+
 export default function AdminDashboard() {
-  const [active, setActive] = useState("Dashboard")
   const { user, logout } = useAuth()
+  const adminRole = user?.adminRole || "super_admin"
+  const visibleNav =
+    adminRole === "editor" ? nav.filter((n) => EDITOR_SECTIONS.includes(n.label))
+    : adminRole === "admin" ? nav.filter((n) => !ADMIN_HIDDEN.includes(n.label))
+    : nav
+  const [active, setActive] = useState(visibleNav[0]?.label || "Dashboard")
   const nav2 = useNavigate()
   const initials = (user?.name || "AD").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
 
   const renderSection = () => {
+    // Ruxsat yo'q bo'limga kirilsa — birinchi ruxsatli bo'limga qaytarish
+    if (!visibleNav.some((n) => n.label === active)) return null
     switch (active) {
       case "Dashboard": return <Overview />
       case "Bloggerlar": return <Bloggers />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />
+      case "Rollar": return <AdminRoles />
       case "Bosh sahifa": return <AdminHomepage />
       case "Manbalar": return <AdminNewsSources />
       case "Foydalanuvchilar": return <AdminUsers />
@@ -1359,7 +2147,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: "Super Admin", initials }}>
+    <DashboardLayout nav={visibleNav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: roleLabels[adminRole] || "Admin", initials }}>
       {renderSection()}
     </DashboardLayout>
   )

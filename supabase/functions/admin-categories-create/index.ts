@@ -12,50 +12,35 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   try {
     const body = await req.json().catch(() => ({}))
     const errors = validate(body, {
       key: [required],
-      label: [required],
-      type: [required],
+      name_uz: [required],
     })
     if (errors.length > 0) return errorResponse(errors[0], 400)
 
-    const validTypes = ["blogger", "news", "partner"]
-    if (!validTypes.includes(body.type as string)) {
-      return errorResponse("Type notog'ri", 400)
-    }
-
-    const { key, label, type, icon, sort_order } = body as {
-      key: string
-      label: string
-      type: string
-      icon?: string
-      sort_order?: number
-    }
+    const { key, name_uz, name_ru, name_en, icon } = body as Record<string, unknown>
 
     const { data: category, error } = await supabaseAdmin
-      .from("categories")
+      .from("news_categories")
       .insert({
-        key,
-        label,
-        type,
-        icon: icon || null,
-        sort_order: sort_order ?? 0,
+        key: key as string,
+        name_uz: name_uz as string,
+        name_ru: (name_ru as string) || "",
+        name_en: (name_en as string) || "",
+        icon: (icon as string) || null,
         created_by: auth.user.id,
       })
-      .select("id, key, label, type, icon, sort_order")
+      .select("id, key, name_uz, name_ru, name_en, icon, sort_order, is_active")
       .single()
 
     if (error) throw error
 
-    return jsonResponse({
-      success: true,
-      category,
-    })
+    return jsonResponse({ success: true, category })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
 import Newsletter from "../components/Newsletter"
 
 type LivePartner = { name: string; slug: string; sphere: string; logo: string | null; direction: string }
-type PartnerStats = { total: number; countries: number; strategic: number; coverage: string }
 
 const mascot = "/mascot-partners.webp"
 
@@ -69,6 +69,17 @@ function BrandCarousel() {
 }
 
 function Hero() {
+  const [hero, setHero] = useState<{ title: string; subtitle: string }>({
+    title: "BIRGA O'SAYLIK, BIRGA YUTAYLIK!",
+    subtitle: "Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli hamkor platformasi.",
+  })
+  useEffect(() => {
+    api<{ sections: { section_key: string; title: string; subtitle: string }[] }>("/public/homepage-sections")
+      .then((d) => { const h = d.sections?.find((s) => s.section_key === "partners_hero"); if (h) setHero({ title: h.title || "BIRGA O'SAYLIK, BIRGA YUTAYLIK!", subtitle: h.subtitle || "" }) })
+      .catch(() => {})
+  }, [])
+  // Sarlavhani "so'z1 so'z2, so'z3 so'z4" formatida ikki rangда ko'rsatish uchun bo'lamiz
+  const parts = hero.title.split(" ")
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -92,13 +103,12 @@ function Hero() {
           <div>
             <Reveal>
               <h1 className="font-display text-[clamp(2.4rem,6vw,4rem)] font-extrabold leading-[1.02] tracking-[-0.03em]">
-                BIRGA <span className="text-green">O'SAYLIK,</span><br />BIRGA YUTAYLIK!
+                {parts[0]} <span className="text-green">{parts[1]}</span> {parts.slice(2).join(" ")}
               </h1>
             </Reveal>
             <Reveal delay={90}>
               <p className="mt-5 max-w-md leading-relaxed text-muted">
-                Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni
-                birlashtiruvchi ishonchli hamkor platformasi.
+                {hero.subtitle}
               </p>
             </Reveal>
             <Reveal delay={160}>
@@ -124,13 +134,24 @@ function Hero() {
 function StatsRow() {
   const [liveStats, setLiveStats] = useState<Array<{ icon: string; v: string; l: string }>>([])
   useEffect(() => {
-    api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
-      if (d.partners?.length) {
-        const spheres = new Set(d.partners.map((p) => p.sphere))
+    Promise.all([
+      api<{ sections: { section_key: string; items: { item_key?: string; icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections"),
+      api<{ partners: LivePartner[] }>("/public/partners"),
+    ]).then(([secs, pd]) => {
+      const partners = pd.partners || []
+      const spheres = new Set(partners.map((p) => p.sphere)).size
+      const sub = (v: string) => (v || "")
+        .replace(/\{\{partners\}\}/g, String(partners.length))
+        .replace(/\{\{spheres\}\}/g, String(spheres))
+      const sec = secs.sections?.find((s) => s.section_key === "partner_stats")
+      if (sec?.items?.length) {
+        setLiveStats(sec.items.map((it) => ({ icon: iconMap[it.icon] || I.star, v: sub(it.title), l: it.description })))
+      } else {
+        // fallback (DB bo'limi bo'lmasa)
         setLiveStats([
-          { icon: I.users, v: `${d.partners.length}+`, l: "Faol hamkorlar" },
-          { icon: I.building, v: `${spheres.size}+`, l: "Yo'nalishlar" },
-          { icon: I.handshake, v: `${d.partners.length}+`, l: "Strategik hamkorlar" },
+          { icon: I.users, v: `${partners.length}+`, l: "Faol hamkorlar" },
+          { icon: I.building, v: `${spheres}+`, l: "Yo'nalishlar" },
+          { icon: I.handshake, v: `${partners.length}+`, l: "Strategik hamkorlar" },
           { icon: I.globe, v: "1M+", l: "Birgalikda qamrov" },
           { icon: I.star, v: "5+", l: "Yillik tajriba" },
         ])
@@ -158,28 +179,43 @@ function StatsRow() {
 
 function Directions() {
   const [items, setItems] = useState<DirectionItem[]>([])
+  const [dirLoading, setDirLoading] = useState(true)
+  const [head, setHead] = useState<{ title: string; subtitle: string }>({
+    title: "HAMKORLIK YO'NALISHLARI",
+    subtitle: "Biz turli yo'nalishlarda yetakchi kompaniya va tashkilotlar bilan hamkorlik qilamiz. Quyidagi sohalarda o'zaro manfaatli hamkorlikni yo'lga qo'yganmiz.",
+  })
   useEffect(() => {
-    api<{ sections: { section_key: string; items: { icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections").then((d) => {
+    api<{ sections: { section_key: string; title?: string; subtitle?: string; items: { icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections").then((d) => {
       const sec = d.sections?.find((s) => s.section_key === "partner_directions")
       if (sec?.items?.length) {
         setItems(sec.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
       }
-    }).catch(() => {})
+      if (sec?.title || sec?.subtitle) setHead((h) => ({ title: sec.title || h.title, subtitle: sec.subtitle || h.subtitle }))
+    }).catch(() => {}).finally(() => setDirLoading(false))
   }, [])
+  const [dh1, ...dhrest] = head.title.split(" ")
   return (
     <section id="yonalishlar" className="mx-auto max-w-[1320px] px-5 py-14 lg:px-8">
       <Reveal>
         <div className="mb-12 text-center">
           <h2 className="font-display text-[clamp(1.8rem,5vw,2.8rem)] font-extrabold tracking-tight">
-            HAMKORLIK <span className="text-green">YO'NALISHLARI</span>
+            {dh1} <span className="text-green">{dhrest.join(" ")}</span>
           </h2>
           <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-green/40" />
           <p className="mx-auto mt-4 max-w-xl text-muted">
-            Biz turli yo'nalishlarda yetakchi kompaniya va tashkilotlar bilan hamkorlik qilamiz.
-            Quyidagi sohalarda o'zaro manfaatli hamkorlikni yo'lga qo'yganmiz.
+            {head.subtitle}
           </p>
         </div>
       </Reveal>
+      {dirLoading && items.length === 0 && (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-full rounded-2xl border border-green/10 bg-white p-6 text-center">
+              <Skeleton className="mx-auto h-16 w-16 rounded-2xl" /><Skeleton className="mx-auto mt-5 h-5 w-2/3" /><Skeleton className="mx-auto mt-2 h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      )}
       {items.length > 0 && (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {items.map((c, i) => (
@@ -231,6 +267,7 @@ function PartnerLogos() {
 }
 
 function CtaBanner() {
+  const cta = useHomeSection("partners_cta", { title: "Hamkorlikka tayyormisiz?", subtitle: "Biz bilan hamkorlik qilib, agro sohada yangi imkoniyatlarni birga yarating!" })
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
       <Reveal>
@@ -238,10 +275,8 @@ function CtaBanner() {
           <div className="absolute -right-10 -top-10 h-56 w-56 rounded-full bg-green/20 blur-3xl" />
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
-              <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">Hamkorlikka tayyormisiz?</h2>
-              <p className="mt-3 max-w-md leading-relaxed text-white/70">
-                Biz bilan hamkorlik qilib, agro sohada yangi imkoniyatlarni birga yarating!
-              </p>
+              <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">{cta.title}</h2>
+              <p className="mt-3 max-w-md leading-relaxed text-white/70">{cta.subtitle}</p>
               <a href="#" className="mt-7 inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
                 HAMKOR BO'LISH <Icon d={I.send} className="h-5 w-5" />
               </a>

@@ -4,6 +4,6 @@ export function roleHome(role?: string): string {
   if (!role) return "/dashboard"
   const fe = isDbRole(role) ? feRole(role) : role
   if (fe === "superadmin") return "/admin"
-  if (fe === "client") return "/mijoz"
+  if (fe === "partner") return "/hamkor"
   return "/dashboard"
 }

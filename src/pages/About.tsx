@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, StatsBar } from "../lib/ui"
+import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
+import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
 
 const mascot = "/mascot2.webp"
@@ -14,32 +15,6 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [pillars, setPillars] = useState<Pillar[]>([])
-  const [team, setTeam] = useState<TeamMember[]>([])
-
-  useEffect(() => {
-    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
-      const pc = d.sections?.find((s) => s.section_key === "about_pillars")
-      if (pc?.items?.length) {
-        setPillars(pc.items.map((item, i) => ({
-          icon: iconMap[item.icon] || I.star,
-          t: item.title,
-          type: (i === 2 ? "list" : "text") as "text" | "list",
-          body: item.description,
-          items: i === 2 ? item.description.split(",").map((s) => s.trim()) : undefined,
-        })))
-      }
-      const tc = d.sections?.find((s) => s.section_key === "team")
-      if (tc?.items?.length) {
-        setTeam(tc.items.map((item, i) => ({
-          name: item.title,
-          role: item.description,
-          img: (i + 1) * 12,
-        })))
-      }
-    }).catch(() => {})
-  }, [])
-
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -118,6 +93,7 @@ function Hero() {
 
 function Pillars() {
   const [pillars, setPillars] = useState<Pillar[]>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const pc = d.sections?.find((s) => s.section_key === "about_pillars")
@@ -130,8 +106,18 @@ function Pillars() {
           items: i === 2 ? item.description.split(",").map((s) => s.trim()) : undefined,
         })))
       }
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  if (loading && pillars.length === 0) return (
+    <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
+      <div className="grid gap-px overflow-hidden rounded-3xl border border-green/10 bg-green/10 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-white p-8"><Skeleton className="h-14 w-14 rounded-full" /><Skeleton className="mt-4 h-5 w-1/2" /><Skeleton className="mt-3 h-4 w-full" /><Skeleton className="mt-2 h-4 w-2/3" /></div>
+        ))}
+      </div>
+    </section>
+  )
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
@@ -201,6 +187,7 @@ function Team() {
 }
 
 function CtaBanner() {
+  const cta = useHomeSection("about_cta", { title: "BIRGA KATTA MAQSADLARGA ERISHAMIZ!", subtitle: "Agro Alliance — bu faqat platforma emas, bu agro kelajakni birga qurish harakati." })
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-8">
       <Reveal>
@@ -210,10 +197,8 @@ function CtaBanner() {
               <Icon d={I.leaf} className="h-6 w-6" />
             </span>
             <div>
-              <h3 className="font-display text-xl font-extrabold tracking-tight">BIRGA KATTA MAQSADLARGA ERISHAMIZ!</h3>
-              <p className="mt-1 text-sm text-muted">
-                Agro Alliance — bu faqat platforma emas, bu agro kelajakni birga qurish harakati.
-              </p>
+              <h3 className="font-display text-xl font-extrabold tracking-tight">{cta.title}</h3>
+              <p className="mt-1 text-sm text-muted">{cta.subtitle}</p>
             </div>
           </div>
           <a href="#" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">

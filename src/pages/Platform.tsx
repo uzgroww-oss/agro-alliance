@@ -13,16 +13,6 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [capabilities, setCapabilities] = useState<Capability[]>([])
-  useEffect(() => {
-    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
-      const cc = d.sections?.find((s) => s.section_key === "capabilities")
-      if (cc?.items?.length) {
-        setCapabilities(cc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
-      }
-    }).catch(() => {})
-  }, [])
-
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -118,6 +108,8 @@ function Capabilities({ capabilities }: { capabilities: { icon: string; t: strin
     </section>
   )
 }
+
+const defaultCapabilities: Capability[] = []
 
 export default function Platform() {
   const [capabilities, setCapabilities] = useState(defaultCapabilities)

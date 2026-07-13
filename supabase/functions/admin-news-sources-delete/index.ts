@@ -12,20 +12,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireRole(req, "super_admin")
+    const auth = await requireRole(req, "super_admin", "admin", "editor")
     if (auth.response) return auth.response
 
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
     if (!id) return errorResponse("id kerak", 400)
 
-    const now = new Date().toISOString()
-
     const { error } = await supabaseAdmin
       .from("news_sources")
-      .update({ deleted_at: now, deleted_by: auth.user.id })
+      .delete()
       .eq("id", id)
-      .is("deleted_at", null)
 
     if (error) return errorResponse(error.message, 500)
 

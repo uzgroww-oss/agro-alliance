@@ -2,7 +2,8 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
 import { roleHome } from "../lib/roles"
-import { setToken } from "../lib/api"
+import { setRememberPref } from "../lib/api"
+import { useAuth } from "../lib/auth"
 import { supabase } from "../lib/supabase"
 
 const mascot = "/mascot.webp"
@@ -25,7 +26,8 @@ const features = [
 ]
 
 export default function Login() {
-  const nav = useNavigate()
+  const navigate = useNavigate()
+  const { login } = useAuth()
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(true)
   const [email, setEmail] = useState("")
@@ -38,17 +40,11 @@ export default function Login() {
     setError("")
     setBusy(true)
     try {
-      // Edge function orqali login — email tasdiqlashni tekshirmaydi
-      const { data, error } = await supabase.functions.invoke("auth-login", {
-        body: { email, password },
-      })
-      if (error) throw error
-      if (!data?.token) throw new Error("Token olinmadi")
-      setToken(data.token)
-      // Auth state yangilash uchun sahifani qayta yuklash
-      window.location.href = roleHome(data.user?.role || "client")
-    } catch (err: any) {
-      setError(err?.message || "Kirishda xatolik")
+      setRememberPref(remember)
+      const user = await login(email, password)
+      navigate(roleHome(user.role), { replace: true })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Kirishda xatolik")
     } finally {
       setBusy(false)
     }
@@ -137,7 +133,7 @@ export default function Login() {
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex cursor-pointer items-center gap-2 select-none">
-                  <span onClick={() => setRemember((r) => !r)} className={`grid h-5 w-5 place-items-center rounded-md border transition-colors ${remember ? "border-green bg-green text-white" : "border-green/30 bg-white"}`}>{remember && <Icon d="M9 12l2 2 4-4" className="h-3.5 w-3.5" sw={3} />}</span>
+                  <span onClick={() => { const next = !remember; setRememberPref(next); setRemember(next) }} className={`grid h-5 w-5 place-items-center rounded-md border transition-colors ${remember ? "border-green bg-green text-white" : "border-green/30 bg-white"}`}>{remember && <Icon d="M9 12l2 2 4-4" className="h-3.5 w-3.5" sw={3} />}</span>
                   <span className="text-ink/70">Meni eslab qol</span>
                 </label>
                 <Link to="/reset-password" className="font-semibold text-green hover:underline">Parolni unutdingiz?</Link>

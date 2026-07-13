@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
+import DOMPurify from "dompurify"
+import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
 
 export default function NewsDetail() {
   const { slug } = useParams()
   const [article, setArticle] = useState<News | null>(null)
   const [related, setRelated] = useState<News[]>([])
+  const [relatedLoading, setRelatedLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
     if (!slug) return
     let alive = true
-    setLoading(true)
-    setError("")
     loadNewsDetail(slug)
       .then((a) => { if (alive) setArticle(a) })
-      .catch((e) => { if (alive) setError(e?.message || "Yuklashda xatolik") })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Yuklashda xatolik") })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [slug])
@@ -25,7 +25,8 @@ export default function NewsDetail() {
   useEffect(() => {
     if (!slug) return
     let alive = true
-    loadRelatedNews(slug).then((list) => { if (alive) setRelated(list) })
+    setRelatedLoading(true)
+    loadRelatedNews(slug).then((list) => { if (alive) setRelated(list) }).finally(() => { if (alive) setRelatedLoading(false) })
     return () => { alive = false }
   }, [slug])
 
@@ -85,7 +86,7 @@ export default function NewsDetail() {
         <Reveal delay={120}>
           <div className="mt-7 space-y-5 text-[17px] leading-relaxed text-ink/80">
             <p className="text-lg font-medium text-ink">{article.desc}</p>
-            <div dangerouslySetInnerHTML={{ __html: article.body.join("") }} />
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.body.join("")) }} />
           </div>
         </Reveal>
 
@@ -108,7 +109,16 @@ export default function NewsDetail() {
         <Reveal>
           <h2 className="mb-6 font-display text-2xl font-extrabold tracking-tight">O'xshash <span className="text-green">yangiliklar</span></h2>
         </Reveal>
-        {more.length === 0 ? (
+        {relatedLoading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="overflow-hidden rounded-2xl border border-green/10 bg-white">
+                <Skeleton className="h-40 w-full" />
+                <div className="space-y-3 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-5 w-full" /></div>
+              </div>
+            ))}
+          </div>
+        ) : more.length === 0 ? (
           <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">O'xshash yangiliklar topilmadi.</div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

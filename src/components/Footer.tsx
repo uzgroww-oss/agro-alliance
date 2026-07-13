@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
 import { usePublicSettings } from "../lib/settings"
+import { api } from "../lib/api"
 
 const cols = [
   { h: "Platforma", links: [["Blogerlar", "/blogerlar"], ["Yangiliklar", "/yangiliklar"], ["Hamkorlar", "/hamkorlar"], ["Aloqa", "/aloqa"]] },
@@ -14,17 +16,31 @@ const socialIcons: Record<string, string> = {
   telegram_url: I.telegram,
   youtube_url: I.youtube,
 }
+const socialIconByKey: Record<string, string> = {
+  social_facebook: I.facebook, social_instagram: I.instagram, social_telegram: I.telegram, social_youtube: I.youtube,
+}
+type FItem = { item_key?: string; title: string; description?: string; icon?: string; link?: string }
 
 export default function Footer() {
   const { settings } = usePublicSettings()
+  const [fsec, setFsec] = useState<{ subtitle?: string; items: FItem[] } | null>(null)
+  useEffect(() => {
+    api<{ sections: { section_key: string; subtitle?: string; items: FItem[] }[] }>("/public/homepage-sections")
+      .then((d) => { const f = d.sections?.find((s) => s.section_key === "footer"); if (f) setFsec({ subtitle: f.subtitle, items: f.items || [] }) })
+      .catch(() => {})
+  }, [])
+  const fItem = (k: string) => fsec?.items?.find((i) => i.item_key === k)
 
-  const phone = settings.contact_phone || "+998 90 123 45 67"
-  const email = settings.contact_email || "info@agroalliance.uz"
-  const address = settings.contact_address || "Toshkent, Amir Temur ko'chasi, 123-uy"
+  const brandText = fsec?.subtitle || "Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi."
+  const phone = fItem("phone")?.description || settings.contact_phone || "+998 90 123 45 67"
+  const email = fItem("email")?.description || settings.contact_email || "info@agroalliance.uz"
+  const address = fItem("address")?.description || settings.contact_address || "Toshkent, Amir Temur ko'chasi, 123-uy"
 
-  const socialLinks = Object.entries(socialIcons)
-    .map(([key, icon]) => ({ url: settings[key], icon }))
-    .filter((s) => s.url)
+  const seededSocials = (fsec?.items || [])
+    .filter((i) => i.item_key?.startsWith("social_") && i.link && i.link !== "#")
+    .map((i) => ({ url: i.link as string, icon: socialIconByKey[i.item_key as string] || I.link2 }))
+  const settingsSocials = Object.entries(socialIcons).map(([key, icon]) => ({ url: settings[key], icon })).filter((s) => s.url)
+  const socialLinks = seededSocials.length ? seededSocials : settingsSocials
 
   return (
     <footer className="bg-ink text-white">
@@ -37,7 +53,7 @@ export default function Footer() {
               <span className="font-display text-lg font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/55">
-              Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi.
+              {brandText}
             </p>
             <div className="mt-5 flex gap-2.5">
               {socialLinks.map((s, i) => (

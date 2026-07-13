@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   if (cors) return cors
 
   try {
-    const auth = await requireRole(req, "super_admin")
+    const auth = await requireRole(req, "super_admin", "admin")
     if (auth.response) return auth.response
 
     const { data, error } = await supabaseAdmin
@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
       )
       return {
         id: b.id,
+        slug: b.slug,
         name: profile.name || "",
         email: profile.email || "",
         status: profile.status || "",

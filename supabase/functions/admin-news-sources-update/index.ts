@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireRole(req, "super_admin")
+    const auth = await requireRole(req, "super_admin", "admin", "editor")
     if (auth.response) return auth.response
 
     const url = new URL(req.url)

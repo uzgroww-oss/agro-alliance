@@ -64,7 +64,7 @@ Deno.serve(async (_req) => {
   try {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
     const { count } = await supabaseAdmin.from("news_articles").select("id", { count: "exact", head: true }).gte("created_at", todayStart.toISOString()).is("deleted_at", null).not("source_name", "is", null)
-    const TARGET = 3, remaining = TARGET - (count || 0)
+    const TARGET = 5, remaining = TARGET - (count || 0)
     if (remaining <= 0) return new Response(JSON.stringify({ message: "Limit reached", count }), { status: 200 })
 
     // RSS

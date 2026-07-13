@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   try {
     const auth = await verifyAuth(req)
     if (auth.response) return auth.response
-    if (auth.user.role !== "super_admin" && auth.user.role !== "admin") {
+    if (auth.user.role !== "super_admin" && auth.user.role !== "admin" && auth.user.role !== "editor") {
       return errorResponse("Ruxsat yo'q", 403, "FORBIDDEN")
     }
 
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
         reading_time, view_count,
         seo_title, seo_description, meta_keywords,
         created_at, updated_at,
-        category:news_categories(id, key, name_uz),
+        category:news_categories!category_id(id, key, name_uz),
         author:profiles!author_id(id, name, avatar)
       `)
       .eq("id", id)
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     const { data: tags } = await supabaseAdmin
       .from("news_article_tags")
       .select(`
-        tag:news_tags(id, name)
+        tag:news_tags!tag_id(id, name)
       `)
       .eq("article_id", id)
 

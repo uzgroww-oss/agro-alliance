@@ -65,6 +65,7 @@ export function dbProfileToUser(profile: DbProfile, roleName: string): User {
     name: profile.name,
     email: profile.email,
     role: feRole(roleName) as User["role"],
+    adminRole: roleName,
     partnerId: null,
     status: profile.status,
     profile: profile.metadata as Record<string, string> | undefined,

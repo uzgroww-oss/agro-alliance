@@ -46,6 +46,8 @@ export type NewsListResponse = {
 export async function loadNews(params?: {
   category?: string
   search?: string
+  theme?: string
+  date?: string
   page?: number
   per_page?: number
 }): Promise<NewsListResponse> {
@@ -53,6 +55,8 @@ export async function loadNews(params?: {
     const q = new URLSearchParams()
     if (params?.category && params.category !== "all") q.set("category", params.category)
     if (params?.search) q.set("search", params.search)
+    if (params?.theme && params.theme !== "Barchasi") q.set("theme", params.theme)
+    if (params?.date && params.date !== "Barchasi") q.set("date", params.date)
     if (params?.page) q.set("page", String(params.page))
     if (params?.per_page) q.set("per_page", String(params.per_page))
     const qs = q.toString()

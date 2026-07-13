@@ -69,14 +69,14 @@ export async function verifyAuth(req: Request): Promise<
 
 export async function requireRole(
   req: Request,
-  role: DbRoleName,
+  ...roles: DbRoleName[]
 ): Promise<
   { user: AuthUser; response: null } | { user: null; response: Response }
 > {
   const result = await verifyAuth(req)
   if (result.response) return result
 
-  if (result.user.role !== role) {
+  if (!roles.includes(result.user.role as DbRoleName)) {
     return {
       user: null,
       response: errorResponse("Ruxsat yo'q", 403, "FORBIDDEN"),

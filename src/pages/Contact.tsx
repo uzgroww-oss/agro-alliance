@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I } from "../lib/ui"
 import { api } from "../lib/api"
 import { usePublicSettings } from "../lib/settings"
+import { useHomeSection } from "../lib/sections"
 
 const mascot = "/mascot-contact.webp"
 
@@ -43,8 +44,8 @@ function NewsletterInline() {
     try {
       await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
       setSent(true)
-    } catch (err: any) {
-      setError(err?.message || "Obunada xatolik")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Obunada xatolik")
     } finally {
       setBusy(false)
     }
@@ -78,6 +79,8 @@ function NewsletterInline() {
 
 function Hero() {
   const { settings } = usePublicSettings()
+  const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: "Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!" })
+  const hParts = h.title.split(" ")
   const phone = settings.contact_phone || "+998 90 123 45 67"
   const email = settings.contact_email || "info@agroalliance.uz"
   const address = settings.contact_address || "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy"
@@ -115,14 +118,11 @@ function Hero() {
             </Reveal>
             <Reveal delay={70}>
               <h1 className="mt-4 font-display text-[clamp(2.4rem,6vw,4rem)] font-extrabold leading-[1] tracking-[-0.03em]">
-                Biz bilan <span className="text-green">bog'laning!</span>
+                {hParts.slice(0, -1).join(" ")} <span className="text-green">{hParts[hParts.length - 1]}</span>
               </h1>
             </Reveal>
             <Reveal delay={140}>
-              <p className="mt-4 max-w-md leading-relaxed text-muted">
-                Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun
-                biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!
-              </p>
+              <p className="mt-4 max-w-md leading-relaxed text-muted">{h.subtitle}</p>
             </Reveal>
 
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
@@ -177,8 +177,8 @@ function ContactForm() {
       }
       await api("/contact-submit", { method: "POST", body: JSON.stringify(payload) })
       setSent(true)
-    } catch (err: any) {
-      setError(err?.message || "Yuborishda xatolik")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Yuborishda xatolik")
     }
   }
   const inputCls = "w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
@@ -381,8 +381,8 @@ export default function Contact() {
   useEffect(() => {
     api<{ settings: Record<string, string> }>("/public/settings").then((d) => {
       const s = d.settings
-      if (s.offices) { try { setOffices(JSON.parse(s.offices)) } catch {} }
-      if (s.faqs) { try { setFaqs(JSON.parse(s.faqs)) } catch {} }
+      if (s.offices) { try { setOffices(JSON.parse(s.offices)) } catch { /* invalid JSON */ } }
+      if (s.faqs) { try { setFaqs(JSON.parse(s.faqs)) } catch { /* invalid JSON */ } }
     }).catch(() => {})
   }, [])
 

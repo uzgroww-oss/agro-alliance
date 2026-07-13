@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
-import { Reveal, Icon, I, StatsBar } from "../lib/ui"
+import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { api } from "../lib/api"
-import { newsImg } from "../lib/news"
-import Newsletter from "../components/Newsletter"
 
 const mascot = "/mascot.webp"
 
@@ -21,11 +18,25 @@ type Section = { section_key: string; title: string; subtitle: string; items: Se
 
 function Hero() {
   const [heroCards, setHeroCards] = useState<HeroCard[]>([])
+  const [main, setMain] = useState<{ tagline: string; title1: string; title2: string; subtitle: string }>({
+    tagline: "AGRO KELAJAKNI BIRGA KO'RSATAMIZ", title1: "AGRO", title2: "ALLIANCE",
+    subtitle: "Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma.",
+  })
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const hc = d.sections?.find((s) => s.section_key === "hero_cards")
       if (hc?.items?.length) {
         setHeroCards(hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
+      }
+      const hm = d.sections?.find((s) => s.section_key === "hero_main")
+      if (hm) {
+        const byKey = (k: string) => hm.items?.find((it) => (it as SectionItem & { item_key?: string }).item_key === k)?.title
+        setMain((m) => ({
+          tagline: byKey("tagline") || m.tagline,
+          title1: byKey("title_line1") || m.title1,
+          title2: byKey("title_line2") || m.title2,
+          subtitle: hm.subtitle || m.subtitle,
+        }))
       }
     }).catch(() => {})
   }, [])
@@ -44,18 +55,17 @@ function Hero() {
           <Reveal>
             <span className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-green/25 bg-white px-4 py-2 text-xs font-bold tracking-wide text-green shadow-sm">
               <Icon d={I.leaf} className="h-4 w-4" />
-              AGRO KELAJAKNI BIRGA KO'RSATAMIZ
+              {main.tagline}
             </span>
           </Reveal>
           <Reveal delay={80}>
             <h1 className="font-display text-[clamp(2.8rem,7vw,5.2rem)] font-extrabold leading-[0.95] tracking-[-0.03em] text-ink">
-              AGRO <span className="text-green">ALLIANCE</span>
+              {main.title1} <span className="text-green">{main.title2}</span>
             </h1>
           </Reveal>
           <Reveal delay={160}>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
-              Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi
-              innovatsion media platforma.
+              {main.subtitle}
             </p>
           </Reveal>
           <Reveal delay={240}>
@@ -98,14 +108,18 @@ function Hero() {
 
 function Features() {
   const [features, setFeatures] = useState<FeatureCard[]>([])
+  const [loading, setLoading] = useState(true)
+  const [heading, setHeading] = useState("BARCHASI BIR PLATFORMADA")
   useEffect(() => {
     api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
       const fc = d.sections?.find((s) => s.section_key === "features")
       if (fc?.items?.length) {
         setFeatures(fc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
       }
-    }).catch(() => {})
+      if (fc?.title) setHeading(fc.title)
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+  const [h1, ...hrest] = heading.split(" ")
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8 lg:py-20">
@@ -114,11 +128,18 @@ function Features() {
           <div className="mb-3 flex items-center justify-center gap-2 text-green">
           </div>
           <h2 className="font-display text-[clamp(1.8rem,5vw,3rem)] font-extrabold tracking-tight">
-            BARCHASI <span className="text-green">BIR PLATFORMADA</span>
+            {h1} <span className="text-green">{hrest.join(" ")}</span>
           </h2>
         </div>
       </Reveal>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {loading && features.length === 0 && Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-full rounded-2xl border border-green/10 bg-white p-7">
+            <Skeleton className="h-14 w-14 rounded-2xl" />
+            <Skeleton className="mt-6 h-5 w-1/2" />
+            <Skeleton className="mt-3 h-4 w-full" />
+          </div>
+        ))}
         {features.map((f, i) => (
           <Reveal key={f.t} delay={(i % 3) * 90}>
             <div className="group h-full rounded-2xl border border-green/10 bg-white p-7 shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
@@ -134,13 +155,6 @@ function Features() {
     </section>
   )
 }
-
-type NewsItem = { slug: string; title: string; cat: string; desc: string; date: string; views: string; seed: string }
-type BloggerItem = { id: string; name: string; avatar: string; niche: string; region: string }
-
-
-
-
 
 export default function Home() {
   return (

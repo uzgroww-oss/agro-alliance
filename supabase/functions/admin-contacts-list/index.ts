@@ -7,7 +7,7 @@ Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin")
   if (auth.response) return auth.response
 
   try {

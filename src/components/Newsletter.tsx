@@ -17,8 +17,8 @@ export default function Newsletter({ variant = "default" }: { variant?: "default
       await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
       setSent(true)
       setEmail("")
-    } catch (err: any) {
-      setError(err?.message || "Obunada xatolik")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Obunada xatolik")
     } finally {
       setBusy(false)
     }

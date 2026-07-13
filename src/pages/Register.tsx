@@ -11,6 +11,7 @@ export default function Register() {
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,21 +35,16 @@ export default function Register() {
       })
       if (error) throw error
 
-      // Agar session bo'lsa — avtomatik login
+      // Agar session bo'lsa (email tasdiqlash o'chirilgan) — avtomatik login
       if (data?.session) {
         nav("/")
         return
       }
 
-      // Session yo'q bo'lsa — avtomatik signIn qilish
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
-      if (signInError) throw signInError
-      nav("/")
-    } catch (err: any) {
-      setError(err?.message || "Ro'yxatdan o'tishda xatolik")
+      // Session yo'q — email tasdiqlash talab qilinadi
+      setRegistered(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Ro'yxatdan o'tishda xatolik")
     } finally {
       setBusy(false)
     }
@@ -62,6 +58,21 @@ export default function Register() {
           <span className="font-display text-lg font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
         </Link>
         <h2 className="text-center text-2xl font-bold mb-6">Ro'yxatdan o'tish</h2>
+        {registered ? (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-green text-white">
+              <Icon d="M9 12l2 2 4-4" className="h-8 w-8" sw={2.5} />
+            </span>
+            <h3 className="font-display text-xl font-extrabold">Ro'yxatdan o'tdingiz!</h3>
+            <p className="max-w-xs text-sm text-muted">
+              Elektron pochtangizga tasdiqlash havolasi yuborildi. Iltimos, pochtangizni tekshiring.
+            </p>
+            <Link to="/kirish" className="text-sm font-bold text-green hover:underline">
+              Kirish sahifasiga o'tish
+            </Link>
+          </div>
+        ) : (
+        <>
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
             <Icon d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 8v4 M12 16h.01" className="h-4 w-4 shrink-0" />
@@ -128,6 +139,8 @@ export default function Register() {
         <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-muted">
           <Icon d={I.shield} className="h-4 w-4 text-green" /> Ma'lumotlaringiz xavfsiz va himoyalangan
         </p>
+        </>
+        )}
       </div>
     </div>
   )

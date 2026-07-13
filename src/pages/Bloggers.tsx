@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
-import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, type Blogger } from "../lib/bloggers"
-import { api } from "../lib/api"
+import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
+import { supabase } from "../lib/supabase"
 
 const mascot = "/mascot3.webp"
 
@@ -40,17 +40,30 @@ function Socials() {
   )
 }
 
-function Hero() {
-  const [heroStats, setHeroStats] = useState<HeroStat[]>([])
+function Hero({ topBlogger }: { topBlogger: Blogger | null }) {
+  const [heroStats, setHeroStats] = useState<HeroStat[]>([
+    { icon: I.users, v: "0+", l: "Faol blogerlar" },
+    { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
+    { icon: I.building, v: "5M+", l: "Jami auditoriya" },
+    { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
+  ])
+
   useEffect(() => {
-    api<{ bloggers: { id: string }[]; pagination: { total: number } }>("/public/bloggers?per_page=1").then((d) => {
-      setHeroStats([
-        { icon: I.users, v: `${d.pagination?.total || 0}+`, l: "Faol blogerlar" },
-        { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
-        { icon: I.building, v: "5M+", l: "Jami auditoriya" },
-        { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
-      ])
-    }).catch(() => {})
+    // Fetch real blogger count directly from DB
+    supabase
+      .from("bloggers")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .eq("is_verified", true)
+      .then(({ count }) => {
+        const total = count || 0
+        setHeroStats((prev) =>
+          prev.map((s) =>
+            s.l === "Faol blogerlar" ? { ...s, v: `${total}+` } : s
+          )
+        )
+      })
+      .catch(() => {})
   }, [])
   return (
     <section className="relative overflow-hidden">
@@ -114,17 +127,28 @@ function Hero() {
               </div>
               <div className="mt-5 flex flex-col items-center text-center">
                 <div className="relative">
-                  <img src={cover("elyor")} alt="" className="h-20 w-20 rounded-full object-cover ring-4 ring-soft" />
-                  <span className="absolute -right-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-green text-xs font-bold text-white ring-2 ring-white">1</span>
+                  {topBlogger ? (
+                    <>
+                      <img
+                        src={topBlogger.avatar || cover(topBlogger.seed)}
+                        alt=""
+                        className="h-20 w-20 rounded-full object-cover ring-4 ring-soft"
+                        onError={(e) => { (e.target as HTMLImageElement).src = cover(topBlogger.seed) }}
+                      />
+                      <span className="absolute -right-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-green text-xs font-bold text-white ring-2 ring-white">1</span>
+                    </>
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-soft ring-4 ring-soft" />
+                  )}
                 </div>
-                <h3 className="mt-3 font-display font-bold">Fermer Elyor</h3>
-                <p className="text-xs text-muted">Issiqxona • Fermerlik</p>
+                <h3 className="mt-3 font-display font-bold">{topBlogger?.name || "—"}</h3>
+                <p className="text-xs text-muted">{topBlogger?.tag || ""}</p>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
-                  { icon: I.play, v: "1.2M+", l: "Obunachilar" },
-                  { icon: I.chart, v: "8.7%", l: "Engagement" },
-                  { icon: I.star, v: "4.9", l: "Reyting" },
+                  { icon: I.users, v: topBlogger?.subs || "0", l: "Obunachilar" },
+                  { icon: I.play, v: topBlogger?.views || "0", l: "Ko'rishlar" },
+                  { icon: I.star, v: topBlogger?.rating?.toString() || "0", l: "Reyting" },
                 ].map((x) => (
                   <div key={x.l}>
                     <Icon d={x.icon} className="mx-auto h-4 w-4 text-green" />
@@ -133,10 +157,12 @@ function Hero() {
                   </div>
                 ))}
               </div>
-              <Link to="/blogerlar/elyor" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-                PROFILNI KO'RISH
-                <Icon d={I.arrow} className="h-4 w-4" />
-              </Link>
+              {topBlogger && (
+                <Link to={`/blogerlar/${topBlogger.slug}`} className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+                  PROFILNI KO'RISH
+                  <Icon d={I.arrow} className="h-4 w-4" />
+                </Link>
+              )}
             </div>
           </Reveal>
         </div>
@@ -151,30 +177,42 @@ export default function Bloggers() {
   const [region, setRegion] = useState("Barchasi")
   const [platform, setPlatform] = useState("Barchasi")
   const [sort, setSort] = useState("Barchasi")
+  const [page, setPage] = useState(1)
   const [bloggersList, setBloggersList] = useState<Blogger[]>([])
-  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({ page: 1, per_page: 12, total: 0, total_pages: 1 })
+  const [loading, setLoading] = useState(true)
+  const [topBlogger, setTopBlogger] = useState<Blogger | null>(null)
 
   useEffect(() => {
-    setLoading(true)
+    loadTopBlogger().then(setTopBlogger)
+  }, [])
+
+  const load = useCallback((p: number) => {
     loadBloggers({
       category: cat !== "all" ? cat : undefined,
       region: region !== "Barchasi" ? region : undefined,
       search: query.trim() || undefined,
       sort: sort !== "Barchasi" ? sort : undefined,
-      per_page: 50,
+      platform: platform !== "Barchasi" ? platform : undefined,
+      page: p,
+      per_page: 12,
     })
-      .then((res) => setBloggersList(res.bloggers))
+      .then((res) => { setBloggersList(res.bloggers); setPagination(res.pagination) })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [cat, region, query, sort])
+  }, [cat, region, query, sort, platform])
+
+  useEffect(() => {
+    load(page)
+  }, [load, page])
 
   const reset = () => {
-    setQuery(""); setCat("all"); setRegion("Barchasi"); setPlatform("Barchasi"); setSort("Barchasi")
+    setQuery(""); setCat("all"); setRegion("Barchasi"); setPlatform("Barchasi"); setSort("Barchasi"); setPage(1)
   }
 
   return (
     <>
-      <Hero />
+      <Hero topBlogger={topBlogger} />
 
       <section className="mx-auto max-w-[1320px] px-5 lg:px-8">
         <div className="rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
@@ -185,16 +223,16 @@ export default function Bloggers() {
                 <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => { setQuery(e.target.value); setPage(1) }}
                   placeholder="Bloger nomi yoki yo'nalishi..."
                   className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
                 />
               </div>
             </label>
-            <Select label="Yo'nalish" value={catLabel(cat)} onChange={(v) => setCat(categories.find((c) => c.label === v)?.key ?? "all")} options={categories.map((c) => c.label)} />
-            <Select label="Platforma" value={platform} onChange={setPlatform} options={platforms} />
-            <Select label="Hudud" value={region} onChange={setRegion} options={regions} />
-            <Select label="Saralash" value={sort} onChange={setSort} options={sorts} />
+            <Select label="Yo'nalish" value={catLabel(cat)} onChange={(v) => { setCat(categories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={categories.map((c) => c.label)} />
+            <Select label="Platforma" value={platform} onChange={(v) => { setPlatform(v); setPage(1) }} options={platforms} />
+            <Select label="Hudud" value={region} onChange={(v) => { setRegion(v); setPage(1) }} options={regions} />
+            <Select label="Saralash" value={sort} onChange={(v) => { setSort(v); setPage(1) }} options={sorts} />
             <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green/30 bg-white px-5 py-3 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">
               FILTRNI TOZALASH
               <Icon d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5" className="h-4 w-4" />
@@ -210,7 +248,7 @@ export default function Bloggers() {
             return (
               <button
                 key={c.key}
-                onClick={() => setCat(c.key)}
+                onClick={() => { setCat(c.key); setPage(1) }}
                 className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                   active ? "border-green bg-green/10 text-green" : "border-green/15 bg-white text-ink/70 hover:border-green/40 hover:text-green"
                 }`}
@@ -224,7 +262,16 @@ export default function Bloggers() {
       </section>
 
       <section className="mx-auto max-w-[1320px] px-5 pb-10 lg:px-8">
-        {loading && <div className="text-center py-12 text-muted">Yuklanmoqda…</div>}
+        {loading && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="overflow-hidden rounded-2xl border border-green/10 bg-white">
+                <Skeleton className="h-32 w-full" />
+                <div className="space-y-3 p-5"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-4 w-full" /><Skeleton className="h-9 w-full rounded-lg" /></div>
+              </div>
+            ))}
+          </div>
+        )}
         {!loading && bloggersList.length === 0 ? (
           <div className="rounded-3xl border border-green/10 bg-white py-20 text-center text-muted">
             Hech narsa topilmadi. Filtrlarni tozalab ko'ring.
@@ -235,7 +282,13 @@ export default function Bloggers() {
               <Reveal key={b.slug} delay={(i % 3) * 80}>
                 <div className="group overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
                   <div className="relative h-44 overflow-hidden">
-                    <img src={cover(b.seed)} alt={b.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    {b.cover ? (
+                      <img src={b.cover} alt={b.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-green/20 to-green/5">
+                        <span className="font-display text-4xl font-extrabold text-green/40">{b.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
                     {b.top && (
                       <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow">
@@ -286,24 +339,27 @@ export default function Bloggers() {
           </div>
         )}
 
-        <div className="mt-12 flex items-center justify-center gap-2">
-          <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted transition-colors hover:border-green hover:text-green">
-            <Icon d={I.chevLeft} className="h-4 w-4" />
-          </button>
-          {["1", "2", "3", "4", "…", "10"].map((p, i) => (
-            <button
-              key={i}
-              className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${
-                p === "1" ? "bg-green text-white shadow-lg shadow-green/30" : "border border-green/15 bg-white text-ink/70 hover:border-green hover:text-green"
-              }`}
+        {pagination.total_pages > 1 && (
+          <div className="mt-12 flex items-center justify-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className={`grid h-10 w-10 place-items-center rounded-lg border ${page === 1 ? "border-gray-200 bg-gray-100 text-gray-400" : "border-green/15 bg-white text-muted hover:border-green hover:text-green"}`}
             >
-              {p}
+              <Icon d={I.chevLeft} className="h-4 w-4" />
             </button>
-          ))}
-          <button className="grid h-10 w-10 place-items-center rounded-lg border border-green/15 bg-white text-muted transition-colors hover:border-green hover:text-green">
-            <Icon d={I.chevRight} className="h-4 w-4" />
-          </button>
-        </div>
+            {Array.from({ length: pagination.total_pages }, (_, i) => i + 1).map((p) => (
+              <button key={p} onClick={() => setPage(p)}
+                className={`grid h-10 min-w-10 place-items-center rounded-lg px-3 text-sm font-bold transition-colors ${p === page ? "bg-green text-white shadow-lg shadow-green/30" : "border border-green/15 bg-white text-ink/70 hover:border-green hover:text-green"}`}
+              >
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))} disabled={page === pagination.total_pages}
+              className={`grid h-10 w-10 place-items-center rounded-lg border ${page === pagination.total_pages ? "border-gray-200 bg-gray-100 text-gray-400" : "border-green/15 bg-white text-muted hover:border-green hover:text-green"}`}
+            >
+              <Icon d={I.chevRight} className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </section>
     </>
   )

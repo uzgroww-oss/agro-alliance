@@ -2,7 +2,6 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { now } from "../_shared/time.ts"
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -12,7 +11,7 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin")
   if (auth.response) return auth.response
 
   try {
@@ -21,9 +20,8 @@ Deno.serve(async (req) => {
 
     const { error } = await supabaseAdmin
       .from("contact_messages")
-      .update({ deleted_at: now(), deleted_by: auth.user.id })
+      .delete()
       .eq("id", id)
-      .is("deleted_at", null)
 
     if (error) return errorResponse(error.message, 500)
 

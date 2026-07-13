@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   try {
     const auth = await verifyAuth(req)
     if (auth.response) return auth.response
-    if (auth.user.role !== "super_admin" && auth.user.role !== "admin") {
+    if (auth.user.role !== "super_admin" && auth.user.role !== "admin" && auth.user.role !== "editor") {
       return errorResponse("Ruxsat yo'q", 403, "FORBIDDEN")
     }
 
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       .select(`
         id, title, slug, status, language, is_featured, is_breaking,
         published_at, view_count, created_at,
-        category:news_categories(id, name_uz, key),
+        category:news_categories!category_id(id, name_uz, key),
         author:profiles!author_id(id, name)
       `, { count: "exact" })
       .is("deleted_at", null)

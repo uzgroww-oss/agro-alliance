@@ -7,15 +7,14 @@ Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   try {
     const { data: categories, error } = await supabaseAdmin
-      .from("categories")
-      .select("id, key, label, type, icon, sort_order")
+      .from("news_categories")
+      .select("id, key, name_uz, name_ru, name_en, icon, sort_order, is_active")
       .is("deleted_at", null)
-      .order("type", { ascending: true })
       .order("sort_order", { ascending: true })
 
     if (error) throw error

@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   try {
     const auth = await verifyAuth(req)
     if (auth.response) return auth.response
-    if (auth.user.role !== "super_admin" && auth.user.role !== "admin") {
+    if (auth.user.role !== "super_admin" && auth.user.role !== "admin" && auth.user.role !== "editor") {
       return errorResponse("Ruxsat yo'q", 403, "FORBIDDEN")
     }
 

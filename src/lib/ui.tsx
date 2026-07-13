@@ -1,10 +1,58 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { api } from "./api"
+
+/* ---------- Skeleton loader ---------- */
+const shimmer = "animate-shimmer bg-gradient-to-r from-gray-100 via-gray-200/60 to-gray-100 bg-[length:200%_100%]"
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`${shimmer} rounded-lg ${className}`} />
+}
+
+export function SkeletonCard({ className = "" }: { className?: string }) {
+  return (
+    <div className={`rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)] ${className}`}>
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-xl" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-5 w-32" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex gap-4">
+          {Array.from({ length: cols }).map((_, j) => (
+            <Skeleton key={j} className={`h-5 ${j === 0 ? "w-48" : j === cols - 1 ? "w-24" : "flex-1"}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function SkeletonStatGrid() {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  )
+}
 
 export const logo = "/logo.webp"
 
 /* ---------- Shared helpers ---------- */
-export const fmtSom = (n: number) => {
+export const fmtSom = (n: number | null | undefined) => {
+  if (n == null) return "0"
   if (n >= 1e9) return (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + " mlrd"
   if (n >= 1e6) return (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + " mln"
   return n.toLocaleString("ru-RU")
@@ -101,6 +149,8 @@ export const I = {
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
   link2: "M9 17H7A5 5 0 0 1 7 7h2 M15 7h2a5 5 0 0 1 0 10h-2 M8 12h8",
   dashboard: "M3 3h8v8H3z M13 3h8v5h-8z M13 11h8v10h-8z M3 13h8v8H3z",
+  image: "M15 3h6v6 M9 21h-4a2 2 0 0 1-2-2v-4 M21 9v10a2 2 0 0 1-2 2h-10 M3 15l4-4 2 2 4-4 2 2",
+  fileText: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
   refresh: "M3 12a9 9 0 0 1 15-6.7L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-15 6.7L3 16 M3 21v-5h5",
 }
 

@@ -82,3 +82,10 @@
 ::-webkit-scrollbar { width: 11px; }
 ::-webkit-scrollbar-track { background: var(--color-soft); }
 ::-webkit-scrollbar-thumb { background: var(--color-green); border-radius: 10px; }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer { animation: shimmer 1.8s ease-in-out infinite; }

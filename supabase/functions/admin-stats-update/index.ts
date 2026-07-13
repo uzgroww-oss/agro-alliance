@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { getDynamicStats } from "../_shared/stats.ts"
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -11,7 +12,7 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   try {
@@ -67,7 +68,9 @@ Deno.serve(async (req) => {
 
     if (fetchError) return errorResponse(fetchError.message, 500)
 
-    return jsonResponse({ success: true, stats: data || [] })
+    const dynamicStats = await getDynamicStats(data || [])
+
+    return jsonResponse({ success: true, stats: dynamicStats })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

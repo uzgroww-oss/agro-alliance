@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode, useRef } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode, useRef, useCallback } from "react"
 import { supabase } from "./supabase"
 import { getToken, setToken, clearToken, api, type User } from "./api"
 import { dbProfileToUser, type DbProfile } from "./db-types"
@@ -11,7 +11,7 @@ type AuthCtx = {
   setLoading: (v: boolean) => void
 }
 
-const Ctx = createContext<AuthCtx>(null as any)
+const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx)
 
 async function fetchProfile(userId: string): Promise<User | null> {
   try {
@@ -31,7 +31,7 @@ async function fetchProfile(userId: string): Promise<User | null> {
   }
 }
 
-/** Edge function orqali token bo'lsa foydalanuvchi ma'lumotlarini olish */
+/** Resolve user from localStorage token (edge function login path) */
 async function fetchUserByToken(): Promise<User | null> {
   try {
     const { me } = await api<{ me: User }>("/me")
@@ -39,6 +39,21 @@ async function fetchUserByToken(): Promise<User | null> {
   } catch {
     return null
   }
+}
+
+/** Shared handler for session change from either Supabase or edge function */
+async function resolveSession(
+  session: import("@supabase/supabase-js").Session | null,
+): Promise<User | null> {
+  if (session?.access_token && session.user) {
+    setToken(session.access_token)
+    const profile = await fetchProfile(session.user.id)
+    if (profile) return profile
+    // fallback to edge function /me if Supabase profile is not ready
+    return fetchUserByToken()
+  }
+  clearToken()
+  return null
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,56 +64,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     cancelled.current = false
 
-    // 1. Avval localStorage'dagi token'ni tekshirish (edge function login uchun)
-    const existingToken = getToken()
-    if (existingToken) {
-      fetchUserByToken().then((u) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (cancelled.current) return
+        const resolved = await resolveSession(session)
+        if (cancelled.current) return
+        setUser(resolved)
+        setLoading(false)
+      },
+    )
+
+    // On mount, try to recover existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (cancelled.current) return
+
+      if (session) {
+        const resolved = await resolveSession(session)
+        if (!cancelled.current) {
+          setUser(resolved)
+          setLoading(false)
+          return
+        }
+      }
+
+      // No active Supabase session — check for edge function token
+      const token = getToken()
+      if (token) {
+        const u = await fetchUserByToken()
         if (!cancelled.current) {
           setUser(u)
           setLoading(false)
+          return
         }
-      }).catch(() => {
-        if (!cancelled.current) {
-          clearToken()
-          setUser(null)
-          setLoading(false)
-        }
-      })
-      // Supabase auth state'ni ham tinglash
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event: string, session: import("@supabase/supabase-js").Session | null) => {
-          if (cancelled.current) return
-          if (session?.access_token) {
-            setToken(session.access_token)
-            if (session.user) {
-              const p = await fetchProfile(session.user.id)
-              if (!cancelled.current) setUser(p)
-            }
-          }
-        }
-      )
-      return () => { cancelled.current = true; subscription.unsubscribe() }
-    }
-
-    // 2. Token yo'q — Supabase auth state'ni tinglash
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: import("@supabase/supabase-js").Session | null) => {
-        if (cancelled.current) return
-
-        if (session?.access_token) {
-          setToken(session.access_token)
-          if (session.user) {
-            const p = await fetchProfile(session.user.id)
-            if (!cancelled.current) setUser(p)
-          }
-        } else {
-          clearToken()
-          if (!cancelled.current) setUser(null)
-        }
-
-        if (!cancelled.current) setLoading(false)
       }
-    )
+
+      if (!cancelled.current) {
+        setUser(null)
+        setLoading(false)
+      }
+    })
 
     return () => {
       cancelled.current = true
@@ -106,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
 
@@ -114,15 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!profile) throw new Error("Profil topilmadi")
 
     return profile
-  }
+  }, [])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     supabase.auth.signOut()
     clearToken()
     setUser(null)
-  }
+  }, [])
 
   return <Ctx.Provider value={{ user, loading, login, logout, setLoading }}>{children}</Ctx.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(Ctx)

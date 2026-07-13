@@ -11,20 +11,17 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed", 405)
   }
 
-  const auth = await requireRole(req, "super_admin")
+  const auth = await requireRole(req, "super_admin", "admin")
   if (auth.response) return auth.response
 
   try {
     const tid = new URL(req.url).searchParams.get("tid")
     if (!tid) return errorResponse("tid kerak", 400)
 
-    const now = new Date().toISOString()
-
     const { error } = await supabaseAdmin
       .from("partner_tasks")
-      .update({ deleted_at: now, deleted_by: auth.user.id })
+      .delete()
       .eq("id", tid)
-      .is("deleted_at", null)
 
     if (error) throw error
 
