@@ -2,7 +2,7 @@ import { useState, useRef } from "react"
 import { Icon, I } from "../lib/ui"
 import { api } from "../lib/api"
 
-type UploadResult = { fileId: string; signedUrl: string; storageKey: string }
+type UploadResult = { fileId: string; signedUrl: string; storageKey: string; publicUrl?: string }
 
 type UploadProgress = {
   current: number
@@ -36,11 +36,7 @@ export default function MediaUpload({
   const fileRef = useRef<HTMLInputElement>(null)
 
   const uploadSingleFile = async (file: File): Promise<UploadResult> => {
-    const { fileId, signedUrl, storageKey } = await api<{
-      fileId: string
-      signedUrl: string
-      storageKey: string
-    }>("/media-get-signed-upload-url", {
+    const result = await api<UploadResult>("/media-get-signed-upload-url", {
       method: "POST",
       body: JSON.stringify({
         originalFilename: file.name,
@@ -50,10 +46,9 @@ export default function MediaUpload({
       }),
     })
 
-    // Use XMLHttpRequest for progress tracking
     return await new Promise<UploadResult>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open("PUT", signedUrl, true)
+      xhr.open("PUT", result.signedUrl, true)
       xhr.setRequestHeader("Content-Type", file.type)
 
       xhr.upload.onprogress = (e) => {
@@ -67,7 +62,7 @@ export default function MediaUpload({
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ fileId, signedUrl: signedUrl.split("?")[0], storageKey })
+          resolve({ ...result, signedUrl: result.publicUrl || result.signedUrl })
         } else {
           reject(new Error("Yuklashda xatolik"))
         }
@@ -150,7 +145,6 @@ export default function MediaUpload({
         )}
       </button>
 
-      {/* Progress bar */}
       {progress && (
         <div className="mt-3">
           <div className="flex items-center justify-between text-xs text-muted">
@@ -166,7 +160,6 @@ export default function MediaUpload({
         </div>
       )}
 
-      {/* Multi-file status list */}
       {items.length > 0 && !progress && (
         <div className="mt-3 space-y-1.5">
           {items.map((item) => (
@@ -199,7 +192,6 @@ export default function MediaUpload({
         </div>
       )}
 
-      {/* Single-file done state (backward compat) */}
       {uploaded && items.length === 0 && (
         <div className="mt-2 flex items-center gap-2 rounded-lg bg-green/10 px-3 py-2 text-sm text-green">
           <Icon d={I.check} className="h-4 w-4" /> Yuklandi

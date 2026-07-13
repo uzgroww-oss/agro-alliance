@@ -72,5 +72,31 @@ export default function Newsletter({ variant = "default" }: { variant?: "default
     )
   }
 
-
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-8">
+      <div className="flex flex-col items-center gap-6 rounded-3xl border border-green/15 bg-soft px-8 py-9 lg:flex-row lg:justify-between">
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-green/15 text-green"><Icon d={I.mail} className="h-7 w-7" /></span>
+          <div>
+            <h3 className="font-display text-xl font-extrabold leading-tight">Yangiliklardan xabardor bo'lib boring!</h3>
+            <p className="mt-1 text-sm text-muted">Eng so'nggi yangiliklar va takliflar haqida birinchilardan bo'lib xabar oling.</p>
+          </div>
+        </div>
+        <form onSubmit={submit} className="flex w-full gap-3 lg:w-auto">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email manzilingiz"
+            className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green lg:w-64"
+          />
+          <button type="submit" disabled={busy} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+            {busy ? "..." : <><Icon d={I.send} className="h-5 w-5" /> OBUNA</>}
+          </button>
+        </form>
+      </div>
+      {error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}
+    </section>
+  )
 }

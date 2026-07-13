@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
-
+import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
 
 const mascot = "/mascot2.webp"
 
 type Pillar = { icon: string; t: string; type: "text" | "list"; body?: string; items?: string[] }
-type TeamMember = { id: string; name: string; role: string; image_url: string | null; sort_order: number }
+type TeamMember = { name: string; role: string; img: number }
 
 const iconMap: Record<string, string> = { target: I.target, eye: I.eye, gem: I.gem, check: I.check, brain: I.brain, task: I.task, doc: I.doc, trophy: I.trophy, play: I.play, robot: I.robot, sprout: I.sprout, book: I.book, media: I.media, chart: I.chart, send: I.send, building: I.building, shield: I.shield, users: I.users, globe: I.globe, leaf: I.leaf }
 
@@ -55,7 +55,14 @@ function Hero() {
                 xo'jaligini rivojlantirish va agro kelajakni birgalikda yaratish.
               </p>
             </Reveal>
-
+            <Reveal delay={240}>
+              <a href="#" className="mt-8 inline-flex w-fit items-center gap-3 rounded-xl border-2 border-green/30 bg-white px-6 py-3.5 font-bold text-ink transition-colors hover:border-green hover:text-green">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-green text-white">
+                  <Icon d="M5 3l14 9-14 9V3z" className="h-4 w-4" sw={1} />
+                </span>
+                BIZNING VIZYON VIDEOMIZ
+              </a>
+            </Reveal>
           </div>
 
           <div className="relative hidden items-center justify-center xl:flex">
@@ -147,17 +154,15 @@ function Pillars() {
 }
 
 function Team() {
-  const [members, setMembers] = useState<TeamMember[]>([])
-  const [loading, setLoading] = useState(true)
-
+  const [team, setTeam] = useState<TeamMember[]>([])
   useEffect(() => {
-    api<{ members: TeamMember[] }>("/public/team")
-      .then((d) => { if (Array.isArray(d.members)) setMembers(d.members) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
+      const tc = d.sections?.find((s) => s.section_key === "team")
+      if (tc?.items?.length) {
+        setTeam(tc.items.map((item, i) => ({ name: item.title, role: item.description, img: (i + 1) * 12 })))
+      }
+    }).catch(() => {})
   }, [])
-
-  if (!loading && members.length === 0) return null
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
@@ -167,25 +172,10 @@ function Team() {
         </h2>
       </Reveal>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {loading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-green/10 bg-white p-6 text-center">
-            <Skeleton className="mx-auto h-20 w-20 rounded-full" />
-            <Skeleton className="mx-auto mt-4 h-5 w-24" />
-            <Skeleton className="mx-auto mt-2 h-4 w-32" />
-          </div>
-        ))}
-        {members.map((m, i) => (
-          <Reveal key={m.id} delay={(i % 5) * 70}>
+        {team.map((m, i) => (
+          <Reveal key={m.name} delay={(i % 5) * 70}>
             <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
-              <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-soft">
-                {m.image_url ? (
-                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="grid h-full w-full place-items-center bg-green/10 text-green">
-                    <Icon d={I.user} className="h-8 w-8" />
-                  </span>
-                )}
-              </div>
+              <img src={`https://i.pravatar.cc/160?img=${m.img}`} alt={m.name} className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-soft" />
               <h3 className="mt-4 font-display font-bold">{m.name}</h3>
               <p className="mt-0.5 text-sm text-muted">{m.role}</p>
             </div>
@@ -196,7 +186,30 @@ function Team() {
   )
 }
 
-
+function CtaBanner() {
+  const cta = useHomeSection("about_cta", { title: "BIRGA KATTA MAQSADLARGA ERISHAMIZ!", subtitle: "Agro Alliance — bu faqat platforma emas, bu agro kelajakni birga qurish harakati." })
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-8">
+      <Reveal>
+        <div className="flex flex-col items-center gap-6 rounded-3xl border border-green/15 bg-gradient-to-r from-soft to-white px-7 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] lg:flex-row lg:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-green/15 text-green">
+              <Icon d={I.leaf} className="h-6 w-6" />
+            </span>
+            <div>
+              <h3 className="font-display text-xl font-extrabold tracking-tight">{cta.title}</h3>
+              <p className="mt-1 text-sm text-muted">{cta.subtitle}</p>
+            </div>
+          </div>
+          <a href="#" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+            HAMKOR BO'LISH
+            <Icon d={I.users} className="h-5 w-5" />
+          </a>
+        </div>
+      </Reveal>
+    </section>
+  )
+}
 
 export default function About() {
   return (
@@ -205,6 +218,7 @@ export default function About() {
       <Pillars />
       <StatsBar />
       <Team />
+      <CtaBanner />
     </>
   )
 }

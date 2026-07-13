@@ -32,6 +32,14 @@ dist-ssr
 # Supabase local
 supabase/.branches
 supabase/.temp
+supabase/.logs
+supabase/volumes
 
 # Supabase signing keys (DO NOT COMMIT)
 supabase/signing_keys.json
+
+# TypeScript
+*.tsbuildinfo
+
+# Dependencies
+.pnpm-store

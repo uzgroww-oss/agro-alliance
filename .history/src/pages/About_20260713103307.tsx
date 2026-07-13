@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
-
+import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
 
 const mascot = "/mascot2.webp"
 
 type Pillar = { icon: string; t: string; type: "text" | "list"; body?: string; items?: string[] }
-type TeamMember = { id: string; name: string; role: string; image_url: string | null; sort_order: number }
+type TeamMember = { name: string; role: string; img: number }
 
 const iconMap: Record<string, string> = { target: I.target, eye: I.eye, gem: I.gem, check: I.check, brain: I.brain, task: I.task, doc: I.doc, trophy: I.trophy, play: I.play, robot: I.robot, sprout: I.sprout, book: I.book, media: I.media, chart: I.chart, send: I.send, building: I.building, shield: I.shield, users: I.users, globe: I.globe, leaf: I.leaf }
 
@@ -147,17 +147,15 @@ function Pillars() {
 }
 
 function Team() {
-  const [members, setMembers] = useState<TeamMember[]>([])
-  const [loading, setLoading] = useState(true)
-
+  const [team, setTeam] = useState<TeamMember[]>([])
   useEffect(() => {
-    api<{ members: TeamMember[] }>("/public/team")
-      .then((d) => { if (Array.isArray(d.members)) setMembers(d.members) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
+      const tc = d.sections?.find((s) => s.section_key === "team")
+      if (tc?.items?.length) {
+        setTeam(tc.items.map((item, i) => ({ name: item.title, role: item.description, img: (i + 1) * 12 })))
+      }
+    }).catch(() => {})
   }, [])
-
-  if (!loading && members.length === 0) return null
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8">
@@ -167,25 +165,10 @@ function Team() {
         </h2>
       </Reveal>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {loading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-green/10 bg-white p-6 text-center">
-            <Skeleton className="mx-auto h-20 w-20 rounded-full" />
-            <Skeleton className="mx-auto mt-4 h-5 w-24" />
-            <Skeleton className="mx-auto mt-2 h-4 w-32" />
-          </div>
-        ))}
-        {members.map((m, i) => (
-          <Reveal key={m.id} delay={(i % 5) * 70}>
+        {team.map((m, i) => (
+          <Reveal key={m.name} delay={(i % 5) * 70}>
             <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
-              <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-soft">
-                {m.image_url ? (
-                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="grid h-full w-full place-items-center bg-green/10 text-green">
-                    <Icon d={I.user} className="h-8 w-8" />
-                  </span>
-                )}
-              </div>
+              <img src={`https://i.pravatar.cc/160?img=${m.img}`} alt={m.name} className="mx-auto h-20 w-20 rounded-full object-cover ring-4 ring-soft" />
               <h3 className="mt-4 font-display font-bold">{m.name}</h3>
               <p className="mt-0.5 text-sm text-muted">{m.role}</p>
             </div>
@@ -205,6 +188,7 @@ export default function About() {
       <Pillars />
       <StatsBar />
       <Team />
+      <CtaBanner />
     </>
   )
 }

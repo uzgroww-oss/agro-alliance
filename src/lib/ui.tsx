@@ -173,15 +173,16 @@ export const statIcon: Record<string, string> = {
   regions: I.globe,
   contents: I.leaf,
 }
-// default (backend yuklanmaguncha / xato bo'lsa ko'rsatiladi)
-export const stats = [
-  { key: "bloggers", v: "120+", l: "Agro blogerlar" },
-  { key: "views", v: "5M+", l: "Oylik ko'rishlar" },
-  { key: "partners", v: "50+", l: "Hamkor kompaniyalar" },
-  { key: "regions", v: "20+", l: "Hududlarda faoliyat" },
-  { key: "contents", v: "1000+", l: "Yaratilgan kontentlar" },
-]
 export type StatItem = { key: string; value: string; label: string }
+
+// default (backend yuklanmaguncha / xato bo'lsa ko'rsatiladi)
+export const defaultStats: StatItem[] = [
+  { key: "bloggers", value: "120+", label: "Agro blogerlar" },
+  { key: "views", value: "5M+", label: "Oylik ko'rishlar" },
+  { key: "partners", value: "50+", label: "Hamkor kompaniyalar" },
+  { key: "regions", value: "20+", label: "Hududlarda faoliyat" },
+  { key: "contents", value: "1000+", label: "Yaratilgan kontentlar" },
+]
 
 export const navLinks: { label: string; to: string }[] = [
   { label: "BOSH SAHIFA", to: "/" },
@@ -193,23 +194,47 @@ export const navLinks: { label: string; to: string }[] = [
   { label: "ALOQA", to: "/aloqa" },
 ]
 
-/* ---------- Shared Stats bar (qiymatlar backenddan) ---------- */
+/* ---------- Shared Stats bar (qiymatlar admin panel yoki default) ---------- */
+function StatsBarSkeleton() {
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
+      <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-2">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/10 bg-gray-100">
+              <div className="h-5 w-5 rounded bg-gray-200" />
+            </span>
+            <div className="flex-1">
+              <div className="mb-1 h-6 w-16 rounded bg-gray-200" />
+              <div className="h-3 w-20 rounded bg-gray-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function StatsBar() {
-  const [items, setItems] = useState(() => stats.map((s) => ({ key: s.key, value: s.v, label: s.l })))
+  const [items, setItems] = useState<StatItem[] | null>(null)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let alive = true
     api<{ stats: StatItem[] }>("/public/stats")
-      .then((d) => { if (alive && Array.isArray(d.stats) && d.stats.length) setItems(d.stats) })
-      .catch(() => {}) // xato bo'lsa default qoladi
+      .then((d) => { if (alive && Array.isArray(d.stats) && d.stats.length) { setItems(d.stats); setLoaded(true) } })
+      .catch(() => { if (alive) setLoaded(true) })
     return () => { alive = false }
   }, [])
+
+  if (!loaded) return <StatsBarSkeleton />
+  const display = items ?? defaultStats
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
         <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
-          {items.map((s) => (
+          {display.map((s) => (
             <div key={s.key} className="flex items-center gap-3 px-2">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/20 text-green">
                 <Icon d={statIcon[s.key] || I.star} className="h-5 w-5" />

@@ -34,6 +34,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "/public/partners": "public-partners",
   "/public/categories": "public-categories",
   "/public/news/popular": "public-news-popular",
+  "/public/team": "public-team",
 }
 
 function resolvePublicUrl(path: string): string {
@@ -317,6 +318,14 @@ function resolveAdminUrl(path: string, method: string): string {
 
   if (segments[0] === "news") {
     if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-news-list${qsRaw ? `?${qsRaw}` : ""}`
+    if (segments.length === 2 && segments[1] === "jobs") {
+      return `${SUPABASE_FUNCTIONS_URL}/admin-news-jobs-list${qsRaw ? `?${qsRaw}` : ""}`
+    }
+    if (segments.length === 4 && segments[1] === "jobs" && segments[3] === "retry") {
+      const qs = new URLSearchParams(qsRaw)
+      qs.set("id", segments[2])
+      return `${SUPABASE_FUNCTIONS_URL}/admin-news-jobs-retry?${qs.toString()}`
+    }
     if (segments.length === 2) {
       const qs = new URLSearchParams(qsRaw)
       qs.set("id", segments[1])
@@ -435,6 +444,20 @@ function resolveAdminUrl(path: string, method: string): string {
     return `${SUPABASE_FUNCTIONS_URL}/instagram-status${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  // Team members
+  if (segments[0] === "team") {
+    const qs = new URLSearchParams(qsRaw)
+    if (segments.length === 2) qs.set("id", segments[1])
+    return `${SUPABASE_FUNCTIONS_URL}/admin-team?${qs.toString()}`
+  }
+
+  // News sources
+  if (segments[0] === "news-sources") {
+    const qs = new URLSearchParams(qsRaw)
+    if (segments.length === 2) qs.set("id", segments[1])
+    return `${SUPABASE_FUNCTIONS_URL}/admin-news-sources?${qs.toString()}`
+  }
+
   // YouTube Videos
   if (segments[0] === "me-youtube-videos") {
     return `${SUPABASE_FUNCTIONS_URL}/me-youtube-videos${qsRaw ? `?${qsRaw}` : ""}`
@@ -473,11 +496,15 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   const h = new Headers(opts.headers)
   h.set("Content-Type", "application/json")
   if (token) h.set("Authorization", `Bearer ${token}`)
-  if (isPublic || publicFn) h.set("apikey", SUPABASE_ANON_KEY)
+  h.set("apikey", SUPABASE_ANON_KEY)
 
   const res = await fetchWithTimeout(url, { ...opts, headers: h })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as { error?: string })?.error || "Xatolik yuz berdi")
+  if (!res.ok) {
+    const errMsg = (data as { error?: string })?.error || (data as { message?: string })?.message || "Xatolik yuz berdi"
+    console.error("API error:", res.status, url, data)
+    throw new Error(errMsg)
+  }
   return data as T
 }
 

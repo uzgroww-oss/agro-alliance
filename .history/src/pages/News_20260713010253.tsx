@@ -29,7 +29,23 @@ function SidebarSubscribe() {
       setDone(true); setEmail("")
     } catch (e) { setErr(e instanceof Error ? e.message : "Xatolik") } finally { setBusy(false) }
   }
-
+  return (
+    <div className="rounded-2xl border border-green/15 bg-soft p-5">
+      <h3 className="font-display font-extrabold leading-tight">Yangiliklardan xabardor bo'ling!</h3>
+      {done ? (
+        <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Obuna bo'ldingiz! Rahmat.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklarni email orqali olib boring.</p>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Email manzilingiz" type="email" className="mt-4 w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
+          <button onClick={submit} disabled={busy} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
+            {busy ? "..." : "OBUNA BO'LISH"} <Icon d={I.send} className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </div>
+  )
 }
 
 /* ---------- Small components ---------- */
@@ -237,6 +253,7 @@ const side = page === 1 && newsList.slice(1, 3)
               </ul>
             </div>
 
+            <SidebarSubscribe />
           </aside>
 
           {/* Main */}

@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { api } from "../lib/api"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
-import { supabase } from "../lib/supabase"
+
 
 const mascot = "/mascot3.webp"
 
@@ -49,14 +50,9 @@ function Hero({ topBlogger }: { topBlogger: Blogger | null }) {
   ])
 
   useEffect(() => {
-    // Fetch real blogger count directly from DB
-    supabase
-      .from("bloggers")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .eq("is_verified", true)
-      .then(({ count }) => {
-        const total = count || 0
+    api<{ pagination: { total: number } }>("/public/bloggers?per_page=1&page=1")
+      .then((res) => {
+        const total = res?.pagination?.total ?? 0
         setHeroStats((prev) =>
           prev.map((s) =>
             s.l === "Faol blogerlar" ? { ...s, v: `${total}+` } : s

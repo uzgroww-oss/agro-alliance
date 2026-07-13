@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
 import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard } from "../../lib/ui"
+import MediaUpload from "../../components/MediaUpload"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -19,6 +20,7 @@ const nav = [
   { label: "Xabarlar", icon: I.doc },
   { label: "Obunachilar", icon: I.users },
   { label: "Statistika", icon: I.chart },
+  { label: "Jamoa", icon: I.users },
   { label: "Sozlamalar", icon: I.gear },
   { label: "Monitoring", icon: I.chart },
 ]
@@ -703,13 +705,149 @@ function StatsEditor() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={statIcon[s.key] || I.star} className="h-5 w-5" /></span>
               <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
             </div>
-            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat (Tizim tomonidan avtomatik hisoblanadi)</label>
-            <input value={s.value} disabled className="mt-1 w-full rounded-lg border border-green/10 bg-gray-50 px-3 py-2.5 font-display text-lg font-extrabold text-muted-foreground outline-none cursor-not-allowed opacity-75" />
-            <label className="mt-3 block text-xs font-semibold text-muted">Izoh (Sarlavha)</label>
+            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat</label>
+            <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} placeholder="120+" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 font-display text-lg font-extrabold outline-none focus:border-green" />
+            <label className="mt-3 block text-xs font-semibold text-muted">Izoh</label>
             <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder="Agro blogerlar" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
           </div>
         ))}
-        {items.length === 0 && <div className="sm:col-span-2 lg:col-span-3"><SkeletonStatGrid /></div>}
+        {items.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Yuklanmoqda…</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Team management ---------- */
+type TeamMember = { id: string; name: string; role: string | null; image_url: string | null; sort_order: number; is_active: boolean }
+
+function AdminTeam() {
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<TeamMember | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ name: "", role: "", image_url: "" })
+  const [saving, setSaving] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api<{ members: TeamMember[] }>("/team")
+      .then((d) => setMembers(d.members || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const openNew = () => {
+    setForm({ name: "", role: "", image_url: "" })
+    setEditing(null)
+    setShowForm(true)
+  }
+
+  const openEdit = (m: TeamMember) => {
+    setForm({ name: m.name, role: m.role || "", image_url: m.image_url || "" })
+    setEditing(m)
+    setShowForm(true)
+  }
+
+  const save = async () => {
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      if (editing) {
+        await api(`/team/${editing.id}`, { method: "PATCH", body: JSON.stringify({ name: form.name.trim(), role: form.role.trim() || null, image_url: form.image_url || null }) })
+      } else {
+        await api("/team", { method: "POST", body: JSON.stringify({ name: form.name.trim(), role: form.role.trim() || null, image_url: form.image_url || null }) })
+      }
+      setShowForm(false)
+      load()
+    } catch { /* ignore */ } finally { setSaving(false) }
+  }
+
+  const remove = async (id: string) => {
+    if (!confirm("O'chirishni tasdiqlaysizmi?")) return
+    try {
+      await api(`/team/${id}`, { method: "DELETE" })
+      load()
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Jamoa a'zolari</h2>
+          <p className="mt-1 text-sm text-muted">"Bizning jamoa" bo'limidagi a'zolarni boshqarish.</p>
+        </div>
+        <button onClick={openNew} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+          <Icon d={I.plus} className="h-4 w-4" /> Yangi a'zo
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mt-5 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+          <h3 className="font-display text-lg font-bold">{editing ? "Tahrirlash" : "Yangi a'zo"}</h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-muted">Ism *</label>
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Aliyev Alisher" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted">Lavozim</label>
+              <input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="Bosh direktor" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-xs font-semibold text-muted">Rasm</label>
+            {form.image_url && (
+              <div className="mt-2 mb-2 flex items-center gap-3">
+                <img src={form.image_url} alt="preview" className="h-16 w-16 rounded-full object-cover ring-2 ring-soft" />
+                <button onClick={() => setForm((f) => ({ ...f, image_url: "" }))} className="text-xs font-semibold text-red-500 hover:underline">O'chirish</button>
+              </div>
+            )}
+            <MediaUpload
+              onUpload={(result) => setForm((f) => ({ ...f, image_url: result.signedUrl }))}
+              accept="image/*"
+            />
+          </div>
+          <div className="mt-5 flex items-center gap-3">
+            <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+              <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
+            </button>
+            <button onClick={() => setShowForm(false)} className="rounded-xl border border-green/20 bg-white px-5 py-2.5 text-sm font-bold text-muted transition-colors hover:bg-soft">Bekor qilish</button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {loading && Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+        {!loading && members.map((m) => (
+          <div key={m.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-soft">
+                {m.image_url ? (
+                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="grid h-full w-full place-items-center bg-green/10 text-green"><Icon d={I.user} className="h-6 w-6" /></span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-sm font-bold truncate">{m.name}</h3>
+                <p className="text-xs text-muted truncate">{m.role || "—"}</p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <button onClick={() => openEdit(m)} className="flex-1 rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">Tahrirlash</button>
+              <button onClick={() => remove(m.id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50">O'chirish</button>
+            </div>
+          </div>
+        ))}
+        {!loading && members.length === 0 && (
+          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+            <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Hali a'zolar yo'q. "Yangi a'zo" tugmasini bosing.</div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -2139,6 +2277,7 @@ export default function AdminDashboard() {
       case "Foydalanuvchilar": return <AdminUsers />
       case "Xabarlar": return <AdminContacts />
       case "Obunachilar": return <AdminSubscribers />
+      case "Jamoa": return <AdminTeam />
       case "Statistika": return <StatsEditor />
       case "Sozlamalar": return <AdminSettings />
       case "Monitoring": return <AdminMonitoring />

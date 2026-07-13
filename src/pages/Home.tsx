@@ -156,11 +156,65 @@ function Features() {
   )
 }
 
+/* ---------- Team (Bizning Jamoa) ---------- */
+type TeamMember = { id: string; name: string; role: string; image_url: string | null; sort_order: number }
+
+function TeamSection() {
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api<{ members: TeamMember[] }>("/public/team")
+      .then((d) => { if (Array.isArray(d.members)) setMembers(d.members) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (!loading && members.length === 0) return null
+
+  return (
+    <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8 lg:py-20">
+      <Reveal>
+        <h2 className="mb-12 text-center font-display text-[clamp(1.8rem,5vw,2.8rem)] font-extrabold tracking-tight">
+          BIZNING <span className="text-green">JAMOA</span>
+        </h2>
+      </Reveal>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {loading && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-green/10 bg-white p-6 text-center">
+            <Skeleton className="mx-auto h-20 w-20 rounded-full" />
+            <Skeleton className="mx-auto mt-4 h-5 w-24" />
+            <Skeleton className="mx-auto mt-2 h-4 w-32" />
+          </div>
+        ))}
+        {members.map((m, i) => (
+          <Reveal key={m.id} delay={(i % 5) * 70}>
+            <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
+              <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-soft">
+                {m.image_url ? (
+                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="grid h-full w-full place-items-center bg-green/10 text-green">
+                    <Icon d={I.user} className="h-8 w-8" />
+                  </span>
+                )}
+              </div>
+              <h3 className="mt-4 font-display font-bold">{m.name}</h3>
+              <p className="mt-0.5 text-sm text-muted">{m.role}</p>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function Home() {
   return (
     <>
       <Hero />
       <StatsBar />
+      <TeamSection />
       <Features />
     </>
   )

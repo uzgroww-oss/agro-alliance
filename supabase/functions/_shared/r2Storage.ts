@@ -8,7 +8,7 @@ import { log } from "./logger.ts";
 import { recordMetric } from "./metrics.ts";
 
 const MAX_UPLOAD_SIZE = Number(Deno.env.get("R2_MAX_UPLOAD_SIZE") ?? "10485760");
-const ALLOWED_MIME = (Deno.env.get("R2_ALLOWED_MIME") ?? "image/jpeg,image/png,application/pdf,image/webp").split(",");
+const ALLOWED_MIME = (Deno.env.get("R2_ALLOWED_MIME") ?? "image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml").split(",");
 const STORAGE_URL = Deno.env.get("SUPABASE_URL") || "";
 
 function getExtension(filename: string): string {
@@ -35,9 +35,8 @@ export async function initiateUpload(params: {
 
   const extension = getExtension(originalFilename);
   const storageKey = `${crypto.randomUUID()}.${extension}`;
-  const bucket = isPublic ? "media" : "media-private";
+  const bucket = isPublic ? "public" : "private";
 
-  // Ensure bucket exists
   try {
     await supabaseAdmin.storage.getBucket(bucket);
   } catch {
