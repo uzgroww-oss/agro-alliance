@@ -152,6 +152,7 @@ export default function Login() {
 
               {import.meta.env.DEV && (
                 <button type="button" onClick={() => { setEmail("elyor@agroalliance.uz"); setPassword("elyor123") }} className="w-full text-center text-xs text-muted hover:text-green">
+                  Demo: elyor@agroalliance.uz / elyor123
                 </button>
               )}
             </form>
