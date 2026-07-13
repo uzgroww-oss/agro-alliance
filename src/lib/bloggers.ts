@@ -52,17 +52,9 @@ export const cover = (seed: string) => `https://picsum.photos/seed/${seed}/640/4
 
 /* Live API loaders (fallback to mock data on error) */
 import { api } from "./api"
-import { supabase } from "./supabase"
-
 export type BloggerListResponse = {
   bloggers: Blogger[]
   pagination: { page: number; per_page: number; total: number; total_pages: number }
-}
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M+`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K+`
-  return `${n}+`
 }
 
 export async function loadTopBlogger(): Promise<Blogger | null> {

@@ -14,24 +14,6 @@ const getIcon = (key: string) => iconMap[key] || I.grid
 
 const mascot = "/mascot-news.webp"
 
-function SidebarSubscribe() {
-  const [email, setEmail] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState("")
-  const submit = async () => {
-    setErr("")
-    if (!email.trim() || !email.includes("@")) { setErr("Yaroqli email kiriting"); return }
-    setBusy(true)
-    try {
-      const { api } = await import("../lib/api")
-      await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
-      setDone(true); setEmail("")
-    } catch (e) { setErr(e instanceof Error ? e.message : "Xatolik") } finally { setBusy(false) }
-  }
-
-}
-
 /* ---------- Small components ---------- */
 function CatTag({ k }: { k: string }) {
   return <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(k)}</span>
