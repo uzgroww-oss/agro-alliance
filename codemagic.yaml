@@ -10,7 +10,8 @@
 # ============================================================================
 
 workflows:
-  # ---------------------------------------------------------------- ANDROID
+  # ------------------------------------------------- ANDROID (debug APK — sinov)
+  # Imzo (keystore) kerak emas. Telefonga o'rnatib sinash uchun.
   android-build:
     name: Agro Alliance — Android
     max_build_duration: 60
@@ -19,9 +20,7 @@ workflows:
       node: 22
       java: 17
       groups:
-        - agro_env # Codemagic'da yarating: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-      android_signing:
-        - agro_keystore # Codemagic'da keystore yuklang
+        - agro_env # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
     scripts:
       - name: Paketlarni o'rnatish
         script: npm ci
@@ -33,13 +32,50 @@ workflows:
         script: |
           npm run build
           npx cap sync android
+      - name: Android debug APK yig'ish
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - rustamasaka1991@gmail.com
+
+  # ------------------------------------- ANDROID (release AAB — Play Store uchun)
+  # Bu ishlashi uchun Codemagic'da keystore yuklang: Teams -> Code signing identities
+  # -> Android keystores -> reference nomi: agro_keystore
+  android-release:
+    name: Agro Alliance — Android (Play Store)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      node: 22
+      java: 17
+      groups:
+        - agro_env
+      android_signing:
+        - agro_keystore
+    scripts:
+      - name: Paketlarni o'rnatish
+        script: npm ci
+      - name: .env yaratish
+        script: |
+          echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" > .env
+          echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env
+      - name: Web build + Capacitor sync
+        script: |
+          npm run build
+          npx cap sync android
       - name: Android AAB yig'ish
         script: |
           cd android
+          chmod +x ./gradlew
           ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/**/*.aab
-      - android/app/build/outputs/**/*.apk
     publishing:
       email:
         recipients:
