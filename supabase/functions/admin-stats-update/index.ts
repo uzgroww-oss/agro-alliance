@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
     if (fetchError) return errorResponse(fetchError.message, 500)
 
-    const dynamicStats = await getDynamicStats(data || [])
+    const dynamicStats = await getDynamicStats()
 
     return jsonResponse({ success: true, stats: dynamicStats })
   } catch (err) {

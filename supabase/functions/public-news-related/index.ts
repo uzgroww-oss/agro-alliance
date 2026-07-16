@@ -1,9 +1,8 @@
 import { handleCors } from "../_shared/cors.ts"
-import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
+import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { formatNewsDate } from "../_shared/time.ts"
 
-const CACHE_TTL = 120
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -22,7 +21,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (curErr) return errorResponse(curErr.message, 500)
-    if (!current) return cachedJsonResponse({ news: [] }, CACHE_TTL)
+    if (!current) return noCacheJsonResponse({ news: [] })
 
     // Prefer same-category articles first, up to 3 total
     let related: Record<string, unknown>[] = []
@@ -88,7 +87,7 @@ Deno.serve(async (req) => {
       }
     })
 
-    return cachedJsonResponse({ news }, CACHE_TTL)
+    return noCacheJsonResponse({ news })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

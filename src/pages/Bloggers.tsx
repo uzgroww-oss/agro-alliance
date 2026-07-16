@@ -220,7 +220,7 @@ export default function Bloggers() {
                 <input
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setPage(1) }}
-                  placeholder="Bloger nomi yoki yo'nalishi..."
+                  placeholder="Ism yoki Instagram username (@...)"
                   className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
                 />
               </div>

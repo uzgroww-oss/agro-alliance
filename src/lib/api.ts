@@ -263,6 +263,16 @@ function resolveAdminUrl(path: string, method: string): string {
     // Notifications
     if (resource === "notifications") return `${SUPABASE_FUNCTIONS_URL}/me-notifications-list${qsRaw ? `?${qsRaw}` : ""}`
 
+    // Topshiriqlar (TZ): GET /me/tasks (ro'yxat), PATCH /me/tasks/{assignment_id} (holat)
+    if (resource === "tasks") {
+      if (segments.length === 2) return `${SUPABASE_FUNCTIONS_URL}/me-tasks-list${qsRaw ? `?${qsRaw}` : ""}`
+      if (segments.length === 3) {
+        const qs = new URLSearchParams(qsRaw)
+        qs.set("id", segments[2])
+        return `${SUPABASE_FUNCTIONS_URL}/me-tasks-update?${qs.toString()}`
+      }
+    }
+
     // Settings
     if (resource === "settings") {
       const fn = method === "PUT" || method === "PATCH" ? "me-settings-update" : "me-settings-get"
@@ -414,6 +424,19 @@ function resolveAdminUrl(path: string, method: string): string {
     if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-permissions-list${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  // Topshiriqlar (TZ): GET /tasks (ro'yxat), POST /tasks (yangi), DELETE /tasks/{id}
+  if (segments[0] === "tasks") {
+    if (segments.length === 1) {
+      const fn = method === "POST" ? "admin-tasks-create" : "admin-tasks-list"
+      return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+    }
+    if (segments.length === 2) {
+      const qs = new URLSearchParams(qsRaw)
+      qs.set("id", segments[1])
+      return `${SUPABASE_FUNCTIONS_URL}/admin-tasks-list?${qs.toString()}`
+    }
+  }
+
   if (segments[0] === "role-permissions") {
     if (segments.length === 1 && method === "GET") return `${SUPABASE_FUNCTIONS_URL}/admin-role-permissions-get${qsRaw ? `?${qsRaw}` : ""}`
     if (segments.length === 1 && method === "PUT") return `${SUPABASE_FUNCTIONS_URL}/admin-role-permissions-update${qsRaw ? `?${qsRaw}` : ""}`
@@ -428,9 +451,6 @@ function resolveAdminUrl(path: string, method: string): string {
   }
   if (segments[0] === "media-get-signed-download-url") {
     return `${SUPABASE_FUNCTIONS_URL}/media-get-signed-download-url${qsRaw ? `?${qsRaw}` : ""}`
-  }
-  if (segments[0] === "ai-news-engine") {
-    return `${SUPABASE_FUNCTIONS_URL}/worker-ai-news-engine${qsRaw ? `?${qsRaw}` : ""}`
   }
 
   // Instagram OAuth va Fetch

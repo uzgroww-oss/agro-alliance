@@ -10,6 +10,7 @@ import { useAuth } from "../../lib/auth"
 const nav = [
   { label: "Dashboard", icon: I.dashboard },
   { label: "Bloggerlar", icon: I.users },
+  { label: "Topshiriqlar", icon: I.task },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
   { label: "Kategoriyalar", icon: I.grid },
@@ -27,6 +28,23 @@ const nav = [
 
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
 const catLabel = (k: string) => categories.find((c) => c.key === k)?.label ?? k
+
+const VILOYATLAR = [
+  "Qoraqalpog'iston Respublikasi",
+  "Andijon viloyati",
+  "Buxoro viloyati",
+  "Farg'ona viloyati",
+  "Jizzax viloyati",
+  "Namangan viloyati",
+  "Navoiy viloyati",
+  "Qashqadaryo viloyati",
+  "Samarqand viloyati",
+  "Sirdaryo viloyati",
+  "Surxondaryo viloyati",
+  "Toshkent viloyati",
+  "Toshkent shahri",
+  "Xorazm viloyati",
+]
 
 type Row = { id: number; name: string; cat: string; region: string; email: string; status: string; slug: string }
 
@@ -60,6 +78,7 @@ function Bloggers() {
     setError("")
     setRegistering(true)
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setError("Ism, email va parol majburiy"); setRegistering(false); return }
+    if (!form.region) { setError("Viloyatni tanlang"); setRegistering(false); return }
     try {
       const res = await api<{ success: boolean; blogger: { id: string; slug: string; name: string } }>("/bloggers", { method: "POST", body: JSON.stringify({ name: form.name, email: form.email, password: form.password, region: form.region, niche: form.cat }) })
       setForm(blank); setAdding(false)
@@ -122,14 +141,17 @@ function Bloggers() {
 
       {/* Add Blogger Modal */}
       {adding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg font-extrabold">Yangi bloger qo'shish</h3>
             <form onSubmit={register} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-              <input value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} placeholder="Hudud" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <select value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required>
+                <option value="" disabled>Viloyatni tanlang (bloger qayerdan)</option>
+                {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
               <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
                 {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
@@ -254,7 +276,7 @@ function Bloggers() {
 
       {/* Delete Confirmation Modal */}
       {deleteTarget !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
@@ -417,8 +439,8 @@ function AdminPartners() {
 
       {/* Add Partner Modal */}
       {adding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg font-extrabold">Yangi hamkor qo'shish</h3>
             <form onSubmit={add} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
@@ -566,7 +588,7 @@ function AdminPartners() {
 
       {/* Delete Confirmation Modal */}
       {deleteTarget !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
@@ -1138,12 +1160,187 @@ function AdminSettings() {
   )
 }
 
+/* ---------- Topshiriqlar (TZ) ---------- */
+type AdminTask = {
+  id: string; title: string; description: string | null; priority: string; deadline: string | null; created_at: string
+  file_url?: string | null; file_name?: string | null
+  stats: { total: number; new: number; in_progress: number; done: number }
+}
+const prioLabel: Record<string, string> = { low: "Past", normal: "O'rta", high: "Yuqori" }
+const prioColor: Record<string, string> = {
+  low: "bg-gray-100 text-gray-600", normal: "bg-blue-100 text-blue-700", high: "bg-red-100 text-red-600",
+}
+
+function AdminTasks() {
+  const [tasks, setTasks] = useState<AdminTask[]>([])
+  const [bloggers, setBloggers] = useState<{ id: string; name: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ title: "", description: "", priority: "normal", deadline: "" })
+  const [file, setFile] = useState<{ url: string; name: string } | null>(null)
+  const [target, setTarget] = useState<"all" | "selected">("all")
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sending, setSending] = useState(false)
+  const [msg, setMsg] = useState("")
+
+  const load = () => {
+    setLoading(true)
+    Promise.all([
+      api<{ tasks: AdminTask[] }>("/tasks").then((d) => setTasks(d.tasks || [])).catch(() => {}),
+      api<{ bloggers: { id: string; name: string }[] }>("/bloggers").then((d) => setBloggers(d.bloggers || [])).catch(() => {}),
+    ]).finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggle = (id: string) => setSelected((prev) => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  const send = async () => {
+    setMsg("")
+    if (!form.title.trim()) { setMsg("❌ Sarlavha majburiy"); return }
+    const blogger_ids = target === "all" ? "all" : Array.from(selected)
+    if (target === "selected" && (blogger_ids as string[]).length === 0) { setMsg("❌ Kamida bitta bloger tanlang"); return }
+    setSending(true)
+    try {
+      const r = await api<{ assigned: number }>("/tasks", { method: "POST", body: JSON.stringify({ ...form, file_url: file?.url || null, file_name: file?.name || null, blogger_ids }) })
+      setMsg(`✅ Topshiriq ${r.assigned} ta blogerga yuborildi`)
+      setForm({ title: "", description: "", priority: "normal", deadline: "" }); setFile(null); setSelected(new Set()); setTarget("all")
+      load()
+    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+    finally { setSending(false) }
+  }
+
+  const remove = async (id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+    await api(`/tasks/${id}`, { method: "DELETE" }).catch(() => {}).then(() => load())
+  }
+
+  return (
+    <div>
+      <div>
+        <h2 className="font-display text-xl font-extrabold tracking-tight">Topshiriqlar (TZ)</h2>
+        <p className="mt-1 text-sm text-muted">Blogerlarga topshiriq yuboring va bajarilishini kuzating.</p>
+      </div>
+
+      {/* Yangi TZ formasi */}
+      <div className={`${card} mt-5`}>
+        <h3 className="font-display font-bold">Yangi topshiriq yuborish</h3>
+        <div className="mt-4 space-y-3">
+          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Sarlavha (masalan: Yangi mahsulot haqida video)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} placeholder="Topshiriq tavsifi / talablar…" className="w-full resize-none rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted">Muhimlik</span>
+              <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green">
+                <option value="low">Past</option>
+                <option value="normal">O'rta</option>
+                <option value="high">Yuqori</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted">Muddat (ixtiyoriy)</span>
+              <input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+            </label>
+          </div>
+
+          {/* TZ fayl (ixtiyoriy) */}
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">TZ fayli (ixtiyoriy) — PDF, Word, rasm</span>
+            {file ? (
+              <div className="flex items-center gap-2 rounded-xl border border-green/20 bg-green/5 px-4 py-2.5 text-sm">
+                <Icon d={I.paperclip} className="h-4 w-4 shrink-0 text-green" />
+                <span className="flex-1 truncate font-medium">{file.name}</span>
+                <button type="button" onClick={() => setFile(null)} className="grid h-6 w-6 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <MediaUpload accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" onUpload={(r) => setFile({ url: r.signedUrl, name: r.fileName || "TZ fayli" })} />
+            )}
+          </div>
+
+          {/* Kimga */}
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">Kimga yuborish</span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setTarget("all")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "all" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>Hamma blogerlarga</button>
+              <button type="button" onClick={() => setTarget("selected")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "selected" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>Tanlangan blogerlarga</button>
+            </div>
+            {target === "selected" && (
+              <div className="mt-3 max-h-52 overflow-y-auto rounded-xl border border-green/15 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-muted">{selected.size} ta tanlandi</span>
+                  <button type="button" onClick={() => setSelected(selected.size === bloggers.length ? new Set() : new Set(bloggers.map((b) => b.id)))} className="text-xs font-bold text-green hover:underline">
+                    {selected.size === bloggers.length ? "Bekor qilish" : "Hammasini tanlash"}
+                  </button>
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {bloggers.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-soft cursor-pointer">
+                      <input type="checkbox" checked={selected.has(b.id)} onChange={() => toggle(b.id)} className="h-4 w-4 accent-green" />
+                      <span className="truncate">{b.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {msg && <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg}</div>}
+          <button onClick={send} disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+            <Icon d={I.send} className="h-4 w-4" /> {sending ? "Yuborilmoqda…" : "Topshiriqni yuborish"}
+          </button>
+        </div>
+      </div>
+
+      {/* Yuborilgan TZ ro'yxati */}
+      <div className="mt-6">
+        <h3 className="font-display font-bold">Yuborilgan topshiriqlar</h3>
+        {loading ? (
+          <div className="mt-3"><SkeletonCard /></div>
+        ) : tasks.length === 0 ? (
+          <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">Hali topshiriq yuborilmagan.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {tasks.map((t) => (
+              <div key={t.id} className={card}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${prioColor[t.priority] || prioColor.normal}`}>{prioLabel[t.priority] || t.priority}</span>
+                      <h4 className="font-display font-bold">{t.title}</h4>
+                    </div>
+                    {t.description && <p className="mt-1 text-sm text-muted">{t.description}</p>}
+                    {t.file_url && (
+                      <a href={t.file_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green/10 px-3 py-1.5 text-xs font-semibold text-green hover:bg-green/20">
+                        <Icon d={I.paperclip} className="h-3.5 w-3.5" /> {t.file_name || "TZ fayli"}
+                      </a>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted">
+                      <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : "Muddatsiz"}</span>
+                      <span>Yuborildi: {new Date(t.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => remove(t.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                </div>
+                {/* Holat statistikasi */}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-lg bg-soft px-3 py-1 font-semibold">Jami: {t.stats.total}</span>
+                  <span className="rounded-lg bg-gray-100 px-3 py-1 font-semibold text-gray-600">Yangi: {t.stats.new}</span>
+                  <span className="rounded-lg bg-blue-50 px-3 py-1 font-semibold text-blue-700">Bajarilmoqda: {t.stats.in_progress}</span>
+                  <span className="rounded-lg bg-green/10 px-3 py-1 font-semibold text-green">Bajarildi: {t.stats.done}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Monitoring ---------- */
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
-  const [engineBusy, setEngineBusy] = useState(false)
-  const [engineResult, setEngineResult] = useState("")
 
   const load = () => {
     api<{ jobs: { id: string; job_type: string; status: string; created_at: string }[] }>("/news/jobs")
@@ -1157,23 +1354,6 @@ function AdminMonitoring() {
   const retry = async (id: string) => {
     await api(`/news/jobs/${id}/retry`, { method: "POST" })
     load()
-  }
-
-  const runEngine = async () => {
-    setEngineBusy(true)
-    setEngineResult("")
-    try {
-      const d = await api<{ published: number; target: number; fetched: number; results: string[] }>(
-        "/ai-news-engine",
-        { method: "POST" }
-      )
-      setEngineResult(`✅ ${d.published} ta yangilik yaratildi (${d.fetched} ta manbadan). Kunlik target: ${d.target}`)
-      load()
-    } catch (e: unknown) {
-      setEngineResult(`❌ Xatolik: ${e instanceof Error ? e.message : "Noma'lum xatolik"}`)
-    } finally {
-      setEngineBusy(false)
-    }
   }
 
   const statusColor: Record<string, string> = {
@@ -1191,17 +1371,11 @@ function AdminMonitoring() {
           <p className="mt-1 text-sm text-muted">Worker'lar, queue'lar va tizim holati.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={runEngine} disabled={engineBusy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-            <Icon d={I.bolt} className="h-4 w-4" /> {engineBusy ? "Yuklanmoqda…" : "AI Yangiliklar Yig'ish"}
-          </button>
           <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
             <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
           </button>
         </div>
       </div>
-      {engineResult && (
-        <div className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${engineResult.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{engineResult}</div>
-      )}
 
       {/* Queue Stats */}
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -1556,7 +1730,7 @@ function AdminContacts() {
       </div>
       {selected && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setSelected(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="font-display text-lg font-bold">{selected.subject || "Xabar"}</h3>
               <button onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-soft"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
@@ -1761,8 +1935,8 @@ function AdminCategories() {
 
       {/* Add Category Modal */}
       {adding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg font-extrabold">Yangi kategoriya qo'shish</h3>
             <form onSubmit={add} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
@@ -2205,8 +2379,8 @@ function AdminRoles() {
 
       {/* Create User Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg font-extrabold">Yangi foydalanuvchi qo'shish</h3>
             <form onSubmit={saveUser} className="mt-5 space-y-4">
               <div>
@@ -2246,7 +2420,7 @@ function AdminRoles() {
   )
 }
 
-const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring"]
+const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar"]
 const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
 const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
 
@@ -2268,6 +2442,7 @@ export default function AdminDashboard() {
     switch (active) {
       case "Dashboard": return <Overview />
       case "Bloggerlar": return <Bloggers />
+      case "Topshiriqlar": return <AdminTasks />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />

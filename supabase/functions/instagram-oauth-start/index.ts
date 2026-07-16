@@ -1,6 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { verifyAuth } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
+import { signState } from "../_shared/oauthState.ts"
 
 /**
  * instagram-oauth-start — Facebook/Instagram OAuth flow ni boshlash
@@ -8,6 +9,7 @@ import { jsonResponse, errorResponse } from "../_shared/response.ts"
  */
 
 const FACEBOOK_APP_ID = Deno.env.get("FACEBOOK_APP_ID") || ""
+const FACEBOOK_APP_SECRET = Deno.env.get("FACEBOOK_APP_SECRET") || ""
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || ""
 
 Deno.serve(async (req) => {
@@ -26,8 +28,8 @@ Deno.serve(async (req) => {
       return errorResponse("Facebook App ID sozlanmagan. Admin panel'da sozlang.", 500)
     }
 
-    // OAuth state — foydalanuvchi ID'sini saqlash
-    const state = btoa(JSON.stringify({ userId: auth.user.id, timestamp: Date.now() }))
+    // OAuth state — HMAC bilan imzolangan (soxta userId yasab bo'lmaydi)
+    const state = await signState(FACEBOOK_APP_SECRET, auth.user.id)
 
     // OAuth URL yaratish
     const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth-callback`

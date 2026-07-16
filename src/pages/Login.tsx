@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
 import { roleHome } from "../lib/roles"
@@ -27,7 +27,11 @@ const features = [
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, user, loading } = useAuth()
+  // Allaqachon kirgan bo'lsa — to'g'ridan-to'g'ri o'z kabinetiga (native ilovada doimiy login uchun muhim)
+  useEffect(() => {
+    if (!loading && user) navigate(roleHome(user.role), { replace: true })
+  }, [user, loading, navigate])
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(true)
   const [email, setEmail] = useState("")

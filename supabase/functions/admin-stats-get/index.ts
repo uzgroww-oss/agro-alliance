@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
     if (error) return errorResponse(error.message, 500)
 
-    const dynamicStats = await getDynamicStats(data || [])
+    const dynamicStats = await getDynamicStats()
 
     return jsonResponse({ stats: dynamicStats })
   } catch (err) {

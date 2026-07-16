@@ -17,6 +17,11 @@ export function cachedJsonResponse(data: unknown, ttlSeconds: number, status = 2
   })
 }
 
+// O'chirilgan/yangilangan kontent darhol yo'qolishi kerak bo'lgan endpointlar uchun
+export function noCacheJsonResponse(data: unknown, status = 200): Response {
+  return jsonResponse(data, status, { "Cache-Control": "no-store" })
+}
+
 export function successResponse(data: Record<string, unknown>): Response {
   return jsonResponse({ success: true, ...data })
 }

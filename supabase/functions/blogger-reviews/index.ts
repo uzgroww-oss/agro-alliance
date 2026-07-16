@@ -1,6 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { rateLimited } from "../_shared/publicRateLimit.ts"
 
 // blogger-reviews — bloger sharhlari (public)
 //  GET  ?slug=<blogerslug>  → { reviews, avg, count }
@@ -31,6 +32,10 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST") {
+      // Rate limit: bir IP daqiqada 3 ta, soatda 10 ta sharh
+      if (await rateLimited(req, "review", 3, 60) || await rateLimited(req, "review-h", 10, 3600)) {
+        return errorResponse("Juda ko'p urinish. Birozdan keyin qayta urining.", 429)
+      }
       const body = await req.json().catch(() => ({}))
       const slug = (body.slug || "").trim()
       const author = (body.author_name || "").trim()
@@ -41,11 +46,12 @@ Deno.serve(async (req) => {
       if (author.length > 120 || comment.length > 1000) return errorResponse("Matn juda uzun", 400)
       const bid = await bloggerIdBySlug(slug)
       if (!bid) return errorResponse("Bloger topilmadi", 404)
+      // XAVFSIZLIK: sharh darhol tasdiqlanmaydi — admin moderatsiyasidan o'tadi (spam/reputatsiya himoyasi)
       const { error } = await supabaseAdmin.from("blogger_reviews").insert({
-        blogger_id: bid, author_name: author, rating, comment: comment || null, is_approved: true,
+        blogger_id: bid, author_name: author, rating, comment: comment || null, is_approved: false,
       })
-      if (error) return errorResponse(error.message, 500)
-      return jsonResponse({ success: true })
+      if (error) { console.error("blogger-reviews insert:", error); return errorResponse("Sharhni saqlab bo'lmadi", 500) }
+      return jsonResponse({ success: true, pending: true })
     }
 
     return errorResponse("Method not allowed", 405)

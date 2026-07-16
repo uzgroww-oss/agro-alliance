@@ -99,11 +99,14 @@ Deno.serve(async (req) => {
       experienceYears: blogger.experience_years as number || 0,
       bio: profile.bio as string || "",
       profile: {
+        // XAVFSIZLIK: butun metadata JSON ochib berilmaydi — faqat kerakli public maydonlar
         photo: profile.avatar as string || "",
         region: (blogger.blogger_regions as Array<Record<string, unknown>> || [])[0]?.region as string || "",
         tag: specializations.map((s) => s.specialization_key).join(", ") || "",
         about: metadata.about as string || "",
-        ...metadata as Record<string, string>,
+        niche: metadata.niche as string || "",
+        instagram_url: metadata.instagram_url as string || "",
+        youtube_channel: metadata.youtube_channel as string || "",
       },
       stats: {
         subscribers: statsRow?.total_subscribers || 0,

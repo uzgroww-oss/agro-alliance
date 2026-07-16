@@ -168,20 +168,18 @@ export function Icon({ d, className = "h-6 w-6", sw = 1.8 }: { d: string; classN
 // stat key -> icon (qiymat va label backenddan keladi)
 export const statIcon: Record<string, string> = {
   bloggers: I.users,
+  audience: I.globe,
   views: I.play,
-  partners: I.building,
-  regions: I.globe,
-  contents: I.leaf,
+  regions: I.pin,
 }
 export type StatItem = { key: string; value: string; label: string }
 
 // default (backend yuklanmaguncha / xato bo'lsa ko'rsatiladi)
 export const defaultStats: StatItem[] = [
-  { key: "bloggers", value: "120+", label: "Agro blogerlar" },
-  { key: "views", value: "5M+", label: "Oylik ko'rishlar" },
-  { key: "partners", value: "50+", label: "Hamkor kompaniyalar" },
-  { key: "regions", value: "20+", label: "Hududlarda faoliyat" },
-  { key: "contents", value: "1000+", label: "Yaratilgan kontentlar" },
+  { key: "bloggers", value: "0", label: "Agro blogerlar" },
+  { key: "audience", value: "0", label: "Umumiy auditoriya" },
+  { key: "views", value: "0", label: "Oylik ko'rishlar" },
+  { key: "regions", value: "0", label: "Viloyatlar" },
 ]
 
 export const navLinks: { label: string; to: string }[] = [
@@ -198,8 +196,8 @@ export const navLinks: { label: string; to: string }[] = [
 function StatsBarSkeleton() {
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
-      <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
-        {[1, 2, 3, 4, 5].map((i) => (
+      <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="flex items-center gap-3 px-2">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/10 bg-gray-100">
               <div className="h-5 w-5 rounded bg-gray-200" />
@@ -233,7 +231,7 @@ export function StatsBar() {
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
-        <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] lg:grid-cols-4">
           {display.map((s) => (
             <div key={s.key} className="flex items-center gap-3 px-2">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/20 text-green">

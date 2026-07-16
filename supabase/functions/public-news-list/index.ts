@@ -1,10 +1,8 @@
 import { handleCors } from "../_shared/cors.ts"
-import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
+import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { formatNewsDate } from "../_shared/time.ts"
-
-const CACHE_TTL = 120
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -33,8 +31,9 @@ Deno.serve(async (req) => {
     }
 
     if (search) {
-      const s = search.replace(/'/g, "''")
-      query = query.or(`title.ilike.%${s}%,excerpt.ilike.%${s}%`)
+      // XAVFSIZLIK: PostgREST filtr metabelgilarini olib tashlash — filtr injeksiyasi oldini olish
+      const s = search.replace(/[,.():*%"'\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
+      if (s) query = query.or(`title.ilike.%${s}%,excerpt.ilike.%${s}%`)
     }
 
     query = query.order("published_at", { ascending: false })
@@ -96,7 +95,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    return cachedJsonResponse({
+    return noCacheJsonResponse({
       news,
       pagination: {
         page,
@@ -105,7 +104,7 @@ Deno.serve(async (req) => {
         total_pages: Math.ceil((count || 0) / per_page),
       },
       categories: cats,
-    }, CACHE_TTL)
+    })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

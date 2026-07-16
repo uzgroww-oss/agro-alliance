@@ -1,0 +1,91 @@
+# ============================================================================
+# Codemagic — Mac'siz iOS va Android ilova yig'ish (bulutli build)
+# https://codemagic.io — GitHub repo'ni ulang, keyin shu fayl avtomatik ishlaydi.
+#
+# ISHLATISH:
+#  1. Kodni GitHub'ga yuklang (android/ va ios/ papkalari bilan birga).
+#  2. codemagic.io da ro'yxatdan o'ting -> repo'ni ulang.
+#  3. iOS uchun: Apple Developer hisobi ($99/yil) -> Codemagic'da "iOS code signing" sozlang.
+#  4. Android uchun: keystore yarating -> Codemagic'ga yuklang.
+# ============================================================================
+
+workflows:
+  # ---------------------------------------------------------------- ANDROID
+  android-build:
+    name: Agro Alliance — Android
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      node: 22
+      java: 17
+      groups:
+        - agro_env # Codemagic'da yarating: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+      android_signing:
+        - agro_keystore # Codemagic'da keystore yuklang
+    scripts:
+      - name: Paketlarni o'rnatish
+        script: npm ci
+      - name: .env yaratish (Vite build vaqtida kerak)
+        script: |
+          echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" > .env
+          echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env
+      - name: Web build + Capacitor sync
+        script: |
+          npm run build
+          npx cap sync android
+      - name: Android AAB yig'ish
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - rustamasaka1991@gmail.com
+
+  # -------------------------------------------------------------------- iOS
+  ios-build:
+    name: Agro Alliance — iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2 # Mac kerak emas — Codemagic o'z Mac'ida yig'adi
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+      groups:
+        - agro_env
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: uz.agroalliance.app
+    scripts:
+      - name: Paketlarni o'rnatish
+        script: npm ci
+      - name: .env yaratish
+        script: |
+          echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" > .env
+          echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env
+      - name: Web build + Capacitor sync
+        script: |
+          npm run build
+          npx cap sync ios
+      - name: CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Signing sozlash
+        script: xcode-project use-profiles
+      - name: iOS IPA yig'ish
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/App/App.xcworkspace" \
+            --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      email:
+        recipients:
+          - rustamasaka1991@gmail.com
+      # app_store_connect:  # TestFlight'ga avtomatik yuborish uchun yoqing
+      #   auth: integration

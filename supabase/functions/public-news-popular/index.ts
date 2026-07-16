@@ -1,9 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
-import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
+import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { formatNewsDate } from "../_shared/time.ts"
-
-const CACHE_TTL = 300
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -38,7 +36,7 @@ Deno.serve(async (req) => {
       }
     })
 
-    return cachedJsonResponse({ popular }, CACHE_TTL)
+    return noCacheJsonResponse({ popular })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

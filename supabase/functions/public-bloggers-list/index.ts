@@ -106,9 +106,32 @@ Deno.serve(async (req) => {
       query = query.in("id", filteredIds)
     }
 
-    if (search) {
-      const s = search.replace(/'/g, "''")
-      query = query.or(`slug.ilike.%${s}%`)
+    // XAVFSIZLIK: PostgREST filtr metabelgilarini ( , . ( ) : * % " ' \ ) olib tashlash — filtr injeksiyasi oldini olish
+    const s = search.replace(/^@/, "").replace(/[,.():*%"'\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
+    if (s) {
+      // Instagram/YouTube username yoki profil linki bo'yicha mos blogerlar
+      const { data: socialMatches } = await supabaseAdmin
+        .from("social_accounts")
+        .select("blogger_id")
+        .or(`account_name.ilike.%${s}%,profile_url.ilike.%${s}%`)
+        .is("deleted_at", null)
+
+      // Ism bo'yicha mos blogerlar (profiles alohida jadval bo'lgani uchun alohida so'rov)
+      const { data: nameMatches } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .ilike("name", `%${s}%`)
+
+      const matchedIds = new Set<string>([
+        ...(socialMatches || []).map((r: { blogger_id: string }) => r.blogger_id),
+        ...(nameMatches || []).map((r: { id: string }) => r.id),
+      ])
+
+      if (matchedIds.size > 0) {
+        query = query.or(`slug.ilike.%${s}%,id.in.(${[...matchedIds].join(",")})`)
+      } else {
+        query = query.or(`slug.ilike.%${s}%`)
+      }
     }
 
     // Sort order — rating by default, subscribers handled via ID ordering above

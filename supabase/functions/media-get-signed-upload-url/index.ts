@@ -3,13 +3,30 @@ import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { verifyAuth } from "../_shared/auth.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 
-const MAX_SIZE = 10 * 1024 * 1024
-const ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+const MAX_SIZE = 20 * 1024 * 1024
+const ALLOWED_MIME = [
+  "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+  // Hujjatlar (TZ fayllari)
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]
 
 function extFromMime(mime: string): string {
   const map: Record<string, string> = {
     "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
     "image/webp": "webp", "image/gif": "gif",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-powerpoint": "ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
   }
   return map[mime] || "bin"
 }
@@ -27,8 +44,12 @@ Deno.serve(async (req) => {
     if (!originalFilename || !mimeType) {
       return errorResponse("originalFilename va mimeType talab qilinadi", 400)
     }
+    // XAVFSIZLIK: sizeBytes majburiy va musbat bo'lishi shart (aks holda hajm tekshiruvi chetlab o'tiladi)
+    if (typeof sizeBytes !== "number" || sizeBytes <= 0) {
+      return errorResponse("sizeBytes talab qilinadi", 400)
+    }
     if (sizeBytes > MAX_SIZE) {
-      return errorResponse("Fayl hajmi 10MB dan oshmasligi kerak", 400)
+      return errorResponse(`Fayl hajmi ${MAX_SIZE / (1024 * 1024)}MB dan oshmasligi kerak`, 400)
     }
     if (!ALLOWED_MIME.includes(mimeType)) {
       return errorResponse(`Ruxsat etilmagan fayl turi: ${mimeType}`, 400)

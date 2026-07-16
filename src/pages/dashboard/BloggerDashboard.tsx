@@ -9,8 +9,26 @@ import { api, type User } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { categories } from "../../lib/bloggers"
 
+const VILOYATLAR = [
+  "Qoraqalpog'iston Respublikasi",
+  "Andijon viloyati",
+  "Buxoro viloyati",
+  "Farg'ona viloyati",
+  "Jizzax viloyati",
+  "Namangan viloyati",
+  "Navoiy viloyati",
+  "Qashqadaryo viloyati",
+  "Samarqand viloyati",
+  "Sirdaryo viloyati",
+  "Surxondaryo viloyati",
+  "Toshkent viloyati",
+  "Toshkent shahri",
+  "Xorazm viloyati",
+]
+
 const nav = [
   { label: "Dashboard", icon: I.home },
+  { label: "Topshiriqlar", icon: I.task },
   { label: "Profilim", icon: I.user },
   { label: "Ijtimoiy tarmoqlar", icon: I.link2 },
   { label: "Videolar", icon: I.media },
@@ -302,7 +320,12 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
             <div key={label} className="flex items-center gap-2 text-xs">
               <Icon d={icon} className="h-3.5 w-3.5 shrink-0 text-muted" />
               <span className="w-16 shrink-0 text-muted">{label}</span>
-              {edit && key !== "niche" ? (
+              {edit && key === "region" ? (
+                <select value={form.region} onChange={(e) => setForm((s) => ({ ...s, region: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none focus:border-green">
+                  <option value="">Viloyatni tanlang</option>
+                  {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              ) : edit && key !== "niche" ? (
                 <input value={form[key]} onChange={(e) => setForm((s) => ({ ...s, [key]: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none focus:border-green" />
               ) : edit && key === "niche" ? (
                 <select value={form.niche} onChange={(e) => setForm((s) => ({ ...s, niche: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none">
@@ -1022,6 +1045,97 @@ function ServicesTab() {
   )
 }
 
+/* ---------- Topshiriqlar (TZ) Tab ---------- */
+type MeTask = {
+  assignment_id: string; status: string; is_read: boolean; note: string | null
+  title: string; description: string | null; priority: string; deadline: string | null; created_at: string
+  file_url?: string | null; file_name?: string | null
+}
+const tzPrioLabel: Record<string, string> = { low: "Past", normal: "O'rta", high: "Yuqori" }
+const tzPrioColor: Record<string, string> = {
+  low: "bg-gray-100 text-gray-600", normal: "bg-blue-100 text-blue-700", high: "bg-red-100 text-red-600",
+}
+const tzStatusLabel: Record<string, string> = { new: "Yangi", in_progress: "Bajarilmoqda", done: "Bajarildi" }
+
+function TasksTab() {
+  const [tasks, setTasks] = useState<MeTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api<{ tasks: MeTask[] }>("/me/tasks")
+      .then((d) => setTasks(d.tasks || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const setStatus = async (id: string, status: string) => {
+    setBusy(id)
+    setTasks((prev) => prev.map((t) => t.assignment_id === id ? { ...t, status, is_read: true } : t))
+    try { await api(`/me/tasks/${id}`, { method: "PATCH", body: JSON.stringify({ status, is_read: true }) }) }
+    finally { setBusy(null) }
+  }
+
+  const unread = tasks.filter((t) => !t.is_read).length
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Topshiriqlarim</h2>
+          <p className="mt-1 text-sm text-muted">Administrator tomonidan yuborilgan topshiriqlar (TZ).</p>
+        </div>
+        {unread > 0 && <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">{unread} ta yangi</span>}
+      </div>
+
+      {loading ? (
+        <div className="mt-5"><SkeletonTable rows={3} cols={1} /></div>
+      ) : tasks.length === 0 ? (
+        <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center">
+          <Icon d={I.task} className="mx-auto h-10 w-10 text-green/30" />
+          <p className="mt-3 text-sm text-muted">Hozircha topshiriq yo'q.</p>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-3">
+          {tasks.map((t) => (
+            <div key={t.assignment_id} className={`${card} ${!t.is_read ? "ring-2 ring-green/30" : ""}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tzPrioColor[t.priority] || tzPrioColor.normal}`}>{tzPrioLabel[t.priority] || t.priority}</span>
+                  {!t.is_read && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Yangi</span>}
+                  <h3 className="font-display font-bold">{t.title}</h3>
+                </div>
+                <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${t.status === "done" ? "bg-green/10 text-green" : t.status === "in_progress" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>{tzStatusLabel[t.status] || t.status}</span>
+              </div>
+              {t.description && <p className="mt-2 whitespace-pre-wrap text-sm text-ink/80">{t.description}</p>}
+              {t.file_url && (
+                <a href={t.file_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green/10 px-3 py-1.5 text-xs font-semibold text-green hover:bg-green/20">
+                  <Icon d={I.paperclip} className="h-3.5 w-3.5" /> {t.file_name || "TZ faylini yuklab olish"}
+                </a>
+              )}
+              <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted">
+                <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : "Muddatsiz"}</span>
+                <span>{new Date(t.created_at).toLocaleDateString()}</span>
+              </div>
+              {/* Holatni o'zgartirish */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[["new", "Yangi"], ["in_progress", "Bajarilmoqda"], ["done", "Bajarildi"]].map(([val, label]) => (
+                  <button key={val} disabled={busy === t.assignment_id} onClick={() => setStatus(t.assignment_id, val)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${t.status === val ? "bg-green text-white" : "border border-green/25 text-ink hover:border-green hover:text-green"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Regions Tab ---------- */
 function RegionsTab() {
   const [items, setItems] = useState<{ id: string; region: string }[]>([])
@@ -1061,8 +1175,11 @@ function RegionsTab() {
         ) : (
           <>
             <div className="flex gap-3">
-              <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Hudud nomi" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <select value={region} onChange={(e) => setRegion(e.target.value)} className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                <option value="">Viloyatni tanlang</option>
+                {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
               {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>}
@@ -1257,7 +1374,8 @@ function ImagesTab() {
               <div key={img.id} className="group relative overflow-hidden rounded-xl border border-green/10">
                 <img src={img.url} alt={img.caption || ""} className="h-36 w-full object-cover" />
                 {img.caption && <p className="truncate px-2 py-1 text-xs text-muted">{img.caption}</p>}
-                <button onClick={() => remove(img.id)} disabled={deleting.has(img.id)} className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-lg bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 disabled:opacity-100">
+                {/* Touch qurilmada doim ko'rinadi (hover yo'q), sichqonchada — hover'da */}
+                <button onClick={() => remove(img.id)} disabled={deleting.has(img.id)} className="absolute right-1 top-1 grid h-9 w-9 place-items-center rounded-lg bg-black/50 text-white opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 disabled:opacity-100">
                   {deleting.has(img.id) ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />}
                 </button>
               </div>
@@ -1494,6 +1612,7 @@ export default function BloggerDashboard() {
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: "Blogger", initials }}>
       {!me ? <div className="grid min-h-[60vh] place-items-center text-muted">Yuklanmoqda…</div>
         : active === "Dashboard" ? <Overview me={me} reload={reload} onNav={setActive} />
+        : active === "Topshiriqlar" ? <TasksTab />
         : active === "Profilim" ? <ProfileTab me={me} reload={reload} />
         : active === "Ijtimoiy tarmoqlar" ? <SocialsTab me={me} reload={reload} />
         : active === "Videolar" ? <VideosTab me={me} reload={reload} />

@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { validate, required, isEmail } from "../_shared/validation.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { rateLimited } from "../_shared/publicRateLimit.ts"
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -9,6 +10,11 @@ Deno.serve(async (req) => {
 
   if (req.method !== "POST") {
     return errorResponse("Method not allowed", 405)
+  }
+
+  // Rate limit: bir IP daqiqada 5 ta, soatda 30 ta
+  if (await rateLimited(req, "newsletter", 5, 60) || await rateLimited(req, "newsletter-h", 30, 3600)) {
+    return errorResponse("Juda ko'p urinish. Birozdan keyin qayta urining.", 429)
   }
 
   const body = await req.json().catch(() => ({}))
@@ -21,6 +27,10 @@ Deno.serve(async (req) => {
   }
 
   const email = (body.email as string).trim().toLowerCase()
+  if (email.length > 200) return errorResponse("Email juda uzun", 400)
+
+  // XAVFSIZLIK: email enumeratsiya oldini olish uchun har doim bir xil javob qaytariladi
+  const OK = jsonResponse({ success: true, message: "Obuna bo'ldingiz!" })
 
   const { data: existing } = await supabaseAdmin
     .from("newsletter_subscribers")
@@ -29,14 +39,13 @@ Deno.serve(async (req) => {
     .maybeSingle()
 
   if (existing) {
-    if (existing.is_active) {
-      return jsonResponse({ success: true, message: "Siz allaqachon obuna bo'lgansiz!" })
+    if (!existing.is_active) {
+      await supabaseAdmin
+        .from("newsletter_subscribers")
+        .update({ is_active: true, unsubscribed_at: null })
+        .eq("id", existing.id)
     }
-    await supabaseAdmin
-      .from("newsletter_subscribers")
-      .update({ is_active: true, unsubscribed_at: null })
-      .eq("id", existing.id)
-    return jsonResponse({ success: true, message: "Obuna qayta faollashtirildi!" })
+    return OK
   }
 
   const { error: insertErr } = await supabaseAdmin
@@ -44,8 +53,9 @@ Deno.serve(async (req) => {
     .insert({ email, is_active: true })
 
   if (insertErr) {
-    return errorResponse("Obunada xatolik: " + insertErr.message, 500)
+    console.error("newsletter-subscribe:", insertErr)
+    return errorResponse("Obunada xatolik", 500)
   }
 
-  return jsonResponse({ success: true, message: "Obuna bo'ldingiz!" })
+  return OK
 })

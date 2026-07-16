@@ -1,27 +1,29 @@
 /**
- * Edge Function – returns a signed download URL for a given media file.
- * Input (JSON body): { fileId: string, expiresIn?: number }
- *
- * Permissions are checked: public files are available to anyone, private files
- * require the caller to be the uploader (simplified auth).
+ * media-get-signed-download-url — imzolangan yuklab olish havolasi.
+ * Body: { fileId: string, expiresIn?: number }
+ * Public fayllar hammaga; private fayllar faqat yuklovchining o'ziga.
  */
+import { handleCors } from "../_shared/cors.ts"
+import { verifyAuth } from "../_shared/auth.ts"
+import { getDownloadUrl } from "../_shared/r2Storage.ts"
+import { jsonResponse, errorResponse } from "../_shared/response.ts"
+import { log } from "../_shared/logger.ts"
 
-import { supabaseAdmin } from "../_shared/supabase.ts";
-import { getDownloadUrl } from "../_shared/r2Storage.ts";
-import { log } from "../_shared/logger.ts";
+Deno.serve(async (req) => {
+  const cors = handleCors(req)
+  if (cors) return cors
 
-export default async function handler(req: Request) {
-  const { fileId, expiresIn } = await req.json();
-  const authHeader = req.headers.get("authorization") ?? "";
-  // Very naive auth extraction – expects a Bearer <profileId> token for demo purposes.
-  const requesterId = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+  // XAVFSIZLIK: haqiqiy JWT tekshiruvi (avval oddiy "Bearer <profileId>" ishlatilgan edi — IDOR)
+  const auth = await verifyAuth(req)
+  if (auth.response) return auth.response
 
   try {
-    const signed = await getDownloadUrl({ fileId, expiresIn, requesterId });
-    return new Response(JSON.stringify({ url: signed }), { status: 200, headers: { "Content-Type": "application/json" } });
+    const { fileId, expiresIn } = await req.json().catch(() => ({}))
+    if (!fileId) return errorResponse("fileId talab qilinadi", 400)
+    const signed = await getDownloadUrl({ fileId, expiresIn, requesterId: auth.user.id })
+    return jsonResponse({ url: signed })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    log("error", `Failed to generate signed download URL: ${msg}`);
-    return new Response(JSON.stringify({ error: msg }), { status: 400, headers: { "Content-Type": "application/json" } });
+    log("error", `download url: ${e instanceof Error ? e.message : String(e)}`)
+    return errorResponse("Yuklab olish havolasini yaratib bo'lmadi", 400)
   }
-}
+})

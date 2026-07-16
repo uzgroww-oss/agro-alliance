@@ -2,7 +2,7 @@ import { useState, useRef } from "react"
 import { Icon, I } from "../lib/ui"
 import { api } from "../lib/api"
 
-type UploadResult = { fileId: string; signedUrl: string; storageKey: string; publicUrl?: string }
+type UploadResult = { fileId: string; signedUrl: string; storageKey: string; publicUrl?: string; fileName?: string }
 
 type UploadProgress = {
   current: number
@@ -62,7 +62,7 @@ export default function MediaUpload({
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ ...result, signedUrl: result.publicUrl || result.signedUrl })
+          resolve({ ...result, signedUrl: result.publicUrl || result.signedUrl, fileName: file.name })
         } else {
           reject(new Error("Yuklashda xatolik"))
         }

@@ -1,4 +1,4 @@
-import { type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
 
@@ -21,8 +21,53 @@ export default function DashboardLayout({
   help?: boolean
   onLogout?: () => void
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // Nav ro'yxati — sidebar (desktop) va drawer (mobil) uchun umumiy
+  const navList = (onPick?: () => void) => (
+    <nav className="mt-2 flex-1 space-y-1 px-3">
+      {nav.map((n) => {
+        const on = n.label === active
+        return (
+          <button
+            key={n.label}
+            onClick={() => { onNav(n.label); onPick?.() }}
+            className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors ${on ? "bg-green text-white shadow-lg shadow-green/25" : "text-ink/70 hover:bg-soft"}`}
+          >
+            <Icon d={n.icon} className="h-5 w-5" />
+            {n.label}
+          </button>
+        )
+      })}
+    </nav>
+  )
+
   return (
     <div className="min-h-screen bg-[#f7faf4]">
+      {/* Mobil menyu (drawer) — telefonda yagona navigatsiya */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
+          <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4">
+              <span className="flex items-center gap-2.5">
+                <img src={logo} alt="" className="h-8 w-8 object-contain" />
+                <span className="font-display text-base font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
+              </span>
+              <button onClick={() => setMenuOpen(false)} aria-label="Yopish" className="grid h-11 w-11 place-items-center rounded-xl text-muted hover:bg-soft">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
+              </button>
+            </div>
+            {navList(() => setMenuOpen(false))}
+            {onLogout && (
+              <button onClick={() => { setMenuOpen(false); onLogout() }} className="m-3 flex items-center gap-3 rounded-xl border border-red-200 px-3.5 py-3 text-sm font-semibold text-red-500">
+                <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9" className="h-5 w-5" /> Chiqish
+              </button>
+            )}
+          </aside>
+        </div>
+      )}
+
       <div className="flex">
         {/* Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-green/10 bg-white lg:flex">
@@ -30,21 +75,7 @@ export default function DashboardLayout({
             <img src={logo} alt="" className="h-9 w-9 object-contain" />
             <span className="font-display text-base font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
           </Link>
-          <nav className="mt-2 flex-1 space-y-1 px-3">
-            {nav.map((n) => {
-              const on = n.label === active
-              return (
-                <button
-                  key={n.label}
-                  onClick={() => onNav(n.label)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors ${on ? "bg-green text-white shadow-lg shadow-green/25" : "text-ink/70 hover:bg-soft"}`}
-                >
-                  <Icon d={n.icon} className="h-5 w-5" />
-                  {n.label}
-                </button>
-              )
-            })}
-          </nav>
+          {navList()}
           {help && (
             <div className="m-3 rounded-2xl border border-green/15 bg-soft p-5">
               <div className="flex items-center justify-between">
@@ -63,6 +94,14 @@ export default function DashboardLayout({
         <div className="min-w-0 flex-1">
           {/* Topbar */}
           <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-green/10 bg-white/90 px-5 py-3 backdrop-blur lg:px-8">
+            {/* Mobil menyu tugmasi — telefonda navigatsiyani ochadi */}
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Menyu"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-green/15 text-ink/70 transition-colors hover:text-green lg:hidden"
+            >
+              <Icon d="M3 6h18 M3 12h18 M3 18h18" className="h-5 w-5" />
+            </button>
             <div className="relative hidden max-w-xl flex-1 sm:block">
               <Icon d={I.search} className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <input placeholder="Qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-11 pr-4 text-sm outline-none focus:border-green" />

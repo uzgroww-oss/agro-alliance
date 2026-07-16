@@ -80,7 +80,30 @@ function Hero() {
 
         <div className="relative hidden items-center justify-center xl:flex">
           <div className="absolute h-72 w-72 rounded-full bg-white/40 blur-2xl" />
-          <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[400px] object-contain drop-shadow-2xl" />
+          <div className="animate-float relative w-full max-w-[400px]">
+            <img src={mascot} alt="Agro Alliance" className="relative z-10 w-full object-contain drop-shadow-2xl" />
+            {/* A dan chiqadigan nur nurchalari (starburst) — A markazidan (44.5% x, 54.3% y) atrofga otiladi. Harakatsiz, yonib-o'chadi. */}
+            <div className="animate-a-pulse pointer-events-none absolute left-[52.18%] top-[53.95%] z-20 -translate-x-1/2 -translate-y-1/2 mix-blend-screen">
+              {/* nurchalar — markazdan tashqariga */}
+              <div
+                className="absolute left-1/2 top-1/2 h-[230px] w-[230px] -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, rgba(140,245,90,.9) 0deg, transparent 3deg, transparent 42deg, rgba(140,245,90,.85) 45deg, transparent 48deg, transparent 87deg, rgba(140,245,90,.9) 90deg, transparent 93deg, transparent 132deg, rgba(140,245,90,.85) 135deg, transparent 138deg, transparent 177deg, rgba(140,245,90,.9) 180deg, transparent 183deg, transparent 222deg, rgba(140,245,90,.85) 225deg, transparent 228deg, transparent 267deg, rgba(140,245,90,.9) 270deg, transparent 273deg, transparent 312deg, rgba(140,245,90,.85) 315deg, transparent 318deg, transparent 357deg, rgba(140,245,90,.9) 360deg)",
+                  WebkitMaskImage: "radial-gradient(circle, #000 8%, #000 16%, transparent 56%)",
+                  maskImage: "radial-gradient(circle, #000 8%, #000 16%, transparent 56%)",
+                  filter: "blur(1.5px)",
+                }}
+              />
+              {/* A markazidagi yumshoq yorug'lik */}
+              <span
+                className="relative block font-display font-extrabold leading-none"
+                style={{ fontSize: "96px", color: "rgba(150,250,95,0.85)", filter: "blur(6px)" }}
+              >
+                A
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -156,65 +179,11 @@ function Features() {
   )
 }
 
-/* ---------- Team (Bizning Jamoa) ---------- */
-type TeamMember = { id: string; name: string; role: string; image_url: string | null; sort_order: number }
-
-function TeamSection() {
-  const [members, setMembers] = useState<TeamMember[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api<{ members: TeamMember[] }>("/public/team")
-      .then((d) => { if (Array.isArray(d.members)) setMembers(d.members) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (!loading && members.length === 0) return null
-
-  return (
-    <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8 lg:py-20">
-      <Reveal>
-        <h2 className="mb-12 text-center font-display text-[clamp(1.8rem,5vw,2.8rem)] font-extrabold tracking-tight">
-          BIZNING <span className="text-green">JAMOA</span>
-        </h2>
-      </Reveal>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {loading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-green/10 bg-white p-6 text-center">
-            <Skeleton className="mx-auto h-20 w-20 rounded-full" />
-            <Skeleton className="mx-auto mt-4 h-5 w-24" />
-            <Skeleton className="mx-auto mt-2 h-4 w-32" />
-          </div>
-        ))}
-        {members.map((m, i) => (
-          <Reveal key={m.id} delay={(i % 5) * 70}>
-            <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
-              <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-soft">
-                {m.image_url ? (
-                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="grid h-full w-full place-items-center bg-green/10 text-green">
-                    <Icon d={I.user} className="h-8 w-8" />
-                  </span>
-                )}
-              </div>
-              <h3 className="mt-4 font-display font-bold">{m.name}</h3>
-              <p className="mt-0.5 text-sm text-muted">{m.role}</p>
-            </div>
-          </Reveal>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 export default function Home() {
   return (
     <>
       <Hero />
       <StatsBar />
-      <TeamSection />
       <Features />
     </>
   )

@@ -1,9 +1,8 @@
 import { handleCors } from "../_shared/cors.ts"
-import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
+import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { formatNewsDate } from "../_shared/time.ts"
 
-const CACHE_TTL = 120
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -28,7 +27,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (error) return errorResponse(error.message, 500)
-    if (!article) return cachedJsonResponse({ article: null }, CACHE_TTL)
+    if (!article) return noCacheJsonResponse({ article: null })
 
     // Ko'rish sonini +1 qilish
     const newViewCount = (article.view_count || 0) + 1
@@ -55,7 +54,7 @@ Deno.serve(async (req) => {
       body: [article.content || ""],
     }
 
-    return cachedJsonResponse({ article: result }, CACHE_TTL)
+    return noCacheJsonResponse({ article: result })
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

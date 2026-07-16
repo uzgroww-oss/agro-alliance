@@ -43,3 +43,32 @@ supabase/signing_keys.json
 
 # Dependencies
 .pnpm-store
+
+# Editor / local history (keraksiz, katta hajm)
+.history/
+.mimocode/
+
+# Audit va vaqtinchalik ish fayllari
+.audit/
+.diff_*.txt
+*.diff
+clean_diff.diff
+current_diff*.diff
+supabase-functions-inventory.json
+fix-videos.py
+
+# ---- Capacitor (native) ----
+# android/ va ios/ QASDDAN kuzatiladi — Codemagic bulutli build uchun kerak.
+# Faqat build natijalari va lokal sozlamalar chiqarib tashlanadi:
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/app/release/
+ios/App/Pods/
+ios/App/build/
+ios/App/output/
+ios/DerivedData/
+*.keystore
+*.jks

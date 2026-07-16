@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react"
-import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom"
+import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation, useNavigate } from "react-router-dom"
+import { App as CapApp } from "@capacitor/app"
+import { isNative } from "./lib/platform"
 import { AuthProvider, useAuth } from "./lib/auth"
 import { ErrorBoundary } from "./lib/error-boundary"
 import Header from "./components/Header"
@@ -22,6 +24,28 @@ import BloggerDashboard from "./pages/dashboard/BloggerDashboard"
 import AdminDashboard from "./pages/dashboard/AdminDashboard"
 import PartnerDashboard from "./pages/dashboard/PartnerDashboard"
 import { roleHome } from "./lib/roles"
+
+// Native ilovada HashRouter ishonchli (WebView'da server-side route yo'q), web'da BrowserRouter
+const Router = isNative ? HashRouter : BrowserRouter
+
+/** Android "orqaga" tugmasi: ichkarida — orqaga, ildizda — ilovadan chiqish */
+function AndroidBackButton() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const pathRef = useRef(pathname)
+  pathRef.current = pathname
+  useEffect(() => {
+    if (!isNative) return
+    let remove: (() => void) | undefined
+    CapApp.addListener("backButton", ({ canGoBack }) => {
+      const root = ["/kirish", "/dashboard", "/admin", "/hamkor"].includes(pathRef.current)
+      if (canGoBack && !root) navigate(-1)
+      else CapApp.exitApp()
+    }).then((h) => { remove = () => h.remove() })
+    return () => remove?.()
+  }, [navigate])
+  return null
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -58,12 +82,14 @@ function RequireRole({ role, children }: { role: "superadmin" | "blogger" | "par
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <Router>
         <ScrollToTop />
+        <AndroidBackButton />
         <ErrorBoundary>
         <Routes>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Home />} />
+            {/* Native ilovada bosh sahifa emas — login ekraniga yo'naltiramiz */}
+            <Route path="/" element={isNative ? <Navigate to="/kirish" replace /> : <Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/blogerlar" element={<Bloggers />} />
             <Route path="/blogerlar/:slug" element={<BloggerProfile />} />
@@ -83,7 +109,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </ErrorBoundary>
-      </BrowserRouter>
+      </Router>
     </AuthProvider>
   )
 }

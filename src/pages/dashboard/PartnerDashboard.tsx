@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import DashboardLayout, { Donut } from "../../components/DashboardLayout"
+import DashboardLayout from "../../components/DashboardLayout"
 import { Icon, I, fmtSom } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -10,8 +10,6 @@ const nav = [
   { label: "Umumiy", icon: I.dashboard },
   { label: "Kompaniya profili", icon: I.building },
   { label: "Shartnoma", icon: I.doc },
-  { label: "Loyiha ishlari", icon: I.task },
-  { label: "Statistika", icon: I.chart },
   { label: "Blogerlar", icon: I.users },
   { label: "Bildirishnomalar", icon: I.bell },
   { label: "Hisobot", icon: I.fileText },
@@ -27,11 +25,6 @@ type CompanyExtra = { description?: string; website?: string; phone?: string; ad
 type Notif = { id: string; title: string; body: string; type: string; is_read: boolean; link: string | null; created_at: string }
 type Blogger = { slug: string; name: string; cat: string; subs: string; region: string; avatar: string; tag?: string }
 
-const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
-  done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
-  progress: { label: "Jarayonda", cls: "bg-orange-100 text-orange-600", dot: "bg-orange-500" },
-  pending: { label: "Kutilayotgan", cls: "bg-slate-100 text-slate-500", dot: "bg-slate-400" },
-}
 const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
   active: { label: "Faol", cls: "bg-green/10 text-green" },
   pending: { label: "Kutilmoqda", cls: "bg-orange-100 text-orange-600" },
@@ -48,19 +41,6 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
         <span className="font-bold text-green">{pct}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-green transition-all" style={{ width: `${pct}%` }} /></div>
-    </div>
-  )
-}
-
-function TaskRow({ t }: { t: Task }) {
-  const tm = taskMeta[t.status] || taskMeta.pending
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-green/8 bg-white px-3 py-2.5">
-      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${tm.cls}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${tm.dot}`} /> {tm.label}
-      </span>
-      <span className={`flex-1 text-sm ${t.status === "done" ? "text-muted line-through" : ""}`}>{t.title}</span>
-      {t.status === "done" && <Icon d={I.check} className="h-4 w-4 shrink-0 text-green" />}
     </div>
   )
 }
@@ -135,8 +115,6 @@ export default function PartnerDashboard() {
           {active === "Umumiy" && <Overview partner={partner} counts={counts} pct={pct} notifs={notifs} onNav={setActive} />}
           {active === "Kompaniya profili" && <CompanyProfile partner={partner} extra={extra} onSaved={reload} />}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
-          {active === "Loyiha ishlari" && <TasksSection partner={partner} counts={counts} />}
-          {active === "Statistika" && <Statistics counts={counts} pct={pct} partner={partner} />}
           {active === "Blogerlar" && <BloggersBrowse />}
           {active === "Bildirishnomalar" && <Notifications notifs={notifs} />}
           {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
@@ -168,47 +146,15 @@ function Overview({ partner, counts, pct, notifs, onNav }: { partner: Partner; c
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
-        <div className={card}>
-          <h3 className="font-display text-lg font-bold">Ishlar holati</h3>
-          {counts.total === 0 ? (
-            <p className="mt-6 text-center text-sm text-muted">Hozircha ish qo'shilmagan.</p>
-          ) : (
-            <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:justify-around">
-              <div className="relative grid place-items-center">
-                <Donut segments={[
-                  { label: "Bajarilgan", value: counts.done, color: "#5bb420" },
-                  { label: "Jarayonda", value: counts.progress, color: "#f97316" },
-                  { label: "Kutilayotgan", value: counts.pending, color: "#cbd5e1" },
-                ]} />
-                <div className="absolute text-center">
-                  <div className="font-display text-2xl font-extrabold leading-none">{pct}%</div>
-                  <div className="text-[11px] text-muted">bajarildi</div>
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                {[["Bajarilgan", counts.done, "bg-green"], ["Jarayonda", counts.progress, "bg-orange-500"], ["Kutilayotgan", counts.pending, "bg-slate-300"]].map(([l, v, c]) => (
-                  <div key={l as string} className="flex items-center gap-2.5 text-sm">
-                    <span className={`h-3 w-3 rounded-full ${c}`} />
-                    <span className="text-muted">{l}</span>
-                    <span className="ml-auto font-bold">{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <div className={`mt-6 ${card}`}>
+        <h3 className="font-display text-lg font-bold">Shartnoma qisqacha</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Shartnoma raqami</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Summa</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} so'm</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Imzolangan</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Yo'nalish</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
         </div>
-
-        <div className={card}>
-          <h3 className="font-display text-lg font-bold">Shartnoma qisqacha</h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Shartnoma raqami</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Summa</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} so'm</div></div>
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Imzolangan</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Yo'nalish</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
-          </div>
-          <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
-        </div>
+        <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
       </div>
 
       <div className={`mt-6 ${card}`}>
@@ -315,71 +261,6 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
             <div key={l as string} className="rounded-xl bg-[#fafdf7] p-4">
               <div className={`font-display text-2xl font-extrabold ${c}`}>{v}</div>
               <div className="mt-1 text-xs text-muted">{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ---------- Loyiha ishlari ---------- */
-function TasksSection({ partner, counts }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number } }) {
-  const [filter, setFilter] = useState<"all" | "done" | "progress" | "pending">("all")
-  const list = partner.tasks.filter((t) => filter === "all" || t.status === filter)
-  const filters: { k: typeof filter; l: string; n: number }[] = [
-    { k: "all", l: "Barchasi", n: counts.total },
-    { k: "done", l: "Bajarilgan", n: counts.done },
-    { k: "progress", l: "Jarayonda", n: counts.progress },
-    { k: "pending", l: "Kutilayotgan", n: counts.pending },
-  ]
-  return (
-    <div className={`mt-6 ${card}`}>
-      <h3 className="font-display text-lg font-bold">Loyiha ishlari</h3>
-      <p className="mt-1 text-sm text-muted">Kompaniyangiz uchun rejalashtirilgan ishlar va ularning holati.</p>
-      <div className="mt-4"><ProgressBar done={counts.done} total={counts.total} /></div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {filters.map((f) => (
-          <button key={f.k} onClick={() => setFilter(f.k)} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${filter === f.k ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green"}`}>
-            {f.l} ({f.n})
-          </button>
-        ))}
-      </div>
-      <div className="mt-4 space-y-2">
-        {list.length === 0 && <p className="py-6 text-center text-sm text-muted">Bu bo'limda ish yo'q.</p>}
-        {list.map((t) => <TaskRow key={t.id} t={t} />)}
-      </div>
-    </div>
-  )
-}
-
-/* ---------- Statistika ---------- */
-function Statistics({ counts, pct, partner }: { counts: { total: number; done: number; progress: number; pending: number }; pct: number; partner: Partner }) {
-  const bars = [
-    { l: "Bajarilgan", v: counts.done, c: "from-green/40 to-green" },
-    { l: "Jarayonda", v: counts.progress, c: "from-orange-200 to-orange-500" },
-    { l: "Kutilayotgan", v: counts.pending, c: "from-slate-200 to-slate-400" },
-  ]
-  const max = Math.max(1, counts.total)
-  return (
-    <div className="mt-6 space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[["Bajarilish darajasi", `${pct}%`, I.target], ["Jami ishlar", String(counts.total), I.task], ["Shartnoma summasi", `${fmtSom(partner.amount)}`, I.wallet]].map(([t, v, ic]) => (
-          <div key={t} className={card}>
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={ic} className="h-5 w-5" /></span>
-            <div className="mt-3 text-xs text-muted">{t}</div>
-            <div className="mt-1 font-display text-2xl font-extrabold truncate">{v}</div>
-          </div>
-        ))}
-      </div>
-      <div className={card}>
-        <h3 className="font-display text-lg font-bold">Ishlar taqsimoti</h3>
-        <div className="mt-6 flex items-end gap-6" style={{ height: "180px" }}>
-          {bars.map((b) => (
-            <div key={b.l} className="flex flex-1 flex-col items-center justify-end h-full">
-              <div className="mb-1.5 font-display text-sm font-bold">{b.v}</div>
-              <div className={`w-full rounded-t-xl bg-gradient-to-t ${b.c} transition-all duration-500`} style={{ height: `${Math.round((b.v / max) * 140)}px` }} />
-              <div className="mt-2 text-[11px] text-muted text-center">{b.l}</div>
             </div>
           ))}
         </div>

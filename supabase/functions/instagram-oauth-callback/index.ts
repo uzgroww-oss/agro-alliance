@@ -1,5 +1,6 @@
 import { handleCors } from "../_shared/cors.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { verifyState } from "../_shared/oauthState.ts"
 
 /**
  * instagram-oauth-callback — Facebook'dan OAuth token olish va Instagram access token olish
@@ -30,13 +31,10 @@ Deno.serve(async (req) => {
       return new Response("Code va state parametrlari kerak", { status: 400 })
     }
 
-    // State ni tekshirish
-    let userId: string
-    try {
-      const decoded = JSON.parse(atob(state))
-      userId = decoded.userId
-    } catch {
-      return new Response("Noto'g'ri state parametri", { status: 400 })
+    // State ni HMAC bilan tekshirish — soxta/o'zgartirilgan state rad etiladi
+    const userId = await verifyState(FACEBOOK_APP_SECRET, state)
+    if (!userId) {
+      return new Response("Noto'g'ri yoki muddati o'tgan state parametri", { status: 400 })
     }
 
     // Facebook'dan short-lived token olish

@@ -428,8 +428,24 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Metadata'ga Instagram ma'lumotlarini saqlash
+      // Agar bloger YouTube ulamagan bo'lsa — asosiy avatar Instagramdan olinadi
+      // (YouTube ulangan bo'lsa, avatar YouTube'dan kelganicha qoladi)
+      let avatarFromInstagram = ""
+      if (igProfile?.profile_picture_url) {
+        const { data: ytPlatform } = await supabaseAdmin
+          .from("social_platforms").select("id").eq("key", "youtube").is("deleted_at", null).single()
+        const { data: ytAccount } = ytPlatform
+          ? await supabaseAdmin
+              .from("social_accounts").select("id")
+              .eq("blogger_id", userId).eq("platform_id", ytPlatform.id)
+              .is("deleted_at", null).maybeSingle()
+          : { data: null }
+        if (!ytAccount) avatarFromInstagram = igProfile.profile_picture_url
+      }
+
+      // Metadata'ga Instagram ma'lumotlarini saqlash (+ kerak bo'lsa avatar)
       await supabaseAdmin.from("profiles").update({
+        ...(avatarFromInstagram ? { avatar: avatarFromInstagram } : {}),
         metadata: {
           ...existingMeta,
           instagram_url: instagramUrl,
@@ -440,6 +456,7 @@ Deno.serve(async (req) => {
       return jsonResponse({
         success: true,
         instagram_username: instagramUsername,
+        avatar: avatarFromInstagram || undefined,
         profile: igProfile,
         stats: igStats,
         media: igMedia,
@@ -478,6 +495,23 @@ Deno.serve(async (req) => {
     if (Object.keys(profileUpdates).length > 0) {
       const { error: updateError } = await supabaseAdmin.from("profiles").update(profileUpdates).eq("id", userId).is("deleted_at", null)
       if (updateError) return errorResponse(updateError.message, 500)
+    }
+
+    // Viloyat tanlanganda — blogger_regions jadvaliga asosiy hudud (sort_order=1) sifatida yozish.
+    // Public profil ko'rsatishi va "Viloyatlar" statistikasi shu jadvaldan hisoblanadi.
+    // "Hududlar" tabidagi qo'shimcha hududlar (sort_order=0) saqlanib qoladi.
+    if (body.region !== undefined && String(body.region).trim()) {
+      const region = String(body.region).trim()
+      // Eski asosiy viloyatni o'chirish
+      await supabaseAdmin.from("blogger_regions").delete().eq("blogger_id", userId).eq("sort_order", 1)
+      // Xuddi shu nom bilan (blogger_id, region) yozuv bo'lsa — unikal cheklovga tushmaslik uchun uni asosiy qilamiz
+      const { data: dup } = await supabaseAdmin.from("blogger_regions")
+        .select("id").eq("blogger_id", userId).eq("region", region).is("deleted_at", null).maybeSingle()
+      if (dup) {
+        await supabaseAdmin.from("blogger_regions").update({ sort_order: 1 }).eq("id", dup.id)
+      } else {
+        await supabaseAdmin.from("blogger_regions").insert({ blogger_id: userId, region, sort_order: 1 })
+      }
     }
 
     if (body.banner) {

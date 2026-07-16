@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
 
     const userId = createBody.id
 
-    // 3. Update profile name
-    await supabaseAdmin.from("profiles").update({ name: body.name }).eq("id", userId)
+    // 3. Update profile name + faollashtirish (admin yaratgan bloger darhol faol)
+    await supabaseAdmin.from("profiles").update({ name: body.name, status: "active" }).eq("id", userId)
 
     // 4. Assign blogger role (trigger added 'company' role, add 'blogger' on top)
     const { data: roleData } = await supabaseAdmin.from("roles").select("id").eq("name", "blogger").single()
