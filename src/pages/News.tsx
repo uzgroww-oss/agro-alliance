@@ -107,10 +107,12 @@ export default function News() {
   const [error, setError] = useState("")
   const [popularNews, setPopularNews] = useState<{ title: string; date: string; views: string; seed: string; slug: string }[]>([])
   const [popularLoading, setPopularLoading] = useState(true)
+  // Xato "mashhur yangilik yo'q" degani emas.
+  const [popularFailed, setPopularFailed] = useState(false)
 
   // load popular news
   useEffect(() => {
-    loadPopularNews().then(setPopularNews).catch(() => {}).finally(() => setPopularLoading(false))
+    loadPopularNews().then(setPopularNews).catch(() => setPopularFailed(true)).finally(() => setPopularLoading(false))
   }, [])
 
   // load data
@@ -217,7 +219,9 @@ const side = page === 1 && newsList.slice(1, 3)
                       </div>
                     </Link>
                   </li>
-                )) : (
+                )) : popularFailed ? (
+                  <li className="py-4 text-center text-sm text-red-600">Yuklab bo'lmadi.</li>
+                ) : (
                   <li className="py-4 text-center text-sm text-muted">Hozircha mashhur yangiliklar yo'q</li>
                 )}
               </ul>

@@ -462,11 +462,14 @@ function Reviews({ slug }: { slug: string }) {
   const [done, setDone] = useState(false)
   const [err, setErr] = useState("")
 
+  const [failed, setFailed] = useState(false)
   const load = () => {
     setLoading(true)
+    setFailed(false)
     api<{ reviews: Review[]; avg: number }>(`/blogger-reviews?slug=${encodeURIComponent(slug)}`)
       .then((d) => { setReviews(d.reviews || []); setAvg(d.avg || 0) })
-      .catch(() => {}).finally(() => setLoading(false))
+      // Xato "sharh yo'q" degani emas — bloger uchun bu farq muhim.
+      .catch(() => setFailed(true)).finally(() => setLoading(false))
   }
   useEffect(load, [slug])
 
@@ -493,6 +496,8 @@ function Reviews({ slug }: { slug: string }) {
         )}
         {loading ? (
           <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-soft" />)}</div>
+        ) : failed ? (
+          <ErrorState onRetry={load} message="Sharhlarni yuklab bo'lmadi." />
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-green/10 bg-white py-12 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.message} className="h-7 w-7" /></span>

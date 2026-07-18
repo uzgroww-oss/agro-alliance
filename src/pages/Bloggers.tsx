@@ -116,6 +116,9 @@ function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoadi
             <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
           </div>
 
+          {/* Yuklab bo'lgach bloger topilmasa kartani umuman chizmaymiz:
+              aks holda "—" / "0" / "0" real ma'lumotdek ko'rinardi. */}
+          {(topLoading || topBlogger) && (
           <Reveal delay={160}>
             <div className="rounded-3xl border border-green/10 bg-white p-6 shadow-[0_12px_44px_rgba(91,180,32,0.12)]">
               <div className="flex items-center gap-2 text-green">
@@ -168,6 +171,7 @@ function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoadi
               )}
             </div>
           </Reveal>
+          )}
         </div>
       </div>
     </section>

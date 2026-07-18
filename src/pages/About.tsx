@@ -102,6 +102,10 @@ function Pillars() {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
+  // Yuklab bo'lgach hech narsa yo'q bo'lsa (yoki so'rov xato bergan bo'lsa)
+  // bo'sh chegaralangan gridni ko'rsatmaymiz.
+  if (!loading && pillars.length === 0) return null
+
   if (loading && pillars.length === 0) return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <div className="grid gap-px overflow-hidden rounded-3xl border border-green/10 bg-green/10 md:grid-cols-3">

@@ -199,6 +199,8 @@ function Directions() {
     }).catch(() => {}).finally(() => setDirLoading(false))
   }, [])
   const [dh1, ...dhrest] = head.title.split(" ")
+  // Ma'lumot yo'q bo'lsa sarlavha ostida bo'sh joy qolmasin.
+  if (!dirLoading && items.length === 0) return null
   return (
     <section id="yonalishlar" className="mx-auto max-w-[1320px] px-5 py-14 lg:px-8">
       <Reveal>
