@@ -113,7 +113,6 @@ function ContactForm() {
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState({ name: "", email: "", topic: "Tanlang", message: "" })
-  const [file, setFile] = useState<File | null>(null)
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = async (e: React.FormEvent) => {
@@ -122,16 +121,10 @@ function ContactForm() {
     setError("")
     setBusy(true)
     try {
-      const payload: Record<string, unknown> = { name: form.name, email: form.email, subject: form.topic, message: form.message }
-      if (file) {
-        const reader = new FileReader()
-        const base64 = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string)
-          reader.readAsDataURL(file)
-        })
-        payload.file = { name: file.name, type: file.type, size: file.size, data: base64 }
-      }
-      await api("/contact-submit", { method: "POST", body: JSON.stringify(payload) })
+      await api("/contact-submit", {
+        method: "POST",
+        body: JSON.stringify({ name: form.name, email: form.email, subject: form.topic, message: form.message }),
+      })
       setSent(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Yuborishda xatolik")
@@ -170,14 +163,6 @@ function ContactForm() {
             </div>
           </label>
           <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder="Xabaringiz" rows={5} className={`${inputCls} resize-none`} />
-          <div className="flex items-center justify-between text-xs text-muted">
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <Icon d={I.paperclip} className="h-4 w-4" />
-              {file ? <span className="font-medium text-green">{file.name}</span> : "Fayl qo'shish (ixtiyoriy)"}
-              <input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
-            </label>
-            <span>Maks. 10MB</span>
-          </div>
           <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">
             {busy ? "YUBORILMOQDA…" : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
           </button>
