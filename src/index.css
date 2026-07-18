@@ -83,17 +83,6 @@
 ::-webkit-scrollbar-track { background: var(--color-soft); }
 ::-webkit-scrollbar-thumb { background: var(--color-green); border-radius: 10px; }
 
-/* Robot "A" harfidan nur — joyida turadi, faqat yorug'lik yonib-o'chadi (harakatsiz) */
-@keyframes a-pulse {
-  0%, 100% { opacity: .78; filter: brightness(1); }
-  50%      { opacity: 1;   filter: brightness(1.55); }
-}
-.animate-a-pulse { animation: a-pulse 2.2s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-a-pulse { animation: none; }
-}
-
 /* Skeleton shimmer */
 @keyframes shimmer {
   0% { background-position: 200% 0; }

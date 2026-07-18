@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { logo, Icon, I } from "../lib/ui"
+import { logoWhite, Icon, I } from "../lib/ui"
 import { usePublicSettings } from "../lib/settings"
 import { api } from "../lib/api"
 
@@ -49,7 +49,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <Link to="/" className="flex items-center gap-2.5">
-              <img src={logo} alt="" className="h-11 w-11 object-contain" />
+              <img src={logoWhite} alt="" className="h-11 w-11 object-contain" />
               <span className="font-display text-lg font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/55">

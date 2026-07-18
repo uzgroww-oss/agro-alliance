@@ -49,6 +49,8 @@ export function SkeletonStatGrid() {
 }
 
 export const logo = "/logo.webp"
+/** Oq (shaffof fonli) logo — to'q fon uchun, masalan footer */
+export const logoWhite = "/logo-white.webp"
 
 /* ---------- Shared helpers ---------- */
 export const fmtSom = (n: number | null | undefined) => {

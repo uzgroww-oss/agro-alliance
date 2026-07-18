@@ -15,7 +15,8 @@ workflows:
   android-build:
     name: Agro Alliance — Android
     max_build_duration: 60
-    instance_type: linux
+    # Bepul plan = macOS M1 (500 daq/oy). macOS serveri Android'ni ham yig'adi.
+    instance_type: mac_mini_m1
     environment:
       node: 22
       java: 17
@@ -50,7 +51,7 @@ workflows:
   android-release:
     name: Agro Alliance — Android (Play Store)
     max_build_duration: 60
-    instance_type: linux_x2
+    instance_type: mac_mini_m1
     environment:
       node: 22
       java: 17
@@ -85,7 +86,7 @@ workflows:
   ios-build:
     name: Agro Alliance — iOS
     max_build_duration: 60
-    instance_type: mac_mini_m2 # Mac kerak emas — Codemagic o'z Mac'ida yig'adi
+    instance_type: mac_mini_m1 # Mac kerak emas — Codemagic o'z Mac'ida yig'adi (bepul plan)
     environment:
       node: 22
       xcode: latest

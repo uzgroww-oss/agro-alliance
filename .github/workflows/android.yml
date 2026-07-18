@@ -1,0 +1,67 @@
+# ============================================================================
+# Android APK yig'ish — GitHub Actions (BEPUL)
+#
+# SOZLASH (bir marta):
+#  GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret
+#    VITE_SUPABASE_URL       = https://ckdgprxppmtsgrofvkxd.supabase.co
+#    VITE_SUPABASE_ANON_KEY  = <.env faylingizdagi anon kalit>
+#  (Bular anon/public kalitlar — xavfsiz. Service kalitini HECH QACHON qo'shmang.)
+#
+# ISHGA TUSHIRISH:
+#  GitHub repo -> Actions -> "Android APK" -> Run workflow
+#  Tugagach: build sahifasidagi "Artifacts" dan APK'ni yuklab olasiz.
+# ============================================================================
+
+name: Android APK
+
+on:
+  workflow_dispatch: # qo'lda ishga tushirish (Actions sahifasidan)
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # bepul, Android SDK oldindan o'rnatilgan
+
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node.js o'rnatish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Java 17 o'rnatish
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Paketlarni o'rnatish
+        run: npm ci
+
+      - name: .env yaratish (Vite build vaqtida kerak)
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" > .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+
+      - name: Web build + Capacitor sync
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: Debug APK yig'ish
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: APK'ni yuklash (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: agro-alliance-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
