@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { api } from "./api"
+import { useHomeSections } from "./sections"
 
 export type PublicSettings = Record<string, string>
 
@@ -33,4 +34,34 @@ export function usePublicSettings() {
   }, [])
 
   return { settings, loading }
+}
+
+type FooterItem = { item_key?: string; description?: string }
+
+/**
+ * Aloqa ma'lumotlari uchun YAGONA manba — footer ham, /aloqa sahifasi ham
+ * shu hookdan oladi.
+ *
+ * Ilgari ikkalasi boshqacha o'qirdi: footer avval "footer" bo'limi
+ * elementlarini, keyin Sozlamalarni tekshirardi; /aloqa esa faqat
+ * Sozlamalarni. Shu sababli footerni tahrirlaganda /aloqa o'zgarmay qolardi.
+ *
+ * Ustuvorlik: "footer" bo'limi elementi -> Sozlamalar -> yo'q (chizilmaydi).
+ */
+export function useContactInfo() {
+  const { settings, loading: sLoading } = usePublicSettings()
+  const { sections, loading: secLoading } = useHomeSections()
+
+  const footer = sections.find((s) => s.section_key === "footer")
+  const fItem = (k: string) =>
+    (footer?.items as FooterItem[] | undefined)?.find((i) => i.item_key === k)?.description
+
+  return {
+    phone: fItem("phone") || settings.contact_phone,
+    email: fItem("email") || settings.contact_email,
+    address: fItem("address") || settings.contact_address,
+    // Ish vaqti footerda ko'rsatilmaydi, faqat Sozlamalarda bor.
+    hours: settings.working_hours,
+    loading: sLoading || secLoading,
+  }
 }

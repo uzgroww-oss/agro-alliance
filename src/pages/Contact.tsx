@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
-import { usePublicSettings } from "../lib/settings"
+import { useContactInfo } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
 
 const mascot = "/mascot-contact.webp"
@@ -21,18 +21,19 @@ const features = [
 const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
 
 function Hero() {
-  const { settings, loading: sLoading } = usePublicSettings()
+  // Footer bilan BIR XIL manba (useContactInfo). Ilgari bu sahifa faqat
+  // Sozlamalarni o'qigani uchun footerni tahrirlaganda shu yer o'zgarmasdi.
+  const contact = useContactInfo()
+  const sLoading = contact.loading
   const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: "Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!" })
   const hParts = h.title.split(" ")
 
-  // MUHIM: bu yerda qattiq yozilgan "namuna" telefon/email/manzil ISHLATILMAYDI.
-  // Ilgari yuklanayotganda soxta "+998 90 123 45 67" ko'rinib, mijoz uni
-  // ko'chirib olishi mumkin edi. Endi qiymat yo'q bo'lsa — qatorni chizmaymiz.
+  // Qattiq yozilgan "namuna" qiymat yo'q — bo'sh bo'lsa qator chizilmaydi.
   const contactInfo = [
-    { icon: I.phone, t: "Telefon", v: settings.contact_phone },
-    { icon: I.mail, t: "Email", v: settings.contact_email },
-    { icon: I.pin, t: "Manzil", v: settings.contact_address },
-    { icon: I.clock, t: "Ish vaqti", v: settings.working_hours },
+    { icon: I.phone, t: "Telefon", v: contact.phone },
+    { icon: I.mail, t: "Email", v: contact.email },
+    { icon: I.pin, t: "Manzil", v: contact.address },
+    { icon: I.clock, t: "Ish vaqti", v: contact.hours },
   ].filter((c): c is { icon: string; t: string; v: string } => Boolean(c.v))
   return (
     <section className="relative overflow-hidden">

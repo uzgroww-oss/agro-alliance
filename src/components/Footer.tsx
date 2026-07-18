@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { logoWhite, Icon, I } from "../lib/ui"
-import { usePublicSettings } from "../lib/settings"
-import { api } from "../lib/api"
+import { usePublicSettings, useContactInfo } from "../lib/settings"
+import { useHomeSections } from "../lib/sections"
 
 const cols = [
   { h: "Platforma", links: [["Blogerlar", "/blogerlar"], ["Yangiliklar", "/yangiliklar"], ["Hamkorlar", "/hamkorlar"], ["Aloqa", "/aloqa"]] },
@@ -22,25 +21,21 @@ const socialIconByKey: Record<string, string> = {
 type FItem = { item_key?: string; title: string; description?: string; icon?: string; link?: string }
 
 export default function Footer() {
-  const { settings, loading: settingsLoading } = usePublicSettings()
-  const [fsec, setFsec] = useState<{ subtitle?: string; items: FItem[] } | null>(null)
-  const [secLoading, setSecLoading] = useState(true)
-  useEffect(() => {
-    api<{ sections: { section_key: string; subtitle?: string; items: FItem[] }[] }>("/public/homepage-sections")
-      .then((d) => { const f = d.sections?.find((s) => s.section_key === "footer"); if (f) setFsec({ subtitle: f.subtitle, items: f.items || [] }) })
-      .catch(() => { /* footer sekundar — xatoda shunchaki bo'sh qoladi */ })
-      .finally(() => setSecLoading(false))
-  }, [])
-  const sLoading = settingsLoading || secLoading
-  const fItem = (k: string) => fsec?.items?.find((i) => i.item_key === k)
+  const { settings } = usePublicSettings()
+  const { sections } = useHomeSections()
+  // /aloqa sahifasi bilan BIR XIL manba — ikkalasi ajralib ketmasin.
+  const contact = useContactInfo()
+  const sLoading = contact.loading
+
+  const fsec = sections.find((s) => s.section_key === "footer") as
+    | { subtitle?: string; items?: FItem[] }
+    | undefined
 
   const brandText = fsec?.subtitle || "Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi."
-  // MUHIM: qattiq yozilgan "namuna" telefon/email/manzil yo'q. Ilgari sayt
-  // yuklanayotganda HAR SAHIFADA soxta "+998 90 123 45 67" ko'rinardi.
   const contactRows = [
-    { icon: I.phone, v: fItem("phone")?.description || settings.contact_phone },
-    { icon: I.mail, v: fItem("email")?.description || settings.contact_email },
-    { icon: I.pin, v: fItem("address")?.description || settings.contact_address },
+    { icon: I.phone, v: contact.phone },
+    { icon: I.mail, v: contact.email },
+    { icon: I.pin, v: contact.address },
   ].filter((r): r is { icon: string; v: string } => Boolean(r.v))
 
   const seededSocials = (fsec?.items || [])
