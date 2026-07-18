@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
@@ -60,7 +60,18 @@ function Bloggers() {
   const blank = { name: "", email: "", cat: "fermerlik", region: "", password: "" }
   const [form, setForm] = useState(blank)
 
-  const reload = () => api<{ bloggers: Row[] }>("/bloggers").then((d) => setRows(d.bloggers)).catch(() => {})
+  // Ilgari loading holati umuman yo'q edi: har ochilganda jadval
+  // "Bloger yo'q" degan YOLG'ON bo'sh-holatni ko'rsatardi.
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const reload = (silent = false) => {
+    if (!silent) setLoading(true)
+    setFailed(false)
+    return api<{ bloggers: Row[] }>("/bloggers")
+      .then((d) => setRows(d.bloggers))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
+  }
   useEffect(() => { reload() }, [])
 
   const list = useMemo(
@@ -99,15 +110,18 @@ function Bloggers() {
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
     finally { setAddingSocial(false) }
   }
-  const remove = (id: number) => {
+  // Mutatsiyalar `silent` reload ishlatadi: butun jadval skeletonga aylanmasin.
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: number) => runMutation(async () => {
     setRows((prev) => prev.filter((r) => r.id !== id))
     setDeleteTarget(null)
-    api(`/bloggers/${id}`, { method: "DELETE" }).catch(() => {}).then(() => reload())
-  }
-  const toggle = async (r: Row) => {
+    await api(`/bloggers/${id}`, { method: "DELETE" }).catch(() => {})
+    await reload(true)
+  })
+  const toggle = (r: Row) => runMutation(async () => {
     await api(`/bloggers/${r.id}/status`, { method: "PATCH", body: JSON.stringify({ status: r.status === "active" ? "pending" : "active" }) })
-    reload()
-  }
+    await reload(true)
+  })
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -119,13 +133,14 @@ function Bloggers() {
     if (selectedIds.size === list.length) setSelectedIds(new Set())
     else setSelectedIds(new Set(list.map((r) => r.id)))
   }
-  const bulkRemove = () => {
+  const bulkRemove = () => runMutation(async () => {
     const ids = Array.from(selectedIds)
     if (!ids.length) return
     setRows((prev) => prev.filter((r) => !ids.includes(r.id)))
     setSelectedIds(new Set())
-    Promise.allSettled(ids.map((id) => api(`/bloggers/${id}`, { method: "DELETE" }))).then(() => reload())
-  }
+    await Promise.allSettled(ids.map((id) => api(`/bloggers/${id}`, { method: "DELETE" })))
+    await reload(true)
+  })
 
   return (
     <div>
@@ -214,7 +229,7 @@ function Bloggers() {
         {selectedIds.size > 0 && (
           <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta blogger tanlandi</span>
-            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+            <button onClick={bulkRemove} disabled={mutating} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
             </button>
           </div>
@@ -238,10 +253,16 @@ function Bloggers() {
               </tr>
             </thead>
             <tbody>
-              {list.length === 0 && (
+              {loading && (
+                <tr><td colSpan={7} className="py-6"><SkeletonTable rows={5} cols={5} /></td></tr>
+              )}
+              {!loading && failed && (
+                <tr><td colSpan={7} className="py-10 text-center text-red-600">Blogerlar ro'yxatini yuklab bo'lmadi. <button onClick={() => reload()} className="font-bold text-green hover:underline">Qayta urinish</button></td></tr>
+              )}
+              {!loading && !failed && list.length === 0 && (
                 <tr><td colSpan={7} className="py-10 text-center text-muted">Bloger yo'q. "Yangi bloger qo'shish" orqali qo'shing.</td></tr>
               )}
-              {list.map((r) => (
+              {!loading && !failed && list.map((r) => (
                 <tr key={r.id} className="border-t border-green/8 text-sm">
                   <td className="py-3 pr-3 w-10">
                     <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
@@ -255,7 +276,7 @@ function Bloggers() {
                   <td className="py-3 pr-3 text-muted">{catLabel(r.cat)}</td>
                   <td className="py-3 pr-3 text-muted">{r.region || "—"}</td>
                   <td className="py-3 pr-3">
-                    <button onClick={() => toggle(r)} title="Holatni o'zgartirish">
+                    <button onClick={() => toggle(r)} disabled={mutating} title="Holatni o'zgartirish" className="disabled:opacity-50">
                       {r.status === "active"
                         ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Faol</span>
                         : <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-bold text-orange-600"><span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> Kutilmoqda</span>}
@@ -287,8 +308,8 @@ function Bloggers() {
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
               <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
-              <button type="button" onClick={() => remove(deleteTarget)} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105">
-                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> O'chirish
+              <button type="button" onClick={() => remove(deleteTarget)} disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 disabled:opacity-60">
+                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> {mutating ? "O'chirilmoqda…" : "O'chirish"}
               </button>
             </div>
           </div>
@@ -329,8 +350,16 @@ function AdminPartners() {
   const [form, setForm] = useState(blank)
   const [saving, setSaving] = useState(false)
 
-  const reload = () => { setLoading(true); api<{ partners: Partner[] }>("/partners").then((d) => setList(d.partners)).catch(() => {}).finally(() => setLoading(false)) }
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Ilgari har vazifa
+  // qo'shish/o'chirishda butun hamkorlar ro'yxati skeletonga aylanib ketardi.
+  const reload = (silent = false) => {
+    if (!silent) setLoading(true)
+    return api<{ partners: Partner[] }>("/partners").then((d) => setList(d.partners)).catch(() => {}).finally(() => setLoading(false))
+  }
   useEffect(() => { reload() }, [])
+  // Vazifa/mijoz amallari uchun umumiy pending: ikki marta bosish yoki
+  // Enter'ni bosib turish dublikat yozuv yaratardi.
+  const [mutating, runMutation] = useBusy()
 
   const totals = useMemo(() => {
     const sum = list.reduce((s, p) => s + (p.amount || 0), 0)
@@ -359,14 +388,14 @@ function AdminPartners() {
         clientEmail: form.clientEmail.trim() || undefined,
         clientPassword: form.clientPassword.trim() || undefined,
       })})
-      setForm(blank); setAdding(false); reload()
+      setForm(blank); setAdding(false); await reload(true)
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
     finally { setSaving(false) }
   }
   const remove = (id: number) => {
     setList((prev) => prev.filter((p) => p.id !== id))
     setDeleteTarget(null)
-    api(`/partners/${id}`, { method: "DELETE" }).catch(() => {}).then(() => reload())
+    api(`/partners/${id}`, { method: "DELETE" }).catch(() => {}).then(() => reload(true))
   }
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -384,27 +413,31 @@ function AdminPartners() {
     if (!ids.length) return
     setList((prev) => prev.filter((p) => !ids.includes(p.id)))
     setSelectedIds(new Set())
-    Promise.allSettled(ids.map((id) => api(`/partners/${id}`, { method: "DELETE" }))).then(() => reload())
+    Promise.allSettled(ids.map((id) => api(`/partners/${id}`, { method: "DELETE" }))).then(() => reload(true))
   }
-  const cycleTask = async (pid: number, tid: number) => { await api(`/partners/${pid}/tasks/${tid}`, { method: "PATCH", body: "{}" }); reload() }
-  const removeTask = async (pid: number, tid: number) => { await api(`/partners/${pid}/tasks/${tid}`, { method: "DELETE" }); reload() }
-  const addTask = async (pid: number) => {
+  const cycleTask = (pid: number, tid: number) => runMutation(async () => { await api(`/partners/${pid}/tasks/${tid}`, { method: "PATCH", body: "{}" }); await reload(true) })
+  const removeTask = (pid: number, tid: number) => runMutation(async () => { await api(`/partners/${pid}/tasks/${tid}`, { method: "DELETE" }); await reload(true) })
+  const addTask = (pid: number) => runMutation(async () => {
     const title = (taskDrafts[pid] || "").trim(); if (!title) return
     await api(`/partners/${pid}/tasks`, { method: "POST", body: JSON.stringify({ title }) })
-    setTaskDrafts((d) => ({ ...d, [pid]: "" })); reload()
-  }
-  const createClient = async (p: Partner) => {
+    setTaskDrafts((d) => ({ ...d, [pid]: "" })); await reload(true)
+  })
+  const createClient = (p: Partner) => {
     const draft = clientDrafts[p.id] || { email: "", password: "" }
     if (!draft.email.trim() || !draft.password.trim()) { setClientErr((e) => ({ ...e, [p.id]: "Email va parol majburiy" })); return }
-    try {
-      await api(`/partners/${p.id}/client`, { method: "POST", body: JSON.stringify({ name: p.name, email: draft.email, password: draft.password }) })
-      setClientDrafts((d) => ({ ...d, [p.id]: { email: "", password: "" } }))
-      setClientErr((e) => ({ ...e, [p.id]: "" })); setOpenClient((o) => ({ ...o, [p.id]: false })); reload()
-    } catch (err: unknown) { setClientErr((e) => ({ ...e, [p.id]: err instanceof Error ? err.message : "Xatolik" })) }
+    return runMutation(async () => {
+      try {
+        await api(`/partners/${p.id}/client`, { method: "POST", body: JSON.stringify({ name: p.name, email: draft.email, password: draft.password }) })
+        setClientDrafts((d) => ({ ...d, [p.id]: { email: "", password: "" } }))
+        setClientErr((e) => ({ ...e, [p.id]: "" })); setOpenClient((o) => ({ ...o, [p.id]: false })); await reload(true)
+      } catch (err: unknown) {
+        setClientErr((e) => ({ ...e, [p.id]: err instanceof Error ? err.message : "Xatolik" }))
+      }
+    })
   }
-  const removeClient = async (pid: number) => {
+  const removeClient = (pid: number) => {
     if (!confirm("Hamkor loginini o'chirishni tasdiqlaysizmi?")) return
-    await api(`/partners/${pid}/client`, { method: "DELETE" }); reload()
+    return runMutation(async () => { await api(`/partners/${pid}/client`, { method: "DELETE" }); await reload(true) })
   }
 
   const stats = [
@@ -478,7 +511,7 @@ function AdminPartners() {
         {!loading && selectedIds.size > 0 && (
           <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta hamkor tanlandi</span>
-            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+            <button onClick={bulkRemove} disabled={mutating} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
             </button>
           </div>
@@ -533,19 +566,19 @@ function AdminPartners() {
                     const tm = taskMeta[t.status]
                     return (
                       <div key={t.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-white px-3 py-2">
-                        <button onClick={() => cycleTask(p.id, t.id)} title="Holatni o'zgartirish" className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${tm.cls}`}>
+                        <button onClick={() => cycleTask(p.id, t.id)} disabled={mutating} title="Holatni o'zgartirish" className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${tm.cls}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${tm.dot}`} /> {tm.label}
                         </button>
                         <span className={`flex-1 text-sm ${t.status === "done" ? "text-muted line-through" : ""}`}>{t.title}</span>
-                        <button onClick={() => removeTask(p.id, t.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                        <button onClick={() => removeTask(p.id, t.id)} disabled={mutating} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50 disabled:opacity-40"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
                       </div>
                     )
                   })}
                 </div>
                 {/* add task */}
                 <div className="mt-2 flex gap-2">
-                  <input value={taskDrafts[p.id] || ""} onChange={(e) => setTaskDrafts((d) => ({ ...d, [p.id]: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && addTask(p.id)} placeholder="Yangi vazifa qo'shish..." className="flex-1 rounded-lg border border-green/15 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                  <button onClick={() => addTask(p.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white"><Icon d={I.plus} className="h-4 w-4" /> Vazifa</button>
+                  <input value={taskDrafts[p.id] || ""} onChange={(e) => setTaskDrafts((d) => ({ ...d, [p.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter" && !mutating) addTask(p.id) }} placeholder="Yangi vazifa qo'shish..." className="flex-1 rounded-lg border border-green/15 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                  <button onClick={() => addTask(p.id)} disabled={mutating} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50"><Icon d={I.plus} className="h-4 w-4" /> Vazifa</button>
                 </div>
               </div>
 
@@ -562,7 +595,7 @@ function AdminPartners() {
                   {p.client ? (
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-md bg-green/10 px-2.5 py-1 text-xs font-bold text-green"><Icon d={I.check} className="h-3.5 w-3.5" /> {p.client.email}</span>
-                      <button onClick={() => removeClient(p.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="Loginni o'chirish"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                      <button onClick={() => removeClient(p.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="Loginni o'chirish"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
                     </div>
                   ) : (
                     <button onClick={() => setOpenClient((o) => ({ ...o, [p.id]: !o[p.id] }))} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white">
@@ -576,7 +609,7 @@ function AdminPartners() {
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Hamkor emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                      <button onClick={() => createClient(p)} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white">Yaratish</button>
+                      <button onClick={() => createClient(p)} disabled={mutating} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{mutating ? "..." : "Yaratish"}</button>
                     </div>
                   </div>
                 )}
@@ -599,7 +632,7 @@ function AdminPartners() {
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
               <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
-              <button type="button" onClick={() => remove(deleteTarget)} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105">
+              <button type="button" onClick={() => remove(deleteTarget)} disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 disabled:opacity-60">
                 <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> O'chirish
               </button>
             </div>
@@ -616,13 +649,19 @@ function Overview() {
   const [newsCount, setNewsCount] = useState<number | null>(null)
   const [subscribers, setSubscribers] = useState<number | null>(null)
   const [recentNews, setRecentNews] = useState<{ title: string; created_at: string }[]>([])
+  // Ilgari yuklanayotganda "Yangiliklar yo'q" ko'rinardi (stat kartalar "…"
+  // ko'rsatgani holda) — shu ro'yxat yagona istisno edi.
+  const [newsLoading, setNewsLoading] = useState(true)
 
   useEffect(() => {
     api<{ bloggers: unknown[] }>("/bloggers").then((d) => setBloggerCount(d.bloggers.length)).catch(() => {})
     api<{ partners: unknown[] }>("/partners").then((d) => setPartnerCount(d.partners.length)).catch(() => {})
     api<{ pagination: { total: number } }>("/news?per_page=1").then((d) => setNewsCount(d.pagination?.total || 0)).catch(() => {})
     api<{ subscribers: unknown[] }>("/subscribers").then((d) => setSubscribers(d.subscribers.length)).catch(() => {})
-    api<{ news: { title: string; created_at: string }[] }>("/news?per_page=4").then((d) => setRecentNews(d.news || [])).catch(() => {})
+    api<{ news: { title: string; created_at: string }[] }>("/news?per_page=4")
+      .then((d) => setRecentNews(d.news || []))
+      .catch(() => {})
+      .finally(() => setNewsLoading(false))
   }, [])
 
   const stats = [
@@ -666,7 +705,9 @@ function Overview() {
         <div className={card}>
           <h3 className="font-display text-lg font-bold">So'nggi yangiliklar</h3>
           <ul className="mt-4 space-y-3 text-sm">
-            {recentNews.length > 0 ? recentNews.map((n, i) => (
+            {newsLoading ? Array.from({ length: 4 }).map((_, i) => (
+              <li key={i}><Skeleton className="h-8 w-full" /></li>
+            )) : recentNews.length > 0 ? recentNews.map((n, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-green" />
                 <span>
@@ -785,12 +826,15 @@ function AdminTeam() {
     } catch { /* ignore */ } finally { setSaving(false) }
   }
 
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => {
     if (!confirm("O'chirishni tasdiqlaysizmi?")) return
-    try {
-      await api(`/team/${id}`, { method: "DELETE" })
-      load()
-    } catch { /* ignore */ }
+    return runMutation(async () => {
+      try {
+        await api(`/team/${id}`, { method: "DELETE" })
+        load()
+      } catch { /* ignore */ }
+    })
   }
 
   return (
@@ -861,7 +905,7 @@ function AdminTeam() {
             </div>
             <div className="mt-4 flex items-center gap-2">
               <button onClick={() => openEdit(m)} className="flex-1 rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">Tahrirlash</button>
-              <button onClick={() => remove(m.id)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50">O'chirish</button>
+              <button onClick={() => remove(m.id)} disabled={mutating} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">O'chirish</button>
             </div>
           </div>
         ))}
@@ -898,10 +942,13 @@ function AdminNews() {
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const fetchNews = (p: number, q: string) => {
+  const fetchNews = (p: number, q: string, silent = false) => {
+    // Ilgari setLoading(true) yo'q edi: qidiruv yoki sahifa o'zgarganda eski
+    // natijalar hech qanday belgisiz turib, keyin birdan almashardi.
+    if (!silent) setLoading(true)
     const params = new URLSearchParams({ page: String(p), per_page: "12" })
     if (q.trim()) params.set("search", q.trim())
-    api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${params}`)
+    return api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${params}`)
       .then((d) => { setArticles(d.data || []); setTotal(d.pagination?.total || 0) })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -909,10 +956,13 @@ function AdminNews() {
 
   useEffect(() => { fetchNews(page, query) }, [query, page])
 
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => {
     if (!confirm("Yangilikni o'chirishni tasdiqlaysizmi?")) return
-    await api(`/news/${id}`, { method: "DELETE" })
-    fetchNews(page, query)
+    return runMutation(async () => {
+      await api(`/news/${id}`, { method: "DELETE" })
+      await fetchNews(page, query, true)
+    })
   }
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -925,13 +975,14 @@ function AdminNews() {
     if (selectedIds.size === articles.length) setSelectedIds(new Set())
     else setSelectedIds(new Set(articles.map((a) => a.id)))
   }
-  const bulkRemove = () => {
+  const bulkRemove = () => runMutation(async () => {
     const ids = Array.from(selectedIds)
     if (!ids.length) return
     setArticles((prev) => prev.filter((a) => !ids.includes(a.id)))
     setSelectedIds(new Set())
-    Promise.allSettled(ids.map((id) => api(`/news/${id}`, { method: "DELETE" }))).then(() => fetchNews(page, query))
-  }
+    await Promise.allSettled(ids.map((id) => api(`/news/${id}`, { method: "DELETE" })))
+    await fetchNews(page, query, true)
+  })
 
   const totalPages = Math.ceil(total / 12)
 
@@ -959,7 +1010,7 @@ function AdminNews() {
         {!loading && selectedIds.size > 0 && (
           <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta yangilik tanlandi</span>
-            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+            <button onClick={bulkRemove} disabled={mutating} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
             </button>
           </div>
@@ -1005,7 +1056,7 @@ function AdminNews() {
                     <td className="py-3 pr-3 font-semibold">{a.view_count || 0}</td>
                     <td className="py-3 pr-3 text-muted text-xs">{a.published_at ? new Date(a.published_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3">
-                      <button onClick={() => remove(a.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                      <button onClick={() => remove(a.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="O'chirish">
                         <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
                       </button>
                     </td>
@@ -1052,8 +1103,11 @@ function AdminSettings() {
       .finally(() => setLoading(false))
   }
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [igRechecking, runIgCheck] = useBusy()
   const checkIgStatus = () => {
-    api<{ connected: boolean; username: string | null }>("/instagram-status")
+    setIgChecking(true)
+    return api<{ connected: boolean; username: string | null }>("/instagram-status")
       .then((d) => { setIgConnected(d.connected); setIgUsername(d.username) })
       .catch(() => { setIgConnected(false); setIgUsername(null) })
       .finally(() => setIgChecking(false))
@@ -1079,13 +1133,17 @@ function AdminSettings() {
   const set = (i: number, field: "value", v: string) =>
     setSettings((arr) => arr.map((s, idx) => (idx === i ? { ...s, [field]: v } : s)))
 
-  const save = async () => {
+  // Tugmada `disabled={loading}` yozilgan edi, lekin `loading` birinchi
+  // yuklashdan keyin doim false -> tugma AMALDA hech qachon bloklanmasdi.
+  // Ikki marta bosilsa har bir sozlama uchun ketma-ket PATCH ikki marta ketardi.
+  const [saving, runSave] = useBusy()
+  const save = () => runSave(async () => {
     for (const s of settings) {
       await api(`/settings/${s.id}`, { method: "PATCH", body: JSON.stringify({ value: s.value }) })
     }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
-  }
+  })
 
   return (
     <div>
@@ -1094,8 +1152,8 @@ function AdminSettings() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Sozlamalar</h2>
           <p className="mt-1 text-sm text-muted">Platforma sozlamalarini boshqarish.</p>
         </div>
-        <button onClick={save} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          <Icon d={I.check} className="h-4 w-4" /> Saqlash
+        <button onClick={save} disabled={loading || saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+          <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
         </button>
       </div>
 
@@ -1119,7 +1177,7 @@ function AdminSettings() {
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-green/20 bg-green/5 p-3">
             <Icon d={I.instagram} className="h-5 w-5 text-pink-500" />
             <span className="text-sm font-semibold">@{igUsername}</span>
-            <button onClick={checkIgStatus} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">
+            <button onClick={() => runIgCheck(checkIgStatus)} disabled={igRechecking} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-60">
               <Icon d={I.refresh} className="h-3.5 w-3.5" /> Yangilash
             </button>
           </div>
@@ -1210,10 +1268,11 @@ function AdminTasks() {
     finally { setSending(false) }
   }
 
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => runMutation(async () => {
     setTasks((prev) => prev.filter((t) => t.id !== id))
     await api(`/tasks/${id}`, { method: "DELETE" }).catch(() => {}).then(() => load())
-  }
+  })
 
   return (
     <div>
@@ -1319,7 +1378,7 @@ function AdminTasks() {
                       <span>Yuborildi: {new Date(t.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  <button onClick={() => remove(t.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                  <button onClick={() => remove(t.id)} disabled={mutating} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-red-400 hover:bg-red-50 disabled:opacity-40"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
                 </div>
                 {/* Holat statistikasi */}
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -1342,7 +1401,10 @@ function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [refreshing, runRefresh] = useBusy()
   const load = () => {
+    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ jobs: { id: string; job_type: string; status: string; created_at: string }[] }>("/news/jobs")
       .then((d) => setNewsJobs(d.jobs || []))
       .catch(() => {})
@@ -1351,10 +1413,11 @@ function AdminMonitoring() {
 
   useEffect(() => { load() }, [])
 
-  const retry = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const retry = (id: string) => runMutation(async () => {
     await api(`/news/jobs/${id}/retry`, { method: "POST" })
     load()
-  }
+  })
 
   const statusColor: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-700",
@@ -1371,8 +1434,8 @@ function AdminMonitoring() {
           <p className="mt-1 text-sm text-muted">Worker'lar, queue'lar va tizim holati.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-            <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+          <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+            <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
           </button>
         </div>
       </div>
@@ -1412,7 +1475,7 @@ function AdminMonitoring() {
                 <span className="flex-1 text-sm font-medium">{j.job_type}</span>
                 <span className="text-xs text-muted">{new Date(j.created_at).toLocaleString("uz")}</span>
                 {j.status === "failed" && (
-                  <button onClick={() => retry(j.id)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">Qayta</button>
+                  <button onClick={() => retry(j.id)} disabled={mutating} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50">Qayta</button>
                 )}
               </div>
             ))}
@@ -1433,20 +1496,34 @@ function AdminNewsSources() {
   const blank = { name: "", type: "rss", url: "" }
   const [form, setForm] = useState(blank)
 
-  const reload = () => api<{ sources: NewsSource[] }>("/news-sources").then((d) => setSources(d.sources || [])).catch(() => {})
+  // Ilgari loading yo'q edi: yuklanayotganda "Manba yo'q" YOLG'ONI ko'rinardi.
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const [saving, runSave] = useBusy()
+  const reload = (silent = false) => {
+    if (!silent) setLoading(true)
+    setFailed(false)
+    return api<{ sources: NewsSource[] }>("/news-sources")
+      .then((d) => setSources(d.sources || []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
+  }
   useEffect(() => { reload() }, [])
 
-  const add = async (e: React.FormEvent) => {
+  const add = (e: React.FormEvent) => {
     e.preventDefault(); setError("")
     if (!form.name.trim() || !form.url.trim()) { setError("Nomi va URL majburiy"); return }
-    try {
-      await api("/news-sources", { method: "POST", body: JSON.stringify(form) })
-      setForm(blank); setAdding(false); reload()
-    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
+    // Pending holati bo'lmagani uchun ikki marta yuborilsa dublikat manba yaratilardi.
+    return runSave(async () => {
+      try {
+        await api("/news-sources", { method: "POST", body: JSON.stringify(form) })
+        setForm(blank); setAdding(false); await reload(true)
+      } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
+    })
   }
-  const remove = async (id: string) => {
+  const remove = (id: string) => {
     if (!confirm("Manbani o'chirishni tasdiqlaysizmi?")) return
-    await api(`/news-sources/${id}`, { method: "DELETE" }); reload()
+    return runSave(async () => { await api(`/news-sources/${id}`, { method: "DELETE" }); await reload(true) })
   }
 
   const typeLabel: Record<string, string> = { rss: "RSS", web: "Web Crawler", telegram: "Telegram" }
@@ -1474,7 +1551,7 @@ function AdminNewsSources() {
               <option value="telegram">Telegram</option>
             </select>
             <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="URL" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <button type="submit" className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white">Qo'shish</button>
+            <button type="submit" disabled={saving} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? "..." : "Qo'shish"}</button>
           </div>
         </form>
       )}
@@ -1493,10 +1570,14 @@ function AdminNewsSources() {
               </tr>
             </thead>
             <tbody>
-              {sources.length === 0 && (
+              {loading && <tr><td colSpan={6} className="py-6"><SkeletonTable rows={4} cols={5} /></td></tr>}
+              {!loading && failed && (
+                <tr><td colSpan={6} className="py-10 text-center text-red-600">Manbalarni yuklab bo'lmadi. <button onClick={() => reload()} className="font-bold text-green hover:underline">Qayta urinish</button></td></tr>
+              )}
+              {!loading && !failed && sources.length === 0 && (
                 <tr><td colSpan={6} className="py-10 text-center text-muted">Manba yo'q. "Yangi manba qo'shish" orqali qo'shing.</td></tr>
               )}
-              {sources.map((s) => (
+              {!loading && !failed && sources.map((s) => (
                 <tr key={s.id} className="border-t border-green/8 text-sm">
                   <td className="py-3 pr-3 font-semibold">{s.name}</td>
                   <td className="py-3 pr-3"><span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">{typeLabel[s.type] || s.type}</span></td>
@@ -1533,7 +1614,10 @@ function AdminUsers() {
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [changingRole, setChangingRole] = useState<string | null>(null)
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [refreshing, runRefresh] = useBusy()
   const load = () => {
+    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
     Promise.all([
       api<{ users: AdminUser[] }>("/users"),
       api<{ roles: RoleOption[] }>("/roles"),
@@ -1544,11 +1628,12 @@ function AdminUsers() {
   }
   useEffect(() => { load() }, [])
 
-  const toggleStatus = async (u: AdminUser) => {
+  const [mutating, runMutation] = useBusy()
+  const toggleStatus = (u: AdminUser) => runMutation(async () => {
     const newStatus = u.status === "active" ? "suspended" : "active"
     await api(`/users/${u.id}`, { method: "PATCH", body: JSON.stringify({ status: newStatus }) })
     load()
-  }
+  })
 
   const changeRole = async (userId: string, roleId: string) => {
     await api("/user-role", { method: "PATCH", body: JSON.stringify({ user_id: userId, role_id: roleId }) })
@@ -1572,8 +1657,8 @@ function AdminUsers() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Foydalanuvchilar</h2>
           <p className="mt-1 text-sm text-muted">Barcha ro'yxatdan o'tgan foydalanuvchilar.</p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -1635,7 +1720,7 @@ function AdminUsers() {
                             Rolni o'zgartirish
                           </button>
                         )}
-                        <button onClick={() => toggleStatus(u)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
+                        <button onClick={() => toggleStatus(u)} disabled={mutating} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
                           {u.status === "active" ? "To'xtatish" : "Faollashtirish"}
                         </button>
                       </div>
@@ -1659,7 +1744,10 @@ function AdminContacts() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ContactMessage | null>(null)
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [refreshing, runRefresh] = useBusy()
   const load = () => {
+    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ messages: ContactMessage[] }>("/messages")
       .then((d) => setMessages(d.messages || []))
       .catch(() => {})
@@ -1675,11 +1763,14 @@ function AdminContacts() {
     }
   }
 
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => {
     if (!confirm("Xabarni o'chirishni tasdiqlaysizmi?")) return
-    await api(`/messages/${id}`, { method: "DELETE" })
-    setSelected(null)
-    load()
+    return runMutation(async () => {
+      await api(`/messages/${id}`, { method: "DELETE" })
+      setSelected(null)
+      load()
+    })
   }
 
   return (
@@ -1689,8 +1780,8 @@ function AdminContacts() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Aloqa xabarlari</h2>
           <p className="mt-1 text-sm text-muted">Foydalanuvchilardan kelgan xabarlar.</p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -1719,7 +1810,7 @@ function AdminContacts() {
                     <td className="py-3 pr-3 text-muted text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3 flex gap-1.5">
                       <button onClick={() => markRead(m)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">Ko'rish</button>
-                      <button onClick={() => remove(m.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                      <button onClick={() => remove(m.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -1752,7 +1843,10 @@ function AdminSubscribers() {
   const [subs, setSubs] = useState<Subscriber[]>([])
   const [loading, setLoading] = useState(true)
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [refreshing, runRefresh] = useBusy()
   const load = () => {
+    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ subscribers: Subscriber[] }>("/subscribers")
       .then((d) => setSubs(d.subscribers || []))
       .catch(() => {})
@@ -1760,10 +1854,10 @@ function AdminSubscribers() {
   }
   useEffect(() => { load() }, [])
 
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => {
     if (!confirm("Obunachini o'chirishni tasdiqlaysizmi?")) return
-    await api(`/subscribers/${id}`, { method: "DELETE" })
-    load()
+    return runMutation(async () => { await api(`/subscribers/${id}`, { method: "DELETE" }); load() })
   }
 
   return (
@@ -1773,8 +1867,8 @@ function AdminSubscribers() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Obunachilar</h2>
           <p className="mt-1 text-sm text-muted">Newsletter obunachilari ro'yxati.</p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
         </button>
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -1800,7 +1894,7 @@ function AdminSubscribers() {
                     </td>
                     <td className="py-3 pr-3 text-muted text-xs">{s.created_at ? new Date(s.created_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3">
-                      <button onClick={() => remove(s.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                      <button onClick={() => remove(s.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -1840,9 +1934,10 @@ function AdminCategories() {
     } catch { setError("Xatolik yuz berdi") }
     finally { setSaving(false); load() }
   }
-  const remove = async (id: string) => {
+  const [mutating, runMutation] = useBusy()
+  const remove = (id: string) => {
     if (!confirm("Kategoriyani o'chirishni tasdiqlaysizmi?")) return
-    await api(`/categories/${id}`, { method: "DELETE" }); load()
+    return runMutation(async () => { await api(`/categories/${id}`, { method: "DELETE" }); load() })
   }
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -1860,12 +1955,12 @@ function AdminCategories() {
     if (!ids.length) return
     setCats((prev) => prev.filter((c) => !ids.includes(c.id)))
     setSelectedIds(new Set())
-    Promise.allSettled(ids.map((id) => api(`/categories/${id}`, { method: "DELETE" }))).then(() => load())
+    return runMutation(() => Promise.allSettled(ids.map((id) => api(`/categories/${id}`, { method: "DELETE" }))).then(() => load()))
   }
-  const toggle = async (c: NewsCategory) => {
+  const toggle = (c: NewsCategory) => runMutation(async () => {
     await api(`/categories/${c.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !c.is_active }) })
     load()
-  }
+  })
 
   return (
     <div>
@@ -1883,7 +1978,7 @@ function AdminCategories() {
         {!loading && selectedIds.size > 0 && (
           <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta kategoriya tanlandi</span>
-            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+            <button onClick={bulkRemove} disabled={mutating} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
             </button>
           </div>
@@ -1916,14 +2011,14 @@ function AdminCategories() {
                   <td className="py-3 pr-3 text-muted">{c.name_ru}</td>
                   <td className="py-3 pr-3 text-muted">{c.name_en}</td>
                   <td className="py-3 pr-3">
-                    <button onClick={() => toggle(c)}>
+                    <button onClick={() => toggle(c)} disabled={mutating} className="disabled:opacity-50">
                       {c.is_active
                         ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Faol</span>
                         : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Nofaol</span>}
                     </button>
                   </td>
                   <td className="py-3">
-                    <button onClick={() => remove(c.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                    <button onClick={() => remove(c.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                   </td>
                 </tr>
               ))}
@@ -1984,7 +2079,10 @@ function AdminHomepage() {
   const [itemForm, setItemForm] = useState<{ title: string; description: string; icon: string; link: string }>({ title: "", description: "", icon: "", link: "" })
   const [saving, setSaving] = useState(false)
 
+  // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
+  const [refreshing, runRefresh] = useBusy()
   const load = () => {
+    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ sections: HomepageSection[] }>("/homepage")
       .then((d) => setSections(d.sections || []))
       .catch(() => {})
@@ -1992,14 +2090,15 @@ function AdminHomepage() {
   }
   useEffect(() => { load() }, [])
 
-  const toggleSection = async (s: HomepageSection) => {
+  const [mutating, runMutation] = useBusy()
+  const toggleSection = (s: HomepageSection) => runMutation(async () => {
     await api(`/homepage/sections/${s.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !s.is_active }) })
     load()
-  }
-  const toggleItem = async (item: HomepageItem) => {
+  })
+  const toggleItem = (item: HomepageItem) => runMutation(async () => {
     await api(`/homepage/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !item.is_active }) })
     load()
-  }
+  })
   const startEditSec = (s: HomepageSection) => { setEditSec(s.id); setSecForm({ title: s.title || "", subtitle: s.subtitle || "" }); setEditItem(null) }
   const saveSec = async (id: string) => {
     setSaving(true)
@@ -2021,8 +2120,8 @@ function AdminHomepage() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Bosh sahifa boshqaruvi</h2>
           <p className="mt-1 text-sm text-muted">Sayt kontenti: sarlavhalar, matnlar, aloqa ma'lumotlari va linklarni tahrirlang.</p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green">
-          <Icon d={I.refresh} className="h-4 w-4" /> Yangilash
+        <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
         </button>
       </div>
       {loading && <div className="mt-5"><SkeletonTable rows={5} cols={3} /></div>}
@@ -2032,7 +2131,7 @@ function AdminHomepage() {
           <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => toggleSection(s)} title="Ko'rsatish/yashirish">
+                <button onClick={() => toggleSection(s)} disabled={mutating} title="Ko'rsatish/yashirish" className="disabled:opacity-50">
                   {s.is_active
                     ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Ko'rinadi</span>
                     : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Yashirin</span>}
@@ -2063,7 +2162,7 @@ function AdminHomepage() {
                 {s.items.map((item) => (
                   <div key={item.id} className="rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                     <div className="flex items-center gap-3">
-                      <button onClick={() => toggleItem(item)} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${item.is_active ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
+                      <button onClick={() => toggleItem(item)} disabled={mutating} className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold disabled:opacity-50 ${item.is_active ? "bg-green/10 text-green" : "bg-slate-100 text-slate-500"}`}>
                         {item.is_active ? "Ko'rinadi" : "Yashirin"}
                       </button>
                       <div className="flex-1 min-w-0">
@@ -2132,9 +2231,19 @@ function AdminRoles() {
 
   useEffect(() => { loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // MUHIM: ilgari pending holati yo'q edi. A rolini ochib, darhol B rolini
+  // ochsangiz — B uchun A ning belgilangan ruxsatlari ko'rinib turardi va
+  // keyin jimgina almashardi (noto'g'ri ruxsat saqlab yuborish xavfi).
+  const [permsLoading, setPermsLoading] = useState(false)
   const loadRolePerms = async (roleId: string) => {
-    const d = await api<{ permission_ids: string[] }>(`/role-permissions?role_id=${roleId}`)
-    setRolePermIds(new Set(d.permission_ids || []))
+    setPermsLoading(true)
+    setRolePermIds(new Set())
+    try {
+      const d = await api<{ permission_ids: string[] }>(`/role-permissions?role_id=${roleId}`)
+      setRolePermIds(new Set(d.permission_ids || []))
+    } finally {
+      setPermsLoading(false)
+    }
   }
 
   const toggleExpand = (roleId: string) => {
@@ -2202,15 +2311,18 @@ function AdminRoles() {
     company: "Hamkor kabineti — o'z hamkorlik ma'lumotlarini ko'rish",
   }
 
-  const deleteRole = async (r: AdminRole) => {
+  const [mutating, runMutation] = useBusy()
+  const deleteRole = (r: AdminRole) => {
     if (r.is_system) return
     if (!confirm(`"${r.name}" rolini o'chirishni tasdiqlaysizmi?`)) return
-    try {
-      await api(`/roles/delete?id=${r.id}`, { method: "DELETE" })
-      loadRoles()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Xatolik yuz berdi")
-    }
+    return runMutation(async () => {
+      try {
+        await api(`/roles/delete?id=${r.id}`, { method: "DELETE" })
+        loadRoles()
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Xatolik yuz berdi")
+      }
+    })
   }
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -2229,7 +2341,7 @@ function AdminRoles() {
     if (!ids.length) return
     setRoles((prev) => prev.filter((r) => !ids.includes(r.id)))
     setSelectedIds(new Set())
-    Promise.allSettled(ids.map((id) => api(`/roles/delete?id=${id}`, { method: "DELETE" }))).then(() => loadRoles())
+    return runMutation(() => Promise.allSettled(ids.map((id) => api(`/roles/delete?id=${id}`, { method: "DELETE" }))).then(() => loadRoles()))
   }
 
   const resourceLabel: Record<string, string> = {
@@ -2279,7 +2391,7 @@ function AdminRoles() {
         {!loading && selectedIds.size > 0 && (
           <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span className="text-sm font-semibold text-red-700">{selectedIds.size} ta rol tanlandi</span>
-            <button onClick={bulkRemove} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105">
+            <button onClick={bulkRemove} disabled={mutating} className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /> Tanlanganlarni o'chirish
             </button>
           </div>
@@ -2325,7 +2437,7 @@ function AdminRoles() {
                               <button className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-50">
                                 <Icon d={I.gear} className="h-3.5 w-3.5" />
                               </button>
-                              <button onClick={() => deleteRole(r)} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50">
+                              <button onClick={() => deleteRole(r)} disabled={mutating} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 disabled:opacity-50">
                                 <Icon d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1z" className="h-3.5 w-3.5" />
                               </button>
                             </>
@@ -2343,9 +2455,14 @@ function AdminRoles() {
                                 {savingPerms ? "Saqlanmoqda..." : "Ruxsatlarni saqlash"}
                               </button>
                             </div>
-                            {Object.keys(groupedPerms).length === 0 && <div className="py-4 text-center text-sm text-muted">Ruxsatlar yuklanmoqda...</div>}
+                            {/* Ilgari bu shart yuklanish VA xato holatini birga
+                                ifodalardi: so'rov muvaffaqiyatsiz bo'lsa matn abadiy turardi. */}
+                            {permsLoading && <div className="py-4"><SkeletonTable rows={4} cols={3} /></div>}
+                            {!permsLoading && Object.keys(groupedPerms).length === 0 && (
+                              <div className="py-4 text-center text-sm text-red-600">Ruxsatlar ro'yxatini yuklab bo'lmadi.</div>
+                            )}
                             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                              {Object.entries(groupedPerms).map(([resource, perms]) => (
+                              {!permsLoading && Object.entries(groupedPerms).map(([resource, perms]) => (
                                 <div key={resource} className="rounded-lg border border-green/8 bg-[#fafdf7] p-3">
                                   <h5 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">{resourceLabel[resource] || resource}</h5>
                                   <div className="space-y-1.5">
