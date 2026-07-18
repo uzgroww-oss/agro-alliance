@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout from "../../components/DashboardLayout"
-import { Icon, I, fmtSom } from "../../lib/ui"
+import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { supabase } from "../../lib/supabase"
@@ -51,13 +51,23 @@ export default function PartnerDashboard() {
   const [extra, setExtra] = useState<CompanyExtra>({})
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [loading, setLoading] = useState(true)
+  // Ikkinchi so'rov (/client/partner) ham kuzatiladi: ilgari u kuzatilmagani
+  // uchun kompaniya profili formasi BO'SH ochilib, saqlanganda serverdagi
+  // ma'lumotni o'chirib yuborishi mumkin edi.
+  const [extraLoading, setExtraLoading] = useState(true)
+  const [extraFailed, setExtraFailed] = useState(false)
   const [err, setErr] = useState("")
   const { user, logout } = useAuth()
   const nav2 = useNavigate()
 
   const reload = () => {
     api<{ partner: Partner }>("/me/partner").then((d) => setPartner(d.partner)).catch((e) => setErr(e?.message || "Yuklashda xatolik")).finally(() => setLoading(false))
-    api<{ settings: CompanyExtra; notifications: Notif[] }>("/client/partner").then((d) => { setExtra(d.settings || {}); setNotifs(d.notifications || []) }).catch(() => {})
+    setExtraLoading(true)
+    setExtraFailed(false)
+    api<{ settings: CompanyExtra; notifications: Notif[] }>("/client/partner")
+      .then((d) => { setExtra(d.settings || {}); setNotifs(d.notifications || []) })
+      .catch(() => setExtraFailed(true))
+      .finally(() => setExtraLoading(false))
   }
   useEffect(() => { reload() }, [])
 
@@ -84,7 +94,15 @@ export default function PartnerDashboard() {
       onLogout={doLogout}
       user={{ name: user?.name || "Hamkor", role: "Hamkor kompaniya", initials }}
     >
-      {loading && <div className="grid min-h-[50vh] place-items-center text-muted">Yuklanmoqda…</div>}
+      {loading && (
+        <div className="space-y-6">
+          <SkeletonStatGrid />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+        </div>
+      )}
       {err && !loading && <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600">{err}</div>}
       {!loading && !err && !partner && (
         <div className="grid min-h-[50vh] place-items-center text-center">
@@ -112,11 +130,17 @@ export default function PartnerDashboard() {
             </div>
           </div>
 
-          {active === "Umumiy" && <Overview partner={partner} counts={counts} pct={pct} notifs={notifs} onNav={setActive} />}
-          {active === "Kompaniya profili" && <CompanyProfile partner={partner} extra={extra} onSaved={reload} />}
+          {active === "Umumiy" && <Overview partner={partner} counts={counts} pct={pct} notifs={notifs} notifsLoading={extraLoading} notifsFailed={extraFailed} onNav={setActive} />}
+          {active === "Kompaniya profili" && (
+            extraLoading
+              ? <Skeleton className="h-96 w-full rounded-2xl" />
+              : extraFailed
+                ? <ErrorState onRetry={reload} message="Kompaniya profilini yuklab bo'lmadi. Saqlash ma'lumotni o'chirib yuborishi mumkin — avval qayta yuklang." />
+                : <CompanyProfile partner={partner} extra={extra} onSaved={reload} />
+          )}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
           {active === "Blogerlar" && <BloggersBrowse />}
-          {active === "Bildirishnomalar" && <Notifications notifs={notifs} />}
+          {active === "Bildirishnomalar" && <Notifications notifs={notifs} loading={extraLoading} failed={extraFailed} onRetry={reload} />}
           {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
           {active === "Sozlamalar" && <Settings />}
         </>
@@ -126,12 +150,13 @@ export default function PartnerDashboard() {
 }
 
 /* ---------- Umumiy ---------- */
-function Overview({ partner, counts, pct, notifs, onNav }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; notifs: Notif[]; onNav: (t: string) => void }) {
+function Overview({ partner, counts, pct, notifs, notifsLoading, notifsFailed, onNav }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; notifs: Notif[]; notifsLoading: boolean; notifsFailed: boolean; onNav: (t: string) => void }) {
   const statCards = [
     { icon: I.wallet, t: "Shartnoma summasi", v: `${fmtSom(partner.amount)}`, sub: "so'm" },
     { icon: I.task, t: "Jami ishlar", v: String(counts.total), sub: `${counts.done} bajarilgan` },
     { icon: I.target, t: "Bajarilish", v: `${pct}%`, sub: `${counts.progress} jarayonda` },
-    { icon: I.bell, t: "Bildirishnoma", v: String(notifs.filter((n) => !n.is_read).length), sub: "o'qilmagan" },
+    // Yuklanayotganda "0" emas, "…" — nol real raqamdek ko'rinib qolmasin.
+    { icon: I.bell, t: "Bildirishnoma", v: notifsLoading ? "…" : notifsFailed ? "—" : String(notifs.filter((n) => !n.is_read).length), sub: "o'qilmagan" },
   ]
   return (
     <>
@@ -163,8 +188,10 @@ function Overview({ partner, counts, pct, notifs, onNav }: { partner: Partner; c
           <button onClick={() => onNav("Bildirishnomalar")} className="text-sm font-semibold text-green hover:underline">Barchasi →</button>
         </div>
         <div className="mt-4 space-y-2">
-          {notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
-          {notifs.slice(0, 4).map((n) => (
+          {notifsLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+          {!notifsLoading && notifsFailed && <p className="py-6 text-center text-sm text-red-600">Bildirishnomalarni yuklab bo'lmadi.</p>}
+          {!notifsLoading && !notifsFailed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
+          {!notifsLoading && !notifsFailed && notifs.slice(0, 4).map((n) => (
             <div key={n.id} className={`flex items-start gap-3 rounded-lg border border-green/8 px-3 py-2.5 ${n.is_read ? "bg-white" : "bg-green/5"}`}>
               <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-soft text-green"><Icon d={I.bell} className="h-3.5 w-3.5" /></span>
               <div className="min-w-0 flex-1">
@@ -273,15 +300,25 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
 function BloggersBrowse() {
   const [bloggers, setBloggers] = useState<Blogger[]>([])
   const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    api<{ bloggers: Blogger[] }>("/public/bloggers?limit=24").then((d) => setBloggers(d.bloggers || [])).catch(() => {}).finally(() => setLoading(false))
+  const [failed, setFailed] = useState(false)
+  const load = useCallback(() => {
+    setLoading(true)
+    setFailed(false)
+    api<{ bloggers: Blogger[] }>("/public/bloggers?limit=24")
+      .then((d) => setBloggers(d.bloggers || []))
+      // Xato "bloger yo'q" degani emas — ilgari ikkalasi ham bir xil ko'rinardi.
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
   }, [])
+  useEffect(() => { load() }, [load])
   return (
     <div className={`mt-6 ${card}`}>
       <h3 className="font-display text-lg font-bold">Platforma blogerlari</h3>
       <p className="mt-1 text-sm text-muted">Hamkorlik uchun blogerlarni ko'rib chiqing.</p>
       {loading ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-soft" />)}</div>
+      ) : failed ? (
+        <div className="mt-4"><ErrorState onRetry={load} message="Blogerlar ro'yxatini yuklab bo'lmadi." /></div>
       ) : bloggers.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted">Bloger topilmadi.</p>
       ) : (
@@ -306,13 +343,15 @@ function BloggersBrowse() {
 }
 
 /* ---------- Bildirishnomalar ---------- */
-function Notifications({ notifs }: { notifs: Notif[] }) {
+function Notifications({ notifs, loading, failed, onRetry }: { notifs: Notif[]; loading: boolean; failed: boolean; onRetry: () => void }) {
   return (
     <div className={`mt-6 ${card}`}>
       <h3 className="font-display text-lg font-bold">Bildirishnomalar</h3>
       <div className="mt-4 space-y-2">
-        {notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
-        {notifs.map((n) => (
+        {loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+        {!loading && failed && <ErrorState onRetry={onRetry} message="Bildirishnomalarni yuklab bo'lmadi." />}
+        {!loading && !failed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
+        {!loading && !failed && notifs.map((n) => (
           <div key={n.id} className={`flex items-start gap-3 rounded-lg border border-green/8 px-3 py-3 ${n.is_read ? "bg-white" : "bg-green/5"}`}>
             <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-soft text-green"><Icon d={I.bell} className="h-4 w-4" /></span>
             <div className="min-w-0 flex-1">

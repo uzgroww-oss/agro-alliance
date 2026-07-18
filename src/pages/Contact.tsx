@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
 import { usePublicSettings } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
@@ -17,17 +17,6 @@ const features = [
   { icon: I.handshake, t: "Hamkorlik", d: "Uzoq muddatli va samarali hamkorlikni qadrlaymiz" },
 ]
 
-const defaultOffices: Office[] = [
-  { name: "Toshkent ofisi", main: true, addr: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy", phone: "+998 90 123 45 67", email: "info@agroalliance.uz" },
-  { name: "Farg'ona ofisi", main: false, addr: "Farg'ona shahri, A. Navoiy ko'chasi, 45A-uy", phone: "+998 91 987 65 43", email: "fargona@agroalliance.uz" },
-]
-
-const defaultFaqs: Faq[] = [
-  { q: "Hamkorlik uchun qanday murojaat qilishim mumkin?", a: "Hamkorlik bo'limidagi \"HAMKOR BO'LISH\" tugmasi orqali yoki ushbu sahifadagi forma orqali murojaat qoldiring — jamoamiz siz bilan bog'lanadi." },
-  { q: "Platformadan foydalanish uchun to'lov kerakmi?", a: "Asosiy imkoniyatlar bepul. Premium xizmatlar va kengaytirilgan analitika uchun obuna rejalari mavjud." },
-  { q: "Bloger bo'lib platformaga qo'shilish uchun nima qilish kerak?", a: "\"KIRISH\" orqali ro'yxatdan o'ting, profilingizni to'ldiring va kontentingizni joylashtiring. Tasdiqlangandan so'ng reytingda paydo bo'lasiz." },
-  { q: "Texnik yordamga qanday murojaat qilishim mumkin?", a: "info@agroalliance.uz manziliga yozing yoki +998 90 123 45 67 raqamiga qo'ng'iroq qiling. Ish vaqtida tez javob beramiz." },
-]
 
 const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
 
@@ -78,20 +67,19 @@ function NewsletterInline() {
 }
 
 function Hero() {
-  const { settings } = usePublicSettings()
+  const { settings, loading: sLoading } = usePublicSettings()
   const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: "Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!" })
   const hParts = h.title.split(" ")
-  const phone = settings.contact_phone || "+998 90 123 45 67"
-  const email = settings.contact_email || "info@agroalliance.uz"
-  const address = settings.contact_address || "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 123-uy"
-  const hours = settings.working_hours || "Dushanba - Shanba\n09:00 - 18:00"
 
+  // MUHIM: bu yerda qattiq yozilgan "namuna" telefon/email/manzil ISHLATILMAYDI.
+  // Ilgari yuklanayotganda soxta "+998 90 123 45 67" ko'rinib, mijoz uni
+  // ko'chirib olishi mumkin edi. Endi qiymat yo'q bo'lsa — qatorni chizmaymiz.
   const contactInfo = [
-    { icon: I.phone, t: "Telefon", v: phone },
-    { icon: I.mail, t: "Email", v: email },
-    { icon: I.pin, t: "Manzil", v: address },
-    { icon: I.clock, t: "Ish vaqti", v: hours },
-  ]
+    { icon: I.phone, t: "Telefon", v: settings.contact_phone },
+    { icon: I.mail, t: "Email", v: settings.contact_email },
+    { icon: I.pin, t: "Manzil", v: settings.contact_address },
+    { icon: I.clock, t: "Ish vaqti", v: settings.working_hours },
+  ].filter((c): c is { icon: string; t: string; v: string } => Boolean(c.v))
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -130,17 +118,27 @@ function Hero() {
                 <img src={mascot} alt="Agro Alliance" className="animate-float w-full max-w-[180px] object-contain drop-shadow-2xl" />
               </div>
               <div className="flex flex-col gap-5">
-                {contactInfo.map((c, i) => (
-                  <Reveal key={c.t} delay={i * 70}>
-                    <div className="flex items-start gap-3">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={c.icon} className="h-5 w-5" /></span>
-                      <div>
-                        <div className="font-display text-sm font-bold">{c.t}</div>
-                        <div className="mt-0.5 whitespace-pre-line text-sm text-muted">{c.v}</div>
+                {sLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
+                        <div className="flex-1 space-y-2 pt-1">
+                          <Skeleton className="h-3 w-16" />
+                          <Skeleton className="h-4 w-40" />
+                        </div>
                       </div>
-                    </div>
-                  </Reveal>
-                ))}
+                    ))
+                  : contactInfo.map((c, i) => (
+                      <Reveal key={c.t} delay={i * 70}>
+                        <div className="flex items-start gap-3">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={c.icon} className="h-5 w-5" /></span>
+                          <div>
+                            <div className="font-display text-sm font-bold">{c.t}</div>
+                            <div className="mt-0.5 whitespace-pre-line text-sm text-muted">{c.v}</div>
+                          </div>
+                        </div>
+                      </Reveal>
+                    ))}
               </div>
             </div>
           </div>
@@ -158,13 +156,16 @@ function Hero() {
 function ContactForm() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
   const [form, setForm] = useState({ name: "", email: "", topic: "Tanlang", message: "" })
   const [file, setFile] = useState<File | null>(null)
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (busy) return
     setError("")
+    setBusy(true)
     try {
       const payload: Record<string, unknown> = { name: form.name, email: form.email, subject: form.topic, message: form.message }
       if (file) {
@@ -179,6 +180,8 @@ function ContactForm() {
       setSent(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Yuborishda xatolik")
+    } finally {
+      setBusy(false)
     }
   }
   const inputCls = "w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
@@ -220,8 +223,8 @@ function ContactForm() {
             </label>
             <span>Maks. 10MB</span>
           </div>
-          <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02]">
-            XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" />
+          <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">
+            {busy ? "YUBORILMOQDA…" : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
           </button>
         </form>
       )}
@@ -249,7 +252,9 @@ function Features() {
   )
 }
 
-function Offices({ offices }: { offices: Office[] }) {
+function Offices({ offices, loading, failed, onRetry }: { offices: Office[] | null; loading: boolean; failed: boolean; onRetry: () => void }) {
+  // Ma'lumot ham yo'q, yuklanmayapti ham, xato ham emas -> bo'limni chizmaymiz.
+  if (!loading && !failed && !offices?.length) return null
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-10 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-2">
@@ -261,7 +266,15 @@ function Offices({ offices }: { offices: Office[] }) {
             </p>
           </Reveal>
           <div className="mt-6 space-y-4">
-            {offices.map((o, i) => (
+            {loading && Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-green/10 bg-white p-5">
+                <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-xl" /><Skeleton className="h-5 w-36" /></div>
+                <Skeleton className="mt-3 h-4 w-full" />
+                <Skeleton className="mt-3 h-4 w-48" />
+              </div>
+            ))}
+            {!loading && failed && <ErrorState onRetry={onRetry} message="Ofis ma'lumotlarini yuklab bo'lmadi." />}
+            {!loading && !failed && (offices ?? []).map((o, i) => (
               <Reveal key={o.name} delay={i * 80}>
                 <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
                   <div className="flex items-center gap-3">
@@ -319,15 +332,19 @@ function MapEmbed() {
   )
 }
 
-function Faq({ faqs }: { faqs: Faq[] }) {
+function Faq({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
   const [open, setOpen] = useState<number | null>(0)
+  if (!loading && !faqs?.length) return null
   return (
     <div>
       <Reveal>
         <h2 className="font-display text-2xl font-extrabold tracking-tight">Ko'p so'raladigan savollar</h2>
       </Reveal>
       <div className="mt-6 space-y-3">
-        {faqs.map((f, i) => {
+        {loading && Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-2xl" />
+        ))}
+        {!loading && (faqs ?? []).map((f, i) => {
           const active = open === i
           return (
             <Reveal key={f.q} delay={i * 60}>
@@ -352,11 +369,11 @@ function Faq({ faqs }: { faqs: Faq[] }) {
   )
 }
 
-function FaqAndNewsletter({ faqs }: { faqs: Faq[] }) {
+function FaqAndNewsletter({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-10 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-2">
-        <Faq faqs={faqs} />
+        <Faq faqs={faqs} loading={loading} />
         <Reveal delay={100}>
           <div className="flex h-full flex-col justify-center rounded-3xl border border-green/15 bg-soft p-8">
             <div className="flex items-start gap-5">
@@ -375,23 +392,32 @@ function FaqAndNewsletter({ faqs }: { faqs: Faq[] }) {
 }
 
 export default function Contact() {
-  const [offices, setOffices] = useState(defaultOffices)
-  const [faqs, setFaqs] = useState(defaultFaqs)
+  // MUHIM: bu yerda "namuna" ofis/FAQ ishlatilmaydi. Ilgari sahifa o'ylab
+  // topilgan 2 ta ofis (soxta manzil va telefon) bilan ochilar, API ishlamasa
+  // esa shu soxta ma'lumot butunlay qolib ketardi.
+  const [offices, setOffices] = useState<Office[] | null>(null)
+  const [faqs, setFaqs] = useState<Faq[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
+    setFailed(false)
     api<{ settings: Record<string, string> }>("/public/settings").then((d) => {
       const s = d.settings
       if (s.offices) { try { setOffices(JSON.parse(s.offices)) } catch { /* invalid JSON */ } }
       if (s.faqs) { try { setFaqs(JSON.parse(s.faqs)) } catch { /* invalid JSON */ } }
-    }).catch(() => {})
+    }).catch(() => setFailed(true)).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   return (
     <>
       <Hero />
       <Features />
-      <Offices offices={offices} />
-      <FaqAndNewsletter faqs={faqs} />
+      <Offices offices={offices} loading={loading} failed={failed} onRetry={load} />
+      <FaqAndNewsletter faqs={faqs} loading={loading} />
     </>
   )
 }

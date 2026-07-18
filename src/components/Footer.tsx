@@ -22,19 +22,26 @@ const socialIconByKey: Record<string, string> = {
 type FItem = { item_key?: string; title: string; description?: string; icon?: string; link?: string }
 
 export default function Footer() {
-  const { settings } = usePublicSettings()
+  const { settings, loading: settingsLoading } = usePublicSettings()
   const [fsec, setFsec] = useState<{ subtitle?: string; items: FItem[] } | null>(null)
+  const [secLoading, setSecLoading] = useState(true)
   useEffect(() => {
     api<{ sections: { section_key: string; subtitle?: string; items: FItem[] }[] }>("/public/homepage-sections")
       .then((d) => { const f = d.sections?.find((s) => s.section_key === "footer"); if (f) setFsec({ subtitle: f.subtitle, items: f.items || [] }) })
-      .catch(() => {})
+      .catch(() => { /* footer sekundar — xatoda shunchaki bo'sh qoladi */ })
+      .finally(() => setSecLoading(false))
   }, [])
+  const sLoading = settingsLoading || secLoading
   const fItem = (k: string) => fsec?.items?.find((i) => i.item_key === k)
 
   const brandText = fsec?.subtitle || "Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi."
-  const phone = fItem("phone")?.description || settings.contact_phone || "+998 90 123 45 67"
-  const email = fItem("email")?.description || settings.contact_email || "info@agroalliance.uz"
-  const address = fItem("address")?.description || settings.contact_address || "Toshkent, Amir Temur ko'chasi, 123-uy"
+  // MUHIM: qattiq yozilgan "namuna" telefon/email/manzil yo'q. Ilgari sayt
+  // yuklanayotganda HAR SAHIFADA soxta "+998 90 123 45 67" ko'rinardi.
+  const contactRows = [
+    { icon: I.phone, v: fItem("phone")?.description || settings.contact_phone },
+    { icon: I.mail, v: fItem("email")?.description || settings.contact_email },
+    { icon: I.pin, v: fItem("address")?.description || settings.contact_address },
+  ].filter((r): r is { icon: string; v: string } => Boolean(r.v))
 
   const seededSocials = (fsec?.items || [])
     .filter((i) => i.item_key?.startsWith("social_") && i.link && i.link !== "#")
@@ -61,10 +68,10 @@ export default function Footer() {
                   <Icon d={s.icon} className="h-4 w-4" />
                 </a>
               ))}
-              {socialLinks.length === 0 && [I.facebook, I.instagram, I.telegram, I.youtube].map((d, i) => (
-                <span key={i} className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 text-white/40">
-                  <Icon d={d} className="h-4 w-4" />
-                </span>
+              {/* Yuklanayotganda — bo'sh joy egallovchi (layout sakramasligi uchun).
+                  Yuklab bo'lgach havola yo'q bo'lsa, o'lik ikonkalarni umuman chizmaymiz. */}
+              {sLoading && socialLinks.length === 0 && [0, 1, 2, 3].map((i) => (
+                <span key={i} className="h-9 w-9 animate-pulse rounded-lg bg-white/10" />
               ))}
             </div>
           </div>
@@ -87,15 +94,15 @@ export default function Footer() {
           <div>
             <h4 className="font-display text-sm font-bold tracking-wide">Aloqa</h4>
             <ul className="mt-4 space-y-3 text-sm">
-              <li className="flex items-start gap-2.5 text-white/55">
-                <Icon d={I.phone} className="mt-0.5 h-4 w-4 shrink-0 text-green" /> {phone}
-              </li>
-              <li className="flex items-start gap-2.5 text-white/55">
-                <Icon d={I.mail} className="mt-0.5 h-4 w-4 shrink-0 text-green" /> {email}
-              </li>
-              <li className="flex items-start gap-2.5 text-white/55">
-                <Icon d={I.pin} className="mt-0.5 h-4 w-4 shrink-0 text-green" /> {address}
-              </li>
+              {sLoading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <li key={i} className="h-4 w-40 animate-pulse rounded bg-white/10" />
+                  ))
+                : contactRows.map((r, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-white/55">
+                      <Icon d={r.icon} className="mt-0.5 h-4 w-4 shrink-0 text-green" /> {r.v}
+                    </li>
+                  ))}
             </ul>
           </div>
         </div>

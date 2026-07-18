@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { Reveal, Icon, I } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../lib/ui"
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { api } from "../lib/api"
 
@@ -230,23 +230,21 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
   const maleColor = '#10b981';
   const femaleColor = '#3b82f6';
 
-  // Default data when API returns empty
-  const male = b.genderDistribution?.male ?? 68;
-  const female = b.genderDistribution?.female ?? 32;
+  // MUHIM: bu yerda HECH QANDAY o'ylab topilgan demografiya yo'q.
+  // Ilgari API bo'sh qaytarsa soxta 68/32 jins, soxta yosh va hudud taqsimoti
+  // real analitika sifatida ko'rsatilardi — reklama beruvchi shunga qarab
+  // qaror qabul qilishi mumkin edi. Endi ma'lumot yo'q bo'lsa — ochiq aytamiz.
+  const male = b.genderDistribution?.male ?? 0;
+  const female = b.genderDistribution?.female ?? 0;
+  const hasGender = male + female > 0;
 
-  const defaultAges: Record<string, number> = { "18-24": 18, "25-34": 42, "35-44": 25, "45+": 15 };
-  const ageEntries = Object.entries(b.ageDistribution || {}).length > 0
-    ? Object.entries(b.ageDistribution!)
-    : Object.entries(defaultAges);
+  const ageEntries = Object.entries(b.ageDistribution || {});
+  const regionEntries = Object.entries(b.regionDistribution || {});
 
-  const defaultRegions: Record<string, number> = { "Toshkent": 38, "Toshkent viloyati": 22, "Farg'ona viloyati": 12, "Namangan viloyati": 8, "Boshqalar": 20 };
-  const regionEntries = Object.entries(b.regionDistribution || {}).length > 0
-    ? Object.entries(b.regionDistribution!)
-    : Object.entries(defaultRegions);
+  const genderData = [{ name: 'Erkak', value: male }, { name: 'Ayol', value: female }];
 
-  const genderData = male + female > 0
-    ? [{ name: 'Erkak', value: male }, { name: 'Ayol', value: female }]
-    : [{ name: 'Erkak', value: 68 }, { name: 'Ayol', value: 32 }];
+  // Umuman hech qanday analitika yo'q bo'lsa — kartani chizmaymiz.
+  if (!hasGender && ageEntries.length === 0 && regionEntries.length === 0) return null;
 
   return (
     <Reveal>
@@ -254,6 +252,7 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
         <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">AUDITORIYA ANALITIKASI</h3>
 
         {/* Gender donut with center text */}
+        {hasGender && (
         <div className="mt-5 flex items-center justify-center gap-8">
           <div className="relative shrink-0">
             <ResponsiveContainer width={160} height={160}>
@@ -282,8 +281,10 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
             <div className="text-xs text-muted mt-1">Ayollar</div>
           </div>
         </div>
+        )}
 
         {/* Age groups with progress bars */}
+        {ageEntries.length > 0 && (
         <div className="mt-6 space-y-3">
           {ageEntries.map(([range, pct]) => (
             <div key={range}>
@@ -297,8 +298,10 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
             </div>
           ))}
         </div>
+        )}
 
         {/* Top regions */}
+        {regionEntries.length > 0 && (
         <div className="mt-6">
           <h4 className="font-display text-xs font-bold tracking-wide text-ink/60 mb-3">Top hududlar</h4>
           <ul className="space-y-2">
@@ -310,6 +313,7 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
             ))}
           </ul>
         </div>
+        )}
       </div>
     </Reveal>
   );
@@ -785,19 +789,38 @@ export default function BloggerProfile() {
   const { slug } = useParams()
   const [b, setB] = useState<LiveBlogger | null>(null)
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   useEffect(() => {
     if (!slug) return
     setLoading(true)
     const cacheBust = Date.now()
     api<{ blogger: LiveBlogger }>(`/public/bloggers/${slug}?t=${cacheBust}`)
-      .then((d) => d.blogger ? setB(d.blogger) : setB(null))
-      .catch(() => setB(null))
+      .then((d) => { setB(d.blogger ?? null); setFailed(false) })
+      // Tarmoq/server xatosi "bunday bloger yo'q" degani EMAS — alohida holat.
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }, [slug])
 
   if (loading) return (
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">
-      <div className="grid min-h-[60vh] place-items-center text-muted">Yuklanmoqda…</div>
+      <Skeleton className="mb-6 h-4 w-64" />
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        <div className="space-y-6">
+          <Skeleton className="h-56 w-full rounded-2xl" />
+          <SkeletonStatGrid />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+        <div className="space-y-6">
+          <Skeleton className="h-72 w-full rounded-2xl" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  )
+
+  if (failed) return (
+    <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">
+      <ErrorState onRetry={() => window.location.reload()} message="Bloger ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring." />
     </div>
   )
 

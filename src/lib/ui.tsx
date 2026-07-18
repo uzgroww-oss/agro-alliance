@@ -48,6 +48,41 @@ export function SkeletonStatGrid() {
   )
 }
 
+/**
+ * Async amal uchun pending holati. Amal tugamaguncha `busy` true bo'ladi,
+ * shu sababli tugmani `disabled={busy}` bilan bloklab, ikki marta bosishning
+ * oldini olamiz (dublikat yozuv / dublikat so'rov muammosi).
+ *
+ *   const [busy, run] = useBusy()
+ *   <button disabled={busy} onClick={() => run(save)}>{busy ? "..." : "Saqlash"}</button>
+ */
+export function useBusy(): [boolean, (fn: () => unknown | Promise<unknown>) => Promise<void>] {
+  const [busy, setBusy] = useState(false)
+  const run = async (fn: () => unknown | Promise<unknown>) => {
+    if (busy) return
+    setBusy(true)
+    try { await fn() } finally { setBusy(false) }
+  }
+  return [busy, run]
+}
+
+/**
+ * Yuklash xatosi uchun umumiy blok. MUHIM: xato "ma'lumot yo'q" degani EMAS —
+ * shuning uchun uni bo'sh-holat (empty state) o'rniga alohida ko'rsatamiz.
+ */
+export function ErrorState({ onRetry, message = "Ma'lumotni yuklab bo'lmadi." }: { onRetry?: () => void; message?: string }) {
+  return (
+    <div className="rounded-3xl border border-red-200 bg-red-50/60 px-6 py-10 text-center">
+      <p className="text-sm font-medium text-red-700">{message}</p>
+      {onRetry && (
+        <button onClick={onRetry} className="mt-3 text-sm font-bold text-green hover:underline">
+          Qayta urinish
+        </button>
+      )}
+    </div>
+  )
+}
+
 export const logo = "/logo.webp"
 /** Oq (shaffof fonli) logo — to'q fon uchun, masalan footer */
 export const logoWhite = "/logo-white.webp"
@@ -176,14 +211,6 @@ export const statIcon: Record<string, string> = {
 }
 export type StatItem = { key: string; value: string; label: string }
 
-// default (backend yuklanmaguncha / xato bo'lsa ko'rsatiladi)
-export const defaultStats: StatItem[] = [
-  { key: "bloggers", value: "0", label: "Agro blogerlar" },
-  { key: "audience", value: "0", label: "Umumiy auditoriya" },
-  { key: "views", value: "0", label: "Oylik ko'rishlar" },
-  { key: "regions", value: "0", label: "Viloyatlar" },
-]
-
 export const navLinks: { label: string; to: string }[] = [
   { label: "BOSH SAHIFA", to: "/" },
   { label: "BIZ HAQIMIZDA", to: "/about" },
@@ -222,13 +249,17 @@ export function StatsBar() {
   useEffect(() => {
     let alive = true
     api<{ stats: StatItem[] }>("/public/stats")
-      .then((d) => { if (alive && Array.isArray(d.stats) && d.stats.length) { setItems(d.stats); setLoaded(true) } })
-      .catch(() => { if (alive) setLoaded(true) })
+      .then((d) => { if (alive && Array.isArray(d.stats) && d.stats.length) setItems(d.stats) })
+      .catch(() => { /* xato -> pastda butunlay yashiramiz */ })
+      .finally(() => { if (alive) setLoaded(true) })
     return () => { alive = false }
   }, [])
 
   if (!loaded) return <StatsBarSkeleton />
-  const display = items ?? defaultStats
+  // Xato yoki bo'sh javob bo'lsa — "0" larni real raqamdek ko'rsatgandan ko'ra
+  // blokni butunlay chizmaymiz (yolg'on statistika ishonchni buzadi).
+  if (!items) return null
+  const display = items
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
