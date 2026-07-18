@@ -33,11 +33,15 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Java 17 o'rnatish
+      # Capacitor 8 = AGP 8.13 + compileSdk 36 -> JDK 21 talab qiladi (17 yetmaydi)
+      - name: Java 21 o'rnatish
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
+
+      - name: Android SDK (compileSdk 36) tayyorlash
+        uses: android-actions/setup-android@v3
 
       - name: Paketlarni o'rnatish
         run: npm ci
@@ -56,7 +60,7 @@ jobs:
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: APK'ni yuklash (Artifacts)
         uses: actions/upload-artifact@v4
