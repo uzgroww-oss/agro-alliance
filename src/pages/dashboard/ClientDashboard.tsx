@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout, { Donut } from "../../components/DashboardLayout"
-import { Icon, I, fmtSom } from "../../lib/ui"
+import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 
@@ -101,7 +101,15 @@ export default function ClientDashboard() {
       onLogout={doLogout}
       user={{ name: user?.name || "Mijoz", role: "Buyurtmachi", initials }}
     >
-      {loading && <div className="grid min-h-[50vh] place-items-center text-muted">Yuklanmoqda…</div>}
+      {loading && (
+        <div className="space-y-6">
+          <SkeletonStatGrid />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+        </div>
+      )}
       {err && !loading && <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600">{err}</div>}
       {!loading && !err && !partner && (
         <div className="grid min-h-[50vh] place-items-center text-center">

@@ -4,7 +4,7 @@ import DashboardLayout from "../../components/DashboardLayout"
 import MediaUpload from "../../components/MediaUpload"
 
 import { Icon, I } from "../../lib/ui"
-import { Skeleton, SkeletonTable } from "../../lib/ui"
+import { Skeleton, SkeletonTable, SkeletonStatGrid, ErrorState, useBusy } from "../../lib/ui"
 import { api, type User } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { categories } from "../../lib/bloggers"
@@ -60,6 +60,9 @@ const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_
 
 /* ---------- Profile ---------- */
 function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
+  // "Yangilash" tugmasi bloklanmagan edi: qayta-qayta bosilsa N ta parallel
+  // /me so'rovi ketardi va ekranda hech narsa o'zgarmasdi.
+  const [refreshing, runRefresh] = useBusy()
   const [edit, setEdit] = useState(false)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -87,13 +90,16 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
       media: [],
     } : null
   )
+  // Avtomatik sinxronizatsiya davomida "Instagram ulanmagan" formasi ko'rinardi,
+  // ya'ni ulangan foydalanuvchiga ham "ulang" deb turardi. Endi shu holat kuzatiladi.
+  const [autoSyncing, setAutoSyncing] = useState(Boolean(instagramUrl && (!igFromSocials || !igData?.media?.length)))
   useEffect(() => {
     if (instagramUrl && (!igFromSocials || !igData?.media?.length)) {
       (async () => {
         try {
           const res = await api<any>("/me/profile", { method: "PUT", body: JSON.stringify({ instagram_url: instagramUrl }) })
           if (res.profile || res.stats) setIgData({ profile: res.profile, stats: res.stats, media: res.media || [] })
-        } catch { /* skip */ }
+        } catch { /* skip */ } finally { setAutoSyncing(false) }
       })()
     }
   }, [])
@@ -236,6 +242,11 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
                 Akkauntni o'zgartirish
               </button>
             </div>
+          ) : autoSyncing ? (
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-32" /><Skeleton className="h-3 w-20" /></div>
+            </div>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
@@ -356,8 +367,8 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
         <button onClick={() => (edit ? save() : setEdit(true))} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
           {edit ? (saving ? "Saqlanmoqda…" : "Saqlash") : "Tahrirlash"} <Icon d={edit ? "M9 12l2 2 4-4" : "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"} className="h-3.5 w-3.5" />
         </button>
-        <button onClick={reload} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold transition-colors hover:border-green hover:text-green">
-          Yangilash <Icon d={I.refresh} className="h-3.5 w-3.5" />
+        <button onClick={() => runRefresh(reload)} disabled={refreshing} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          {refreshing ? "Yangilanmoqda…" : "Yangilash"} <Icon d={I.refresh} className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
     </div>
@@ -371,11 +382,20 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
   const [link, setLink] = useState("")
   const [busy, setBusy] = useState(false)
   const [deleting, setDeleting] = useState<Set<string>>(new Set())
+
+  // Ro'yxat props'dan bir marta olinardi va qo'shgandan keyin yangilanmasdi:
+  // foydalanuvchi yangi tarmoqni ko'rmay, "Qo'shish" ni yana bosardi (dublikat).
+  useEffect(() => { setSocials(_me.socials || []) }, [_me.socials])
+
   const add = async () => {
     if (!link.trim()) return
     setBusy(true)
-    try { await api("/me/socials", { method: "POST", body: JSON.stringify({ link }) }); setLink(""); setAdding(false) }
-    finally { setBusy(false) }
+    try {
+      await api("/me/socials", { method: "POST", body: JSON.stringify({ link }) })
+      setLink("")
+      setAdding(false)
+      await _reload()
+    } finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
@@ -434,6 +454,9 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   const [selectedVids, setSelectedVids] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Alohida holat: ilgari `busy` ni qo'lda qo'shish va YouTube'dan saqlash
+  // birga ishlatardi, natijada bittasi ikkinchisining tugmasini bloklardi.
+  const [savingSelected, setSavingSelected] = useState(false)
 
   useEffect(() => { fetchYoutubeChannelVideos() }, [])
 
@@ -572,8 +595,8 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
 
   // Tanlangan videolarni saqlash
   const saveSelectedVideos = async () => {
-    if (selectedVids.size === 0) return
-    setBusy(true)
+    if (selectedVids.size === 0 || savingSelected) return
+    setSavingSelected(true)
     try {
       // Tanlangan videolarni metadata'ga qo'shish
       const selectedVideos = youtubeChannelVids
@@ -619,7 +642,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
     } catch (err) {
       console.error("Videolarni saqlashda xatolik:", err)
     } finally {
-      setBusy(false)
+      setSavingSelected(false)
     }
   }
 
@@ -666,8 +689,8 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
             {selectedVids.size > 0 && (
               <div className="mb-2 flex items-center justify-between rounded-lg bg-green/10 px-3 py-2">
                 <span className="text-[11px] font-semibold text-green">{selectedVids.size} ta tanlandi</span>
-                <button onClick={saveSelectedVideos} disabled={busy} className="rounded-md bg-green px-2.5 py-1 text-[10px] font-bold text-white disabled:opacity-60">
-                  {busy ? "Saqlanmoqda..." : "Profilga qo'shish"}
+                <button onClick={saveSelectedVideos} disabled={savingSelected} className="rounded-md bg-green px-2.5 py-1 text-[10px] font-bold text-white disabled:opacity-60">
+                  {savingSelected ? "Saqlanmoqda..." : "Profilga qo'shish"}
                 </button>
               </div>
             )}
@@ -989,8 +1012,10 @@ function ServicesTab() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ services: { id: string; title: string; description: string }[] }>("/me/services")
       .then((d) => setItems(d.services || []))
       .catch(() => {})
@@ -1002,12 +1027,12 @@ function ServicesTab() {
   const add = async () => {
     if (!title.trim()) return
     setBusy(true)
-    try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load() }
+    try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load(true) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/services/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/services/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1062,8 +1087,10 @@ function TasksTab() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ tasks: MeTask[] }>("/me/tasks")
       .then((d) => setTasks(d.tasks || []))
       .catch(() => {})
@@ -1143,8 +1170,10 @@ function RegionsTab() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ regions: { id: string; region: string }[] }>("/me/regions")
       .then((d) => setItems(d.regions || []))
       .catch(() => {})
@@ -1156,12 +1185,12 @@ function RegionsTab() {
   const add = async () => {
     if (!region.trim()) return
     setBusy(true)
-    try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load() }
+    try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load(true) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/regions/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/regions/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1207,8 +1236,10 @@ function SpecializationsTab() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ specializations: { id: string; specialization_key: string }[] }>("/me/specializations")
       .then((d) => setItems(d.specializations || []))
       .catch(() => {})
@@ -1220,12 +1251,12 @@ function SpecializationsTab() {
   const add = async () => {
     if (!key.trim()) return
     setBusy(true)
-    try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load() }
+    try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load(true) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/specializations/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/specializations/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1269,8 +1300,10 @@ function AchievementsTab() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ achievements: { id: string; title: string; subtitle: string }[] }>("/me/achievements")
       .then((d) => setItems(d.achievements || []))
       .catch(() => {})
@@ -1282,12 +1315,12 @@ function AchievementsTab() {
   const add = async () => {
     if (!title.trim()) return
     setBusy(true)
-    try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load() }
+    try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load(true) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/achievements/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/achievements/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1331,8 +1364,10 @@ function ImagesTab() {
   const [caption, setCaption] = useState("")
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ images: { id: string; url: string; caption?: string }[] }>("/me/images")
       .then((d) => setItems(d.images || []))
       .catch(() => {})
@@ -1341,17 +1376,23 @@ function ImagesTab() {
   useEffect(() => { load() }, [])
 
   const [deleting, setDeleting] = useState<Set<string>>(new Set())
+  // Yuklash tugagach ro'yxat qayta so'raladi — shu oraliqda hech qanday belgi
+  // yo'q edi va yangi rasm ko'rinmasdan turardi.
+  const [uploading, setUploading] = useState(false)
   const onUpload = async (result: { storageKey: string; signedUrl: string }) => {
+    setUploading(true)
     try {
       await api("/me/images", { method: "POST", body: JSON.stringify({ url: result.signedUrl, caption }) })
       setCaption("")
-      load()
-    } catch { /* ignore */ }
+      await api<{ images: { id: string; url: string; caption?: string }[] }>("/me/images")
+        .then((d) => setItems(d.images || []))
+        .catch(() => {})
+    } catch { /* ignore */ } finally { setUploading(false) }
   }
 
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/images/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/images/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1361,6 +1402,12 @@ function ImagesTab() {
       <p className="mt-1 text-sm text-muted">Galereyangizga rasm qo'shing. Bir nechta faylni bir vaqtda yuklashingiz mumkin.</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <MediaUpload onUpload={onUpload} multiple accept="image/*" />
+        {uploading && (
+          <p className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold text-green">
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-green border-t-transparent" />
+            Galereyaga qo'shilmoqda…
+          </p>
+        )}
         {loading ? (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -1393,8 +1440,10 @@ function BrandsTab() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
+  // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  const load = (silent = false) => {
+    if (!silent) setLoading(true)
     api<{ brands: { id: string; name: string }[] }>("/me/brands")
       .then((d) => setItems(d.brands || []))
       .catch(() => {})
@@ -1406,12 +1455,12 @@ function BrandsTab() {
   const add = async () => {
     if (!name.trim()) return
     setBusy(true)
-    try { await api("/me/brands", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); load() }
+    try { await api("/me/brands", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); load(true) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/brands/${id}`, { method: "DELETE" }); load() }
+    try { await api(`/me/brands/${id}`, { method: "DELETE" }); load(true) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1604,13 +1653,27 @@ export default function BloggerDashboard() {
   const [me, setMe] = useState<User | null>(null)
   const { user, logout } = useAuth()
   const nav2 = useNavigate()
-  const reload = () => api<{ me: User }>("/me").then((d) => setMe(d.me)).catch(() => {})
+  const [meFailed, setMeFailed] = useState(false)
+  // Ilgari xato yutib yuborilardi: /me ishlamasa sahifa ABADIY "Yuklanmoqda…"
+  // holatida qolib ketardi, qayta urinish tugmasi ham yo'q edi.
+  const reload = () => api<{ me: User }>("/me")
+    .then((d) => { setMe(d.me); setMeFailed(false) })
+    .catch(() => setMeFailed(true))
   useEffect(() => { reload() }, [])
   const initials = (user?.name || "FE").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: "Blogger", initials }}>
-      {!me ? <div className="grid min-h-[60vh] place-items-center text-muted">Yuklanmoqda…</div>
+      {meFailed ? <ErrorState onRetry={reload} message="Profil ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring." />
+        : !me ? (
+          <div className="space-y-6">
+            <SkeletonStatGrid />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Skeleton className="h-64 w-full rounded-2xl" />
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </div>
+          </div>
+        )
         : active === "Dashboard" ? <Overview me={me} reload={reload} onNav={setActive} />
         : active === "Topshiriqlar" ? <TasksTab />
         : active === "Profilim" ? <ProfileTab me={me} reload={reload} />
