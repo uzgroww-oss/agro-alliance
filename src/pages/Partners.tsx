@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { useHomeSection } from "../lib/sections"
@@ -21,8 +21,11 @@ const benefits: BenefitItem[] = [
 const iconMap: Record<string, string> = { sprout: I.sprout, shield: I.shield, tractor: I.tractor, cap: I.cap, megaphone: I.megaphone, handshake: I.handshake, globe: I.globe, users: I.users, building: I.building, star: I.star }
 
 function BrandChip({ name }: { name: string }) {
+  // backdrop-blur ataylab olib tashlangan: qatorlar 3 tadan 7 taga oshgach
+  // 126 ta backdrop-filter qatlami hosil bo'lardi. Chip orqasida tekis fon
+  // (bg-soft) turgani uchun blur ko'rinmasdi ham — faqat GPU yuki edi.
   return (
-    <div className="grid h-16 min-w-[150px] place-items-center rounded-2xl border border-green/10 bg-white/90 px-6 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)] backdrop-blur-sm">
+    <div className="grid h-16 min-w-[150px] place-items-center rounded-2xl border border-green/10 bg-white/90 px-6 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)]">
       {name}
     </div>
   )
@@ -51,13 +54,22 @@ function BrandCarousel() {
       if (d.partners?.length) setLivePartners(d.partners.map((p) => p.name))
     }).catch(() => {})
   }, [])
-  const rev = [...livePartners].reverse()
-  const mid = Math.ceil(livePartners.length / 2)
-  const marqueeRows = [
-    { items: livePartners.slice(0, mid), dir: "left" as const, duration: "34s" },
-    { items: livePartners.slice(mid), dir: "right" as const, duration: "42s" },
-    { items: rev.slice(0, mid), dir: "left" as const, duration: "50s" },
-  ]
+  const marqueeRows = useMemo(() => {
+    if (!livePartners.length) return []
+    const half = Math.ceil(livePartners.length / 2)
+    return Array.from({ length: 7 }, (_, i) => {
+      // Har qator ro'yxatning boshqa joyidan boshlanadi, aks holda qatorlar
+      // bir-birini takrorlab, bir xil ko'rinib qolardi.
+      const offset = (i * 3) % livePartners.length
+      const rotated = [...livePartners.slice(offset), ...livePartners.slice(0, offset)]
+      const items = i % 2 ? [...rotated].reverse() : rotated
+      return {
+        items: items.slice(0, half),
+        dir: (i % 2 ? "right" : "left") as "left" | "right",
+        duration: `${30 + i * 4}s`, // har qator boshqa tezlikda
+      }
+    })
+  }, [livePartners])
   return (
     <div className="marquee-track absolute inset-0 flex flex-col justify-center gap-3 py-4">
       {marqueeRows.map((r, i) => (
