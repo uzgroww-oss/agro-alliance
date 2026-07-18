@@ -33,7 +33,17 @@ export default function NewsDetail() {
   useEffect(() => { window.scrollTo(0, 0) }, [slug])
 
   if (loading) {
-    return <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center text-muted">Yuklanmoqda…</div>
+    return (
+      <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
+        <Skeleton className="h-4 w-72" />
+        <Skeleton className="mt-6 h-10 w-full max-w-2xl" />
+        <Skeleton className="mt-3 h-10 w-2/3 max-w-xl" />
+        <Skeleton className="mt-6 h-72 w-full rounded-2xl" />
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className={`h-4 ${i % 3 === 2 ? "w-2/3" : "w-full"}`} />)}
+        </div>
+      </div>
+    )
   }
 
   if (error || !article) {

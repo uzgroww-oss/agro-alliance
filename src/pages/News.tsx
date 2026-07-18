@@ -82,7 +82,7 @@ function Hero() {
               </h1>
             </Reveal>
             <Reveal delay={90}>
-              <p className="mt-4 max-w-md leading-relaxed text-muted">{heroSec.subtitle}</p>
+              <p className={`mt-4 max-w-md leading-relaxed text-muted ${heroSec.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{heroSec.subtitle}</p>
             </Reveal>
           </div>
           <img src={mascot} alt="" className="animate-float hidden h-52 object-contain drop-shadow-2xl lg:block" />
@@ -115,6 +115,10 @@ export default function News() {
 
   // load data
   useEffect(() => {
+    // Filtr/sahifa o'zgarganda ham skeleton ko'rinsin: ilgari eski ro'yxat
+    // hech qanday belgisiz turib, keyin birdan almashardi.
+    setLoading(true)
+    setError("")
     loadNews({
       category: cat !== "all" ? cat : undefined,
       search: query.trim() || undefined,

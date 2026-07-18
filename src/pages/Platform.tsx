@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, StatsBar } from "../lib/ui"
-import { api } from "../lib/api"
+import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
+import { useHomeSections } from "../lib/sections"
 
 const mascot = "/mascot.webp"
 
@@ -78,7 +77,9 @@ function Hero() {
   )
 }
 
-function Capabilities({ capabilities }: { capabilities: { icon: string; t: string; d: string }[] }) {
+function Capabilities({ capabilities, loading }: { capabilities: { icon: string; t: string; d: string }[]; loading: boolean }) {
+  // Ilgari sarlavha chizilib, ostida butunlay bo'sh grid turardi.
+  if (!loading && capabilities.length === 0) return null
   return (
     <section id="imkoniyatlar" className="mx-auto max-w-[1320px] px-5 py-14 lg:px-8">
       <Reveal>
@@ -93,7 +94,15 @@ function Capabilities({ capabilities }: { capabilities: { icon: string; t: strin
         </div>
       </Reveal>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {capabilities.map((c, i) => (
+        {loading && Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="rounded-2xl border border-green/10 bg-white p-7">
+            <Skeleton className="h-14 w-14 rounded-2xl" />
+            <Skeleton className="mt-5 h-5 w-32" />
+            <Skeleton className="mt-3 h-4 w-full" />
+            <Skeleton className="mt-2 h-4 w-3/4" />
+          </div>
+        ))}
+        {!loading && capabilities.map((c, i) => (
           <Reveal key={c.t} delay={(i % 3) * 80}>
             <div className="group flex h-full flex-col rounded-2xl border border-green/10 bg-white p-7 shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_16px_40px_rgba(91,180,32,0.14)]">
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
@@ -109,23 +118,15 @@ function Capabilities({ capabilities }: { capabilities: { icon: string; t: strin
   )
 }
 
-const defaultCapabilities: Capability[] = []
-
 export default function Platform() {
-  const [capabilities, setCapabilities] = useState(defaultCapabilities)
-  useEffect(() => {
-    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
-      const cc = d.sections?.find((s) => s.section_key === "capabilities")
-      if (cc?.items?.length) {
-        setCapabilities(cc.items.map((item) => ({ icon: item.icon, t: item.title, d: item.description })))
-      }
-    }).catch(() => {})
-  }, [])
+  const { sections, loading } = useHomeSections<Section>()
+  const cc = sections.find((s) => s.section_key === "capabilities")
+  const capabilities: Capability[] = (cc?.items || []).map((item) => ({ icon: item.icon, t: item.title, d: item.description }))
 
   return (
     <>
       <Hero />
-      <Capabilities capabilities={capabilities} />
+      <Capabilities capabilities={capabilities} loading={loading} />
       <StatsBar />
     </>
   )

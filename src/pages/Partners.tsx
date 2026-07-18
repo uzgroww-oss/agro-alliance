@@ -69,17 +69,13 @@ function BrandCarousel() {
 }
 
 function Hero() {
-  const [hero, setHero] = useState<{ title: string; subtitle: string }>({
+  const hero = useHomeSection("partners_hero", {
     title: "BIRGA O'SAYLIK, BIRGA YUTAYLIK!",
     subtitle: "Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli hamkor platformasi.",
   })
-  useEffect(() => {
-    api<{ sections: { section_key: string; title: string; subtitle: string }[] }>("/public/homepage-sections")
-      .then((d) => { const h = d.sections?.find((s) => s.section_key === "partners_hero"); if (h) setHero({ title: h.title || "BIRGA O'SAYLIK, BIRGA YUTAYLIK!", subtitle: h.subtitle || "" }) })
-      .catch(() => {})
-  }, [])
   // Sarlavhani "so'z1 so'z2, so'z3 so'z4" formatida ikki rangда ko'rsatish uchun bo'lamiz
   const parts = hero.title.split(" ")
+  const fade = hero.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -102,12 +98,12 @@ function Hero() {
         <div className="grid items-center gap-8 py-8 lg:grid-cols-2">
           <div>
             <Reveal>
-              <h1 className="font-display text-[clamp(2.4rem,6vw,4rem)] font-extrabold leading-[1.02] tracking-[-0.03em]">
+              <h1 className={`font-display text-[clamp(2.4rem,6vw,4rem)] font-extrabold leading-[1.02] tracking-[-0.03em] ${fade}`}>
                 {parts[0]} <span className="text-green">{parts[1]}</span> {parts.slice(2).join(" ")}
               </h1>
             </Reveal>
             <Reveal delay={90}>
-              <p className="mt-5 max-w-md leading-relaxed text-muted">
+              <p className={`mt-5 max-w-md leading-relaxed text-muted ${fade}`}>
                 {hero.subtitle}
               </p>
             </Reveal>
@@ -133,6 +129,7 @@ function Hero() {
 
 function StatsRow() {
   const [liveStats, setLiveStats] = useState<Array<{ icon: string; v: string; l: string }>>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
     Promise.all([
       api<{ sections: { section_key: string; items: { item_key?: string; icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections"),
@@ -156,13 +153,21 @@ function StatsRow() {
           { icon: I.star, v: "5+", l: "Yillik tajriba" },
         ])
       }
-    }).catch(() => {})
+    }).catch(() => { /* xatoda pastda blok butunlay chizilmaydi */ }).finally(() => setLoading(false))
   }, [])
+  // Yuklanib bo'lgach ham hech narsa yo'q bo'lsa — bo'sh oq qutini ko'rsatmaymiz.
+  if (!loading && liveStats.length === 0) return null
   return (
     <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
       <Reveal>
         <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] sm:grid-cols-3 lg:grid-cols-5">
-          {liveStats.map((s) => (
+          {loading && Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-2">
+              <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2"><Skeleton className="h-6 w-14" /><Skeleton className="h-3 w-20" /></div>
+            </div>
+          ))}
+          {!loading && liveStats.map((s) => (
             <div key={s.l} className="flex items-center gap-3 px-2">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/20 text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
               <div>
@@ -237,10 +242,17 @@ function Directions() {
 
 function PartnerLogos() {
   const [livePartners, setLivePartners] = useState<LivePartner[]>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
-    api<{ partners: LivePartner[] }>("/public/partners").then((d) => setLivePartners(d.partners)).catch(() => {})
+    api<{ partners: LivePartner[] }>("/public/partners")
+      .then((d) => setLivePartners(d.partners || []))
+      .catch(() => { /* xatoda bo'lim chizilmaydi */ })
+      .finally(() => setLoading(false))
   }, [])
-  const list = livePartners.length > 0 ? livePartners : []
+  const list = livePartners
+
+  // Ilgari sarlavha chizilib, ostida butunlay bo'sh grid turardi.
+  if (!loading && list.length === 0) return null
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
@@ -254,7 +266,10 @@ function PartnerLogos() {
         </div>
       </Reveal>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {list.map((p, i) => (
+        {loading && Array.from({ length: 10 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+        ))}
+        {!loading && list.map((p, i) => (
           <Reveal key={p.name} delay={(i % 5) * 50}>
             <div className="grid h-24 place-items-center rounded-2xl border border-green/10 bg-white px-4 text-center font-display text-base font-extrabold tracking-tight text-ink/75 shadow-[0_4px_20px_rgba(91,180,32,0.05)] transition-all hover:-translate-y-1 hover:text-green hover:shadow-[0_12px_32px_rgba(91,180,32,0.12)]">
               {p.logo ? <img src={p.logo} alt={p.name} className="max-h-12 max-w-full object-contain" /> : p.name}
@@ -275,8 +290,8 @@ function CtaBanner() {
           <div className="absolute -right-10 -top-10 h-56 w-56 rounded-full bg-green/20 blur-3xl" />
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
-              <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">{cta.title}</h2>
-              <p className="mt-3 max-w-md leading-relaxed text-white/70">{cta.subtitle}</p>
+              <h2 className={`font-display text-3xl font-extrabold leading-tight tracking-tight ${cta.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{cta.title}</h2>
+              <p className={`mt-3 max-w-md leading-relaxed text-white/70 ${cta.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{cta.subtitle}</p>
               <a href="#" className="mt-7 inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
                 HAMKOR BO'LISH <Icon d={I.send} className="h-5 w-5" />
               </a>

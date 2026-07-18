@@ -42,7 +42,11 @@ export default function Header() {
               KIRISH
               <Icon d={I.login} className="h-4 w-4" />
             </Link>
-          ) : null}
+          ) : (
+            // Sessiya tekshirilayotganda joyni band qilib turamiz: ilgari tugma
+            // umuman chizilmasdi va yuklangach paydo bo'lib, header "sakrardi".
+            <span aria-hidden className="h-[42px] w-[104px] animate-pulse rounded-lg bg-green/15 sm:w-[124px]" />
+          )}
 
           {/* Hamburger (mobile/tablet) */}
           <button

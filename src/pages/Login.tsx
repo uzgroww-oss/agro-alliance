@@ -54,11 +54,16 @@ export default function Login() {
     }
   }
 
+  const [googleBusy, setGoogleBusy] = useState(false)
   const googleSignIn = async () => {
+    // Bir necha marta bosilsa bir necha OAuth redirect boshlanardi.
+    if (googleBusy) return
+    setGoogleBusy(true)
     try {
       await supabase.auth.signInWithOAuth({ provider: "google" })
     } catch (err) {
       console.error("Google OAuth error", err)
+      setGoogleBusy(false)
     }
   }
 
@@ -165,8 +170,8 @@ export default function Login() {
             </div>
 
             <div className="space-y-3">
-              <button onClick={googleSignIn} className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft">
-                <GoogleMark /> Google bilan kirish
+              <button onClick={googleSignIn} disabled={googleBusy} className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60">
+                <GoogleMark /> {googleBusy ? "Yo'naltirilmoqda…" : "Google bilan kirish"}
               </button>
               <button disabled className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft" title="Tez orada">
                 <Icon d={I.telegram} className="h-5 w-5 text-[#229ED9]" /> Telegram bilan kirish (Tez orada)

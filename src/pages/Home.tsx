@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
-import { api } from "../lib/api"
+import { useHomeSections } from "../lib/sections"
 
 const mascot = "/mascot.webp"
 
@@ -17,29 +17,33 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
-  const [heroCards, setHeroCards] = useState<HeroCard[]>([])
-  const [main, setMain] = useState<{ tagline: string; title1: string; title2: string; subtitle: string }>({
-    tagline: "AGRO KELAJAKNI BIRGA KO'RSATAMIZ", title1: "AGRO", title2: "ALLIANCE",
-    subtitle: "Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma.",
-  })
-  useEffect(() => {
-    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
-      const hc = d.sections?.find((s) => s.section_key === "hero_cards")
-      if (hc?.items?.length) {
-        setHeroCards(hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
-      }
-      const hm = d.sections?.find((s) => s.section_key === "hero_main")
-      if (hm) {
-        const byKey = (k: string) => hm.items?.find((it) => (it as SectionItem & { item_key?: string }).item_key === k)?.title
-        setMain((m) => ({
-          tagline: byKey("tagline") || m.tagline,
-          title1: byKey("title_line1") || m.title1,
-          title2: byKey("title_line2") || m.title2,
-          subtitle: hm.subtitle || m.subtitle,
-        }))
-      }
-    }).catch(() => {})
-  }, [])
+  const { sections, loading } = useHomeSections<Section>()
+
+  const heroCards: HeroCard[] = useMemo(() => {
+    const hc = sections.find((s) => s.section_key === "hero_cards")
+    if (!hc?.items?.length) return []
+    return hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description }))
+  }, [sections])
+
+  const main = useMemo(() => {
+    const fallback = {
+      tagline: "AGRO KELAJAKNI BIRGA KO'RSATAMIZ", title1: "AGRO", title2: "ALLIANCE",
+      subtitle: "Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma.",
+    }
+    const hm = sections.find((s) => s.section_key === "hero_main")
+    if (!hm) return fallback
+    const byKey = (k: string) => hm.items?.find((it) => (it as SectionItem & { item_key?: string }).item_key === k)?.title
+    return {
+      tagline: byKey("tagline") || fallback.tagline,
+      title1: byKey("title_line1") || fallback.title1,
+      title2: byKey("title_line2") || fallback.title2,
+      subtitle: hm.subtitle || fallback.subtitle,
+    }
+  }, [sections])
+
+  // Yuklanguncha matnni ko'rinmas qilamiz: joyni egallaydi (sahifa sakramaydi),
+  // lekin qattiq yozilgan matn chizilib keyin DB matniga almashmaydi.
+  const fade = loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"
 
   return (
     <section className="relative overflow-hidden">
@@ -53,18 +57,18 @@ function Hero() {
       <div className="mx-auto grid max-w-[1320px] gap-8 px-5 pt-10 pb-8 lg:px-8 lg:pt-14 xl:grid-cols-[1fr_0.85fr_340px]">
         <div className="flex flex-col justify-center">
           <Reveal>
-            <span className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-green/25 bg-white px-4 py-2 text-xs font-bold tracking-wide text-green shadow-sm">
+            <span className={`mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-green/25 bg-white px-4 py-2 text-xs font-bold tracking-wide text-green shadow-sm ${fade}`}>
               <Icon d={I.leaf} className="h-4 w-4" />
               {main.tagline}
             </span>
           </Reveal>
           <Reveal delay={80}>
-            <h1 className="font-display text-[clamp(2.8rem,7vw,5.2rem)] font-extrabold leading-[0.95] tracking-[-0.03em] text-ink">
+            <h1 className={`font-display text-[clamp(2.8rem,7vw,5.2rem)] font-extrabold leading-[0.95] tracking-[-0.03em] text-ink ${fade}`}>
               {main.title1} <span className="text-green">{main.title2}</span>
             </h1>
           </Reveal>
           <Reveal delay={160}>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-muted">
+            <p className={`mt-6 max-w-md text-lg leading-relaxed text-muted ${fade}`}>
               {main.subtitle}
             </p>
           </Reveal>
@@ -84,7 +88,16 @@ function Hero() {
         </div>
 
         <div className="flex flex-col gap-3">
-          {heroCards.map((c, i) => (
+          {loading && Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4">
+              <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            </div>
+          ))}
+          {!loading && heroCards.map((c, i) => (
             <Reveal key={c.t} delay={i * 70}>
               <a href="#" className="group flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4 shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-0.5 hover:border-green/30 hover:shadow-[0_8px_28px_rgba(91,180,32,0.16)]">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
@@ -107,19 +120,14 @@ function Hero() {
 }
 
 function Features() {
-  const [features, setFeatures] = useState<FeatureCard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [heading, setHeading] = useState("BARCHASI BIR PLATFORMADA")
-  useEffect(() => {
-    api<{ sections: Section[] }>("/public/homepage-sections").then((d) => {
-      const fc = d.sections?.find((s) => s.section_key === "features")
-      if (fc?.items?.length) {
-        setFeatures(fc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description })))
-      }
-      if (fc?.title) setHeading(fc.title)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { sections, loading } = useHomeSections<Section>()
+  const fc = sections.find((s) => s.section_key === "features")
+  const features: FeatureCard[] = (fc?.items || []).map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description }))
+  const heading = fc?.title || "BARCHASI BIR PLATFORMADA"
   const [h1, ...hrest] = heading.split(" ")
+  // Sarlavha ham yuklanguncha ko'rinmas — ilgari faqat kartalar skeleton edi,
+  // sarlavha esa qattiq matndan DB matniga sakrardi.
+  const fade = loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"
 
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-16 lg:px-8 lg:py-20">
@@ -127,7 +135,7 @@ function Features() {
         <div className="mb-12 text-center">
           <div className="mb-3 flex items-center justify-center gap-2 text-green">
           </div>
-          <h2 className="font-display text-[clamp(1.8rem,5vw,3rem)] font-extrabold tracking-tight">
+          <h2 className={`font-display text-[clamp(1.8rem,5vw,3rem)] font-extrabold tracking-tight ${fade}`}>
             {h1} <span className="text-green">{hrest.join(" ")}</span>
           </h2>
         </div>

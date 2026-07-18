@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
 
@@ -41,9 +41,10 @@ function Socials() {
   )
 }
 
-function Hero({ topBlogger }: { topBlogger: Blogger | null }) {
+function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoading: boolean }) {
+  // "0+" o'rniga "…" — nol real raqamdek ko'rinib qolmasin.
   const [heroStats, setHeroStats] = useState<HeroStat[]>([
-    { icon: I.users, v: "0+", l: "Faol blogerlar" },
+    { icon: I.users, v: "…", l: "Faol blogerlar" },
     { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
     { icon: I.building, v: "5M+", l: "Jami auditoriya" },
     { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
@@ -123,7 +124,9 @@ function Hero({ topBlogger }: { topBlogger: Blogger | null }) {
               </div>
               <div className="mt-5 flex flex-col items-center text-center">
                 <div className="relative">
-                  {topBlogger ? (
+                  {topLoading ? (
+                    <Skeleton className="h-20 w-20 rounded-full" />
+                  ) : topBlogger ? (
                     <>
                       <img
                         src={topBlogger.avatar || cover(topBlogger.seed)}
@@ -137,14 +140,18 @@ function Hero({ topBlogger }: { topBlogger: Blogger | null }) {
                     <div className="h-20 w-20 rounded-full bg-soft ring-4 ring-soft" />
                   )}
                 </div>
-                <h3 className="mt-3 font-display font-bold">{topBlogger?.name || "—"}</h3>
+                {topLoading
+                  ? <Skeleton className="mt-3 h-5 w-32" />
+                  : <h3 className="mt-3 font-display font-bold">{topBlogger?.name || "—"}</h3>}
                 <p className="text-xs text-muted">{topBlogger?.tag || ""}</p>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
-                  { icon: I.users, v: topBlogger?.subs || "0", l: "Obunachilar" },
-                  { icon: I.play, v: topBlogger?.views || "0", l: "Ko'rishlar" },
-                  { icon: I.star, v: topBlogger?.rating?.toString() || "0", l: "Reyting" },
+                  // Yuklanayotganda "0" emas "…": ilgari bo'sh karta real
+                  // bloger ma'lumotidek ko'rinardi.
+                  { icon: I.users, v: topLoading ? "…" : topBlogger?.subs || "0", l: "Obunachilar" },
+                  { icon: I.play, v: topLoading ? "…" : topBlogger?.views || "0", l: "Ko'rishlar" },
+                  { icon: I.star, v: topLoading ? "…" : topBlogger?.rating?.toString() || "0", l: "Reyting" },
                 ].map((x) => (
                   <div key={x.l}>
                     <Icon d={x.icon} className="mx-auto h-4 w-4 text-green" />
@@ -177,13 +184,20 @@ export default function Bloggers() {
   const [bloggersList, setBloggersList] = useState<Blogger[]>([])
   const [pagination, setPagination] = useState({ page: 1, per_page: 12, total: 0, total_pages: 1 })
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   const [topBlogger, setTopBlogger] = useState<Blogger | null>(null)
+  const [topLoading, setTopLoading] = useState(true)
 
   useEffect(() => {
-    loadTopBlogger().then(setTopBlogger)
+    loadTopBlogger().then(setTopBlogger).catch(() => {}).finally(() => setTopLoading(false))
   }, [])
 
   const load = useCallback((p: number) => {
+    // MUHIM: har qayta yuklashda (filtr/sahifa o'zgarganda ham) loading yoqiladi.
+    // Ilgari faqat birinchi yuklash ko'rinardi: filtrni o'zgartirganda eski
+    // ro'yxat hech qanday belgisiz turib, keyin birdan almashardi.
+    setLoading(true)
+    setFailed(false)
     loadBloggers({
       category: cat !== "all" ? cat : undefined,
       region: region !== "Barchasi" ? region : undefined,
@@ -194,7 +208,7 @@ export default function Bloggers() {
       per_page: 12,
     })
       .then((res) => { setBloggersList(res.bloggers); setPagination(res.pagination) })
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }, [cat, region, query, sort, platform])
 
@@ -208,7 +222,7 @@ export default function Bloggers() {
 
   return (
     <>
-      <Hero topBlogger={topBlogger} />
+      <Hero topBlogger={topBlogger} topLoading={topLoading} />
 
       <section className="mx-auto max-w-[1320px] px-5 lg:px-8">
         <div className="rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
@@ -258,7 +272,9 @@ export default function Bloggers() {
       </section>
 
       <section className="mx-auto max-w-[1320px] px-5 pb-10 lg:px-8">
-        {loading && (
+        {/* Uch holat bir-birini istisno qiladi: yuklanmoqda / xato / natija.
+            Ilgari yuklanayotganda skeleton bilan birga bo'sh grid ham chizilardi. */}
+        {loading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="overflow-hidden rounded-2xl border border-green/10 bg-white">
@@ -267,8 +283,9 @@ export default function Bloggers() {
               </div>
             ))}
           </div>
-        )}
-        {!loading && bloggersList.length === 0 ? (
+        ) : failed ? (
+          <ErrorState onRetry={() => load(page)} message="Blogerlar ro'yxatini yuklab bo'lmadi." />
+        ) : bloggersList.length === 0 ? (
           <div className="rounded-3xl border border-green/10 bg-white py-20 text-center text-muted">
             Hech narsa topilmadi. Filtrlarni tozalab ko'ring.
           </div>
