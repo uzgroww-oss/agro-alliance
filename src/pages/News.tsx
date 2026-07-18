@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
-import Newsletter from "../components/Newsletter"
 import { useHomeSection } from "../lib/sections"
 
 const iconMap: Record<string, string> = {
@@ -316,8 +315,6 @@ const side = page === 1 && newsList.slice(1, 3)
         </div>
       </section>
 
-      {/* Bottom newsletter */}
-      <Newsletter />
     </>
   )
 }

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
-import Newsletter from "../components/Newsletter"
 
 type LivePartner = { name: string; slug: string; sphere: string; logo: string | null; direction: string }
 
@@ -324,7 +323,6 @@ export default function Partners() {
       <Directions />
       <PartnerLogos />
       <CtaBanner />
-      <Newsletter />
     </>
   )
 }

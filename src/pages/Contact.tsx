@@ -20,52 +20,6 @@ const features = [
 
 const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
 
-function NewsletterInline() {
-  const [email, setEmail] = useState("")
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState("")
-  const [busy, setBusy] = useState(false)
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim()) return
-    setBusy(true)
-    try {
-      await api("/newsletter-subscribe", { method: "POST", body: JSON.stringify({ email: email.trim() }) })
-      setSent(true)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Obunada xatolik")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (sent) {
-    return (
-      <div className="mt-6 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green">
-        <Icon d="M9 12l2 2 4-4" className="h-4 w-4" /> Obuna muvaffaqiyatli!
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={submit} className="mt-6 flex flex-col gap-3 sm:flex-row">
-      <input
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email manzilingiz"
-        className="w-full rounded-xl border border-green/15 bg-white px-4 py-3.5 text-sm outline-none focus:border-green"
-      />
-      <button type="submit" disabled={busy} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
-        {busy ? "..." : <><Icon d={I.send} className="h-5 w-5" /> OBUNA</>}
-      </button>
-      {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
-    </form>
-  )
-}
-
 function Hero() {
   const { settings, loading: sLoading } = usePublicSettings()
   const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: "Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!" })
@@ -369,24 +323,11 @@ function Faq({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
   )
 }
 
-function FaqAndNewsletter({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
+function FaqSection({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
+  if (!loading && !faqs?.length) return null
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-10 lg:px-8">
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Faq faqs={faqs} loading={loading} />
-        <Reveal delay={100}>
-          <div className="flex h-full flex-col justify-center rounded-3xl border border-green/15 bg-soft p-8">
-            <div className="flex items-start gap-5">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-green/15 text-green"><Icon d={I.mail} className="h-8 w-8" /></span>
-              <div>
-                <h3 className="font-display text-xl font-extrabold leading-tight">Yangiliklar va imkoniyatlardan xabardor bo'lib boring!</h3>
-                <p className="mt-2 text-sm text-muted">Eng so'nggi yangiliklar, imkoniyatlar va foydali ma'lumotlarni email orqali oling.</p>
-              </div>
-            </div>
-            <NewsletterInline />
-          </div>
-        </Reveal>
-      </div>
+      <Faq faqs={faqs} loading={loading} />
     </section>
   )
 }
@@ -417,7 +358,7 @@ export default function Contact() {
       <Hero />
       <Features />
       <Offices offices={offices} loading={loading} failed={failed} onRetry={load} />
-      <FaqAndNewsletter faqs={faqs} loading={loading} />
+      <FaqSection faqs={faqs} loading={loading} />
     </>
   )
 }
