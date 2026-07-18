@@ -35,6 +35,8 @@ workflows:
           npx cap sync android
       - name: Android debug APK yig'ish
         script: |
+          export ANDROID_VERSION_CODE=$PROJECT_BUILD_NUMBER
+          export ANDROID_VERSION_NAME="1.0.$PROJECT_BUILD_NUMBER"
           cd android
           chmod +x ./gradlew
           ./gradlew assembleDebug
@@ -72,6 +74,8 @@ workflows:
           npx cap sync android
       - name: Android AAB yig'ish
         script: |
+          export ANDROID_VERSION_CODE=$PROJECT_BUILD_NUMBER
+          export ANDROID_VERSION_NAME="1.0.$PROJECT_BUILD_NUMBER"
           cd android
           chmod +x ./gradlew
           ./gradlew bundleRelease

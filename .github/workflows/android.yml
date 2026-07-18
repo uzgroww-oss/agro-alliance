@@ -57,6 +57,10 @@ jobs:
           npx cap sync android
 
       - name: Debug APK yig'ish
+        env:
+          # Har build'da avtomatik oshadi (GitHub build raqami) — Play Store buni talab qiladi
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
           cd android
           chmod +x ./gradlew
