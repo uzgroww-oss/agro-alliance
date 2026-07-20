@@ -72,3 +72,4 @@ ios/App/output/
 ios/DerivedData/
 *.keystore
 *.jks
+.netlify/
