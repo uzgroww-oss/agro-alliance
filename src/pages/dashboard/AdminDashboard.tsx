@@ -479,9 +479,23 @@ function AdminPartners() {
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <input value={form.sphere} onChange={(e) => setForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              {/* Logo: URL yozish YOKI rasm yuklash — ikkalasi ham bitta
+                  `form.logo` maydoniga yozadi, shuning uchun backend o'zgarmadi. */}
               <div>
-                <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Logo rasmi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-                {form.logo.trim() && <img src={form.logo.trim()} alt="" className="mt-2 max-h-12 object-contain" />}
+                <label className="mb-1.5 block text-xs font-semibold text-muted">Logo (ixtiyoriy)</label>
+                <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Rasm havolasi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-xs text-muted">yoki</span>
+                  <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, logo: r.signedUrl }))} />
+                </div>
+                {form.logo.trim() && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-green/10 bg-soft p-3">
+                    <img src={form.logo.trim()} alt="" className="max-h-12 max-w-[120px] object-contain" />
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, logo: "" }))} className="ml-auto text-xs font-bold text-red-500 hover:underline">
+                      Olib tashlash
+                    </button>
+                  </div>
+                )}
               </div>
               <input value={form.contractNo} onChange={(e) => setForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <input value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
