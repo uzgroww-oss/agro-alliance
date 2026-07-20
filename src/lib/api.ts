@@ -99,7 +99,8 @@ function resolveAdminUrl(path: string, method: string): string {
     if (segments.length === 2) {
       const qs = new URLSearchParams(qsRaw)
       qs.set("id", segments[1])
-      return `${SUPABASE_FUNCTIONS_URL}/admin-bloggers-delete?${qs.toString()}`
+      const fn = method === "PATCH" ? "admin-bloggers-update" : "admin-bloggers-delete"
+      return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
     }
   }
 

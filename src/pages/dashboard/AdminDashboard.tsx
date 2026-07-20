@@ -112,6 +112,39 @@ function Bloggers() {
   }
   // Mutatsiyalar `silent` reload ishlatadi: butun jadval skeletonga aylanmasin.
   const [mutating, runMutation] = useBusy()
+
+  // --- Mavjud blogerni tahrirlash ---
+  const [editTarget, setEditTarget] = useState<Row | null>(null)
+  const [editForm, setEditForm] = useState({ name: "", email: "", cat: "", region: "" })
+  const [editErr, setEditErr] = useState("")
+  const startEdit = (r: Row) => {
+    setEditErr("")
+    setEditTarget(r)
+    setEditForm({ name: r.name || "", email: r.email || "", cat: r.cat || "fermerlik", region: r.region || "" })
+  }
+  const saveEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editTarget) return
+    setEditErr("")
+    if (!editForm.name.trim()) { setEditErr("Bloger ismi majburiy"); return }
+    return runMutation(async () => {
+      try {
+        await api(`/bloggers/${editTarget.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: editForm.name.trim(),
+            email: editForm.email.trim(),
+            cat: editForm.cat,
+            region: editForm.region,
+          }),
+        })
+        setEditTarget(null)
+        await reload(true)
+      } catch (err: unknown) {
+        setEditErr(err instanceof Error ? err.message : "Saqlashda xatolik")
+      }
+    })
+  }
   const remove = (id: number) => runMutation(async () => {
     setRows((prev) => prev.filter((r) => r.id !== id))
     setDeleteTarget(null)
@@ -285,6 +318,7 @@ function Bloggers() {
                   <td className="py-3">
                     <span className="flex gap-1.5">
                       <Link to={`/bloger/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Profilni ko'rish"><Icon d={I.external} className="h-4 w-4" /></Link>
+                      <button onClick={() => startEdit(r)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:border-green hover:text-green" title="Tahrirlash"><Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" /></button>
                       <button onClick={() => setDeleteTarget(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </span>
                   </td>
@@ -294,6 +328,39 @@ function Bloggers() {
           </table>
         </div>
       </div>
+
+      {/* Tahrirlash modali */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setEditTarget(null)}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Blogerni tahrirlash</h3>
+            <form onSubmit={saveEdit} className="mt-5 space-y-4">
+              {editErr && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{editErr}</div>}
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <div>
+                <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+                <p className="mt-1.5 text-xs text-orange-600">Diqqat: bu bloger LOGINI. O'zgartirsangiz u yangi email bilan kiradi.</p>
+              </div>
+              <select value={editForm.region} onChange={(e) => setEditForm((f) => ({ ...f, region: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                <option value="">Viloyat tanlanmagan</option>
+                {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={editForm.cat} onChange={(e) => setEditForm((f) => ({ ...f, cat: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+
+              <p className="text-xs text-muted">Holat (Faol/Kutilmoqda) jadvaldagi tugma orqali o'zgaradi. Parol bu yerdan o'zgartirilmaydi.</p>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteTarget !== null && (
