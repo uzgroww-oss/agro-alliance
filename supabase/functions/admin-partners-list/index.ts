@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   try {
     const { data: partners, error: partnersError } = await supabaseAdmin
       .from("partners")
-      .select("id, name, sphere, contract_no, contract_amount, signed_date, status, client_profile_id")
+      .select("id, name, sphere, logo, contract_no, contract_amount, signed_date, status, client_profile_id")
       .is("deleted_at", null)
 
     if (partnersError) throw partnersError
@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
       id: p.id,
       name: p.name,
       sphere: p.sphere,
+      logo: p.logo,
       contractNo: p.contract_no,
       amount: p.contract_amount,
       signedDate: p.signed_date,

@@ -322,7 +322,7 @@ function Bloggers() {
 /* ---------- Partners (hamkorlar) management ---------- */
 type Task = { id: number; title: string; status: "done" | "progress" | "pending" }
 type PartnerClient = { id: number; name: string; email: string }
-type Partner = { id: number; name: string; sphere: string; contractNo: string; amount: number | null; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
+type Partner = { id: number; name: string; sphere: string; logo?: string | null; contractNo: string; amount: number | null; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
 
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
   done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
@@ -392,6 +392,48 @@ function AdminPartners() {
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xatolik") }
     finally { setSaving(false) }
   }
+  // --- Mavjud hamkorni tahrirlash ---
+  const [editTarget, setEditTarget] = useState<Partner | null>(null)
+  const [editForm, setEditForm] = useState({ name: "", sphere: "", contractNo: "", amount: "", status: "active", logo: "" })
+  const [editErr, setEditErr] = useState("")
+  const startEdit = (p: Partner) => {
+    setEditErr("")
+    setEditTarget(p)
+    setEditForm({
+      name: p.name || "",
+      sphere: p.sphere || "",
+      contractNo: p.contractNo || "",
+      amount: p.amount == null ? "" : String(p.amount),
+      status: p.status || "active",
+      logo: p.logo || "",
+    })
+  }
+  const saveEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editTarget) return
+    setEditErr("")
+    if (!editForm.name.trim()) { setEditErr("Tashkilot nomi majburiy"); return }
+    return runMutation(async () => {
+      try {
+        await api(`/partners/${editTarget.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: editForm.name.trim(),
+            sphere: editForm.sphere,
+            contractNo: editForm.contractNo,
+            amount: editForm.amount,
+            status: editForm.status,
+            logo: editForm.logo,
+          }),
+        })
+        setEditTarget(null)
+        await reload(true)
+      } catch (err: unknown) {
+        setEditErr(err instanceof Error ? err.message : "Saqlashda xatolik")
+      }
+    })
+  }
+
   const remove = (id: number) => {
     setList((prev) => prev.filter((p) => p.id !== id))
     setDeleteTarget(null)
@@ -547,7 +589,9 @@ function AdminPartners() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="h-5 w-5 shrink-0 rounded border-green/30 text-green accent-green" />
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={I.building} className="h-6 w-6" /></span>
+                  {p.logo
+                    ? <img src={p.logo} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-green/10 bg-white object-contain p-1" />
+                    : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={I.building} className="h-6 w-6" /></span>}
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-display text-lg font-bold">{p.name}</h3>
@@ -556,9 +600,14 @@ function AdminPartners() {
                     <p className="text-sm text-muted">{p.sphere}</p>
                   </div>
                 </div>
-                <button onClick={() => setDeleteTarget(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
-                  <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => startEdit(p)} className="grid h-9 w-9 place-items-center rounded-lg border border-green/20 text-muted hover:border-green hover:text-green" title="Tahrirlash">
+                    <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                    <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               {/* contract row */}
@@ -632,6 +681,55 @@ function AdminPartners() {
           )
         })}
       </div>
+
+      {/* Tahrirlash modali */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setEditTarget(null)}>
+          <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-extrabold">Hamkorni tahrirlash</h3>
+            <form onSubmit={saveEdit} className="mt-5 space-y-4">
+              {editErr && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{editErr}</div>}
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={editForm.sphere} onChange={(e) => setEditForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+
+              {/* Logo: URL yozish yoki rasm yuklash — qo'shish formasi bilan bir xil */}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted">Logo</label>
+                <input value={editForm.logo} onChange={(e) => setEditForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Rasm havolasi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-xs text-muted">yoki</span>
+                  <MediaUpload accept="image/*" onUpload={(r) => setEditForm((f) => ({ ...f, logo: r.signedUrl }))} />
+                </div>
+                {editForm.logo.trim() && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-green/10 bg-soft p-3">
+                    <img src={editForm.logo.trim()} alt="" className="max-h-12 max-w-[120px] object-contain" />
+                    <button type="button" onClick={() => setEditForm((f) => ({ ...f, logo: "" }))} className="ml-auto text-xs font-bold text-red-500 hover:underline">
+                      Olib tashlash
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <input value={editForm.contractNo} onChange={(e) => setEditForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
+                <option value="active">Faol</option>
+                <option value="pending">Kutilmoqda</option>
+                <option value="completed">Yakunlangan</option>
+              </select>
+
+              <p className="text-xs text-muted">Hamkor logini (email/parol) bu yerdan o'zgartirilmaydi — buning uchun kartadagi alohida bo'lim bor.</p>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
+                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteTarget !== null && (
