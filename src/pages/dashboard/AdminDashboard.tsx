@@ -317,7 +317,9 @@ function Bloggers() {
                   </td>
                   <td className="py-3">
                     <span className="flex gap-1.5">
-                      <Link to={`/bloger/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Profilni ko'rish"><Icon d={I.external} className="h-4 w-4" /></Link>
+                      {/* Marshrut /blogerlar/:slug (ko'plikda). Ilgari bu yerda
+                          "/bloger/" yozilgani uchun har doim 404 chiqardi. */}
+                      <Link to={`/blogerlar/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Profilni ko'rish"><Icon d={I.external} className="h-4 w-4" /></Link>
                       <button onClick={() => startEdit(r)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:border-green hover:text-green" title="Tahrirlash"><Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" /></button>
                       <button onClick={() => setDeleteTarget(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </span>
