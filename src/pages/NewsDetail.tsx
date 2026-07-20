@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import DOMPurify from "dompurify"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
-import { useSeo, newsSeo } from "../lib/seo"
+import { useSeo, newsSeo, SITE_URL } from "../lib/seo"
 
 export default function NewsDetail() {
   const { slug } = useParams()
@@ -12,6 +12,8 @@ export default function NewsDetail() {
   const [relatedLoading, setRelatedLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [copied, setCopied] = useState(false)
+  const shareUrl = `${SITE_URL}/yangiliklar/${slug ?? ""}`
 
   useEffect(() => {
     if (!slug) return
@@ -113,9 +115,26 @@ export default function NewsDetail() {
         <Reveal delay={160}>
           <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-green/10 pt-6">
             <span className="text-sm font-semibold text-muted">Ulashish:</span>
-            {[I.telegram, I.facebook, I.instagram, I.link2].map((d, i) => (
-              <a key={i} href="#" className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"><Icon d={d} className="h-4 w-4" /></a>
-            ))}
+            {/* Ilgari to'rttasi ham href="#" edi — hech narsa qilmasdi.
+                Instagram havola orqali ulashishni qo'llab-quvvatlamaydi,
+                shuning uchun uning o'rniga "havolani nusxalash" qo'yildi. */}
+            <a
+              href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.title)}`}
+              target="_blank" rel="noreferrer" title="Telegram orqali ulashish"
+              className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
+            ><Icon d={I.telegram} className="h-4 w-4" /></a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+              target="_blank" rel="noreferrer" title="Facebook orqali ulashish"
+              className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
+            ><Icon d={I.facebook} className="h-4 w-4" /></a>
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => setCopied(true)); setTimeout(() => setCopied(false), 2000) }}
+              title="Havolani nusxalash"
+              className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
+            ><Icon d={copied ? I.check : I.link2} className="h-4 w-4" /></button>
+            {copied && <span className="text-xs font-semibold text-green">Nusxalandi</span>}
             <Link to="/yangiliklar" className="ml-auto inline-flex items-center gap-2 rounded-xl border-2 border-green/25 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">
               <Icon d={I.chevLeft} className="h-4 w-4" /> Barcha yangiliklar
             </Link>

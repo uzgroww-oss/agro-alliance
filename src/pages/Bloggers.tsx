@@ -314,9 +314,6 @@ export default function Bloggers() {
                         <Icon d={I.trophy} className="h-3.5 w-3.5" /> TOP
                       </span>
                     )}
-                    <button className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg bg-white/90 text-ink/70 transition-colors hover:text-green" aria-label="Saqlash">
-                      <Icon d={I.bookmark} className="h-4 w-4" />
-                    </button>
                     <span className="absolute bottom-3 left-3 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-green">
                       <Icon d={I.play} className="h-4 w-4" />
                     </span>

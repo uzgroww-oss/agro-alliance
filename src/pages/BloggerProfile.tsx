@@ -420,23 +420,6 @@ function QuickContact({ b }: { b: LiveBlogger }) {
     </div>
   )
 }
-/* ---------- AI Assistant Card ---------- */
-function AiAssistant({ b }: { b: LiveBlogger }) {
-  return (
-    <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-green to-green-deep p-6 text-white shadow-[0_4px_24px_rgba(91,180,32,0.25)]">
-      <div className="flex items-center gap-2">
-        <Icon d={I.brain} className="h-5 w-5" />
-        <span className="font-display text-sm font-bold tracking-wide">AI ASSISTANT</span>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-white/90">
-        {b.name} bilan AI orqali bog'laning!
-      </p>
-      <button className="mt-4 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-green transition-transform hover:scale-105">
-        <Icon d={I.bolt} className="h-4 w-4" /> AI CHAT
-      </button>
-    </div>
-  )
-}
 
 
 
@@ -865,7 +848,6 @@ export default function BloggerProfile() {
          <div className="flex flex-col gap-6">
            <Reveal><About b={b} /></Reveal>
            <Reveal delay={80}><QuickContact b={b} /></Reveal>
-           <Reveal delay={160}><AiAssistant b={b} /></Reveal>
          </div>
          {/* O'rtacha ustun */}
          <div className="flex flex-col gap-6">

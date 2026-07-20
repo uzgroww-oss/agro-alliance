@@ -121,9 +121,9 @@ function Hero() {
             </Reveal>
             <Reveal delay={160}>
               <div className="mt-8 flex flex-wrap gap-4">
-                <a href="#" className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+                <Link to="/aloqa" className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
                   <Icon d={I.handshake} className="h-5 w-5" /> HAMKOR BO'LISH
-                </a>
+                </Link>
                 <a href="#yonalishlar" className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 bg-white px-6 py-3.5 font-bold text-ink transition-colors hover:border-green hover:text-green">
                   <Icon d={I.play} className="h-5 w-5" /> HAMKORLIK HAQIDA
                 </a>
@@ -306,9 +306,9 @@ function CtaBanner() {
             <div>
               <h2 className={`font-display text-3xl font-extrabold leading-tight tracking-tight ${cta.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{cta.title}</h2>
               <p className={`mt-3 max-w-md leading-relaxed text-white/70 ${cta.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{cta.subtitle}</p>
-              <a href="#" className="mt-7 inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
+              <Link to="/aloqa" className="mt-7 inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
                 HAMKOR BO'LISH <Icon d={I.send} className="h-5 w-5" />
-              </a>
+              </Link>
             </div>
             <div className="grid gap-6 sm:grid-cols-2">
               {benefits.map((b) => (

@@ -102,15 +102,7 @@ export default function DashboardLayout({
             >
               <Icon d="M3 6h18 M3 12h18 M3 18h18" className="h-5 w-5" />
             </button>
-            <div className="relative hidden max-w-xl flex-1 sm:block">
-              <Icon d={I.search} className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <input placeholder="Qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-11 pr-4 text-sm outline-none focus:border-green" />
-            </div>
             <div className="ml-auto flex items-center gap-3">
-              <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-green/15 text-ink/60 transition-colors hover:text-green">
-                <Icon d={I.bell} className="h-5 w-5" />
-                <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-green ring-2 ring-white" />
-              </button>
               <div className="flex items-center gap-2.5 rounded-xl border border-green/15 py-1.5 pl-1.5 pr-2">
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-green/15 font-display text-sm font-bold text-green">{user.initials}</span>
                 <span className="hidden text-left sm:block">

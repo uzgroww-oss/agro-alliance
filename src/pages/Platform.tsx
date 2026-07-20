@@ -67,9 +67,9 @@ function Hero() {
                 Bizning platforma sizga vaqtni tejash, daromadni oshirish va maqsadlaringizga
                 tezroq yetishishda yordam beradi!
               </p>
-              <a href="#" className="mt-6 inline-flex w-fit items-center gap-2 rounded-xl bg-soft px-5 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green hover:text-white">
+              <Link to="/aloqa" className="mt-6 inline-flex w-fit items-center gap-2 rounded-xl bg-soft px-5 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green hover:text-white">
                 <Icon d={I.sprout} className="h-4 w-4" /> BIZ BILAN O'SING
-              </a>
+              </Link>
             </div>
           </Reveal>
         </div>

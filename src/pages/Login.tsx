@@ -111,7 +111,6 @@ export default function Login() {
         {/* Right panel - form */}
         <div className="flex flex-col p-7 sm:p-10 lg:p-12">
           <div className="flex items-center justify-end gap-5 text-sm">
-            <button className="inline-flex items-center gap-1.5 rounded-full border border-green/15 px-3 py-1.5 font-semibold text-ink/70 transition-colors hover:border-green hover:text-green">UZ <Icon d={I.chevDown} className="h-3.5 w-3.5" /></button>
             <Link to="/platforma" className="flex items-center gap-1.5 text-muted transition-colors hover:text-green">Platforma haqida <Icon d={I.question} className="h-4 w-4" /></Link>
           </div>
 
@@ -163,6 +162,7 @@ export default function Login() {
 
               {import.meta.env.DEV && (
                 <button type="button" onClick={() => { setEmail("elyor@agroalliance.uz"); setPassword("elyor123") }} className="w-full text-center text-xs text-muted hover:text-green">
+                  (dev) test hisobi bilan to'ldirish
                 </button>
               )}
             </form>

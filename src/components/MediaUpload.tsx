@@ -134,6 +134,10 @@ export default function MediaUpload({
     <div>
       <input ref={fileRef} type="file" accept={accept} multiple={multiple} onChange={handleFiles} className="hidden" />
       <button
+        // MUHIM: type="button" shart. Usiz forma ichida bu tugma type="submit"
+        // bo'lib qoladi va bosilganda faylni tanlash o'rniga formani yuboradi
+        // (hamkor qo'shish/tahrirlash modallarida aynan shunday bo'lardi).
+        type="button"
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
         className="inline-flex items-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-5 py-3 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"

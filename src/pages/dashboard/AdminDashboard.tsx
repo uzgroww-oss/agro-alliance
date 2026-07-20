@@ -2615,9 +2615,9 @@ function AdminRoles() {
                           </button>
                           {!r.is_system && (
                             <>
-                              <button className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-50">
-                                <Icon d={I.gear} className="h-3.5 w-3.5" />
-                              </button>
+                              {/* Bu yerda onClick'siz "shesterenka" tugmasi bor edi —
+                                  bosilganda hech narsa qilmasdi. Rolni tahrirlash
+                                  imkoniyati yo'q, shuning uchun olib tashlandi. */}
                               <button onClick={() => deleteRole(r)} disabled={mutating} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 disabled:opacity-50">
                                 <Icon d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1z" className="h-3.5 w-3.5" />
                               </button>

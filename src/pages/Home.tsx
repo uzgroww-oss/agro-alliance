@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom"
 import { useMemo } from "react"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
@@ -5,7 +6,7 @@ import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot.webp"
 
-type HeroCard = { icon: string; t: string; d: string }
+type HeroCard = { icon: string; t: string; d: string; link?: string }
 type FeatureCard = { icon: string; t: string; d: string }
 
 const iconMap: Record<string, string> = {
@@ -17,13 +18,37 @@ const iconMap: Record<string, string> = {
 type SectionItem = { title: string; description: string; icon: string; link: string }
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
+function HeroCardBox({ card }: { card: HeroCard }) {
+  const base = "group flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4 shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-all"
+  const hoverable = " hover:-translate-y-0.5 hover:border-green/30 hover:shadow-[0_8px_28px_rgba(91,180,32,0.16)]"
+  const inner = (
+    <>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
+        <Icon d={card.icon} className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-[13px] font-bold tracking-wide">{card.t}</h3>
+          {card.link && <Icon d={I.arrow} className="h-4 w-4 text-green opacity-0 transition-opacity group-hover:opacity-100" />}
+        </div>
+        <p className="mt-1 text-xs leading-snug text-muted">{card.d}</p>
+      </div>
+    </>
+  )
+  if (!card.link || card.link === "#") return <div className={base}>{inner}</div>
+  const external = /^https?:\/\//i.test(card.link)
+  return external
+    ? <a href={card.link} target="_blank" rel="noreferrer" className={base + hoverable}>{inner}</a>
+    : <Link to={card.link} className={base + hoverable}>{inner}</Link>
+}
+
 function Hero() {
   const { sections, loading } = useHomeSections<Section>()
 
   const heroCards: HeroCard[] = useMemo(() => {
     const hc = sections.find((s) => s.section_key === "hero_cards")
     if (!hc?.items?.length) return []
-    return hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description }))
+    return hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description, link: item.link }))
   }, [sections])
 
   const main = useMemo(() => {
@@ -100,18 +125,10 @@ function Hero() {
           ))}
           {!loading && heroCards.map((c, i) => (
             <Reveal key={c.t} delay={i * 70}>
-              <a href="#" className="group flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4 shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-0.5 hover:border-green/30 hover:shadow-[0_8px_28px_rgba(91,180,32,0.16)]">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-soft text-green transition-colors group-hover:bg-green group-hover:text-white">
-                  <Icon d={c.icon} className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-display text-[13px] font-bold tracking-wide">{c.t}</h3>
-                    <Icon d={I.arrow} className="h-4 w-4 text-green opacity-0 transition-opacity group-hover:opacity-100" />
-                  </div>
-                  <p className="mt-1 text-xs leading-snug text-muted">{c.d}</p>
-                </div>
-              </a>
+              {/* Ilgari hamma karta href="#" edi — bosilardi, lekin hech narsa
+                  qilmasdi. Endi admin panelda havola berilgan bo'lsa haqiqiy
+                  havola, berilmagan bo'lsa oddiy karta (bosiladigandek emas). */}
+              <HeroCardBox card={c} />
             </Reveal>
           ))}
         </div>
