@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import { useHomeSection } from "../lib/sections"
+import { useStaticSeo } from "../lib/seo"
 
 const iconMap: Record<string, string> = {
   grid: I.grid, cpu: I.cpu, sprout: I.sprout, chart: I.chart, doc: I.doc,
@@ -93,6 +94,7 @@ function Hero() {
 
 /* ---------- Page ---------- */
 export default function News() {
+  useStaticSeo("/yangiliklar")
   // UI state
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("all")

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
+import { useStaticSeo } from "../lib/seo"
 
 
 const mascot = "/mascot3.webp"
@@ -179,6 +180,7 @@ function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoadi
 }
 
 export default function Bloggers() {
+  useStaticSeo("/blogerlar")
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("all")
   const [region, setRegion] = useState("Barchasi")

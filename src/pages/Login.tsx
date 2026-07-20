@@ -5,6 +5,7 @@ import { roleHome } from "../lib/roles"
 import { setRememberPref } from "../lib/api"
 import { useAuth } from "../lib/auth"
 import { supabase } from "../lib/supabase"
+import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot.webp"
 
@@ -26,6 +27,7 @@ const features = [
 ]
 
 export default function Login() {
+  useStaticSeo("/kirish")
   const navigate = useNavigate()
   const { login, user, loading } = useAuth()
   // Allaqachon kirgan bo'lsa — to'g'ridan-to'g'ri o'z kabinetiga (native ilovada doimiy login uchun muhim)

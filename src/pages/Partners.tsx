@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
+import { useStaticSeo } from "../lib/seo"
 
 type LivePartner = { name: string; slug: string; sphere: string; logo: string | null; direction: string }
 
@@ -328,6 +329,7 @@ function CtaBanner() {
 }
 
 export default function Partners() {
+  useStaticSeo("/hamkorlar")
   return (
     <>
       <Hero />

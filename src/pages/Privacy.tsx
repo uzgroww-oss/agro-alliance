@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom"
 import { Reveal } from "../lib/ui"
+import { useStaticSeo } from "../lib/seo"
 
 export default function Privacy() {
+  useStaticSeo("/maxfiylik")
   return (
     <div className="mx-auto max-w-[820px] px-5 pt-7 pb-16 lg:px-8">
       <Reveal>

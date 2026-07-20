@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 
 import { api } from "../lib/api"
+import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot2.webp"
 
@@ -203,6 +204,7 @@ function Team() {
 
 
 export default function About() {
+  useStaticSeo("/about")
   return (
     <>
       <Hero />

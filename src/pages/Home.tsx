@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
+import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot.webp"
 
@@ -165,6 +166,7 @@ function Features() {
 }
 
 export default function Home() {
+  useStaticSeo("/")
   return (
     <>
       <Hero />

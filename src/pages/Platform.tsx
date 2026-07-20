@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
+import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot.webp"
 
@@ -119,6 +120,7 @@ function Capabilities({ capabilities, loading }: { capabilities: { icon: string;
 }
 
 export default function Platform() {
+  useStaticSeo("/platforma")
   const { sections, loading } = useHomeSections<Section>()
   const cc = sections.find((s) => s.section_key === "capabilities")
   const capabilities: Capability[] = (cc?.items || []).map((item) => ({ icon: item.icon, t: item.title, d: item.description }))

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import DOMPurify from "dompurify"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
+import { useSeo, newsSeo } from "../lib/seo"
 
 export default function NewsDetail() {
   const { slug } = useParams()
@@ -31,6 +32,14 @@ export default function NewsDetail() {
   }, [slug])
 
   useEffect(() => { window.scrollTo(0, 0) }, [slug])
+
+  // Maqola yuklangach sarlavha/meta uning nomiga o'zgaradi (ijtimoiy
+  // tarmoqda ulashilganda to'g'ri ko'rinsin)
+  useSeo(article ? newsSeo({
+    title: article.title,
+    desc: article.desc,
+    image: newsImg(article.seed, 1200, 630),
+  }) : null)
 
   if (loading) {
     return (

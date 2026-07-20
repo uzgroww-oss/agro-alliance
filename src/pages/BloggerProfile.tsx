@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../lib/ui"
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { api } from "../lib/api"
+import { useSeo, bloggerSeo } from "../lib/seo"
 
 const platIconMap: Record<string, string> = {
   YouTube: I.youtube, Instagram: I.instagram, TikTok: I.tiktok,
@@ -805,6 +806,15 @@ export default function BloggerProfile() {
       .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }, [slug])
+
+  // Bloger yuklangach sahifa sarlavhasi/meta teglari uning nomiga o'zgaradi
+  useSeo(b ? bloggerSeo({
+    name: b.name,
+    tag: b.profile?.tag,
+    region: b.profile?.region,
+    subs: b.stats?.subscribers ? fmtNum(b.stats.subscribers) : undefined,
+    avatar: b.profile?.photo || undefined,
+  }) : null)
 
   if (loading) return (
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">

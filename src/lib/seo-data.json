@@ -1,0 +1,50 @@
+{
+  "site": {
+    "url": "https://agroalliance.uz",
+    "name": "Agro Alliance",
+    "image": "https://agroalliance.uz/logo.webp"
+  },
+  "routes": {
+    "/": {
+      "title": "Agro Alliance — O'zbekistondagi agro blogerlar va agro reklama platformasi",
+      "description": "O'zbekistonning yetakchi agro blogerlari bilan ishlang. 34+ agro bloger, 8 mln+ auditoriya, 12 viloyat. Fermerlik, chorvachilik, dehqonchilik yo'nalishlarida reklama va hamkorlik."
+    },
+    "/blogerlar": {
+      "title": "Agro blogerlar ro'yxati — obunachilar va statistika | Agro Alliance",
+      "description": "O'zbekistondagi agro blogerlar katalogi: obunachilar soni, oylik ko'rishlar, yo'nalish va viloyat bo'yicha qidiruv. Fermerlik, chorvachilik, bog'dorchilik bloglari."
+    },
+    "/yangiliklar": {
+      "title": "Agro yangiliklar — qishloq xo'jaligi va agro texnologiyalar | Agro Alliance",
+      "description": "O'zbekiston qishloq xo'jaligi yangiliklari, agro texnologiyalar, fermerlik maslahatlari va sohadagi so'nggi voqealar."
+    },
+    "/hamkorlar": {
+      "title": "Hamkorlar — agro kompaniyalar bilan hamkorlik | Agro Alliance",
+      "description": "Agro Alliance bilan hamkorlik qilayotgan kompaniyalar. O'g'itlar, urug'lik, texnika va agro xizmatlar yo'nalishida reklama hamkorligi."
+    },
+    "/about": {
+      "title": "Biz haqimizda — Agro Alliance media platformasi",
+      "description": "Agro Alliance — agro blogerlar, fermerlar va kompaniyalarni birlashtiruvchi media platforma. Maqsadimiz, jamoamiz va yo'nalishlarimiz haqida."
+    },
+    "/aloqa": {
+      "title": "Aloqa — reklama va hamkorlik uchun bog'laning | Agro Alliance",
+      "description": "Agro reklama, bloger marketing va hamkorlik bo'yicha biz bilan bog'laning. Telefon, email va murojaat formasi."
+    },
+    "/platforma": {
+      "title": "Platforma imkoniyatlari — agro bloger marketing | Agro Alliance",
+      "description": "Agro Alliance platformasi imkoniyatlari: bloger reytingi, kampaniyalar, analitika, shartnomalar va media marketplace."
+    },
+    "/shartlar": {
+      "title": "Foydalanish shartlari | Agro Alliance",
+      "description": "Agro Alliance platformasidan foydalanish shartlari va qoidalari."
+    },
+    "/maxfiylik": {
+      "title": "Maxfiylik siyosati | Agro Alliance",
+      "description": "Agro Alliance shaxsiy ma'lumotlarni qanday to'playdi, saqlaydi va himoya qiladi."
+    },
+    "/kirish": {
+      "title": "Kirish | Agro Alliance",
+      "description": "Agro Alliance shaxsiy kabinetiga kirish.",
+      "noindex": true
+    }
+  }
+}

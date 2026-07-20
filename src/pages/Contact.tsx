@@ -4,6 +4,7 @@ import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
 import { useContactInfo } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
+import { useStaticSeo } from "../lib/seo"
 
 const mascot = "/mascot-contact.webp"
 
@@ -319,6 +320,7 @@ function FaqSection({ faqs, loading }: { faqs: Faq[] | null; loading: boolean })
 }
 
 export default function Contact() {
+  useStaticSeo("/aloqa")
   // MUHIM: bu yerda "namuna" ofis/FAQ ishlatilmaydi. Ilgari sahifa o'ylab
   // topilgan 2 ta ofis (soxta manzil va telefon) bilan ochilar, API ishlamasa
   // esa shu soxta ma'lumot butunlay qolib ketardi.
