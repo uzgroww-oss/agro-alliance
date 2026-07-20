@@ -1,11 +1,19 @@
 /**
  * cron-monthly-views — "O'tgan oy" ko'rishlari (YouTube + Instagram).
- * Har bir kanal/akkauntning O'TGAN KALENDAR OYIDA chiqargan kontentining
- * ko'rishlari yig'indisi = "Oylik ko'rishlar" ko'rsatkichi.
  *
- * YouTube: o'tgan oyda yuklangan videolarning viewCount yig'indisi.
+ * YouTube — SNAPSHOT AYIRMASI (asosiy usul):
+ *   Har oy kanalning UMRBOD jami ko'rishi youtube_view_snapshots ga yoziladi.
+ *   Oylik ko'rish = (shu oy jami) − (o'tgan oy jami).
+ *   Bu ESKI videolar olgan ko'rishlarni ham qamrab oladi.
+ *
+ *   Zaxira usul: oldingi oy snapshoti hali yo'q bo'lsa (birinchi ishga tushirish),
+ *   eski usulga qaytamiz — o'tgan oyda YUKLANGAN videolarning viewCount yig'indisi.
+ *   Bu usul katta arxivli kanallarda ko'rsatkichni jiddiy kam ko'rsatadi,
+ *   shuning uchun u faqat vaqtinchalik.
+ *
  * Instagram: o'tgan oyda joylangan reels/postlarning view_count yig'indisi
- *            (admin OAuth tokeni orqali business_discovery).
+ *            (admin OAuth tokeni orqali business_discovery). Instagram'da
+ *            kontent tez-tez joylangani uchun bu usul yetarli aniq.
  *
  * ?month=YYYY-MM bilan ma'lum oyni ham hisoblash mumkin (test uchun).
  */
@@ -21,6 +29,21 @@ function extractHandle(url: string): string | null {
   const c = url.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)
   if (c) return c[1]
   return null
+}
+
+/**
+ * Kanalning UMRBOD jami ko'rishi. Snapshot ayirmasi shu qiymatga tayanadi.
+ * Xatoda null — chaqiruvchi akkauntni o'tkazib yuboradi (eski qiymat saqlanadi).
+ */
+async function ytLifetimeViews(handle: string): Promise<number | null> {
+  const isId = handle.startsWith("UC")
+  const param = isId ? `id=${handle}` : `forHandle=${encodeURIComponent(handle)}`
+  const u = `https://www.googleapis.com/youtube/v3/channels?part=statistics&${param}&key=${YT_KEY}`
+  const r = await fetch(u)
+  if (!r.ok) return null
+  const d = await r.json()
+  const v = d.items?.[0]?.statistics?.viewCount
+  return v === undefined || v === null ? null : Number(v)
 }
 
 async function ytUploads(handle: string): Promise<string | null> {
@@ -67,7 +90,8 @@ function extractIgUsername(url: string): string | null {
   return m ? m[1].replace(/\/$/, "") : null
 }
 
-async function igMonthViews(token: string, accountId: string, username: string, startIso: string, endIso: string): Promise<number> {
+/** API xatosi bo'lsa null — chaqiruvchi akkauntni o'tkazib yuboradi (0 yozilmaydi). */
+async function igMonthViews(token: string, accountId: string, username: string, startIso: string, endIso: string): Promise<number | null> {
   const mediaFields = "id,media_type,timestamp,view_count"
   let after = ""
   let views = 0
@@ -119,6 +143,13 @@ Deno.serve(async (req) => {
   const endIso = new Date(Date.UTC(year, month + 1, 1)).toISOString()
   const label = `${year}-${String(month + 1).padStart(2, "0")}`
 
+  // Snapshot davrlari. Hisoblanayotgan oy = [startIso, endIso).
+  //   prevPeriod = o'sha oyning 1-sanasi   (oy BOSHIDAGI umrbod jami)
+  //   snapPeriod = keyingi oyning 1-sanasi (oy OXIRIDAGI umrbod jami = bugun)
+  // Oylik ko'rish = snapPeriod jami − prevPeriod jami
+  const prevPeriod = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
+  const snapPeriod = new Date(Date.UTC(year, month + 1, 1)).toISOString().slice(0, 10)
+
   // Platformalar
   const { data: platforms } = await supabaseAdmin.from("social_platforms").select("id, key").is("deleted_at", null)
   const ytId = platforms?.find((p: { key: string }) => p.key === "youtube")?.id
@@ -152,29 +183,63 @@ Deno.serve(async (req) => {
 
   const today = new Date().toISOString().slice(0, 10)
   let ytTotal = 0, igTotal = 0, ytCount = 0, igCount = 0
-  const details: Array<{ platform: string; name: string; views: number }> = []
+  // Qaysi usul ishlatilgani — o'tish davrini kuzatish uchun
+  let ytBySnapshot = 0, ytByUploads = 0
+  const details: Array<{ platform: string; name: string; views: number; method?: string }> = []
 
   let skipped = 0
   for (const acc of accounts || []) {
     let views: number | null = 0
     let platform = ""
+    let method = ""
     if (acc.platform_id === ytId) {
       const handle = extractHandle(String(acc.profile_url || ""))
       if (!handle) continue
-      views = await ytMonthViews(handle, startIso, endIso)
+
+      const lifetime = await ytLifetimeViews(handle)
+      // API xatosi — akkauntni o'tkazib yuboramiz, eski qiymat saqlanadi
+      if (lifetime === null) { skipped++; continue }
+
+      // Bu oyning umrbod jamisini yozamiz (qayta ishga tushirilsa yangilanadi)
+      await supabaseAdmin.from("youtube_view_snapshots").upsert(
+        { account_id: acc.id, period: snapPeriod, lifetime_views: lifetime },
+        { onConflict: "account_id,period" },
+      )
+
+      // O'tgan oy boshidagi jami bormi?
+      const { data: prevSnap } = await supabaseAdmin
+        .from("youtube_view_snapshots")
+        .select("lifetime_views")
+        .eq("account_id", acc.id)
+        .eq("period", prevPeriod)
+        .maybeSingle()
+
+      const prevLifetime = prevSnap ? Number(prevSnap.lifetime_views) : null
+      if (prevLifetime !== null && lifetime >= prevLifetime) {
+        // ASOSIY USUL: ayirma — eski videolar ko'rishlari ham ichida
+        views = lifetime - prevLifetime
+        method = "snapshot"
+        ytBySnapshot++
+      } else {
+        // ZAXIRA: snapshot yo'q (birinchi oy) yoki jami kamaygan (video o'chirilgan)
+        views = await ytMonthViews(handle, startIso, endIso)
+        method = "uploads"
+        ytByUploads++
+      }
       platform = "yt"
     } else if (acc.platform_id === igId && tok?.instagram_account_id) {
       const uname = extractIgUsername(String(acc.profile_url || ""))
       if (!uname) continue
       views = await igMonthViews(tok.access_token, tok.instagram_account_id, uname, startIso, endIso)
       platform = "ig"
+      method = "posts"
     } else continue
 
     // API xatosi (null) bo'lsa — eski qiymatni saqlab qolamiz, 0 bilan yozib yubormaymiz
     if (views === null) { skipped++; continue }
 
     if (platform === "yt") { ytTotal += views; ytCount++ } else { igTotal += views; igCount++ }
-    details.push({ platform, name: String(acc.profile_url || ""), views })
+    details.push({ platform, name: String(acc.profile_url || ""), views, method })
 
     // social_statistics eng so'nggi yozuviga oylik ko'rishni saqlash
     const { data: stat } = await supabaseAdmin
@@ -191,7 +256,14 @@ Deno.serve(async (req) => {
 
   return jsonResponse({
     ok: true, month: label, skipped,
-    youtube: { accounts: ytCount, views: ytTotal },
+    snapshot_periods: { prev: prevPeriod, current: snapPeriod },
+    youtube: {
+      accounts: ytCount,
+      views: ytTotal,
+      // by_snapshot = to'g'ri usul; by_uploads = zaxira (kam ko'rsatadi)
+      by_snapshot: ytBySnapshot,
+      by_uploads: ytByUploads,
+    },
     instagram: { accounts: igCount, views: igTotal },
     total_monthly_views: ytTotal + igTotal,
     top: details.sort((a, b) => b.views - a.views).slice(0, 10),
