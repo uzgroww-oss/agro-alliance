@@ -29,9 +29,16 @@ Deno.serve(async (req) => {
 
     const { name, email, password, role } = body as Record<string, string>
 
-    // Check if user already exists
-    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email)
-    if (existingUser?.user) return errorResponse("Bu email bilan foydalanuvchi allaqachon mavjud", 409)
+    // Email band emasligini tekshirish.
+    // DIQQAT: supabaseAdmin.auth.admin.getUserByEmail() MAVJUD EMAS (JS v2 da
+    // bunday metod yo'q) — uni chaqirish TypeError beradi. Shuning uchun
+    // profiles jadvalidan tekshiramiz (loyihaning boshqa joylarida ham shunday).
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle()
+    if (existingProfile) return errorResponse("Bu email band", 409)
 
     // Create auth user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -40,7 +47,14 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: { name, role },
     })
-    if (createError) return errorResponse(createError.message, 500)
+    // Zaxira tekshiruv: profiles'da bo'lmasa ham auth'da bo'lishi mumkin
+    if (createError) {
+      const m = (createError.message || "").toLowerCase()
+      if (m.includes("already") || m.includes("registered") || m.includes("exists")) {
+        return errorResponse("Bu email band", 409)
+      }
+      return errorResponse(createError.message, 500)
+    }
     if (!newUser?.user) return errorResponse("Foydalanuvchi yaratilmadi", 500)
 
     const userId = newUser.user.id
