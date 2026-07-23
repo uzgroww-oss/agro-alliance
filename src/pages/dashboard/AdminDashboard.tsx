@@ -1791,7 +1791,6 @@ function SmmPanel() {
 
   // Kontent yaratish
   const [topic, setTopic] = useState("")
-  const [genPlatform, setGenPlatform] = useState("telegram")
   const [generating, runGenerate] = useBusy()
 
   // Post formasi
@@ -1823,9 +1822,12 @@ function SmmPanel() {
     if (!useTopic) { setAiErr("Mavzu kiriting"); return }
     setAiErr("")
     try {
+      // Uslub/uzunlik uchun 3-bosqichda tanlangan BIRINCHI tarmoq ishlatiladi.
+      // Alohida tanlov yo'q — bitta joyda tanlanadi (pastdagi tarmoq tugmalari).
+      const primary = Array.from(picked)[0] || "telegram"
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=generate",
-        { method: "POST", body: JSON.stringify({ topic: useTopic, platform: genPlatform }) },
+        { method: "POST", body: JSON.stringify({ topic: useTopic, platform: primary }) },
       )
       setForm({
         title: d.generated.sarlavha || "",
@@ -1834,7 +1836,6 @@ function SmmPanel() {
         image_url: "",
       })
       setAiMade(true)
-      setPicked(new Set([genPlatform]))
       setMsg("")
     } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
   })
@@ -1912,7 +1913,12 @@ function SmmPanel() {
                         <span className="rounded bg-soft px-2 py-0.5 text-muted">{t.format}</span>
                       </div>
                     </div>
-                    <button onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
+                    <button onClick={() => {
+                        setTopic(t.mavzu)
+                        // AI tavsiya qilgan tarmoqni avtomatik belgilaymiz
+                        if (SMM_PLATFORMS.some((x) => x.key === t.platforma)) setPicked(new Set([t.platforma]))
+                        generate(t.mavzu)
+                      }} disabled={generating}
                       className="shrink-0 rounded-lg border border-green/25 px-2.5 py-1 text-[11px] font-bold text-green transition-colors hover:bg-green hover:text-white disabled:opacity-50">
                       Yozish
                     </button>
@@ -1930,11 +1936,12 @@ function SmmPanel() {
       {/* 2. KONTENT YARATISH */}
       <div className={`${card} mt-5`}>
         <h3 className="font-display font-bold">2. Kontent yaratish</h3>
+        <p className="mt-0.5 text-sm text-muted">
+          AI <strong>{SMM_PLATFORMS.find((x) => x.key === (Array.from(picked)[0] || "telegram"))?.label}</strong> uslubida yozadi
+          — tarmoqni pastda (3-bosqich) tanlaysiz.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Mavzu (masalan: bahorgi o'g'itlash)" className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-          <select value={genPlatform} onChange={(e) => setGenPlatform(e.target.value)} className="rounded-xl border border-green/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-            {SMM_PLATFORMS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
           <button onClick={() => generate()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
             <Icon d={I.bolt} className="h-4 w-4" /> {generating ? "Yozilmoqda…" : "AI yozsin"}
           </button>
