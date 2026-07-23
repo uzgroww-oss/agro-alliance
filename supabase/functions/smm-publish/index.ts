@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
     if (req.method === "GET") {
       const { data, error } = await supabaseAdmin
         .from("smm_posts")
-        .select("id, title, content, hashtags, image_url, platforms, status, ai_generated, scheduled_at, published_at, created_at")
+        .select("id, seq, title, content, hashtags, image_url, platforms, status, ai_generated, scheduled_at, published_at, created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50)
