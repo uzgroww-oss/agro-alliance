@@ -106,6 +106,7 @@ function igError(err: { message?: string; code?: number } | undefined, status: n
   if (msg.includes("instagram_content_publish")) return "Instagram'ga post qo'yish ruxsati yo'q — qayta ulang"
   if (code === 190 || msg.includes("access token")) return "Instagram ulanishi eskirgan — qayta ulang"
   if (code === 4 || code === 17 || code === 32) return "So'rovlar chegarasi — keyinroq urining"
+  if (msg.includes("aspect ratio")) return "Rasm o'lchami mos emas — kvadrat (1:1) yoki tik (4:5) bo'lsin"
   if (msg.includes("media type") || msg.includes("image")) return "Rasm formati mos emas (JPEG kerak)"
   if (code === 100) return "Rasm manzili Instagram uchun ochiq emas"
   return err?.message || `Xatolik ${status}`

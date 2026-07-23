@@ -107,6 +107,10 @@ export default function SmmPanel() {
   const [msg, setMsg] = useState("")
   const taRef = useRef<HTMLTextAreaElement>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
+  /* Rasm nisbati. Instagram 4:5 (0.8) dan 1.91:1 gacha qabul qiladi —
+     bundan tashqarisi "aspect ratio is not supported" bilan rad etiladi.
+     Xato joylash paytida emas, rasm yuklanganda ko'rinsin. */
+  const [ratio, setRatio] = useState<number | null>(null)
 
   /* AI uslubi tanlangan tarmoqlardan biri bo'lishi shart. Foydalanuvchi
      tarmoqni bekor qilsa, uslub o'z-o'zidan qolganiga o'tadi — shuning
@@ -354,6 +358,10 @@ export default function SmmPanel() {
     const acct = acctName(k)
     return acct ? `${label} — ${acct}` : label
   })
+  // Ogohlantirish faqat Instagram tanlangan bo'lsa — boshqa tarmoqlarda
+  // rasm nisbati cheklanmagan.
+  const igRatioBad = picked.has("instagram") && ratio !== null && (ratio < 0.8 || ratio > 1.91)
+
   const offline = Array.from(picked)
     .filter((k) => !conns[k]?.connected)
     .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
@@ -610,8 +618,18 @@ export default function SmmPanel() {
               <div className="mt-1.5">
                 {form.image_url ? (
                   <div className="rounded-xl border border-green/15 bg-soft p-3">
-                    <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-cover" />
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, image_url: "" }))} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-cover"
+                      onLoad={(e) => {
+                        const el = e.currentTarget
+                        setRatio(el.naturalHeight ? el.naturalWidth / el.naturalHeight : null)
+                      }}
+                      onError={() => setRatio(null)} />
+                    {igRatioBad && (
+                      <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+                        Instagram bu o'lchamni qabul qilmaydi. Kvadrat (1:1) yoki tik (4:5) rasm oling.
+                      </p>
+                    )}
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setRatio(null) }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, image_url: r.signedUrl }))} />
