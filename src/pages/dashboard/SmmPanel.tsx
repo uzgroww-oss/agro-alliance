@@ -107,6 +107,11 @@ export default function SmmPanel() {
   const taRef = useRef<HTMLTextAreaElement>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
 
+  /* AI uslubi tanlangan tarmoqlardan biri bo'lishi shart. Foydalanuvchi
+     tarmoqni bekor qilsa, uslub o'z-o'zidan qolganiga o'tadi — shuning
+     uchun bu holat emas, hisoblanadigan qiymat. */
+  const effOrigin = picked.has(origin) ? origin : (Array.from(picked)[0] || "telegram")
+
   /* Jadval */
   const [q, setQ] = useState("")
   const [filter, setFilter] = useState("all")
@@ -180,7 +185,7 @@ export default function SmmPanel() {
     try {
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=generate",
-        { method: "POST", body: JSON.stringify({ topic: useTopic, platform: origin }) },
+        { method: "POST", body: JSON.stringify({ topic: useTopic, platform: effOrigin }) },
       )
       setForm({
         title: d.generated.sarlavha || "",
@@ -329,12 +334,15 @@ export default function SmmPanel() {
     if (!n) return ""
     return k === "instagram" && !n.startsWith("@") ? `@${n}` : n
   }
-  /* 4-bosqichda post aynan qayerga chiqishini ro'yxatlaymiz */
+  /* Post aynan qayerga chiqishini ro'yxatlaymiz */
   const targets = Array.from(picked).map((k) => {
     const label = PLATFORMS.find((p) => p.key === k)?.label ?? k
     const acct = acctName(k)
     return acct ? `${label} — ${acct}` : label
   })
+  const offline = Array.from(picked)
+    .filter((k) => !conns[k]?.connected)
+    .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
 
   return (
     <div>
@@ -435,9 +443,24 @@ export default function SmmPanel() {
         {/* ---- 2. KONTENT YARATISH ---- */}
         <div className={card}>
           <h3 className="font-display font-bold">2. Kontent yaratish</h3>
-          <p className="mt-0.5 text-sm text-muted">
-            AI <strong>{PLATFORMS.find((x) => x.key === origin)?.label}</strong> uslubida yozadi
-          </p>
+          <p className="mt-0.5 text-sm text-muted">Mavzu yozing — AI tayyor post qaytaradi</p>
+
+          {/* Uslub tanlash faqat 1-bosqichda TANLANGAN tarmoqlardan iborat.
+              Bu manzil emas — matn uzunligi va ohangi shunga moslanadi. */}
+          {picked.size > 1 && (
+            <div className="mt-3">
+              <span className="text-xs font-semibold text-muted">AI qaysi tarmoq uslubida yozsin</span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {Array.from(picked).map((k) => (
+                  <button key={k} type="button" onClick={() => setOrigin(k)}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${effOrigin === k ? "border-2 border-green bg-green/5 text-green" : "border border-green/15 text-muted hover:border-green/40"}`}>
+                    <Brand k={k} className="h-3.5 w-3.5" />
+                    {PLATFORMS.find((p) => p.key === k)?.label ?? k}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="relative min-w-[200px] flex-1">
@@ -568,25 +591,21 @@ export default function SmmPanel() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div>
-              <span className="text-xs font-semibold text-muted"># Teglar (ixtiyoriy)</span>
-              <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))}
-                placeholder="#teg1, #teg2, …"
-                className="mt-1.5 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-muted">Original tarmoq</span>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {PLATFORMS.map((p) => (
-                  <button key={p.key} type="button" onClick={() => setOrigin(p.key)}
-                    className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${origin === p.key ? "border-2 border-green bg-green/5 text-green" : "border border-green/15 text-muted hover:border-green/40"}`}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="mt-4">
+            <span className="text-xs font-semibold text-muted"># Teglar (ixtiyoriy)</span>
+            <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))}
+              placeholder="#teg1, #teg2, …"
+              className="mt-1.5 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
           </div>
+
+          {/* Post qayerga chiqishi FAQAT 1-bosqichda belgilanadi. Bu yerda
+              ikkinchi tarmoq tanlagichi turgan edi ("Original tarmoq") va u
+              manzilni o'zgartiradi deb tushunilardi — aslida u faqat AI
+              uslubiga ta'sir qilardi. Chalkashlik bo'lmasligi uchun olib
+              tashlandi, uslub tanlash 2-bosqichga ko'chirildi. */}
+          <p className="mt-3 rounded-xl bg-soft px-4 py-2.5 text-xs text-muted">
+            Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "1-bosqichda tarmoq tanlanmagan"}</strong>
+          </p>
 
           {msg && (
             <div className={`mt-4 rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : msg.startsWith("⚠️") ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-600"}`}>{msg}</div>
@@ -601,12 +620,16 @@ export default function SmmPanel() {
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green/10 font-display text-lg font-extrabold text-green">4</span>
             <div className="min-w-0">
               <h3 className="font-display font-bold">Postni nashr etish</h3>
-              {editingId ? (
-                <p className="mt-0.5 text-sm text-muted">
-                  Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
+              <p className="mt-0.5 text-sm text-muted">
+                Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
+              </p>
+              {!editingId && <p className="mt-0.5 text-sm text-muted">Avval 3-bosqichda saqlang</p>}
+              {/* Ulanmagan tarmoq tanlangan bo'lsa oldindan ogohlantiramiz —
+                  aks holda xato faqat joylash paytida chiqadi. */}
+              {offline.length > 0 && (
+                <p className="mt-1 text-sm font-semibold text-orange-600">
+                  Ulanmagan: {offline.join(", ")} — bularga chiqmaydi
                 </p>
-              ) : (
-                <p className="mt-0.5 text-sm text-muted">Avval 3-bosqichda saqlang</p>
               )}
             </div>
           </div>
