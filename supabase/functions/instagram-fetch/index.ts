@@ -36,29 +36,15 @@ function humanizeIgError(err: { message?: string; code?: number; error_subcode?:
   const code = err.code
   const msg = (err.message || "").toLowerCase()
 
-  // 110 / "invalid user id" — target akkaunt topilmadi yoki Business/Creator emas
+  // Xabarlar QISQA bo'lishi kerak — bitta jumla, ortiqcha yo'riqnomasiz.
   if (code === 110 || msg.includes("invalid user id")) {
-    return `"@${username}" akkaunti topilmadi yoki u Business/Creator akkaunt emas. ` +
-      `Instagram ilovasida: Sozlamalar → Akkaunt turi va vositalar → Professional akkauntga o'tish. ` +
-      `Shundan keyin havolani qayta kiriting. (Oddiy shaxsiy akkauntdan statistika olib bo'lmaydi.)`
+    return `@${username} — Business/Creator akkaunt emas`
   }
-  // 190 — token muddati tugagan / bekor qilingan
-  if (code === 190) {
-    return "Instagram ulanishi eskirgan. Administrator panel orqali Instagram'ni qayta ulashi kerak."
-  }
-  // 4 / 17 / 32 / 613 — so'rovlar chegarasi
-  if (code === 4 || code === 17 || code === 32 || code === 613) {
-    return "Instagram so'rovlar chegarasiga yetildi. 10–15 daqiqadan keyin qayta urining."
-  }
-  // 10 / 200 — ruxsat yetarli emas
-  if (code === 10 || code === 200) {
-    return "Instagram ruxsatlari yetarli emas. Administrator Facebook Page va Instagram Business ulanishini tekshirishi kerak."
-  }
-  // 100 — noto'g'ri parametr (ko'pincha username formati)
-  if (code === 100) {
-    return `"@${username}" — Instagram foydalanuvchi nomi noto'g'ri yoki bunday akkaunt yo'q. Havolani tekshiring.`
-  }
-  return err.message || "Instagram ma'lumotlarini olishda xatolik"
+  if (code === 190) return "Instagram ulanishi eskirgan"
+  if (code === 4 || code === 17 || code === 32 || code === 613) return "So'rovlar chegarasi — keyinroq urining"
+  if (code === 10 || code === 200) return "Instagram ruxsati yetarli emas"
+  if (code === 100) return `@${username} — akkaunt nomi noto'g'ri`
+  return err.message || "Instagram ma'lumotini olib bo'lmadi"
 }
 
 /** Instagram Graph API'dan business discovery orqali ma'lumot olish */
@@ -102,8 +88,7 @@ async function fetchInstagramData(accessToken: string, instagramAccountId: strin
         if (page === 0) {
           return {
             profile: null, stats: null, media: [],
-            error: `"@${targetUsername}" akkaunti topilmadi yoki u Business/Creator akkaunt emas. ` +
-              `Instagram ilovasida Professional akkauntga o'ting va qayta urining.`,
+            error: `@${targetUsername} — Business/Creator akkaunt emas`,
           }
         }
         break
@@ -178,11 +163,11 @@ Deno.serve(async (req) => {
     console.log("Instagram token found:", !!tokenData)
 
     if (!tokenData) {
-      return errorResponse("Instagram akkaunt ulanmagan. Admin panel'da Facebook bilan kiring.", 404)
+      return errorResponse("Instagram ulanmagan", 404)
     }
 
     if (!tokenData.instagram_account_id) {
-      return errorResponse("Instagram Business akkaunt topilmadi. Facebook Page'ga Instagram ulang va qaytadan OAuth'dan o'ting.", 400)
+      return errorResponse("Instagram Business akkaunt ulanmagan", 400)
     }
 
     let accessToken = tokenData.access_token
@@ -191,7 +176,7 @@ Deno.serve(async (req) => {
     if (new Date(tokenData.expires_at) < new Date()) {
       const newToken = await refreshAccessToken(tokenData.access_token)
       if (!newToken) {
-        return errorResponse("Instagram token muddati tugagan. Qaytadan ulang.", 401)
+        return errorResponse("Instagram ulanishi eskirgan", 401)
       }
       accessToken = newToken
       await supabaseAdmin.from("instagram_tokens").update({

@@ -131,10 +131,7 @@ Deno.serve(async (req) => {
     // 2. Platformani aniqlash
     const platform = detectPlatform(body.link)
     if (!platform) {
-      return errorResponse(
-        "Platformani aniqlab bo'lmadi. Qo'llab-quvvatlanadigan platformalar: YouTube, Instagram, TikTok, Telegram, Facebook, X, LinkedIn",
-        400,
-      )
+      return errorResponse("Bu platforma qo'llab-quvvatlanmaydi", 400)
     }
 
     const userId = auth.user.id

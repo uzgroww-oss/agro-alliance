@@ -69,11 +69,11 @@ async function fetchYouTubeData(channelIdOrHandle: string): Promise<{ channel: Y
 
   // Xato xabarini qaytarish
   if (data.error) {
-    return { channel: null, error: `YouTube API xatosi: ${data.error.message || JSON.stringify(data.error)}` }
+    return { channel: null, error: "YouTube ma'lumotini olib bo'lmadi" }
   }
 
   if (!data.items || data.items.length === 0) {
-    return { channel: null, error: `"${channelIdOrHandle}" kanali topilmadi. URL to'g'ri ekanligini tekshiring.` }
+    return { channel: null, error: `${channelIdOrHandle} — kanal topilmadi` }
   }
 
   return { channel: data.items[0] }
