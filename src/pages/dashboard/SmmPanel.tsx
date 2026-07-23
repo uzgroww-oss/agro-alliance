@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Icon, I, useBusy, ErrorState, SkeletonCard } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
+import { fitForInstagram } from "../../lib/imageFit"
 import { api } from "../../lib/api"
 
 /**
@@ -615,6 +616,7 @@ export default function SmmPanel() {
             {/* Rasm */}
             <div className="min-w-0">
               <span className="text-xs font-semibold text-muted">Rasm (ixtiyoriy)</span>
+              <p className="mt-0.5 text-[11px] text-muted">Har qanday o'lcham bo'ladi — tarmoq talabiga o'zi moslanadi</p>
               <div className="mt-1.5">
                 {form.image_url ? (
                   <div className="rounded-xl border border-green/15 bg-soft p-3">
@@ -626,13 +628,15 @@ export default function SmmPanel() {
                       onError={() => setRatio(null)} />
                     {igRatioBad && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
-                        Instagram bu o'lchamni qabul qilmaydi. Kvadrat (1:1) yoki tik (4:5) rasm oling.
+                        Bu o'lchamni Instagram qabul qilmaydi. Boshqa rasm yuklang.
                       </p>
                     )}
                     <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setRatio(null) }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
-                  <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, image_url: r.signedUrl }))} />
+                  <MediaUpload accept="image/*"
+                    transform={fitForInstagram}
+                    onUpload={(r) => setForm((f) => ({ ...f, image_url: r.signedUrl }))} />
                 )}
               </div>
             </div>

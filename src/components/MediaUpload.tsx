@@ -23,10 +23,17 @@ export default function MediaUpload({
   onUpload,
   accept = "image/*",
   multiple = false,
+  transform,
 }: {
   onUpload?: (result: UploadResult) => void
   accept?: string
   multiple?: boolean
+  /**
+   * Yuklashdan OLDIN faylni o'zgartirish (masalan Instagram nisbatiga
+   * keltirish). Ixtiyoriy — berilmasa fayl o'zgarishsiz ketadi, ya'ni
+   * boshqa joylardagi yuklashlar shu holicha qoladi.
+   */
+  transform?: (file: File) => Promise<File>
 }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState("")
@@ -99,7 +106,13 @@ export default function MediaUpload({
       })
 
       try {
-        const result = await uploadSingleFile(file)
+        // Yuklashdan oldin o'zgartirish. Xato bo'lsa asl fayl ketadi —
+        // rasm to'g'irlanmagani yuklashni butunlay to'xtatmasin.
+        let toSend = file
+        if (transform) {
+          try { toSend = await transform(file) } catch { toSend = file }
+        }
+        const result = await uploadSingleFile(toSend)
         setItems((prev) =>
           prev.map((item, idx) =>
             idx === i
