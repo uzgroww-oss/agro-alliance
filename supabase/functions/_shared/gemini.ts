@@ -17,6 +17,64 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Kalitni yuborishning uchta usuli bor va Google qaysi biri kerakligini
+ * kalit turiga qarab hal qiladi:
+ *   1) x-goog-api-key sarlavhasi  — hozirgi tavsiya etilgan usul
+ *   2) Authorization: Bearer      — AQ.… turidagi kalitlar uchun
+ *   3) ?key=… URL parametri       — eski AIza… kalitlar uchun
+ *
+ * Qaysi kalit turi berilganini oldindan bilib bo'lmaydi (Google format
+ * o'zgartirgan), shuning uchun 401/403 kelsa keyingisiga o'tamiz.
+ * Ishlagani ESLAB QOLINADI — keyingi so'rovlar to'g'ridan-to'g'ri
+ * o'sha usul bilan ketadi, ortiqcha urinish bo'lmaydi.
+ */
+type AuthMode = "header" | "bearer" | "query";
+const AUTH_MODES: AuthMode[] = ["header", "bearer", "query"];
+let workingMode: AuthMode | null = null;
+
+function buildRequest(url: string, apiKey: string, mode: AuthMode) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  let finalUrl = url;
+  if (mode === "header") headers["x-goog-api-key"] = apiKey;
+  else if (mode === "bearer") headers["Authorization"] = `Bearer ${apiKey}`;
+  else finalUrl = `${url}?key=${encodeURIComponent(apiKey)}`;
+  return { finalUrl, headers };
+}
+
+async function fetchWithAuthFallback(
+  url: string,
+  apiKey: string,
+  body: unknown,
+): Promise<Response> {
+  const modes = workingMode ? [workingMode] : AUTH_MODES;
+  let last: Response | null = null;
+
+  for (const mode of modes) {
+    const { finalUrl, headers } = buildRequest(url, apiKey, mode);
+    const resp = await fetch(finalUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    // Faqat autentifikatsiya xatosida keyingi usulni sinaymiz.
+    // Boshqa xatolar (429, 400, 500) kalit turiga aloqador emas.
+    if (resp.status === 401 || resp.status === 403) {
+      // Eslab qolingan usul endi ishlamadi (kalit almashgan bo'lishi
+      // mumkin) — keyingi safar hammasini qaytadan sinasin.
+      workingMode = null;
+      last = resp;
+      continue;
+    }
+
+    workingMode = mode;
+    return resp;
+  }
+
+  return last!;
+}
+
 export async function geminiChat(
   prompt: string,
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
@@ -32,9 +90,6 @@ export async function geminiChat(
       await sleep(delay);
     }
 
-    // Kalit URL'da emas, SARLAVHADA yuboriladi:
-    //  1) Google'ning yangi formatdagi kalitlari (AQ.… ) shuni talab qiladi
-    //  2) URL'dagi kalit server jurnallariga tushadi — xavfsizlik uchun ham yomon
     const url = `${GEMINI_BASE}/models/${model}:generateContent`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -45,14 +100,7 @@ export async function geminiChat(
     };
 
     try {
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify(body),
-      });
+      const resp = await fetchWithAuthFallback(url, apiKey, body);
 
       if (resp.status === 429) {
         // Rate limited — wait and retry
@@ -61,8 +109,12 @@ export async function geminiChat(
       }
 
       if (!resp.ok) {
+        // Uzun JSON xato matnini panelga chiqarmaymiz — qisqa sabab yetarli.
+        if (resp.status === 401 || resp.status === 403) {
+          throw new Error("Gemini kaliti qabul qilinmadi");
+        }
         const err = await resp.text();
-        throw new Error(`Gemini API error ${resp.status}: ${err}`);
+        throw new Error(`Gemini xatosi ${resp.status}: ${err.slice(0, 160)}`);
       }
 
       const data = await resp.json();
