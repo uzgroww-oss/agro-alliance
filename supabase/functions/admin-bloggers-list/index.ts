@@ -8,7 +8,11 @@ Deno.serve(async (req) => {
   if (cors) return cors
 
   try {
-    const auth = await requireRole(req, "super_admin", "admin")
+    // editor ham kiritilgan: unga "Topshiriqlar" (TZ) bo'limi ochiq
+    // (admin-tasks-create/list allaqachon editorga ruxsat beradi) va o'sha
+    // sahifa blogerlar ro'yxatini talab qiladi. Bu FAQAT O'QISH —
+    // bloger qo'shish/tahrirlash/o'chirish admin+ da qoladi.
+    const auth = await requireRole(req, "super_admin", "admin", "editor")
     if (auth.response) return auth.response
 
     const { data, error } = await supabaseAdmin
