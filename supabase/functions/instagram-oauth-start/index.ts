@@ -28,8 +28,11 @@ Deno.serve(async (req) => {
       return errorResponse("Facebook App ID sozlanmagan. Admin panel'da sozlang.", 500)
     }
 
-    // OAuth state — HMAC bilan imzolangan (soxta userId yasab bo'lmaydi)
-    const state = await signState(FACEBOOK_APP_SECRET, auth.user.id)
+    // OAuth state — HMAC bilan imzolangan (soxta userId yasab bo'lmaydi).
+    // Origin ham imzolanadi: callback shu manzilga qaytaradi, chunki
+    // Supabase domeni HTML sahifa ko'rsata olmaydi (matn sifatida chiqadi).
+    const origin = req.headers.get("origin") || ""
+    const state = await signState(FACEBOOK_APP_SECRET, auth.user.id, origin)
 
     // OAuth URL yaratish
     const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth-callback`

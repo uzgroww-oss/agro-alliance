@@ -2914,6 +2914,22 @@ export default function AdminDashboard() {
   const initials = (user?.name || "AD").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
 
+  /* Instagram OAuth natijasi.
+     Callback endi HTML sahifa emas, shu manzilga qaytaradi — Supabase
+     domeni HTML ko'rsata olmagani uchun (matn sifatida chiqardi). */
+  const [igMsg, setIgMsg] = useState("")
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const res = sp.get("instagram")
+    if (!res) return
+    // Popup holati main.tsx da hal qilinadi (router'dan oldin).
+    // Bu yerga faqat asosiy oyna yetib keladi.
+    setIgMsg(res === "ok"
+      ? `✅ Instagram ulandi: @${sp.get("username") || "—"}`
+      : `❌ ${sp.get("xato") || "Instagram ulanmadi"}`)
+    window.history.replaceState({}, "", window.location.pathname)
+  }, [])
+
   const renderSection = () => {
     // Ruxsat yo'q bo'limga kirilsa — birinchi ruxsatli bo'limga qaytarish
     if (!visibleNav.some((n) => n.label === active)) return null
@@ -2942,6 +2958,14 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout nav={visibleNav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Admin", role: roleLabels[adminRole] || "Admin", initials }}>
+      {igMsg && (
+        <div className={`mb-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold ${igMsg.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>
+          <span className="min-w-0 flex-1">{igMsg}</span>
+          <button onClick={() => setIgMsg("")} className="shrink-0 opacity-60 hover:opacity-100">
+            <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {renderSection()}
     </DashboardLayout>
   )

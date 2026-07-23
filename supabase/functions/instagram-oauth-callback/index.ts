@@ -10,6 +10,29 @@ const FACEBOOK_APP_ID = Deno.env.get("FACEBOOK_APP_ID") || ""
 const FACEBOOK_APP_SECRET = Deno.env.get("FACEBOOK_APP_SECRET") || ""
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || ""
 
+/**
+ * Natijani ILOVAGA qaytaramiz, HTML sahifa ko'rsatmaymiz.
+ *
+ * NEGA: Supabase *.supabase.co domenida qaytarilgan HTML'ni majburan
+ * text/plain ga aylantiradi (fishingga qarshi himoya). Shu sababli
+ * <script> ishlamas, oyna yopilmas va foydalanuvchi kod matnini
+ * ko'rardi. Endi brauzer ilovaning o'ziga qaytariladi.
+ */
+function backToApp(origin: string, params: Record<string, string>): Response {
+  const qs = new URLSearchParams(params).toString()
+  // Origin noma'lum bo'lsa (eski state) — hech bo'lmasa oddiy matn.
+  if (!origin) {
+    return new Response(params.error ? `Xatolik: ${params.error}` : "Instagram ulandi. Oynani yopishingiz mumkin.", {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    })
+  }
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `${origin}/admin?${qs}` },
+  })
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
@@ -22,9 +45,10 @@ Deno.serve(async (req) => {
 
     // Xato tekshirish
     if (error) {
-      return new Response(`<!DOCTYPE html><html><head><title>Xato</title></head><body><h1>Instagram autentifikatsiya xatosi</h1><p>${error}</p><script>setTimeout(()=>window.close(),3000)</script></body></html>`, {
-        headers: { "Content-Type": "text/html" },
-      })
+      // Bu bosqichda state hali tekshirilmagan, shuning uchun qaytish
+      // manzili ham yo'q — oddiy matn qaytaramiz.
+      const st0 = state ? await verifyState(FACEBOOK_APP_SECRET, state) : null
+      return backToApp(st0?.origin || "", { instagram: "error", xato: error })
     }
 
     if (!code || !state) {
@@ -32,10 +56,11 @@ Deno.serve(async (req) => {
     }
 
     // State ni HMAC bilan tekshirish — soxta/o'zgartirilgan state rad etiladi
-    const userId = await verifyState(FACEBOOK_APP_SECRET, state)
-    if (!userId) {
+    const st = await verifyState(FACEBOOK_APP_SECRET, state)
+    if (!st) {
       return new Response("Noto'g'ri yoki muddati o'tgan state parametri", { status: 400 })
     }
+    const { userId, origin } = st
 
     // Facebook'dan short-lived token olish
     const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth-callback`
@@ -64,7 +89,7 @@ Deno.serve(async (req) => {
 
     // Facebook pages (Instagram business accounts) ni olish
     const pagesResponse = await fetch(
-      `https://graph.facebook.com/v22.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${longLivedToken}`
+      `https://graph.facebook.com/v22.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${longLivedToken}`
     )
     const pagesData = await pagesResponse.json()
 
@@ -89,6 +114,9 @@ Deno.serve(async (req) => {
 
           if (page.instagram_business_account?.id) {
             instagramAccountId = page.instagram_business_account.id
+            // MUHIM: nom ham shu yerda olinadi. Ilgari faqat id olinib
+            // break qilinardi va akkaunt nomi bo'sh qolardi.
+            instagramUsername = page.instagram_business_account.username || ""
             break
           }
         }
@@ -135,6 +163,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Nom hali ham bo'sh bo'lsa, akkauntning o'zidan so'raymiz.
+    // Nomsiz panelda "qaysi akkauntga chiqadi" degan savol javobsiz qoladi.
+    if (instagramAccountId && !instagramUsername) {
+      const uResp = await fetch(
+        `https://graph.facebook.com/v22.0/${instagramAccountId}?fields=username&access_token=${longLivedToken}`
+      )
+      const uData = await uResp.json().catch(() => ({}))
+      if (uData.username) instagramUsername = uData.username
+      else if (uData.error) debugInfo.push(`username query error: ${uData.error.message || ""}`)
+    }
+
     // Tokenlarni bazaga saqlash
     const { error: upsertError } = await supabaseAdmin.from("instagram_tokens").upsert({
       user_id: userId,
@@ -149,39 +188,26 @@ Deno.serve(async (req) => {
     }
 
     const isConnected = !!instagramAccountId
-    const debugHtml = debugInfo.map(d => `<p style="font-size:11px;color:#666;margin:2px 0;font-family:monospace;text-align:left;padding:0 20px">${d.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`).join("")
 
-    return new Response(`<!DOCTYPE html>
-<html>
-<head><title>${isConnected ? "Muvaffaqiyatli" : "Xato"}</title></head>
-<body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif">
-  <div style="text-align:center;max-width:600px">
-    ${isConnected ? `
-    <h1 style="color:#E1306C">Instagram muvaffaqiyatli ulandi!</h1>
-    <p>Akkaunt: <strong>${instagramUsername}</strong></p>
-    <script>
-      if (window.opener) {
-        window.opener.postMessage({ type: 'instagram-connected', username: '${instagramUsername}' }, '*');
-      }
-      setTimeout(() => window.close(), 2000);
-    </script>` : `
-    <h1 style="color:#e74c3c">Instagram ulanishda xatolik</h1>
-    <p>Facebook Page'ingizga Instagram Business akkaunt bog'lanmagan.</p>
-    <p style="margin-top:12px">Quyidagi ma'lumotlar muammoni topishga yordam beradi:</p>
-    ${debugHtml}
-    <p style="margin-top:16px;font-size:13px;color:#333">Agar "Pages found: 0" bo'lsa → sizda Facebook Page yo'q. Avval Page yarating.</p>
-    <p style="font-size:13px;color:#333">Agar Page bor, lekin "has_ig_business: false" bo'lsa → Instagram Business akkauntingizni Facebook Page'ga ulang.</p>
-    <script>
-      if (window.opener) {
-        window.opener.postMessage({ type: 'instagram-error', error: 'Instagram Business akkaunt topilmadi' }, '*');
-      }
-      setTimeout(() => window.close(), 5000);
-    </script>`}
-  </div>
-</body>
-</html>`, {
-      headers: { "Content-Type": "text/html" },
-    })
+    if (isConnected) {
+      return backToApp(origin, {
+        instagram: "ok",
+        username: instagramUsername,
+      })
+    }
+
+    // Ulanmadi — sababni ILOVAGA uzatamiz. Ilgari bu yerda uzun HTML
+    // tashxis sahifasi bo'lardi, lekin u matn sifatida chiqib, foyda
+    // bermasdi. Endi eng muhim satr qaytariladi.
+    const why = debugInfo.some((d) => d.includes("Pages found: 0"))
+      ? "Facebook sahifangiz yo'q — avval Page yarating"
+      : debugInfo.some((d) => d.includes("has_ig_business: false"))
+      ? "Instagram Business akkaunt Facebook sahifaga ulanmagan"
+      : "Instagram Business akkaunt topilmadi"
+
+    console.log("instagram-oauth-callback tashxis:", debugInfo.join(" | "))
+    return backToApp(origin, { instagram: "error", xato: why })
+
   } catch (err) {
     return new Response(`Xatolik: ${err instanceof Error ? err.message : "Unknown error"}`, { status: 500 })
   }
