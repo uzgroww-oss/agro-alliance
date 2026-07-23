@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, Fragment } from "react"
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy, ErrorState } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
@@ -11,6 +11,7 @@ const nav = [
   { label: "Dashboard", icon: I.dashboard },
   { label: "Bloggerlar", icon: I.users },
   { label: "Topshiriqlar", icon: I.task },
+  { label: "Bloger holatlari", icon: I.chart },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
   { label: "Kategoriyalar", icon: I.grid },
@@ -1595,6 +1596,152 @@ function AdminTasks() {
   )
 }
 
+/* ---------- Bloger holatlari (TZ bo'yicha) ---------- */
+/**
+ * Har bir bloger qaysi topshiriqni bajaryapti — bir joyda.
+ *
+ * MUHIM: yangi backend funksiya kerak emas. /tasks allaqachon har bir TZ
+ * uchun bloggers[] (id, ism, holat) qaytaradi — biz uni BLOGER bo'yicha
+ * ag'daramiz. Shunda ma'lumot doim TZ ro'yxati bilan mos bo'ladi.
+ */
+type BloggerRow = {
+  id: string
+  name: string
+  tasks: { taskId: string; title: string; status: string }[]
+  counts: { total: number; new: number; in_progress: number; done: number }
+}
+
+function BloggerTaskStatus() {
+  const [tasks, setTasks] = useState<AdminTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const [open, setOpen] = useState<string | null>(null)
+  const [q, setQ] = useState("")
+
+  const load = useCallback(() => {
+    setLoading(true); setFailed(false)
+    api<{ tasks: AdminTask[] }>("/tasks")
+      .then((d) => setTasks(d.tasks || []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  // TZ -> bloger ag'darish
+  const rows = useMemo(() => {
+    const map: Record<string, BloggerRow> = {}
+    for (const t of tasks) {
+      for (const b of t.bloggers || []) {
+        if (!map[b.id]) {
+          map[b.id] = { id: b.id, name: b.name, tasks: [], counts: { total: 0, new: 0, in_progress: 0, done: 0 } }
+        }
+        const r = map[b.id]
+        r.tasks.push({ taskId: t.id, title: t.title, status: b.status })
+        r.counts.total++
+        if (b.status === "in_progress") r.counts.in_progress++
+        else if (b.status === "done") r.counts.done++
+        else r.counts.new++
+      }
+    }
+    // Bajarilmagani ko'p bo'lgan bloger tepada — e'tibor talab qiladi
+    return Object.values(map).sort((a, b) =>
+      (b.counts.new + b.counts.in_progress) - (a.counts.new + a.counts.in_progress) ||
+      a.name.localeCompare(b.name))
+  }, [tasks])
+
+  const list = useMemo(
+    () => rows.filter((r) => !q.trim() || r.name.toLowerCase().includes(q.toLowerCase())),
+    [rows, q])
+
+  const totals = useMemo(() => ({
+    bloggers: rows.length,
+    done: rows.reduce((n, r) => n + r.counts.done, 0),
+    in_progress: rows.reduce((n, r) => n + r.counts.in_progress, 0),
+    new: rows.reduce((n, r) => n + r.counts.new, 0),
+  }), [rows])
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Bloger holatlari</h2>
+          <p className="mt-1 text-sm text-muted">Har bir bloger qaysi topshiriqni bajaryapti.</p>
+        </div>
+        <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
+          <Icon d={I.refresh} className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Yangilash
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="mt-5"><SkeletonTable rows={6} cols={4} /></div>
+      ) : failed ? (
+        <div className="mt-5"><ErrorState onRetry={load} message="Ma'lumotni yuklab bo'lmadi." /></div>
+      ) : rows.length === 0 ? (
+        <p className="mt-5 rounded-xl border border-green/10 bg-white py-10 text-center text-sm text-muted">
+          Hali topshiriq yuborilmagan.
+        </p>
+      ) : (
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Blogerlar</div><div className="mt-1 font-display text-2xl font-extrabold">{totals.bloggers}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Yangi</div><div className="mt-1 font-display text-2xl font-extrabold text-gray-600">{totals.new}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Bajarilmoqda</div><div className="mt-1 font-display text-2xl font-extrabold text-blue-700">{totals.in_progress}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Bajarildi</div><div className="mt-1 font-display text-2xl font-extrabold text-green">{totals.done}</div></div>
+          </div>
+
+          <div className={`${card} mt-5`}>
+            <div className="relative mb-4 max-w-sm">
+              <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Bloger qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+            </div>
+
+            {list.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted">Bloger topilmadi.</p>
+            ) : (
+              <div className="space-y-2">
+                {list.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-green/10">
+                    <button
+                      onClick={() => setOpen((o) => (o === r.id ? null : r.id))}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-soft"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green/10 text-xs font-bold text-green">
+                        {r.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
+                      <span className="hidden shrink-0 gap-1.5 text-[11px] font-bold sm:flex">
+                        {r.counts.new > 0 && <span className="rounded-md bg-gray-100 px-2 py-1 text-gray-600">Yangi {r.counts.new}</span>}
+                        {r.counts.in_progress > 0 && <span className="rounded-md bg-blue-50 px-2 py-1 text-blue-700">Bajarilmoqda {r.counts.in_progress}</span>}
+                        {r.counts.done > 0 && <span className="rounded-md bg-green/10 px-2 py-1 text-green">Bajarildi {r.counts.done}</span>}
+                      </span>
+                      <Icon d={open === r.id ? "M18 15l-6-6-6 6" : I.chevDown} className="h-4 w-4 shrink-0 text-muted" />
+                    </button>
+
+                    {open === r.id && (
+                      <div className="border-t border-green/10 bg-[#fafdf7] px-3 py-2">
+                        {r.tasks.map((t) => {
+                          const st = tzStatus[t.status] || tzStatus.new
+                          return (
+                            <div key={t.taskId} className="flex items-center gap-2 border-b border-green/8 py-2 last:border-b-0">
+                              <Icon d={I.task} className="h-3.5 w-3.5 shrink-0 text-green" />
+                              <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
+                              <span className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Monitoring ---------- */
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
@@ -2736,7 +2883,7 @@ function AdminRoles() {
   )
 }
 
-const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar"]
+const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari"]
 const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
 const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
 
@@ -2759,6 +2906,7 @@ export default function AdminDashboard() {
       case "Dashboard": return <Overview />
       case "Bloggerlar": return <Bloggers />
       case "Topshiriqlar": return <AdminTasks />
+      case "Bloger holatlari": return <BloggerTaskStatus />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />
