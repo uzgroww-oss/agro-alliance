@@ -322,6 +322,20 @@ export default function SmmPanel() {
 
   const iconBtn = "grid h-8 w-8 place-items-center rounded-lg border border-green/10 text-muted transition-colors hover:border-green/30 hover:text-green disabled:opacity-40"
 
+  /* Ulangan hisobning ko'rinadigan nomi. Instagram uchun @foydalanuvchi,
+     Telegram uchun kanal nomi, Facebook uchun sahifa nomi. */
+  const acctName = (k: string) => {
+    const n = conns[k]?.display_name
+    if (!n) return ""
+    return k === "instagram" && !n.startsWith("@") ? `@${n}` : n
+  }
+  /* 4-bosqichda post aynan qayerga chiqishini ro'yxatlaymiz */
+  const targets = Array.from(picked).map((k) => {
+    const label = PLATFORMS.find((p) => p.key === k)?.label ?? k
+    const acct = acctName(k)
+    return acct ? `${label} — ${acct}` : label
+  })
+
   return (
     <div>
       <div>
@@ -358,6 +372,13 @@ export default function SmmPanel() {
                   <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
                     {on ? "Ulangan" : "Ulanmagan"}
                   </span>
+                  {/* Qaysi hisobga chiqishini shu yerda ko'rsatamiz — "Ulangan"
+                      degan so'zning o'zi qaysi akkaunt ekanini aytmaydi. */}
+                  {on && (
+                    <span className="mt-1 block truncate text-xs text-muted" title={acctName(p.key) || ""}>
+                      {acctName(p.key) || "hisob nomi noma'lum"}
+                    </span>
+                  )}
                 </span>
                 <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
                   {sel && <Icon d={I.check} className="h-3 w-3" />}
@@ -578,13 +599,15 @@ export default function SmmPanel() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green/10 font-display text-lg font-extrabold text-green">4</span>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-display font-bold">Postni nashr etish</h3>
-              <p className="mt-0.5 text-sm text-muted">
-                {editingId
-                  ? `Saqlangan kontent ${Array.from(picked).length} ta tarmoqqa joylanadi`
-                  : "Avval 3-bosqichda saqlang"}
-              </p>
+              {editingId ? (
+                <p className="mt-0.5 text-sm text-muted">
+                  Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
+                </p>
+              ) : (
+                <p className="mt-0.5 text-sm text-muted">Avval 3-bosqichda saqlang</p>
+              )}
             </div>
           </div>
           <button onClick={() => publish(editingId)} disabled={acting || !editingId}
