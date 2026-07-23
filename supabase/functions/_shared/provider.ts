@@ -268,9 +268,10 @@ export class GeminiProvider extends BaseProvider {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const resp = await fetch(
-        `${this.baseUrl}/models?key=${this.apiKey}`,
-      );
+      // Kalit sarlavhada (yangi format kalitlar shuni talab qiladi)
+      const resp = await fetch(`${this.baseUrl}/models`, {
+        headers: { "x-goog-api-key": this.apiKey },
+      });
       return resp.ok;
     } catch {
       return false;
@@ -280,7 +281,7 @@ export class GeminiProvider extends BaseProvider {
   async invoke<T>(payload: LlmPayload): Promise<LlmResult<T>> {
     const start = Date.now();
     const model = this.model.model_name || "gemini-2.0-flash";
-    const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`;
+    const url = `${this.baseUrl}/models/${model}:generateContent`;
 
     const contents = (payload.messages ?? []).map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
@@ -298,7 +299,10 @@ export class GeminiProvider extends BaseProvider {
 
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": this.apiKey,
+      },
       body: JSON.stringify(body),
     });
 

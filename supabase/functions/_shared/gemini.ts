@@ -30,7 +30,10 @@ export async function geminiChat(
       await sleep(delay);
     }
 
-    const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
+    // Kalit URL'da emas, SARLAVHADA yuboriladi:
+    //  1) Google'ning yangi formatdagi kalitlari (AQ.… ) shuni talab qiladi
+    //  2) URL'dagi kalit server jurnallariga tushadi — xavfsizlik uchun ham yomon
+    const url = `${GEMINI_BASE}/models/${model}:generateContent`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
@@ -42,7 +45,10 @@ export async function geminiChat(
     try {
       const resp = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify(body),
       });
 
