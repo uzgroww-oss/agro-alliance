@@ -35,25 +35,59 @@ Deno.serve(async (req) => {
 
     const taskIds = (tasks || []).map((t: { id: string }) => t.id)
     const statsMap: Record<string, { total: number; new: number; in_progress: number; done: number }> = {}
+    // Har bir TZ uchun bloger ismi + holati (admin kim bajarayotganini ko'rsin)
+    const bloggersMap: Record<string, Array<{ id: string; name: string; status: string }>> = {}
+
     if (taskIds.length > 0) {
       const { data: assigns } = await supabaseAdmin
         .from("blogger_task_assignments")
-        .select("task_id, status")
+        .select("task_id, status, blogger_id")
         .in("task_id", taskIds)
         .is("deleted_at", null)
-      for (const a of (assigns || []) as Array<{ task_id: string; status: string }>) {
+
+      const rows = (assigns || []) as Array<{ task_id: string; status: string; blogger_id: string }>
+
+      // Ismlarni alohida so'rov bilan olamiz (FK nomiga bog'lanib qolmaslik uchun)
+      const nameById: Record<string, string> = {}
+      const ids = [...new Set(rows.map((r) => r.blogger_id))]
+      if (ids.length > 0) {
+        const { data: profs } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name")
+          .in("id", ids)
+        for (const p of (profs || []) as Array<{ id: string; name: string }>) {
+          nameById[p.id] = p.name || "—"
+        }
+      }
+
+      for (const a of rows) {
         const s = statsMap[a.task_id] || { total: 0, new: 0, in_progress: 0, done: 0 }
         s.total++
         if (a.status === "in_progress") s.in_progress++
         else if (a.status === "done") s.done++
         else s.new++
         statsMap[a.task_id] = s
+
+        if (!bloggersMap[a.task_id]) bloggersMap[a.task_id] = []
+        bloggersMap[a.task_id].push({
+          id: a.blogger_id,
+          name: nameById[a.blogger_id] || "—",
+          status: a.status,
+        })
+      }
+
+      // Tartib: bajarilmoqda → yangi → bajarildi, keyin ism bo'yicha
+      const order: Record<string, number> = { in_progress: 0, new: 1, done: 2 }
+      for (const k of Object.keys(bloggersMap)) {
+        bloggersMap[k].sort((x, y) =>
+          (order[x.status] ?? 9) - (order[y.status] ?? 9) || x.name.localeCompare(y.name))
       }
     }
 
     const result = (tasks || []).map((t: Record<string, unknown>) => ({
       ...t,
       stats: statsMap[t.id as string] || { total: 0, new: 0, in_progress: 0, done: 0 },
+      bloggers: bloggersMap[t.id as string] || [],
     }))
 
     return jsonResponse({ tasks: result })
