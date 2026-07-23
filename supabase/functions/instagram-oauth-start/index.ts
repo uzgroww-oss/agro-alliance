@@ -39,11 +39,18 @@ Deno.serve(async (req) => {
     // eski token eski ruxsatlar bilan qolgan bo'ladi.
     const scopes = "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_show_list,pages_read_engagement"
 
+    // auth_type=rerequest — MAJBURIY.
+    // Foydalanuvchi ilgari rozilik bergan bo'lsa, Facebook oynani
+    // ko'rsatmasdan darhol ESKI ruxsatlar bilan qaytaradi. Natijada
+    // yangi qo'shilgan instagram_content_publish tokenga tushmaydi va
+    // "qayta ulash" hech narsani o'zgartirmaydi. Bu parametr yetishmayotgan
+    // ruxsatlarni qaytadan so'rashga majbur qiladi.
     const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?` +
       `client_id=${FACEBOOK_APP_ID}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&response_type=code` +
       `&scope=${scopes}` +
+      `&auth_type=rerequest` +
       `&state=${state}`
 
     return jsonResponse({ authUrl })
