@@ -3,6 +3,8 @@
  * Uses GEMINI_API_KEY from Supabase Secrets.
  */
 
+import { parseJson } from "./jsonExtract.ts";
+
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 function getApiKey(): string {
@@ -84,10 +86,7 @@ export async function geminiJson<T = unknown>(
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<T> {
   const { text } = await geminiChat(prompt, opts);
-  const cleaned = text
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  return JSON.parse(cleaned) as T;
+  // Qavslar muvozanati bo'yicha ajratamiz — AI JSON atrofiga matn
+  // qo'shib yuborsa ham ishlaydi.
+  return parseJson<T>(text);
 }

@@ -4,6 +4,8 @@
  * Fallback: Gemini → basic translation.
  */
 
+import { parseJson } from "./jsonExtract.ts";
+
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 
 function getApiKey(): string {
@@ -71,20 +73,17 @@ export async function groqChat(
 }
 
 /**
- * Ask Groq to return JSON. Strips markdown fences and parses.
+ * Ask Groq to return JSON.
+ *
+ * MUHIM: ilgari bu yerda /\[[\s\S]*\]/ regexi ishlatilardi — u avval
+ * massiv qidirardi va obyekt ichidagi birinchi massivni (masalan
+ * "hashtaglar") tortib olib, butun javobni yo'qotardi. Endi qavslar
+ * muvozanati bo'yicha ajratiladi.
  */
 export async function groqJson<T = unknown>(
   prompt: string,
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<T> {
   const { text } = await groqChat(prompt, opts);
-  // Try to extract JSON from the response
-  const jsonMatch = text.match(/\[[\s\S]*\]/) || text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON found in Groq response");
-  const cleaned = jsonMatch[0]
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  return JSON.parse(cleaned) as T;
+  return parseJson<T>(text);
 }
