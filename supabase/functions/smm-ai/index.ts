@@ -27,17 +27,24 @@ import { groqJson } from "../_shared/groq.ts"
  * Ikkalasi ham yiqilsa — HAQIQIY sababni qaytaramiz (kalit yo'qmi,
  * kvota tugaganmi), "AI javob bermadi" degan umumiy xabar emas.
  */
-async function askAi<T>(prompt: string): Promise<T> {
+async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Promise<T> {
   const errs: string[] = []
-  try {
-    return await geminiJson<T>(prompt, { retries: 1 })
-  } catch (e) {
-    errs.push(`Gemini: ${e instanceof Error ? e.message : String(e)}`)
-  }
-  try {
-    return await groqJson<T>(prompt, { retries: 1 })
-  } catch (e) {
-    errs.push(`Groq: ${e instanceof Error ? e.message : String(e)}`)
+
+  for (const [name, fn] of [
+    ["Gemini", geminiJson],
+    ["Groq", groqJson],
+  ] as const) {
+    try {
+      const raw = await fn<unknown>(prompt, { retries: 1 })
+      // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
+      // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
+      // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
+      if (validate(raw)) return raw as T
+      const peek = JSON.stringify(raw).slice(0, 200)
+      errs.push(`${name}: kutilmagan javob — ${peek}`)
+    } catch (e) {
+      errs.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
   throw new Error(errs.join(" | "))
 }
@@ -108,7 +115,10 @@ FAQAT JSON qaytar, boshqa matn yozma:
 }
 Kamida 4 ta tavsiya ber.`
 
-      const result = await askAi<Analysis>(prompt)
+      const result = await askAi<Analysis>(prompt, (v) => {
+        const o = v as Analysis
+        return Boolean(o && typeof o === "object" && Array.isArray(o.tavsiyalar) && o.tavsiyalar.length > 0)
+      })
       return jsonResponse({ analysis: result })
     }
 
@@ -142,7 +152,10 @@ FAQAT JSON qaytar, boshqa matn yozma:
   "hashtaglar": ["#agro", "#fermer"]
 }`
 
-      const result = await askAi<Generated>(prompt)
+      const result = await askAi<Generated>(prompt, (v) => {
+        const o = v as Generated
+        return Boolean(o && typeof o === "object" && typeof o.matn === "string" && o.matn.trim())
+      })
       return jsonResponse({ generated: result })
     }
 
