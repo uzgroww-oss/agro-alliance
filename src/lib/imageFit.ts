@@ -113,7 +113,7 @@ export async function fitForInstagram(file: File): Promise<File> {
   const tmp = document.createElement("canvas")
   tmp.width = 8
   tmp.height = 8
-  const tctx = tmp.getContext("2d")
+  const tctx = tmp.getContext("2d", { willReadFrequently: true })
   let bg = "#ffffff"
   if (tctx) {
     tctx.drawImage(img, 0, 0, 8, 8)
@@ -130,4 +130,34 @@ export async function fitForInstagram(file: File): Promise<File> {
 
   const name = file.name.replace(/\.[^.]+$/, "") + ".jpg"
   return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() })
+}
+
+/** Nisbat Instagram uchun yaroqlimi? */
+export function isIgRatioOk(ratio: number): boolean {
+  return ratio >= IG_MIN_RATIO && ratio <= IG_MAX_RATIO
+}
+
+/**
+ * ALLAQACHON yuklangan rasmni to'g'irlash.
+ *
+ * Eski postni tahrirlaganda uning rasmi hali to'g'irlanmagan bo'lishi
+ * mumkin. Foydalanuvchini "boshqa rasm yuklang" deb qiynash o'rniga
+ * rasmni yuklab olamiz, moslaymiz va qayta yuklaymiz.
+ *
+ * Hech narsa o'zgartirish kerak bo'lmasa null qaytaradi.
+ */
+export async function refitUploadedImage(
+  url: string,
+  upload: (f: File) => Promise<{ signedUrl: string }>,
+): Promise<string | null> {
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error("Rasmni yuklab bo'lmadi")
+  const blob = await resp.blob()
+  const original = new File([blob], "post.jpg", { type: blob.type || "image/jpeg" })
+
+  const fixed = await fitForInstagram(original)
+  if (fixed === original) return null // o'zgartirish kerak emas
+
+  const r = await upload(fixed)
+  return r.signedUrl
 }

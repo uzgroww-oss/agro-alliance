@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Icon, I, useBusy, ErrorState, SkeletonCard } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
-import { fitForInstagram } from "../../lib/imageFit"
+import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
+import { uploadFile } from "../../lib/upload"
 import { api } from "../../lib/api"
 
 /**
@@ -108,10 +109,14 @@ export default function SmmPanel() {
   const [msg, setMsg] = useState("")
   const taRef = useRef<HTMLTextAreaElement>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
-  /* Rasm nisbati. Instagram 4:5 (0.8) dan 1.91:1 gacha qabul qiladi —
-     bundan tashqarisi "aspect ratio is not supported" bilan rad etiladi.
-     Xato joylash paytida emas, rasm yuklanganda ko'rinsin. */
-  const [ratio, setRatio] = useState<number | null>(null)
+  /* Rasm nisbati. Instagram 4:5 (0.8) dan 1.91:1 gacha qabul qiladi.
+     Mos kelmasa foydalanuvchidan boshqa rasm so'ramaymiz — o'zimiz
+     to'g'irlab qayta yuklaymiz. */
+  const [fitting, setFitting] = useState(false)
+  const [fitErr, setFitErr] = useState("")
+  // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
+  // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
+  const fitDone = useRef<Set<string>>(new Set())
 
   /* AI uslubi tanlangan tarmoqlardan biri bo'lishi shart. Foydalanuvchi
      tarmoqni bekor qilsa, uslub o'z-o'zidan qolganiga o'tadi — shuning
@@ -268,6 +273,30 @@ export default function SmmPanel() {
     wrap("[", `](${url})`)
   }
 
+  /**
+   * Yuklangan rasmni Instagram o'lchamiga keltirib qayta yuklash.
+   * Eski postlarning rasmlari yuklash paytida to'g'irlanmagan bo'lishi
+   * mumkin — shu yerda ushlanadi.
+   */
+  const autoFit = async (url: string) => {
+    if (fitDone.current.has(url) || fitting) return
+    fitDone.current.add(url)
+    setFitting(true); setFitErr("")
+    try {
+      const newUrl = await refitUploadedImage(url, (f) => uploadFile(f))
+      if (newUrl) {
+        fitDone.current.add(newUrl)
+        setForm((f) => ({ ...f, image_url: newUrl }))
+      }
+    } catch {
+      // To'g'irlab bo'lmasa (masalan rasm boshqa domendan va CORS yopiq)
+      // hech bo'lmasa nima qilish kerakligini aytamiz.
+      setFitErr("Rasmni moslab bo'lmadi — kvadrat (1:1) rasm yuklang")
+    } finally {
+      setFitting(false)
+    }
+  }
+
   const save = () => runSave(async () => {
     setMsg("")
     if (!form.content.trim()) { setMsg("❌ Post matni bo'sh"); return }
@@ -359,10 +388,6 @@ export default function SmmPanel() {
     const acct = acctName(k)
     return acct ? `${label} — ${acct}` : label
   })
-  // Ogohlantirish faqat Instagram tanlangan bo'lsa — boshqa tarmoqlarda
-  // rasm nisbati cheklanmagan.
-  const igRatioBad = picked.has("instagram") && ratio !== null && (ratio < 0.8 || ratio > 1.91)
-
   const offline = Array.from(picked)
     .filter((k) => !conns[k]?.connected)
     .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
@@ -620,18 +645,24 @@ export default function SmmPanel() {
               <div className="mt-1.5">
                 {form.image_url ? (
                   <div className="rounded-xl border border-green/15 bg-soft p-3">
-                    <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-cover"
+                    <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-contain"
                       onLoad={(e) => {
                         const el = e.currentTarget
-                        setRatio(el.naturalHeight ? el.naturalWidth / el.naturalHeight : null)
+                        const r = el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0
+                        // Mos kelmasa DARHOL to'g'irlaymiz — foydalanuvchidan
+                        // boshqa rasm so'ramaymiz.
+                        if (r && !isIgRatioOk(r)) autoFit(el.src)
                       }}
-                      onError={() => setRatio(null)} />
-                    {igRatioBad && (
-                      <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
-                        Bu o'lchamni Instagram qabul qilmaydi. Boshqa rasm yuklang.
+                      onError={() => setFitErr("")} />
+                    {fitting && (
+                      <p className="mt-2 flex items-center gap-2 rounded-lg bg-green/10 px-3 py-2 text-xs font-semibold text-green">
+                        <Icon d={I.refresh} className="h-3.5 w-3.5 animate-spin" /> Rasm o'lchami moslanmoqda…
                       </p>
                     )}
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setRatio(null) }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    {fitErr && (
+                      <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
+                    )}
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   <MediaUpload accept="image/*"

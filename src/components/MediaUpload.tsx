@@ -1,8 +1,6 @@
 import { useState, useRef } from "react"
 import { Icon, I } from "../lib/ui"
-import { api } from "../lib/api"
-
-type UploadResult = { fileId: string; signedUrl: string; storageKey: string; publicUrl?: string; fileName?: string }
+import { uploadFile, type UploadResult } from "../lib/upload"
 
 type UploadProgress = {
   current: number
@@ -42,43 +40,8 @@ export default function MediaUpload({
   const [progress, setProgress] = useState<UploadProgress | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const uploadSingleFile = async (file: File): Promise<UploadResult> => {
-    const result = await api<UploadResult>("/media-get-signed-upload-url", {
-      method: "POST",
-      body: JSON.stringify({
-        originalFilename: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        isPublic: true,
-      }),
-    })
-
-    return await new Promise<UploadResult>((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open("PUT", result.signedUrl, true)
-      xhr.setRequestHeader("Content-Type", file.type)
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100)
-          setProgress((prev) =>
-            prev ? { ...prev, percent } : null,
-          )
-        }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ ...result, signedUrl: result.publicUrl || result.signedUrl, fileName: file.name })
-        } else {
-          reject(new Error("Yuklashda xatolik"))
-        }
-      }
-
-      xhr.onerror = () => reject(new Error("Tarmoq xatoligi"))
-      xhr.send(file)
-    })
-  }
+  const uploadSingleFile = (file: File) =>
+    uploadFile(file, (percent) => setProgress((prev) => (prev ? { ...prev, percent } : null)))
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
