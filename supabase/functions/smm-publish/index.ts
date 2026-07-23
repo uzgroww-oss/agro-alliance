@@ -99,6 +99,18 @@ async function publishFacebook(text: string, imageUrl: string | null): Promise<P
   }
 }
 
+/** Instagram xatolarini qisqa o'zbekcha sababga aylantiradi */
+function igError(err: { message?: string; code?: number } | undefined, status: number): string {
+  const msg = String(err?.message || "").toLowerCase()
+  const code = err?.code
+  if (msg.includes("instagram_content_publish")) return "Instagram'ga post qo'yish ruxsati yo'q — qayta ulang"
+  if (code === 190 || msg.includes("access token")) return "Instagram ulanishi eskirgan — qayta ulang"
+  if (code === 4 || code === 17 || code === 32) return "So'rovlar chegarasi — keyinroq urining"
+  if (msg.includes("media type") || msg.includes("image")) return "Rasm formati mos emas (JPEG kerak)"
+  if (code === 100) return "Rasm manzili Instagram uchun ochiq emas"
+  return err?.message || `Xatolik ${status}`
+}
+
 /* ---------------- Instagram (2 bosqich) ---------------- */
 async function publishInstagram(text: string, imageUrl: string | null): Promise<PublishResult> {
   if (!imageUrl) {
@@ -127,7 +139,7 @@ async function publishInstagram(text: string, imageUrl: string | null): Promise<
     })
     const created = await createResp.json().catch(() => ({}))
     if (!createResp.ok || created.error) {
-      return { platform: "instagram", success: false, error: created.error?.message || `HTTP ${createResp.status}` }
+      return { platform: "instagram", success: false, error: igError(created.error, createResp.status) }
     }
     // 2) publish
     const pubResp = await fetch(`https://graph.facebook.com/v22.0/${igUserId}/media_publish`, {
@@ -137,7 +149,7 @@ async function publishInstagram(text: string, imageUrl: string | null): Promise<
     })
     const published = await pubResp.json().catch(() => ({}))
     if (!pubResp.ok || published.error) {
-      return { platform: "instagram", success: false, error: published.error?.message || `HTTP ${pubResp.status}` }
+      return { platform: "instagram", success: false, error: igError(published.error, pubResp.status) }
     }
     return { platform: "instagram", success: true, external_id: String(published.id ?? "") }
   } catch (e) {

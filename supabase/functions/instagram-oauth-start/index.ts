@@ -33,7 +33,11 @@ Deno.serve(async (req) => {
 
     // OAuth URL yaratish
     const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth-callback`
-    const scopes = "instagram_basic,instagram_manage_insights,pages_show_list,pages_read_engagement"
+    // instagram_content_publish — SMM panelidan post qo'yish uchun.
+    // Usiz Graph API "(#10) Requires instagram_content_publish permission"
+    // qaytaradi. Ruxsat qo'shilgach Instagram QAYTA ulanishi shart:
+    // eski token eski ruxsatlar bilan qolgan bo'ladi.
+    const scopes = "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_show_list,pages_read_engagement"
 
     const authUrl = `https://www.facebook.com/v22.0/dialog/oauth?` +
       `client_id=${FACEBOOK_APP_ID}` +
