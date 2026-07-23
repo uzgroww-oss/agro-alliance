@@ -128,10 +128,18 @@ export default function SmmPanel() {
 
   /* ---------------- 1-bosqich ---------------- */
   const toggle = (p: Platform) => {
+    // Belgini OLIB TASHLASH hech qachon to'sib qo'yilmaydi. Ilgari
+    // ulanish tekshiruvi ikkala yo'nalishga ham ishlardi va ulanmagan
+    // tarmoqni tanlangan holatda qoldirib bo'lmay qolardi.
+    if (picked.has(p.key)) {
+      setPickMsg("")
+      setPicked((prev) => { const n = new Set(prev); n.delete(p.key); return n })
+      return
+    }
     if (!p.ready) { setPickMsg(`${p.label} hali qo'shilmagan`); return }
     if (!conns[p.key]?.connected) { setConnOpen(p.key); setPickMsg(`${p.label} ulanmagan — avval ulang`); return }
     setPickMsg("")
-    setPicked((prev) => { const n = new Set(prev); n.has(p.key) ? n.delete(p.key) : n.add(p.key); return n })
+    setPicked((prev) => new Set(prev).add(p.key))
   }
 
   const savePick = () => {
