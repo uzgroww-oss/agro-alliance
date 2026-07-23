@@ -12,6 +12,7 @@ const nav = [
   { label: "Bloggerlar", icon: I.users },
   { label: "Topshiriqlar", icon: I.task },
   { label: "Bloger holatlari", icon: I.chart },
+  { label: "SMM / AI", icon: I.megaphone },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
   { label: "Kategoriyalar", icon: I.grid },
@@ -1742,6 +1743,307 @@ function BloggerTaskStatus() {
   )
 }
 
+/* ---------- SMM / AI ---------- */
+/**
+ * AI ijtimoiy tarmoq paneli.
+ *
+ * Oqim: AI tahlil qiladi -> kontent yaratadi -> ODAM tahrirlab tasdiqlaydi
+ *       -> tanlangan tarmoqlarga joylanadi.
+ *
+ * MUHIM: AI hech qachon o'zi joylamaydi. "Tasdiqlash va joylash" tugmasi
+ * faqat odam bosganda smm-publish?action=publish chaqiriladi.
+ */
+type SmmPost = {
+  id: string; title: string | null; content: string; hashtags: string | null
+  image_url: string | null; platforms: string[]; status: string
+  ai_generated: boolean; published_at: string | null; created_at: string
+  results?: { platform: string; success: boolean; error?: string }[]
+}
+type SmmAnalysis = {
+  holat: string
+  tavsiyalar: { mavzu: string; sabab: string; platforma: string; format: string }[]
+  eng_yaxshi_vaqt: string
+}
+
+const SMM_PLATFORMS: { key: string; label: string; ready: boolean }[] = [
+  { key: "telegram", label: "Telegram", ready: true },
+  { key: "facebook", label: "Facebook", ready: true },
+  { key: "instagram", label: "Instagram", ready: true },
+  { key: "linkedin", label: "LinkedIn", ready: false },
+  { key: "youtube", label: "YouTube", ready: false },
+]
+const smmStatus: Record<string, { label: string; cls: string }> = {
+  draft: { label: "Qoralama", cls: "bg-gray-100 text-gray-600" },
+  pending_approval: { label: "Tasdiq kutmoqda", cls: "bg-orange-100 text-orange-700" },
+  published: { label: "Joylandi", cls: "bg-green/10 text-green" },
+  failed: { label: "Xato", cls: "bg-red-50 text-red-600" },
+}
+
+function SmmPanel() {
+  const [posts, setPosts] = useState<SmmPost[]>([])
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+
+  // AI tahlil
+  const [analysis, setAnalysis] = useState<SmmAnalysis | null>(null)
+  const [analyzing, runAnalyze] = useBusy()
+  const [aiErr, setAiErr] = useState("")
+
+  // Kontent yaratish
+  const [topic, setTopic] = useState("")
+  const [genPlatform, setGenPlatform] = useState("telegram")
+  const [generating, runGenerate] = useBusy()
+
+  // Post formasi
+  const [form, setForm] = useState({ title: "", content: "", hashtags: "", image_url: "" })
+  const [aiMade, setAiMade] = useState(false)
+  const [picked, setPicked] = useState<Set<string>>(new Set(["telegram"]))
+  const [saving, runSave] = useBusy()
+  const [msg, setMsg] = useState("")
+
+  const load = useCallback(() => {
+    setLoading(true); setFailed(false)
+    api<{ posts: SmmPost[] }>("/smm/posts")
+      .then((d) => setPosts(d.posts || []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const analyze = () => runAnalyze(async () => {
+    setAiErr("")
+    try {
+      const d = await api<{ analysis: SmmAnalysis }>("/smm/ai?action=analyze", { method: "POST", body: "{}" })
+      setAnalysis(d.analysis)
+    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
+  })
+
+  const generate = (t?: string) => runGenerate(async () => {
+    const useTopic = (t ?? topic).trim()
+    if (!useTopic) { setAiErr("Mavzu kiriting"); return }
+    setAiErr("")
+    try {
+      const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
+        "/smm/ai?action=generate",
+        { method: "POST", body: JSON.stringify({ topic: useTopic, platform: genPlatform }) },
+      )
+      setForm({
+        title: d.generated.sarlavha || "",
+        content: d.generated.matn || "",
+        hashtags: (d.generated.hashtaglar || []).join(" "),
+        image_url: "",
+      })
+      setAiMade(true)
+      setPicked(new Set([genPlatform]))
+      setMsg("")
+    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
+  })
+
+  const save = () => runSave(async () => {
+    setMsg("")
+    if (!form.content.trim()) { setMsg("❌ Post matni bo'sh"); return }
+    if (picked.size === 0) { setMsg("❌ Kamida bitta tarmoq tanlang"); return }
+    try {
+      await api("/smm/posts", {
+        method: "POST",
+        body: JSON.stringify({ ...form, platforms: Array.from(picked), ai_generated: aiMade }),
+      })
+      setMsg("✅ Saqlandi — tasdiq kutmoqda")
+      setForm({ title: "", content: "", hashtags: "", image_url: "" })
+      setAiMade(false)
+      load()
+    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+  })
+
+  const [acting, runAct] = useBusy()
+  const publish = (id: string) => runAct(async () => {
+    try {
+      const r = await api<{ success: boolean; results: { platform: string; success: boolean; error?: string }[] }>(
+        `/smm/posts/${id}?action=publish`, { method: "POST", body: "{}" })
+      const bad = r.results.filter((x) => !x.success)
+      setMsg(r.success
+        ? (bad.length ? `⚠️ Qisman joylandi. Xato: ${bad.map((b) => `${b.platform} — ${b.error}`).join("; ")}` : "✅ Joylandi")
+        : `❌ Joylanmadi: ${bad.map((b) => `${b.platform} — ${b.error}`).join("; ")}`)
+      load()
+    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+  })
+  const remove = (id: string) => runAct(async () => {
+    await api(`/smm/posts/${id}`, { method: "DELETE" }).catch(() => {})
+    load()
+  })
+
+  const togglePlatform = (k: string) => setPicked((prev) => {
+    const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n
+  })
+
+  return (
+    <div>
+      <div>
+        <h2 className="font-display text-xl font-extrabold tracking-tight">SMM / AI</h2>
+        <p className="mt-1 text-sm text-muted">AI kontent tavsiya qiladi va yozadi — siz tasdiqlaysiz, keyin tarmoqlarga chiqadi.</p>
+      </div>
+
+      {/* 1. AI TAHLIL */}
+      <div className={`${card} mt-5`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display font-bold">1. AI tahlili</h3>
+            <p className="mt-0.5 text-sm text-muted">Hozir qanday kontent kerakligini aniqlaydi.</p>
+          </div>
+          <button onClick={analyze} disabled={analyzing} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+            <Icon d={I.brain} className="h-4 w-4" /> {analyzing ? "Tahlil qilinmoqda…" : "Tahlil qilish"}
+          </button>
+        </div>
+
+        {aiErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>}
+
+        {analysis && (
+          <div className="mt-4">
+            <p className="rounded-xl bg-soft px-4 py-3 text-sm">{analysis.holat}</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {(analysis.tavsiyalar || []).map((t, i) => (
+                <div key={i} className="rounded-xl border border-green/10 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold">{t.mavzu}</div>
+                      <div className="mt-0.5 text-xs text-muted">{t.sabab}</div>
+                      <div className="mt-1.5 flex gap-1.5 text-[10px] font-bold">
+                        <span className="rounded bg-green/10 px-2 py-0.5 text-green">{t.platforma}</span>
+                        <span className="rounded bg-soft px-2 py-0.5 text-muted">{t.format}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
+                      className="shrink-0 rounded-lg border border-green/25 px-2.5 py-1 text-[11px] font-bold text-green transition-colors hover:bg-green hover:text-white disabled:opacity-50">
+                      Yozish
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {analysis.eng_yaxshi_vaqt && (
+              <p className="mt-3 text-xs text-muted">🕐 Eng yaxshi vaqt: {analysis.eng_yaxshi_vaqt}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 2. KONTENT YARATISH */}
+      <div className={`${card} mt-5`}>
+        <h3 className="font-display font-bold">2. Kontent yaratish</h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Mavzu (masalan: bahorgi o'g'itlash)" className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+          <select value={genPlatform} onChange={(e) => setGenPlatform(e.target.value)} className="rounded-xl border border-green/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+            {SMM_PLATFORMS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+          <button onClick={() => generate()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+            <Icon d={I.bolt} className="h-4 w-4" /> {generating ? "Yozilmoqda…" : "AI yozsin"}
+          </button>
+        </div>
+      </div>
+
+      {/* 3. TAHRIRLASH VA SAQLASH */}
+      <div className={`${card} mt-5`}>
+        <h3 className="font-display font-bold">3. Tekshiring va saqlang</h3>
+        <p className="mt-0.5 text-sm text-muted">AI matnini o'zgartirishingiz mumkin. Saqlangach tasdiq kutadi.</p>
+        <div className="mt-4 space-y-3">
+          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Sarlavha (ixtiyoriy)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <textarea value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} rows={7} placeholder="Post matni…" className="w-full resize-y rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))} placeholder="#agro #fermer" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">Rasm (ixtiyoriy)</span>
+            {form.image_url ? (
+              <div className="flex items-center gap-3 rounded-xl border border-green/15 bg-soft p-3">
+                <img src={form.image_url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                <button type="button" onClick={() => setForm((f) => ({ ...f, image_url: "" }))} className="ml-auto text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+              </div>
+            ) : (
+              <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, image_url: r.signedUrl }))} />
+            )}
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">Qaysi tarmoqlarga</span>
+            <div className="flex flex-wrap gap-2">
+              {SMM_PLATFORMS.map((p) => (
+                <button key={p.key} type="button" onClick={() => togglePlatform(p.key)}
+                  title={p.ready ? "" : "Hali ulanmagan"}
+                  className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${picked.has(p.key) ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"} ${p.ready ? "" : "opacity-50"}`}>
+                  {p.label}{p.ready ? "" : " (tez orada)"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {msg && <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : msg.startsWith("⚠️") ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-600"}`}>{msg}</div>}
+
+          <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+            <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
+          </button>
+        </div>
+      </div>
+
+      {/* 4. POSTLAR */}
+      <div className="mt-6">
+        <h3 className="font-display font-bold">Postlar</h3>
+        {loading ? (
+          <div className="mt-3"><SkeletonCard /></div>
+        ) : failed ? (
+          <div className="mt-3"><ErrorState onRetry={load} message="Postlarni yuklab bo'lmadi." /></div>
+        ) : posts.length === 0 ? (
+          <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">Hali post yo'q.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {posts.map((p) => {
+              const st = smmStatus[p.status] || smmStatus.draft
+              return (
+                <div key={p.id} className={card}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-md px-2.5 py-1 text-[11px] font-bold ${st.cls}`}>{st.label}</span>
+                        {p.ai_generated && <span className="rounded-md bg-purple-100 px-2 py-1 text-[10px] font-bold text-purple-600">AI</span>}
+                        {p.title && <h4 className="font-display font-bold">{p.title}</h4>}
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-ink/80">{p.content}</p>
+                      {p.hashtags && <p className="mt-1 text-xs text-green">{p.hashtags}</p>}
+                      {p.image_url && <img src={p.image_url} alt="" className="mt-2 max-h-40 rounded-xl object-cover" />}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {p.platforms.map((pl) => (
+                          <span key={pl} className="rounded bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">{pl}</span>
+                        ))}
+                      </div>
+                      {(p.results?.length ?? 0) > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {p.results!.map((r, i) => (
+                            <div key={i} className={`text-[11px] ${r.success ? "text-green" : "text-red-600"}`}>
+                              {r.success ? "✅" : "❌"} {r.platform}{r.error ? ` — ${r.error}` : ""}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      {p.status !== "published" && (
+                        <button onClick={() => publish(p.id)} disabled={acting} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+                          {acting ? "…" : "Tasdiqlash va joylash"}
+                        </button>
+                      )}
+                      <button onClick={() => remove(p.id)} disabled={acting} className="grid h-8 w-8 place-items-center rounded-lg text-red-400 hover:bg-red-50 disabled:opacity-40">
+                        <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Monitoring ---------- */
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
@@ -2883,7 +3185,7 @@ function AdminRoles() {
   )
 }
 
-const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari"]
+const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari", "SMM / AI"]
 const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
 const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
 
@@ -2907,6 +3209,7 @@ export default function AdminDashboard() {
       case "Bloggerlar": return <Bloggers />
       case "Topshiriqlar": return <AdminTasks />
       case "Bloger holatlari": return <BloggerTaskStatus />
+      case "SMM / AI": return <SmmPanel />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />

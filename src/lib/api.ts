@@ -427,6 +427,24 @@ function resolveAdminUrl(path: string, method: string): string {
   }
 
   // Topshiriqlar (TZ): GET /tasks (ro'yxat), POST /tasks (yangi), DELETE /tasks/{id}
+  // SMM: AI tahlil/kontent va postlarni joylash.
+  // Edge funksiya limiti sababli ikkala funksiya ham action bilan ishlaydi.
+  if (segments[0] === "smm") {
+    // /smm/ai?action=analyze|generate
+    if (segments[1] === "ai") {
+      return `${SUPABASE_FUNCTIONS_URL}/smm-ai${qsRaw ? `?${qsRaw}` : ""}`
+    }
+    // /smm/posts            -> ro'yxat / yangi
+    // /smm/posts/:id        -> tahrirlash / o'chirish
+    // /smm/posts/:id?action=publish -> tasdiqlash va joylash
+    if (segments[1] === "posts") {
+      const qs = new URLSearchParams(qsRaw)
+      if (segments[2]) qs.set("id", segments[2])
+      const q = qs.toString()
+      return `${SUPABASE_FUNCTIONS_URL}/smm-publish${q ? `?${q}` : ""}`
+    }
+  }
+
   if (segments[0] === "tasks") {
     if (segments.length === 1) {
       const fn = method === "POST" ? "admin-tasks-create" : "admin-tasks-list"
