@@ -1364,6 +1364,19 @@ function AdminSettings() {
             <button onClick={() => runIgCheck(checkIgStatus)} disabled={igRechecking} className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-60">
               <Icon d={I.refresh} className="h-3.5 w-3.5" /> Yangilash
             </button>
+            {/* Qayta ulash ULANGAN holatda ham kerak: ruxsatlar ro'yxati
+                o'zgarganda eski token eskiligicha qoladi va faqat yangi
+                rozilik uni almashtiradi. Ilgari bu tugma yo'q edi. */}
+            <button onClick={async () => {
+              try {
+                const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
+                if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
+              } catch (e) {
+                alert(e instanceof Error ? e.message : "Xatolik")
+              }
+            }} className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 hover:bg-pink-50">
+              <Icon d={I.external} className="h-3.5 w-3.5" /> Qayta ulash
+            </button>
           </div>
         ) : !igChecking && !igConnected ? (
           <button onClick={async () => {

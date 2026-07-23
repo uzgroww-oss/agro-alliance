@@ -56,10 +56,11 @@ const BRAND: Record<string, string> = {
   instagram: "M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16M12 0C8.74 0 8.33.01 7.05.07 5.78.13 4.9.33 4.14.63c-.79.3-1.46.72-2.12 1.38C1.36 2.67.94 3.34.63 4.14.33 4.9.13 5.78.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.27.26 2.15.56 2.91.3.79.72 1.46 1.38 2.12.66.66 1.33 1.08 2.12 1.38.76.3 1.64.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.27-.06 2.15-.26 2.91-.56.79-.3 1.46-.72 2.12-1.38.66-.66 1.08-1.33 1.38-2.12.3-.76.5-1.64.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.27-.26-2.15-.56-2.91-.3-.79-.72-1.46-1.38-2.12-.66-.66-1.33-1.08-2.12-1.38-.76-.3-1.64-.5-2.91-.56C15.67.01 15.26 0 12 0z M12 5.84A6.16 6.16 0 1 0 12 18.16 6.16 6.16 0 0 0 12 5.84zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8z M18.41 4.15a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z",
 }
 
-function Brand({ k, className = "h-6 w-6" }: { k: string; className?: string }) {
+function Brand({ k, className = "h-6 w-6", color }: { k: string; className?: string; color?: string }) {
   const p = PLATFORMS.find((x) => x.key === k)
+  // color — rangli fonda belgini ko'rinadigan qilish uchun (masalan oq)
   return (
-    <svg viewBox="0 0 24 24" className={className} fill={p?.color ?? "currentColor"} aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill={color ?? p?.color ?? "currentColor"} aria-hidden>
       <path d={BRAND[k] ?? ""} />
     </svg>
   )
@@ -165,6 +166,19 @@ export default function SmmPanel() {
       setConnForm({ chat_id: "", page_id: "", page_token: "" })
       setPicked((prev) => new Set(prev).add(platform))
       load()
+    } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
+  })
+
+  /* Instagram Facebook OAuth orqali ulanadi — chat_id/token kiritilmaydi.
+     Qayta ulash ham shu tugma orqali: ruxsatlar ro'yxati o'zgarganda eski
+     token eskiligicha qoladi, faqat yangi rozilik uni almashtiradi. */
+  const igConnect = () => runConn(async () => {
+    setPickMsg("")
+    try {
+      const r = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
+      if (!r.authUrl) { setPickMsg("❌ Ulanish manzili olinmadi"); return }
+      window.open(r.authUrl, "_blank", "width=600,height=700")
+      setPickMsg("Facebook oynasida roziligini bering, keyin \"Yangilash\" tugmasini bosing")
     } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
   })
 
@@ -396,8 +410,17 @@ export default function SmmPanel() {
           })}
         </div>
 
-        {/* Ulangan tarmoqni uzish + ulash formalari */}
+        {/* Ulangan tarmoqni uzish + Instagram qayta ulash */}
         <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={igConnect} disabled={connBusy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 transition-colors hover:bg-pink-50 disabled:opacity-50">
+            <Brand k="instagram" className="h-3.5 w-3.5" />
+            {conns.instagram?.connected ? "Instagram'ni qayta ulash" : "Instagram'ni ulash"}
+          </button>
+          <button onClick={load} disabled={connBusy}
+            className="rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-muted transition-colors hover:border-green/40 hover:text-green disabled:opacity-50">
+            Yangilash
+          </button>
           {PLATFORMS.filter((p) => conns[p.key]?.connected && p.key !== "instagram").map((p) => (
             <button key={p.key} onClick={() => disconnect(p.key)} disabled={connBusy}
               className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">
@@ -432,8 +455,14 @@ export default function SmmPanel() {
         )}
 
         {connOpen === "instagram" && (
-          <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4 text-sm text-muted">
-            Instagram <strong>Sozlamalar</strong> bo'limidan ulanadi — u yerda Business akkaunt biriktiriladi.
+          <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
+            <p className="text-xs text-muted">
+              Instagram Facebook orqali ulanadi. Akkaunt <strong>Business</strong> yoki
+              <strong> Creator</strong> bo'lishi va Facebook sahifasiga biriktirilgan bo'lishi shart.
+            </p>
+            <button onClick={igConnect} disabled={connBusy} className="mt-2 inline-flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+              <Brand k="instagram" className="h-4 w-4" color="#fff" /> Facebook bilan ulash
+            </button>
           </div>
         )}
       </div>
