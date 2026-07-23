@@ -24,6 +24,43 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
   }
 }
 
+/**
+ * Facebook Graph API xatosini blogerga tushunarli o'zbekcha xabarga aylantiradi.
+ *
+ * MUHIM: ilgari xom inglizcha xato ("Invalid user id") to'g'ridan-to'g'ri
+ * ko'rsatilardi — bloger nima qilishni bilmasdi. Eng ko'p uchraydigan sabab:
+ * business_discovery FAQAT Business/Creator akkauntlarda ishlaydi, oddiy
+ * (shaxsiy) akkauntda ishlamaydi va Graph "Invalid user id" qaytaradi.
+ */
+function humanizeIgError(err: { message?: string; code?: number; error_subcode?: number }, username: string): string {
+  const code = err.code
+  const msg = (err.message || "").toLowerCase()
+
+  // 110 / "invalid user id" — target akkaunt topilmadi yoki Business/Creator emas
+  if (code === 110 || msg.includes("invalid user id")) {
+    return `"@${username}" akkaunti topilmadi yoki u Business/Creator akkaunt emas. ` +
+      `Instagram ilovasida: Sozlamalar → Akkaunt turi va vositalar → Professional akkauntga o'tish. ` +
+      `Shundan keyin havolani qayta kiriting. (Oddiy shaxsiy akkauntdan statistika olib bo'lmaydi.)`
+  }
+  // 190 — token muddati tugagan / bekor qilingan
+  if (code === 190) {
+    return "Instagram ulanishi eskirgan. Administrator panel orqali Instagram'ni qayta ulashi kerak."
+  }
+  // 4 / 17 / 32 / 613 — so'rovlar chegarasi
+  if (code === 4 || code === 17 || code === 32 || code === 613) {
+    return "Instagram so'rovlar chegarasiga yetildi. 10–15 daqiqadan keyin qayta urining."
+  }
+  // 10 / 200 — ruxsat yetarli emas
+  if (code === 10 || code === 200) {
+    return "Instagram ruxsatlari yetarli emas. Administrator Facebook Page va Instagram Business ulanishini tekshirishi kerak."
+  }
+  // 100 — noto'g'ri parametr (ko'pincha username formati)
+  if (code === 100) {
+    return `"@${username}" — Instagram foydalanuvchi nomi noto'g'ri yoki bunday akkaunt yo'q. Havolani tekshiring.`
+  }
+  return err.message || "Instagram ma'lumotlarini olishda xatolik"
+}
+
 /** Instagram Graph API'dan business discovery orqali ma'lumot olish */
 async function fetchInstagramData(accessToken: string, instagramAccountId: string, targetUsername: string): Promise<{
   profile: { username: string; name: string; biography: string; profile_picture_url: string } | null
@@ -55,14 +92,20 @@ async function fetchInstagramData(accessToken: string, instagramAccountId: strin
       if (data.error) {
         // Birinchi sahifada xato bo'lsa — umuman qaytaramiz; keyingi sahifalarda — bor postlar bilan to'xtaymiz
         if (page === 0) {
-          return { profile: null, stats: null, media: [], error: data.error.message || "Instagram API xatosi" }
+          return { profile: null, stats: null, media: [], error: humanizeIgError(data.error, targetUsername) }
         }
         break
       }
 
       const pageBd = data.business_discovery
       if (!pageBd) {
-        if (page === 0) return { profile: null, stats: null, media: [], error: "Instagram akkaunt topilmadi" }
+        if (page === 0) {
+          return {
+            profile: null, stats: null, media: [],
+            error: `"@${targetUsername}" akkaunti topilmadi yoki u Business/Creator akkaunt emas. ` +
+              `Instagram ilovasida Professional akkauntga o'ting va qayta urining.`,
+          }
+        }
         break
       }
       if (!bd) bd = pageBd // profil/statistikani birinchi sahifadan olamiz
