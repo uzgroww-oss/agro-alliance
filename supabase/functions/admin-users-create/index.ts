@@ -59,18 +59,22 @@ Deno.serve(async (req) => {
 
     const userId = newUser.user.id
 
-    // Create profile
+    // DIQQAT: handle_new_user triggeri auth foydalanuvchi yaratilishi bilan
+    // profiles qatorini (status='pending') va 'user' rolini AVTOMATIK qo'shadi.
+    // Shuning uchun bu yerda INSERT emas, UPDATE qilamiz — aks holda
+    // "duplicate key value violates unique constraint profiles_pkey" chiqadi.
+    // (admin-bloggers-create va admin-partners-create ham shunday qiladi.)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .insert({
-        id: userId,
+      .update({
         email,
         name,
         status: "active",
         created_by: auth.user.id,
       })
+      .eq("id", userId)
     if (profileError) {
-      // Rollback auth user
+      // Rollback auth user (profiles/user_roles kaskad bilan o'chadi)
       await supabaseAdmin.auth.admin.deleteUser(userId)
       return errorResponse(profileError.message, 500)
     }
@@ -88,10 +92,14 @@ Deno.serve(async (req) => {
       return errorResponse("Role topilmadi", 500)
     }
 
-    // Assign role
+    // Rolni biriktirish. Trigger allaqachon 'user' rolini bergan — tanlangan
+    // rol uning ustiga qo'shiladi. upsert: takror chaqirilsa xato bermasin.
     const { error: userRoleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ profile_id: userId, role_id: roleRow.id })
+      .upsert(
+        { profile_id: userId, role_id: roleRow.id },
+        { onConflict: "profile_id,role_id", ignoreDuplicates: true },
+      )
     if (userRoleError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
       await supabaseAdmin.from("profiles").delete().eq("id", userId)
