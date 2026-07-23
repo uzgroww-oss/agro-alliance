@@ -21,13 +21,28 @@ type Platform = typeof PLATFORMS[number]
 
 type PublishResult = { platform: string; success: boolean; external_id?: string; error?: string }
 
+/**
+ * Sozlamani olish: avval bazadagi ulanish (admin panel orqali), topilmasa
+ * env secret (eski usul). Shunda ikkalasi ham ishlaydi.
+ */
+async function getConf(platform: string, key: string, envName: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("smm_connections")
+    .select("config")
+    .eq("platform", platform)
+    .maybeSingle()
+  const fromDb = data?.config?.[key]
+  if (fromDb && String(fromDb).trim()) return String(fromDb).trim()
+  return Deno.env.get(envName) || null
+}
+
 /* ---------------- Telegram ---------------- */
 /** worker-telegram-publish mantiqidan olingan; rasm bo'lsa sendPhoto, bo'lmasa sendMessage */
 async function publishTelegram(text: string, imageUrl: string | null): Promise<PublishResult> {
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN")
-  const chatId = Deno.env.get("TELEGRAM_CHAT_ID")
-  if (!token) return { platform: "telegram", success: false, error: "TELEGRAM_BOT_TOKEN sozlanmagan" }
-  if (!chatId) return { platform: "telegram", success: false, error: "TELEGRAM_CHAT_ID sozlanmagan" }
+  const chatId = await getConf("telegram", "chat_id", "TELEGRAM_CHAT_ID")
+  if (!token) return { platform: "telegram", success: false, error: "Telegram bot tokeni yo'q" }
+  if (!chatId) return { platform: "telegram", success: false, error: "Telegram ulanmagan" }
 
   try {
     let resp: Response
@@ -56,10 +71,10 @@ async function publishTelegram(text: string, imageUrl: string | null): Promise<P
 
 /* ---------------- Facebook ---------------- */
 async function publishFacebook(text: string, imageUrl: string | null): Promise<PublishResult> {
-  const pageId = Deno.env.get("FACEBOOK_PAGE_ID")
-  const token = Deno.env.get("FACEBOOK_PAGE_TOKEN")
+  const pageId = await getConf("facebook", "page_id", "FACEBOOK_PAGE_ID")
+  const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
   if (!pageId || !token) {
-    return { platform: "facebook", success: false, error: "Facebook Page sozlanmagan" }
+    return { platform: "facebook", success: false, error: "Facebook ulanmagan" }
   }
   try {
     const endpoint = imageUrl
@@ -89,10 +104,19 @@ async function publishInstagram(text: string, imageUrl: string | null): Promise<
   if (!imageUrl) {
     return { platform: "instagram", success: false, error: "Instagram uchun rasm majburiy" }
   }
-  const igUserId = Deno.env.get("INSTAGRAM_USER_ID")
-  const token = Deno.env.get("INSTAGRAM_ACCESS_TOKEN") || Deno.env.get("FACEBOOK_PAGE_TOKEN")
+  // Instagram Sozlamalar bo'limidagi OAuth orqali ulanadi — o'sha token
+  // instagram_tokens jadvalida turadi. Avval shu yerdan olamiz.
+  const { data: igTok } = await supabaseAdmin
+    .from("instagram_tokens")
+    .select("access_token, instagram_account_id")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const igUserId = igTok?.instagram_account_id || (await getConf("instagram", "user_id", "INSTAGRAM_USER_ID"))
+  const token = igTok?.access_token || (await getConf("instagram", "access_token", "INSTAGRAM_ACCESS_TOKEN"))
   if (!igUserId || !token) {
-    return { platform: "instagram", success: false, error: "Instagram sozlanmagan" }
+    return { platform: "instagram", success: false, error: "Instagram ulanmagan" }
   }
   try {
     // 1) media konteyner
@@ -141,6 +165,102 @@ Deno.serve(async (req) => {
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
     const action = url.searchParams.get("action")
+
+    /* ---------- ULANISHLAR ---------- */
+    // XAVFSIZLIK: token qiymatlari HECH QACHON frontend'ga qaytarilmaydi.
+    // Faqat "ulangan/ulanmagan" va ko'rsatish uchun xavfsiz nom.
+    if (action === "connections" && req.method === "GET") {
+      const { data: conns } = await supabaseAdmin
+        .from("smm_connections")
+        .select("platform, config, display_name, updated_at")
+
+      // Instagram alohida: Sozlamalar bo'limidagi OAuth orqali ulanadi
+      const { data: igTok } = await supabaseAdmin
+        .from("instagram_tokens")
+        .select("instagram_account_id, instagram_username")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const byPlatform: Record<string, { connected: boolean; display_name: string | null; via: string }> = {}
+      for (const p of PLATFORMS) byPlatform[p] = { connected: false, display_name: null, via: "panel" }
+
+      for (const c of (conns || []) as Array<{ platform: string; config: Record<string, unknown>; display_name: string | null }>) {
+        const cfg = c.config || {}
+        const ok =
+          c.platform === "telegram" ? Boolean(cfg.chat_id) :
+          c.platform === "facebook" ? Boolean(cfg.page_id && cfg.page_token) :
+          Object.keys(cfg).length > 0
+        if (byPlatform[c.platform]) {
+          byPlatform[c.platform] = { connected: ok, display_name: c.display_name, via: "panel" }
+        }
+      }
+
+      // env secret orqali ulangan bo'lsa ham "ulangan" deb ko'rsatamiz
+      if (!byPlatform.telegram.connected && Deno.env.get("TELEGRAM_CHAT_ID")) {
+        byPlatform.telegram = { connected: true, display_name: null, via: "secret" }
+      }
+      if (!byPlatform.facebook.connected && Deno.env.get("FACEBOOK_PAGE_ID") && Deno.env.get("FACEBOOK_PAGE_TOKEN")) {
+        byPlatform.facebook = { connected: true, display_name: null, via: "secret" }
+      }
+      if (igTok?.instagram_account_id) {
+        byPlatform.instagram = { connected: true, display_name: igTok.instagram_username || null, via: "oauth" }
+      }
+
+      return jsonResponse({ connections: byPlatform })
+    }
+
+    if (action === "connect" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const platform = String(body.platform || "")
+      if (!(PLATFORMS as readonly string[]).includes(platform)) return errorResponse("Noma'lum tarmoq", 400)
+
+      let config: Record<string, string> = {}
+      let display = ""
+
+      if (platform === "telegram") {
+        const chatId = String(body.chat_id || "").trim()
+        if (!chatId) return errorResponse("Kanal ID yoki @nom kiriting", 400)
+        // Tekshiramiz: bot shu kanalga yoza oladimi?
+        const token = Deno.env.get("TELEGRAM_BOT_TOKEN")
+        if (!token) return errorResponse("Telegram bot tokeni yo'q", 400)
+        const r = await fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${encodeURIComponent(chatId)}`)
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok || d.ok === false) {
+          return errorResponse(d.description || "Kanal topilmadi. Botni kanalga admin qilib qo'shing.", 400)
+        }
+        config = { chat_id: chatId }
+        display = d.result?.title || d.result?.username || chatId
+      } else if (platform === "facebook") {
+        const pageId = String(body.page_id || "").trim()
+        const pageToken = String(body.page_token || "").trim()
+        if (!pageId || !pageToken) return errorResponse("Page ID va token kiriting", 400)
+        // Tekshiramiz
+        const r = await fetch(`https://graph.facebook.com/v22.0/${pageId}?fields=name&access_token=${encodeURIComponent(pageToken)}`)
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok || d.error) return errorResponse(d.error?.message || "Sahifa tekshiruvi o'tmadi", 400)
+        config = { page_id: pageId, page_token: pageToken }
+        display = d.name || pageId
+      } else {
+        return errorResponse("Bu tarmoq hali qo'llab-quvvatlanmaydi", 400)
+      }
+
+      const { error } = await supabaseAdmin.from("smm_connections").upsert({
+        platform, config, display_name: display,
+        connected_by: auth.user.id, updated_at: new Date().toISOString(),
+      }, { onConflict: "platform" })
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true, display_name: display })
+    }
+
+    if (action === "disconnect" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const platform = String(body.platform || "")
+      if (!(PLATFORMS as readonly string[]).includes(platform)) return errorResponse("Noma'lum tarmoq", 400)
+      const { error } = await supabaseAdmin.from("smm_connections").delete().eq("platform", platform)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
+    }
 
     /* ---------- Ro'yxat ---------- */
     if (req.method === "GET") {

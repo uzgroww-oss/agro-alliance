@@ -1779,8 +1779,16 @@ const smmStatus: Record<string, { label: string; cls: string }> = {
   failed: { label: "Xato", cls: "bg-red-50 text-red-600" },
 }
 
+type SmmConn = { connected: boolean; display_name: string | null; via: string }
+
 function SmmPanel() {
   const [posts, setPosts] = useState<SmmPost[]>([])
+  // Ulanishlar: qaysi tarmoq ulangan
+  const [conns, setConns] = useState<Record<string, SmmConn>>({})
+  const [connOpen, setConnOpen] = useState<string | null>(null)
+  const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "" })
+  const [connMsg, setConnMsg] = useState("")
+  const [connBusy, runConn] = useBusy()
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
 
@@ -1806,6 +1814,9 @@ function SmmPanel() {
       .then((d) => setPosts(d.posts || []))
       .catch(() => setFailed(true))
       .finally(() => setLoading(false))
+    api<{ connections: Record<string, SmmConn> }>("/smm/posts?action=connections")
+      .then((d) => setConns(d.connections || {}))
+      .catch(() => { /* ulanishlar yuklanmasa panel baribir ishlaydi */ })
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -1856,6 +1867,29 @@ function SmmPanel() {
     } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
   })
 
+  const connect = (platform: string) => runConn(async () => {
+    setConnMsg("")
+    const body: Record<string, string> = { platform }
+    if (platform === "telegram") body.chat_id = connForm.chat_id.trim()
+    if (platform === "facebook") { body.page_id = connForm.page_id.trim(); body.page_token = connForm.page_token.trim() }
+    try {
+      const r = await api<{ display_name: string }>("/smm/posts?action=connect", { method: "POST", body: JSON.stringify(body) })
+      setConnMsg(`✅ Ulandi: ${r.display_name}`)
+      setConnOpen(null)
+      setConnForm({ chat_id: "", page_id: "", page_token: "" })
+      load()
+    } catch (e) { setConnMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
+  })
+
+  const disconnect = (platform: string) => runConn(async () => {
+    setConnMsg("")
+    try {
+      await api("/smm/posts?action=disconnect", { method: "POST", body: JSON.stringify({ platform }) })
+      setConnMsg("Uzildi")
+      load()
+    } catch (e) { setConnMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+  })
+
   const [acting, runAct] = useBusy()
   const publish = (id: string) => runAct(async () => {
     try {
@@ -1882,6 +1916,75 @@ function SmmPanel() {
       <div>
         <h2 className="font-display text-xl font-extrabold tracking-tight">SMM / AI</h2>
         <p className="mt-1 text-sm text-muted">AI kontent tavsiya qiladi va yozadi — siz tasdiqlaysiz, keyin tarmoqlarga chiqadi.</p>
+      </div>
+
+      {/* 0. ULANISHLAR */}
+      <div className={`${card} mt-5`}>
+        <h3 className="font-display font-bold">Ijtimoiy tarmoqlar</h3>
+        <p className="mt-0.5 text-sm text-muted">Post chiqishi uchun tarmoq ulangan bo'lishi kerak.</p>
+
+        {connMsg && (
+          <div className={`mt-3 rounded-xl px-4 py-2.5 text-sm font-semibold ${connMsg.startsWith("✅") ? "bg-green/10 text-green" : connMsg.startsWith("❌") ? "bg-red-50 text-red-600" : "bg-soft text-muted"}`}>{connMsg}</div>
+        )}
+
+        <div className="mt-4 space-y-2">
+          {SMM_PLATFORMS.map((pl) => {
+            const c = conns[pl.key]
+            const on = Boolean(c?.connected)
+            return (
+              <div key={pl.key} className="rounded-xl border border-green/10">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${on ? "bg-green" : "bg-gray-300"}`} />
+                  <span className="font-semibold">{pl.label}</span>
+                  {on && c?.display_name && <span className="truncate text-xs text-muted">{c.display_name}</span>}
+                  <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
+                    {on ? "Ulangan" : "Ulanmagan"}
+                  </span>
+
+                  <span className="ml-auto flex gap-2">
+                    {pl.key === "instagram" ? (
+                      <span className="text-xs text-muted">Sozlamalar bo'limidan ulanadi</span>
+                    ) : !pl.ready ? (
+                      <span className="text-xs text-muted">Tez orada</span>
+                    ) : on ? (
+                      <button onClick={() => disconnect(pl.key)} disabled={connBusy} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 disabled:opacity-50">Uzish</button>
+                    ) : (
+                      <button onClick={() => { setConnOpen(connOpen === pl.key ? null : pl.key); setConnMsg("") }} className="rounded-lg bg-green px-4 py-1.5 text-xs font-bold text-white">
+                        {connOpen === pl.key ? "Yopish" : "Ulash"}
+                      </button>
+                    )}
+                  </span>
+                </div>
+
+                {/* Ulash formasi */}
+                {connOpen === pl.key && pl.key === "telegram" && (
+                  <div className="border-t border-green/10 bg-[#fafdf7] px-4 py-3">
+                    <p className="text-xs text-muted">Botni kanalga <strong>admin</strong> qilib qo'shing, keyin kanal @nomini yoki ID sini kiriting.</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <input value={connForm.chat_id} onChange={(e) => setConnForm((f) => ({ ...f, chat_id: e.target.value }))} placeholder="@kanal_nomi yoki -1001234567890" className="min-w-[220px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <button onClick={() => connect("telegram")} disabled={connBusy} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+                        {connBusy ? "Tekshirilmoqda…" : "Ulash"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {connOpen === pl.key && pl.key === "facebook" && (
+                  <div className="border-t border-green/10 bg-[#fafdf7] px-4 py-3">
+                    <p className="text-xs text-muted">Facebook sahifangizning ID va Page Access Token'ini kiriting.</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <input value={connForm.page_id} onChange={(e) => setConnForm((f) => ({ ...f, page_id: e.target.value }))} placeholder="Page ID" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={connForm.page_token} onChange={(e) => setConnForm((f) => ({ ...f, page_token: e.target.value }))} placeholder="Page Access Token" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                    </div>
+                    <button onClick={() => connect("facebook")} disabled={connBusy} className="mt-2 rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+                      {connBusy ? "Tekshirilmoqda…" : "Ulash"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* 1. AI TAHLIL */}
