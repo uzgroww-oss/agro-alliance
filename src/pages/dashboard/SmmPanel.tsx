@@ -25,10 +25,21 @@ export type SmmPost = {
 }
 type SmmAnalysis = {
   holat: string
+  kuchli?: string[]
+  zaif?: string[]
   tavsiyalar: { mavzu: string; sabab: string; platforma: string; format: string }[]
   eng_yaxshi_vaqt: string
 }
 type SmmConn = { connected: boolean; display_name: string | null; via: string }
+
+/** Tarmoqning haqiqiy holati — obunachi, o'rtacha layk va h.k. */
+type NetworkStat = {
+  platform: string; name: string
+  followers: number | null; posts: number | null
+  avgLikes: number | null; avgComments: number | null
+  recent: { text: string; likes: number | null; comments: number | null; date: string }[]
+  error?: string
+}
 
 type Platform = { key: string; label: string; ready: boolean; color: string }
 
@@ -99,6 +110,7 @@ export default function SmmPanel() {
   const [topic, setTopic] = useState("")
   const [generating, runGenerate] = useBusy()
   const [analysis, setAnalysis] = useState<SmmAnalysis | null>(null)
+  const [networks, setNetworks] = useState<NetworkStat[]>([])
   const [analyzing, runAnalyze] = useBusy()
   const [aiErr, setAiErr] = useState("")
 
@@ -115,6 +127,9 @@ export default function SmmPanel() {
      Mos kelmasa foydalanuvchidan boshqa rasm so'ramaymiz — o'zimiz
      to'g'irlab qayta yuklaymiz. */
   const [fitting, setFitting] = useState(false)
+  // Video yuklanishi ham mumkin — ko'rinishi va o'lcham to'g'irlash
+  // rasmdan farq qiladi.
+  const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(form.image_url)
   const [describing, runDescribe] = useBusy()
   const [syncing, runSync] = useBusy()
   const [fitErr, setFitErr] = useState("")
@@ -230,8 +245,10 @@ export default function SmmPanel() {
   const analyze = () => runAnalyze(async () => {
     setAiErr("")
     try {
-      const d = await api<{ analysis: SmmAnalysis }>("/smm/ai?action=analyze", { method: "POST", body: "{}" })
+      const d = await api<{ analysis: SmmAnalysis; networks?: NetworkStat[] }>(
+        "/smm/ai?action=analyze", { method: "POST", body: "{}" })
       setAnalysis(d.analysis)
+      setNetworks(d.networks || [])
     } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
   })
 
@@ -301,14 +318,18 @@ export default function SmmPanel() {
     }
   }
 
-  /* Rasmni AI ning o'zi ko'rib post yozadi */
-  const describe = () => runDescribe(async () => {
-    if (!form.image_url) { setAiErr("Avval rasm yuklang"); return }
+  /**
+   * AI faylning O'ZINI ko'rib sarlavha, matn va teglarni yozadi.
+   * Yuklangandan keyin avtomatik chaqiriladi — mavzu yozib o'tirish
+   * shart emas.
+   */
+  const describeUrl = (mediaUrl: string) => runDescribe(async () => {
+    if (!mediaUrl) { setAiErr("Avval rasm yoki video yuklang"); return }
     setAiErr("")
     try {
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=describe",
-        { method: "POST", body: JSON.stringify({ image_url: form.image_url, platform: effOrigin }) },
+        { method: "POST", body: JSON.stringify({ image_url: mediaUrl, platform: effOrigin }) },
       )
       setForm((f) => ({
         ...f,
@@ -317,8 +338,9 @@ export default function SmmPanel() {
         hashtags: (d.generated.hashtaglar || []).join(" ") || f.hashtags,
       }))
       setAiMade(true)
-    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI rasmni o'qiy olmadi") }
+    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI faylni o'qiy olmadi") }
   })
+  const describe = () => describeUrl(form.image_url)
 
   /* Joylangan postlar tarmoqda hali turibdimi */
   const sync = () => runSync(async () => {
@@ -607,12 +629,59 @@ export default function SmmPanel() {
           </div>
 
           <button onClick={analyze} disabled={analyzing} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-            <Icon d={I.brain} className="h-4 w-4" /> {analyzing ? "Tahlil qilinmoqda…" : "AI mavzu tavsiya qilsin"}
+            <Icon d={I.brain} className="h-4 w-4" /> {analyzing ? "Tahlil qilinmoqda…" : "Tarmoqlarni tahlil qilish"}
           </button>
+
+          {/* Haqiqiy raqamlar — AI xulosasi shularga asoslangan.
+              Raqamlarni ham ko'rsatamiz, aks holda xulosani tekshirib
+              bo'lmaydi. */}
+          {networks.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {networks.map((n) => (
+                <div key={n.platform} className="rounded-xl border border-green/10 p-3">
+                  <div className="flex items-center gap-2">
+                    <Brand k={n.platform} className="h-4 w-4" />
+                    <span className="truncate text-sm font-semibold">{n.name}</span>
+                  </div>
+                  {n.error ? (
+                    <p className="mt-1 text-xs font-semibold text-red-600">{n.error}</p>
+                  ) : (
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                      {n.followers !== null && <span><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</span>}
+                      {n.posts !== null && <span><strong className="text-ink">{n.posts}</strong> post</span>}
+                      {n.avgLikes !== null && <span>o'rtacha <strong className="text-ink">{n.avgLikes}</strong> layk</span>}
+                      {n.avgComments !== null && <span><strong className="text-ink">{n.avgComments}</strong> izoh</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {analysis && (
             <div className="mt-3">
               <p className="rounded-xl bg-soft px-4 py-3 text-sm">{analysis.holat}</p>
+
+              {(analysis.kuchli?.length || analysis.zaif?.length) ? (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {analysis.kuchli?.length ? (
+                    <div className="rounded-xl bg-green/5 p-3">
+                      <p className="text-xs font-bold text-green">Kuchli tomonlar</p>
+                      <ul className="mt-1 space-y-1">
+                        {analysis.kuchli.map((k, i) => <li key={i} className="text-xs text-ink/80">• {k}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {analysis.zaif?.length ? (
+                    <div className="rounded-xl bg-orange-50 p-3">
+                      <p className="text-xs font-bold text-orange-700">Zaif tomonlar</p>
+                      <ul className="mt-1 space-y-1">
+                        {analysis.zaif.map((z, i) => <li key={i} className="text-xs text-ink/80">• {z}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-2 space-y-2">
                 {(analysis.tavsiyalar || []).map((t, i) => (
                   <button key={i} type="button" onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
@@ -696,43 +765,59 @@ export default function SmmPanel() {
                 className="mt-3 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
             </div>
 
-            {/* Rasm */}
+            {/* Rasm yoki video */}
             <div className="min-w-0">
-              <span className="text-xs font-semibold text-muted">Rasm (ixtiyoriy)</span>
-              <p className="mt-0.5 text-[11px] text-muted">Har qanday o'lcham bo'ladi — tarmoq talabiga o'zi moslanadi</p>
+              <span className="text-xs font-semibold text-muted">Rasm yoki video (ixtiyoriy)</span>
+              <p className="mt-0.5 text-[11px] text-muted">
+                Yuklaganingizdan keyin AI uni ko'rib postni o'zi yozadi
+              </p>
               <div className="mt-1.5">
                 {form.image_url ? (
                   <div className="rounded-xl border border-green/15 bg-soft p-3">
-                    <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-contain"
-                      onLoad={(e) => {
-                        const el = e.currentTarget
-                        const r = el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0
-                        // Mos kelmasa DARHOL to'g'irlaymiz — foydalanuvchidan
-                        // boshqa rasm so'ramaymiz.
-                        if (r && !isIgRatioOk(r)) autoFit(el.src)
-                      }}
-                      onError={() => setFitErr("")} />
+                    {isVideo ? (
+                      // Videoga o'lcham to'g'irlash qo'llanmaydi — canvas
+                      // orqali o'tkazish videoni buzadi.
+                      <video src={form.image_url} controls className="h-32 w-full rounded-lg bg-black object-contain" />
+                    ) : (
+                      <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-contain"
+                        onLoad={(e) => {
+                          const el = e.currentTarget
+                          const r = el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0
+                          // Mos kelmasa DARHOL to'g'irlaymiz — foydalanuvchidan
+                          // boshqa rasm so'ramaymiz.
+                          if (r && !isIgRatioOk(r)) autoFit(el.src)
+                        }}
+                        onError={() => setFitErr("")} />
+                    )}
                     {fitting && (
                       <p className="mt-2 flex items-center gap-2 rounded-lg bg-green/10 px-3 py-2 text-xs font-semibold text-green">
                         <Icon d={I.refresh} className="h-3.5 w-3.5 animate-spin" /> Rasm o'lchami moslanmoqda…
                       </p>
                     )}
+                    {describing && (
+                      <p className="mt-2 flex items-center gap-2 rounded-lg bg-green/10 px-3 py-2 text-xs font-semibold text-green">
+                        <Icon d={I.refresh} className="h-3.5 w-3.5 animate-spin" /> AI {isVideo ? "videoni" : "rasmni"} ko'ryapti…
+                      </p>
+                    )}
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
-                    {/* AI rasmning O'ZINI ko'radi va shunga qarab yozadi —
-                        mavzu yozib o'tirish shart emas. */}
+                    {/* Avtomatik yozish yuklashdan keyin o'zi ishga tushadi.
+                        Bu tugma qayta yozdirish uchun. */}
                     <button type="button" onClick={describe} disabled={describing || fitting}
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">
-                      <Icon d={I.eye} className="h-3.5 w-3.5" />
-                      {describing ? "Rasm o'qilmoqda…" : "Rasmni ko'rib AI yozsin"}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
+                      <Icon d={I.refresh} className="h-3.5 w-3.5" /> Qaytadan yozdirish
                     </button>
                     <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
-                  <MediaUpload accept="image/*"
+                  <MediaUpload accept="image/*,video/*"
                     transform={fitForInstagram}
-                    onUpload={(r) => setForm((f) => ({ ...f, image_url: r.signedUrl }))} />
+                    onUpload={(r) => {
+                      setForm((f) => ({ ...f, image_url: r.signedUrl }))
+                      // Yuklangan zahoti AI o'zi yozadi — tugma bosish shart emas
+                      describeUrl(r.signedUrl)
+                    }} />
                 )}
               </div>
             </div>

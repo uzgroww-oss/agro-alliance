@@ -60,16 +60,22 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
  *
  * 4 MB dan katta rasm rad etiladi — inline_data cheklovi.
  */
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+// Gemini so'rovi butunligicha ~20 MB dan oshmasligi kerak. base64
+// hajmni ~33% oshiradi, shuning uchun xom fayl chegarasi 14 MB.
+const MAX_MEDIA_BYTES = 14 * 1024 * 1024
 
 async function fetchInlineImage(url: string): Promise<InlineImage> {
   const resp = await fetch(url)
-  if (!resp.ok) throw new Error("Rasmni yuklab bo'lmadi")
+  if (!resp.ok) throw new Error("Faylni yuklab bo'lmadi")
   const type = resp.headers.get("content-type") || "image/jpeg"
-  if (!type.startsWith("image/")) throw new Error("Bu fayl rasm emas")
+  const isImage = type.startsWith("image/")
+  const isVideo = type.startsWith("video/")
+  if (!isImage && !isVideo) throw new Error("Bu fayl rasm ham, video ham emas")
 
   const buf = new Uint8Array(await resp.arrayBuffer())
-  if (buf.byteLength > MAX_IMAGE_BYTES) throw new Error("Rasm juda katta (4 MB gacha)")
+  if (buf.byteLength > MAX_MEDIA_BYTES) {
+    throw new Error(isVideo ? "Video juda katta (14 MB gacha)" : "Rasm juda katta (14 MB gacha)")
+  }
 
   // btoa katta massivda stek to'lib ketadi — bo'laklab o'giramiz
   let bin = ""
@@ -80,8 +86,149 @@ async function fetchInlineImage(url: string): Promise<InlineImage> {
   return { mimeType: type, data: btoa(bin) }
 }
 
+/* ================= TARMOQLARDAN HAQIQIY MA'LUMOT ================= */
+/**
+ * Tahlil haqiqiy raqamlarga asoslanishi kerak. Ilgari AI faqat
+ * platformadagi blogerlar statistikasini ko'rardi — ijtimoiy tarmoq
+ * hisoblarining o'zi haqida hech narsa bilmasdi va tavsiyalari umumiy
+ * chiqardi.
+ *
+ * Har bir tarmoq alohida yiqilishi mumkin (token eskirgan, ruxsat yo'q).
+ * Shuning uchun har biri o'z try ichida — bittasi yiqilsa qolganlari
+ * baribir keladi.
+ */
+export type NetworkStat = {
+  platform: string
+  name: string
+  followers: number | null
+  posts: number | null
+  avgLikes: number | null
+  avgComments: number | null
+  recent: { text: string; likes: number | null; comments: number | null; date: string }[]
+  error?: string
+}
+
+async function conf(platform: string, key: string, envName: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("smm_connections").select("config").eq("platform", platform).maybeSingle()
+  const v = data?.config?.[key]
+  if (v && String(v).trim()) return String(v).trim()
+  return Deno.env.get(envName) || null
+}
+
+async function gatherInstagram(): Promise<NetworkStat | null> {
+  const { data: tok } = await supabaseAdmin
+    .from("instagram_tokens")
+    .select("access_token, instagram_account_id, instagram_username")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle()
+  const id = tok?.instagram_account_id
+  const token = tok?.access_token
+  if (!id || !token) return null
+
+  const base: NetworkStat = {
+    platform: "instagram", name: `@${tok.instagram_username || "?"}`,
+    followers: null, posts: null, avgLikes: null, avgComments: null, recent: [],
+  }
+  try {
+    const p = await fetch(`https://graph.facebook.com/v22.0/${id}?fields=username,followers_count,media_count&access_token=${token}`)
+    const pd = await p.json().catch(() => ({}))
+    if (pd.error) return { ...base, error: pd.error.message }
+    base.name = `@${pd.username || tok.instagram_username || "?"}`
+    base.followers = pd.followers_count ?? null
+    base.posts = pd.media_count ?? null
+
+    const m = await fetch(`https://graph.facebook.com/v22.0/${id}/media?fields=caption,like_count,comments_count,timestamp,media_type&limit=12&access_token=${token}`)
+    const md = await m.json().catch(() => ({}))
+    const items = (md.data || []) as { caption?: string; like_count?: number; comments_count?: number; timestamp?: string; media_type?: string }[]
+    base.recent = items.slice(0, 8).map((it) => ({
+      text: (it.caption || "(matnsiz)").slice(0, 80),
+      likes: it.like_count ?? null,
+      comments: it.comments_count ?? null,
+      date: (it.timestamp || "").slice(0, 10),
+    }))
+    const withLikes = items.filter((i) => typeof i.like_count === "number")
+    if (withLikes.length) {
+      base.avgLikes = Math.round(withLikes.reduce((a, i) => a + (i.like_count || 0), 0) / withLikes.length)
+      base.avgComments = Math.round(withLikes.reduce((a, i) => a + (i.comments_count || 0), 0) / withLikes.length)
+    }
+    return base
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+}
+
+async function gatherTelegram(): Promise<NetworkStat | null> {
+  const token = Deno.env.get("TELEGRAM_BOT_TOKEN")
+  const chatId = await conf("telegram", "chat_id", "TELEGRAM_CHAT_ID")
+  if (!token || !chatId) return null
+
+  const base: NetworkStat = {
+    platform: "telegram", name: String(chatId),
+    followers: null, posts: null, avgLikes: null, avgComments: null, recent: [],
+  }
+  try {
+    const c = await fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${encodeURIComponent(chatId)}`)
+    const cd = await c.json().catch(() => ({}))
+    if (!cd.ok) return { ...base, error: cd.description || "Kanalga kirib bo'lmadi" }
+    base.name = cd.result?.title || String(chatId)
+
+    const n = await fetch(`https://api.telegram.org/bot${token}/getChatMemberCount?chat_id=${encodeURIComponent(chatId)}`)
+    const nd = await n.json().catch(() => ({}))
+    if (nd.ok) base.followers = nd.result ?? null
+    // Telegram Bot API kanaldagi eski postlarni o'qishga ruxsat bermaydi —
+    // shuning uchun bu yerda post ro'yxati bo'lmaydi.
+    return base
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+}
+
+async function gatherFacebook(): Promise<NetworkStat | null> {
+  const pageId = await conf("facebook", "page_id", "FACEBOOK_PAGE_ID")
+  const token = await conf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
+  if (!pageId || !token) return null
+
+  const base: NetworkStat = {
+    platform: "facebook", name: pageId,
+    followers: null, posts: null, avgLikes: null, avgComments: null, recent: [],
+  }
+  try {
+    const p = await fetch(`https://graph.facebook.com/v22.0/${pageId}?fields=name,fan_count,followers_count&access_token=${token}`)
+    const pd = await p.json().catch(() => ({}))
+    if (pd.error) return { ...base, error: pd.error.message }
+    base.name = pd.name || pageId
+    base.followers = pd.followers_count ?? pd.fan_count ?? null
+
+    const f = await fetch(`https://graph.facebook.com/v22.0/${pageId}/posts?fields=message,created_time,likes.summary(true),comments.summary(true)&limit=10&access_token=${token}`)
+    const fd = await f.json().catch(() => ({}))
+    const items = (fd.data || []) as Record<string, any>[]
+    base.posts = items.length || null
+    base.recent = items.slice(0, 8).map((it) => ({
+      text: String(it.message || "(matnsiz)").slice(0, 80),
+      likes: it.likes?.summary?.total_count ?? null,
+      comments: it.comments?.summary?.total_count ?? null,
+      date: String(it.created_time || "").slice(0, 10),
+    }))
+    const l = base.recent.filter((r) => typeof r.likes === "number")
+    if (l.length) {
+      base.avgLikes = Math.round(l.reduce((a, r) => a + (r.likes || 0), 0) / l.length)
+      base.avgComments = Math.round(l.reduce((a, r) => a + (r.comments || 0), 0) / l.length)
+    }
+    return base
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+}
+
+async function gatherNetworks(): Promise<NetworkStat[]> {
+  const all = await Promise.all([gatherInstagram(), gatherTelegram(), gatherFacebook()])
+  return all.filter((x): x is NetworkStat => x !== null)
+}
+
 type Analysis = {
   holat: string
+  kuchli: string[]
+  zaif: string[]
   tavsiyalar: { mavzu: string; sabab: string; platforma: string; format: string }[]
   eng_yaxshi_vaqt: string
 }
@@ -125,25 +272,24 @@ Deno.serve(async (req) => {
             .join("\n")
         : "(hali post yo'q)"
 
-      // Qaysi tarmoqlar ULANGAN — tavsiya faqat shularga berilsin.
-      // Ilgari AI ulanmagan tarmoqqa ham tavsiya berardi va u
-      // bajarib bo'lmas maslahat bo'lib qolardi.
-      const { data: conns } = await supabaseAdmin
-        .from("smm_connections")
-        .select("platform, display_name, config")
-      const { data: igTok } = await supabaseAdmin
-        .from("instagram_tokens")
-        .select("instagram_username")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const live: string[] = []
-      for (const c of (conns || []) as { platform: string; display_name: string | null; config: Record<string, unknown> }[]) {
-        if (Object.keys(c.config || {}).length) live.push(`${c.platform}${c.display_name ? ` (${c.display_name})` : ""}`)
-      }
-      if (igTok?.instagram_username) live.push(`instagram (@${igTok.instagram_username})`)
-      const connLine = live.length ? live.join(", ") : "(hech qaysi tarmoq ulanmagan)"
+      // HAQIQIY tarmoq raqamlari — obunachi soni, o'rtacha layk/izoh,
+      // oxirgi postlar. Tavsiya shu raqamlarga asoslanadi.
+      const nets = await gatherNetworks()
+      const connLine = nets.length
+        ? nets.map((n) => {
+            if (n.error) return `${n.platform} (${n.name}) — XATO: ${n.error}`
+            const parts = [
+              n.followers !== null ? `${n.followers} obunachi` : null,
+              n.posts !== null ? `${n.posts} post` : null,
+              n.avgLikes !== null ? `o'rtacha ${n.avgLikes} layk` : null,
+              n.avgComments !== null ? `${n.avgComments} izoh` : null,
+            ].filter(Boolean)
+            const recent = n.recent.length
+              ? `\n   Oxirgi postlar: ${n.recent.map((r) => `"${r.text}" (${r.likes ?? "?"} layk)`).join("; ")}`
+              : ""
+            return `${n.platform} (${n.name}): ${parts.join(", ") || "ma'lumot yo'q"}${recent}`
+          }).join("\n")
+        : "(hech qaysi tarmoq ulanmagan)"
 
       // Nima ishlagan, nima yiqilgan — tavsiya shuni hisobga olsin
       const { data: outcomes } = await supabaseAdmin
@@ -158,7 +304,8 @@ Deno.serve(async (req) => {
 
 PLATFORMA HOLATI: ${statLine}
 
-ULANGAN TARMOQLAR: ${connLine}
+ULANGAN TARMOQLAR VA ULARNING HOLATI:
+${connLine}
 JOYLASH NATIJALARI (oxirgi 20 ta): ${okCount} muvaffaqiyatli, ${failCount} xato
 
 OXIRGI POSTLAR:
@@ -169,9 +316,14 @@ MUHIM: tavsiyalarni FAQAT ulangan tarmoqlar uchun ber. Ulanmagan tarmoqni tavsiy
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
 Til — o'zbek tili.
 
+Tahlilni yuqoridagi RAQAMLARGA asosla. Umumiy gap yozma — qaysi son
+nimani ko'rsatayotganini ayt.
+
 FAQAT JSON qaytar, boshqa matn yozma:
 {
-  "holat": "hozirgi holatning 1-2 jumlalik tahlili",
+  "holat": "raqamlarga asoslangan 2-3 jumlalik tahlil",
+  "kuchli": ["nima yaxshi ishlayapti — aniq raqam bilan"],
+  "zaif": ["nima yomon — aniq raqam bilan"],
   "tavsiyalar": [
     { "mavzu": "aniq mavzu", "sabab": "nega aynan shu", "platforma": "telegram|instagram|facebook", "format": "post|video|karusel" }
   ],
@@ -183,7 +335,7 @@ Kamida 4 ta tavsiya ber.`
         const o = v as Analysis
         return Boolean(o && typeof o === "object" && Array.isArray(o.tavsiyalar) && o.tavsiyalar.length > 0)
       })
-      return jsonResponse({ analysis: result })
+      return jsonResponse({ analysis: result, networks: nets })
     }
 
     /* ---------------- KONTENT YARATISH ---------------- */
@@ -232,19 +384,21 @@ FAQAT JSON qaytar, boshqa matn yozma:
     if (action === "describe") {
       const imageUrl = String(body.image_url || "").trim()
       const platform = String(body.platform || "telegram").trim()
-      if (!imageUrl) return errorResponse("Avval rasm yuklang", 400)
+      if (!imageUrl) return errorResponse("Avval rasm yoki video yuklang", 400)
 
       let image: InlineImage
       try {
         image = await fetchInlineImage(imageUrl)
       } catch (e) {
-        return errorResponse(e instanceof Error ? e.message : "Rasmni o'qib bo'lmadi", 400)
+        return errorResponse(e instanceof Error ? e.message : "Faylni o'qib bo'lmadi", 400)
       }
+      const isVideo = image.mimeType.startsWith("video/")
+      const what = isVideo ? "videoni" : "rasmni"
 
       const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
 
-Yuqoridagi rasmni diqqat bilan ko'r. Aynan shu rasmga mos post yoz.
-Rasmda nima borligini aniq nomlab o't — umumiy gaplar yozma.
+Yuqoridagi ${what} diqqat bilan ko'r. Aynan shunga mos post yoz.
+${isVideo ? "Videoda nima sodir bo'layotganini" : "Rasmda nima borligini"} aniq nomlab o't — umumiy gaplar yozma.
 
 PLATFORMA: ${platform}
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
@@ -259,11 +413,11 @@ FAQAT JSON qaytar, boshqa matn yozma:
 
       try {
         const result = await geminiJson<Generated>(prompt, { retries: 1, maxTokens: 2048, image })
-        if (!result?.matn?.trim()) return errorResponse("AI rasmni tavsiflay olmadi", 500)
+        if (!result?.matn?.trim()) return errorResponse(`AI ${what} tavsiflay olmadi`, 500)
         return jsonResponse({ generated: result })
       } catch (e) {
         const m = e instanceof Error ? e.message : "Xatolik"
-        return errorResponse(`Rasmni o'qish uchun Gemini kerak — ${m}`, 500)
+        return errorResponse(`Faylni o'qish uchun Gemini kerak — ${m}`, 500)
       }
     }
 
