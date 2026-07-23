@@ -45,6 +45,8 @@ const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
   pending_approval: { label: "Saqlangan", cls: "bg-green/10 text-green", dot: "bg-green" },
   published: { label: "Joylandi", cls: "bg-blue-50 text-blue-600", dot: "bg-blue-500" },
   failed: { label: "Xato", cls: "bg-red-50 text-red-600", dot: "bg-red-500" },
+  // Tarmoqdan qo'lda o'chirilgan — panel buni tekshiruvda aniqlaydi
+  removed: { label: "O'chirilgan", cls: "bg-orange-50 text-orange-700", dot: "bg-orange-500" },
 }
 
 /* ---------------- Brend belgilari ---------------- */
@@ -113,6 +115,8 @@ export default function SmmPanel() {
      Mos kelmasa foydalanuvchidan boshqa rasm so'ramaymiz — o'zimiz
      to'g'irlab qayta yuklaymiz. */
   const [fitting, setFitting] = useState(false)
+  const [describing, runDescribe] = useBusy()
+  const [syncing, runSync] = useBusy()
   const [fitErr, setFitErr] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
@@ -297,6 +301,37 @@ export default function SmmPanel() {
     }
   }
 
+  /* Rasmni AI ning o'zi ko'rib post yozadi */
+  const describe = () => runDescribe(async () => {
+    if (!form.image_url) { setAiErr("Avval rasm yuklang"); return }
+    setAiErr("")
+    try {
+      const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
+        "/smm/ai?action=describe",
+        { method: "POST", body: JSON.stringify({ image_url: form.image_url, platform: effOrigin }) },
+      )
+      setForm((f) => ({
+        ...f,
+        title: d.generated.sarlavha || f.title,
+        content: d.generated.matn || f.content,
+        hashtags: (d.generated.hashtaglar || []).join(" ") || f.hashtags,
+      }))
+      setAiMade(true)
+    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI rasmni o'qiy olmadi") }
+  })
+
+  /* Joylangan postlar tarmoqda hali turibdimi */
+  const sync = () => runSync(async () => {
+    setMsg("")
+    try {
+      const r = await api<{ checked: number; removed: number }>("/smm/posts?action=sync", { method: "POST", body: "{}" })
+      setMsg(r.removed
+        ? `⚠️ ${r.removed} ta post tarmoqdan o'chirilgan`
+        : `✅ Tekshirildi (${r.checked} ta) — hammasi joyida`)
+      load()
+    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+  })
+
   const save = () => runSave(async () => {
     setMsg("")
     if (!form.content.trim()) { setMsg("❌ Post matni bo'sh"); return }
@@ -340,10 +375,33 @@ export default function SmmPanel() {
     } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
   })
 
-  const remove = (id: string) => runAct(async () => {
-    if (!window.confirm("Post o'chirilsinmi?")) return
-    await api(`/smm/posts/${id}`, { method: "DELETE" }).catch(() => {})
-    if (editingId === id) clearForm()
+  /**
+   * O'chirish. published bo'lsa tarmoqlardan ham o'chirishni taklif
+   * qilamiz — aks holda panelda yo'q, tarmoqda bor holat qoladi.
+   */
+  const remove = (p: SmmPost) => runAct(async () => {
+    const wasPublished = p.status === "published" || p.status === "removed"
+    let scope = ""
+    if (wasPublished) {
+      const alsoRemote = window.confirm(
+        "Tarmoqlardan ham o'chirilsinmi?\n\nOK — tarmoqlardan ham o'chadi\nBekor qilish — faqat shu ro'yxatdan o'chadi",
+      )
+      if (alsoRemote) scope = "?scope=all"
+    } else if (!window.confirm("Post o'chirilsinmi?")) {
+      return
+    }
+
+    try {
+      const r = await api<{ remote?: { platform: string; success: boolean; error?: string }[] }>(
+        `/smm/posts/${p.id}${scope}`, { method: "DELETE" })
+      const bad = (r.remote || []).filter((x) => !x.success)
+      if (bad.length) {
+        setMsg(`⚠️ ${bad.map((b) => `${b.platform}: ${b.error}`).join("; ")}`)
+      } else if (scope) {
+        setMsg("✅ Tarmoqlardan ham o'chirildi")
+      }
+    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+    if (editingId === p.id) clearForm()
     load()
   })
 
@@ -662,6 +720,13 @@ export default function SmmPanel() {
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
+                    {/* AI rasmning O'ZINI ko'radi va shunga qarab yozadi —
+                        mavzu yozib o'tirish shart emas. */}
+                    <button type="button" onClick={describe} disabled={describing || fitting}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">
+                      <Icon d={I.eye} className="h-3.5 w-3.5" />
+                      {describing ? "Rasm o'qilmoqda…" : "Rasmni ko'rib AI yozsin"}
+                    </button>
                     <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
@@ -727,6 +792,13 @@ export default function SmmPanel() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display font-bold">Saqlangan postlar</h3>
           <div className="flex flex-wrap gap-2">
+            {/* Tarmoqdan qo'lda o'chirilgan postni panel o'zi bilmaydi —
+                shu tugma tekshiradi va holatni yangilaydi. */}
+            <button onClick={sync} disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-xl border border-green/20 px-3 py-2 text-sm font-bold text-muted transition-colors hover:border-green/40 hover:text-green disabled:opacity-50">
+              <Icon d={I.refresh} className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Tekshirilmoqda…" : "Holatni tekshirish"}
+            </button>
             <span className="relative">
               <Icon d={I.search} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidirish…"
@@ -738,6 +810,7 @@ export default function SmmPanel() {
               <option value="pending_approval">Saqlangan</option>
               <option value="published">Joylandi</option>
               <option value="failed">Xato</option>
+              <option value="removed">O'chirilgan</option>
               <option value="draft">Qoralama</option>
             </select>
           </div>
@@ -803,7 +876,7 @@ export default function SmmPanel() {
                             <button onClick={() => publish(p.id)} disabled={acting || p.status === "published"} title="Joylash" className={iconBtn}>
                               <Icon d={I.send} className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => remove(p.id)} disabled={acting} title="O'chirish"
+                            <button onClick={() => remove(p)} disabled={acting} title="O'chirish"
                               className="grid h-8 w-8 place-items-center rounded-lg border border-red-100 text-red-400 transition-colors hover:bg-red-50 disabled:opacity-40">
                               <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
                             </button>

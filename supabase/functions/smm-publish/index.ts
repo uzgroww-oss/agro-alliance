@@ -167,6 +167,90 @@ function notReady(platform: string): PublishResult {
   return { platform, success: false, error: why[platform] || "Bu tarmoq hali ulanmagan" }
 }
 
+/* ---------------- Tarmoqda hali turibdimi? ---------------- */
+/**
+ * Joylangan post tarmoqdan qo'lda o'chirilgan bo'lishi mumkin.
+ * Panel buni bilmasa "Joylandi" deb ko'rsatib turaveradi.
+ *
+ * Telegram tekshirilmaydi: Bot API da xabar mavjudligini so'raydigan
+ * usul yo'q. Shuning uchun uni "noma'lum" deb qoldiramiz — yolg'on
+ * "o'chirilgan" ko'rsatgandan ko'ra ma'lumot bermagan yaxshiroq.
+ */
+async function stillExists(platform: string, externalId: string): Promise<boolean | null> {
+  if (!externalId) return null
+  try {
+    if (platform === "instagram") {
+      const { data: igTok } = await supabaseAdmin
+        .from("instagram_tokens")
+        .select("access_token")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const token = igTok?.access_token || (await getConf("instagram", "access_token", "INSTAGRAM_ACCESS_TOKEN"))
+      if (!token) return null
+      const r = await fetch(`https://graph.facebook.com/v22.0/${externalId}?fields=id&access_token=${token}`)
+      const d = await r.json().catch(() => ({}))
+      if (d.id) return true
+      // Kod 100 / "does not exist" — o'chirilgan. Boshqa xatolar (token,
+      // limit) o'chirilganini bildirmaydi.
+      const msg = String(d.error?.message || "").toLowerCase()
+      if (d.error?.code === 100 || msg.includes("does not exist") || msg.includes("unsupported get")) return false
+      return null
+    }
+    if (platform === "facebook") {
+      const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
+      if (!token) return null
+      const r = await fetch(`https://graph.facebook.com/v22.0/${externalId}?fields=id&access_token=${token}`)
+      const d = await r.json().catch(() => ({}))
+      if (d.id) return true
+      const msg = String(d.error?.message || "").toLowerCase()
+      if (d.error?.code === 100 || msg.includes("does not exist")) return false
+      return null
+    }
+  } catch {
+    return null // tarmoq xatosi — hukm chiqarmaymiz
+  }
+  return null
+}
+
+/* ---------------- Tarmoqdan o'chirish ---------------- */
+/**
+ * Instagram Graph API media o'chirishni QO'LLAB-QUVVATLAMAYDI — DELETE
+ * uchun endpoint yo'q. Buni jimgina yutib yubormay, ochiq aytamiz.
+ */
+async function removeRemote(platform: string, externalId: string): Promise<PublishResult> {
+  if (!externalId) return { platform, success: false, error: "Tarmoqdagi id saqlanmagan" }
+  try {
+    if (platform === "telegram") {
+      const token = Deno.env.get("TELEGRAM_BOT_TOKEN")
+      const chatId = await getConf("telegram", "chat_id", "TELEGRAM_CHAT_ID")
+      if (!token || !chatId) return { platform, success: false, error: "Telegram ulanmagan" }
+      const r = await fetch(`https://api.telegram.org/bot${token}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, message_id: Number(externalId) }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (d.ok) return { platform, success: true }
+      return { platform, success: false, error: d.description || "O'chirilmadi" }
+    }
+    if (platform === "facebook") {
+      const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
+      if (!token) return { platform, success: false, error: "Facebook ulanmagan" }
+      const r = await fetch(`https://graph.facebook.com/v22.0/${externalId}?access_token=${token}`, { method: "DELETE" })
+      const d = await r.json().catch(() => ({}))
+      if (d.success || r.ok) return { platform, success: true }
+      return { platform, success: false, error: d.error?.message || "O'chirilmadi" }
+    }
+    if (platform === "instagram") {
+      return { platform, success: false, error: "Instagram API post o'chirishni qo'llamaydi — ilovadan o'chiring" }
+    }
+  } catch (e) {
+    return { platform, success: false, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+  return { platform, success: false, error: "Bu tarmoqdan o'chirib bo'lmaydi" }
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
@@ -304,6 +388,44 @@ Deno.serve(async (req) => {
     }
 
     /* ---------- TASDIQLASH VA JOYLASH ---------- */
+    /* ---------- HOLATNI TEKSHIRISH ---------- */
+    // Joylangan postlar tarmoqda hali turibdimi? Qo'lda o'chirilgan
+    // bo'lsa panel buni bilmasdi va "Joylandi" deb ko'rsatib turardi.
+    if (req.method === "POST" && action === "sync") {
+      const { data: pubs } = await supabaseAdmin
+        .from("smm_posts")
+        .select("id, status")
+        .eq("status", "published")
+        .is("deleted_at", null)
+        .limit(50)
+
+      let removed = 0
+      let checked = 0
+      for (const post of (pubs || []) as { id: string }[]) {
+        const { data: res } = await supabaseAdmin
+          .from("smm_post_results")
+          .select("platform, external_id")
+          .eq("post_id", post.id)
+          .eq("success", true)
+
+        const verdicts: (boolean | null)[] = []
+        for (const r of (res || []) as { platform: string; external_id: string | null }[]) {
+          verdicts.push(await stillExists(r.platform, r.external_id || ""))
+        }
+        const known = verdicts.filter((v) => v !== null)
+        if (!known.length) continue // tekshirib bo'lmadi — tegmaymiz
+        checked++
+        // Tekshirilganlarning HAMMASI yo'q bo'lsa — o'chirilgan deb belgilaymiz
+        if (known.every((v) => v === false)) {
+          await supabaseAdmin.from("smm_posts")
+            .update({ status: "removed", updated_at: new Date().toISOString() })
+            .eq("id", post.id)
+          removed++
+        }
+      }
+      return jsonResponse({ success: true, checked, removed })
+    }
+
     if (req.method === "POST" && action === "publish") {
       if (!id) return errorResponse("id kerak", 400)
 
@@ -397,14 +519,29 @@ Deno.serve(async (req) => {
     }
 
     /* ---------- O'chirish ---------- */
+    // ?scope=all — tarmoqlardan ham o'chiradi. Standart holatda faqat
+    // paneldan yo'qoladi, tarmoqdagi post joyida qoladi.
     if (req.method === "DELETE") {
       if (!id) return errorResponse("id kerak", 400)
+
+      let remote: PublishResult[] = []
+      if (url.searchParams.get("scope") === "all") {
+        const { data: res } = await supabaseAdmin
+          .from("smm_post_results")
+          .select("platform, external_id")
+          .eq("post_id", id)
+          .eq("success", true)
+        for (const r of (res || []) as { platform: string; external_id: string | null }[]) {
+          remote.push(await removeRemote(r.platform, r.external_id || ""))
+        }
+      }
+
       const { error } = await supabaseAdmin
         .from("smm_posts")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", id)
       if (error) return errorResponse(error.message, 500)
-      return jsonResponse({ success: true })
+      return jsonResponse({ success: true, remote })
     }
 
     return errorResponse("Method not allowed", 405)

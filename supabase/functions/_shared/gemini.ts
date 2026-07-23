@@ -75,9 +75,18 @@ async function fetchWithAuthFallback(
   return last!;
 }
 
+/**
+ * Rasm bilan so'rov uchun: {mimeType, data} — data base64, prefikssiz.
+ * Gemini buni inline_data sifatida qabul qiladi.
+ */
+export type InlineImage = { mimeType: string; data: string };
+
 export async function geminiChat(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
+  opts?: {
+    model?: string; temperature?: number; maxTokens?: number; retries?: number;
+    image?: InlineImage;
+  },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? "gemini-2.0-flash";
@@ -91,8 +100,16 @@ export async function geminiChat(
     }
 
     const url = `${GEMINI_BASE}/models/${model}:generateContent`;
+    // Rasm berilsa u matndan OLDIN keladi — model avval rasmni ko'rib,
+    // keyin ko'rsatmani o'qiydi. Aks tartibda tavsif yuzaki chiqadi.
+    const parts: unknown[] = [];
+    if (opts?.image) {
+      parts.push({ inline_data: { mime_type: opts.image.mimeType, data: opts.image.data } });
+    }
+    parts.push({ text: prompt });
+
     const body = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: {
         temperature: opts?.temperature ?? 0.7,
         maxOutputTokens: opts?.maxTokens ?? 2048,
@@ -135,7 +152,7 @@ export async function geminiChat(
  */
 export async function geminiJson<T = unknown>(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; image?: InlineImage },
 ): Promise<T> {
   const { text } = await geminiChat(prompt, opts);
   // Qavslar muvozanati bo'yicha ajratamiz — AI JSON atrofiga matn

@@ -3,7 +3,7 @@ import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { getDynamicStats } from "../_shared/stats.ts"
-import { geminiJson } from "../_shared/gemini.ts"
+import { geminiJson, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson } from "../_shared/groq.ts"
 
 /**
@@ -51,6 +51,35 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
   throw new Error(errs.join(" | "))
 }
 
+/**
+ * Rasmni yuklab olib base64 ga o'giradi.
+ *
+ * Nega serverda: rasm Storage'da turadi va Gemini unga URL orqali
+ * murojaat qila olmaydi (imzolangan manzil, tashqi kirish yopiq).
+ * Shuning uchun baytlarni o'zimiz olib, so'rov ichida yuboramiz.
+ *
+ * 4 MB dan katta rasm rad etiladi — inline_data cheklovi.
+ */
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+
+async function fetchInlineImage(url: string): Promise<InlineImage> {
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error("Rasmni yuklab bo'lmadi")
+  const type = resp.headers.get("content-type") || "image/jpeg"
+  if (!type.startsWith("image/")) throw new Error("Bu fayl rasm emas")
+
+  const buf = new Uint8Array(await resp.arrayBuffer())
+  if (buf.byteLength > MAX_IMAGE_BYTES) throw new Error("Rasm juda katta (4 MB gacha)")
+
+  // btoa katta massivda stek to'lib ketadi — bo'laklab o'giramiz
+  let bin = ""
+  const CHUNK = 8192
+  for (let i = 0; i < buf.length; i += CHUNK) {
+    bin += String.fromCharCode(...buf.subarray(i, i + CHUNK))
+  }
+  return { mimeType: type, data: btoa(bin) }
+}
+
 type Analysis = {
   holat: string
   tavsiyalar: { mavzu: string; sabab: string; platforma: string; format: string }[]
@@ -85,25 +114,58 @@ Deno.serve(async (req) => {
 
       const { data: recent } = await supabaseAdmin
         .from("smm_posts")
-        .select("title, content, created_at")
+        .select("title, content, status, created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(10)
 
       const recentLine = (recent || []).length
-        ? (recent as { title: string | null; content: string }[])
-            .map((p, i) => `${i + 1}. ${p.title || p.content.slice(0, 60)}`)
+        ? (recent as { title: string | null; content: string; status?: string }[])
+            .map((p, i) => `${i + 1}. [${p.status || "?"}] ${p.title || p.content.slice(0, 60)}`)
             .join("\n")
         : "(hali post yo'q)"
+
+      // Qaysi tarmoqlar ULANGAN — tavsiya faqat shularga berilsin.
+      // Ilgari AI ulanmagan tarmoqqa ham tavsiya berardi va u
+      // bajarib bo'lmas maslahat bo'lib qolardi.
+      const { data: conns } = await supabaseAdmin
+        .from("smm_connections")
+        .select("platform, display_name, config")
+      const { data: igTok } = await supabaseAdmin
+        .from("instagram_tokens")
+        .select("instagram_username")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const live: string[] = []
+      for (const c of (conns || []) as { platform: string; display_name: string | null; config: Record<string, unknown> }[]) {
+        if (Object.keys(c.config || {}).length) live.push(`${c.platform}${c.display_name ? ` (${c.display_name})` : ""}`)
+      }
+      if (igTok?.instagram_username) live.push(`instagram (@${igTok.instagram_username})`)
+      const connLine = live.length ? live.join(", ") : "(hech qaysi tarmoq ulanmagan)"
+
+      // Nima ishlagan, nima yiqilgan — tavsiya shuni hisobga olsin
+      const { data: outcomes } = await supabaseAdmin
+        .from("smm_post_results")
+        .select("platform, success")
+        .order("created_at", { ascending: false })
+        .limit(20)
+      const okCount = (outcomes || []).filter((r) => r.success).length
+      const failCount = (outcomes || []).length - okCount
 
       const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasining SMM strategisisan.
 
 PLATFORMA HOLATI: ${statLine}
 
+ULANGAN TARMOQLAR: ${connLine}
+JOYLASH NATIJALARI (oxirgi 20 ta): ${okCount} muvaffaqiyatli, ${failCount} xato
+
 OXIRGI POSTLAR:
 ${recentLine}
 
 Vazifa: keyingi 1 hafta uchun ijtimoiy tarmoq kontenti bo'yicha tavsiya ber.
+MUHIM: tavsiyalarni FAQAT ulangan tarmoqlar uchun ber. Ulanmagan tarmoqni tavsiya qilma.
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
 Til — o'zbek tili.
 
@@ -159,6 +221,50 @@ FAQAT JSON qaytar, boshqa matn yozma:
         return Boolean(o && typeof o === "object" && typeof o.matn === "string" && o.matn.trim())
       })
       return jsonResponse({ generated: result })
+    }
+
+    /* ---------------- RASMDAN KONTENT ---------------- */
+    // Rasmni AI ning O'ZI ko'radi va shunga qarab post yozadi.
+    //
+    // FAQAT GEMINI: Groq'da ishlatayotgan llama-3.1-8b-instant rasmni
+    // ko'ra olmaydi. Shuning uchun bu yerda zaxira provayder yo'q va
+    // Gemini kaliti ishlamasa buni ochiq aytamiz.
+    if (action === "describe") {
+      const imageUrl = String(body.image_url || "").trim()
+      const platform = String(body.platform || "telegram").trim()
+      if (!imageUrl) return errorResponse("Avval rasm yuklang", 400)
+
+      let image: InlineImage
+      try {
+        image = await fetchInlineImage(imageUrl)
+      } catch (e) {
+        return errorResponse(e instanceof Error ? e.message : "Rasmni o'qib bo'lmadi", 400)
+      }
+
+      const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
+
+Yuqoridagi rasmni diqqat bilan ko'r. Aynan shu rasmga mos post yoz.
+Rasmda nima borligini aniq nomlab o't — umumiy gaplar yozma.
+
+PLATFORMA: ${platform}
+Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
+Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
+
+FAQAT JSON qaytar, boshqa matn yozma:
+{
+  "sarlavha": "qisqa sarlavha",
+  "matn": "postning to'liq matni",
+  "hashtaglar": ["#agro", "#fermer"]
+}`
+
+      try {
+        const result = await geminiJson<Generated>(prompt, { retries: 1, maxTokens: 2048, image })
+        if (!result?.matn?.trim()) return errorResponse("AI rasmni tavsiflay olmadi", 500)
+        return jsonResponse({ generated: result })
+      } catch (e) {
+        const m = e instanceof Error ? e.message : "Xatolik"
+        return errorResponse(`Rasmni o'qish uchun Gemini kerak — ${m}`, 500)
+      }
     }
 
     return errorResponse("Noma'lum amal", 400)
