@@ -508,6 +508,12 @@ function resolveAdminUrl(path: string, method: string): string {
 }
 
 const REQUEST_TIMEOUT = 15_000
+/**
+ * AI so'rovlari sekin (model javobi + zaxira provayder) — 15s yetmaydi va
+ * "signal is aborted without reason" xatosi chiqadi. Ularga uzunroq vaqt.
+ */
+const SLOW_TIMEOUT = 90_000
+const SLOW_PATHS = ["/smm/ai"]
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
@@ -538,7 +544,18 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   if (token) h.set("Authorization", `Bearer ${token}`)
   h.set("apikey", SUPABASE_ANON_KEY)
 
-  const res = await fetchWithTimeout(url, { ...opts, headers: h })
+  const slow = SLOW_PATHS.some((p) => path.startsWith(p))
+  let res: Response
+  try {
+    res = await fetchWithTimeout(url, { ...opts, headers: h }, slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT)
+  } catch (e) {
+    // AbortError xom holda "signal is aborted without reason" deb chiqadi —
+    // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("So'rov vaqti tugadi — qayta urining")
+    }
+    throw e
+  }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const errMsg = (data as { error?: string })?.error || (data as { message?: string })?.message || "Xatolik yuz berdi"

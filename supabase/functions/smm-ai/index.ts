@@ -17,17 +17,29 @@ import { groqJson } from "../_shared/groq.ts"
  * Joylash — smm-publish, va faqat odam tasdiqlagandan keyin.
  */
 
-/** Gemini birinchi, xato bo'lsa Groq. Ikkalasi ham yiqilsa — aniq xato. */
+/**
+ * Gemini birinchi, xato bo'lsa Groq.
+ *
+ * MUHIM: retries=1. Standart 3 ta qayta urinish + backoff bilan javob
+ * 60 soniyadan oshib ketardi va brauzer so'rovni uzib qo'yardi. Tez
+ * taslim bo'lib zaxira provayderga o'tgan ma'qul.
+ *
+ * Ikkalasi ham yiqilsa — HAQIQIY sababni qaytaramiz (kalit yo'qmi,
+ * kvota tugaganmi), "AI javob bermadi" degan umumiy xabar emas.
+ */
 async function askAi<T>(prompt: string): Promise<T> {
+  const errs: string[] = []
   try {
-    return await geminiJson<T>(prompt)
-  } catch (_e) {
-    try {
-      return await groqJson<T>(prompt)
-    } catch (_e2) {
-      throw new Error("AI xizmati javob bermadi")
-    }
+    return await geminiJson<T>(prompt, { retries: 1 })
+  } catch (e) {
+    errs.push(`Gemini: ${e instanceof Error ? e.message : String(e)}`)
   }
+  try {
+    return await groqJson<T>(prompt, { retries: 1 })
+  } catch (e) {
+    errs.push(`Groq: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  throw new Error(errs.join(" | "))
 }
 
 type Analysis = {
