@@ -20,7 +20,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function groqChat(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; json?: boolean },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? "llama-3.1-8b-instant";
@@ -32,12 +32,17 @@ export async function groqChat(
     }
 
     const url = `${GROQ_BASE}/chat/completions`;
-    const body = {
+    // json rejimi — model FAQAT yaroqli JSON qaytaradi.
+    // Usiz kichik modellar qo'shtirnoqsiz kalit yoki tushuntirish matni
+    // qo'shib yuborardi va JSON.parse yiqilardi.
+    // Talab: so'rovda "JSON" so'zi bo'lishi shart (bizning matnda bor).
+    const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content: prompt }],
       temperature: opts?.temperature ?? 0.7,
       max_tokens: opts?.maxTokens ?? 2048,
     };
+    if (opts?.json) body.response_format = { type: "json_object" };
 
     try {
       const resp = await fetch(url, {
@@ -84,6 +89,6 @@ export async function groqJson<T = unknown>(
   prompt: string,
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
 ): Promise<T> {
-  const { text } = await groqChat(prompt, opts);
+  const { text } = await groqChat(prompt, { ...opts, json: true });
   return parseJson<T>(text);
 }

@@ -50,5 +50,13 @@ export function extractJson(text: string): string {
 }
 
 export function parseJson<T>(text: string): T {
-  return JSON.parse(extractJson(text)) as T;
+  const raw = extractJson(text);
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    // JSON.parse xabari ("Expected value in JSON at position 126") sabab
+    // haqida hech narsa aytmaydi. Javobning boshini ko'rsatamiz —
+    // model nima qaytarganini darhol bilish uchun.
+    throw new Error(`javobni o'qib bo'lmadi: ${raw.slice(0, 120)}`);
+  }
 }

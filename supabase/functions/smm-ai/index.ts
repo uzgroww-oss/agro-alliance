@@ -35,7 +35,9 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
     ["Groq", groqJson],
   ] as const) {
     try {
-      const raw = await fn<unknown>(prompt, { retries: 1 })
+      // maxTokens: tahlil javobi 4+ tavsiya bilan uzun bo'ladi.
+      // 2048 da javob o'rtasida kesilib, JSON yarim qolardi.
+      const raw = await fn<unknown>(prompt, { retries: 1, maxTokens: 3500 })
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
