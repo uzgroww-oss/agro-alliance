@@ -3,9 +3,9 @@ import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { getDynamicStats } from "../_shared/stats.ts"
-import { geminiJson, type InlineImage } from "../_shared/gemini.ts"
-import { groqJson } from "../_shared/groq.ts"
-import { nimJson } from "../_shared/nim.ts"
+import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
+import { groqJson, groqChat } from "../_shared/groq.ts"
+import { nimJson, nimChat } from "../_shared/nim.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -50,6 +50,28 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
       errs.push(`${name}: kutilmagan javob — ${peek}`)
     } catch (e) {
       errs.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  throw new Error(errs.join(" | "))
+}
+
+/**
+ * Oddiy MATN javobi uchun zanjir (JSON emas).
+ * Suhbatda AI erkin gapiradi, qat'iy shakl talab qilinmaydi.
+ */
+async function askText(prompt: string): Promise<string> {
+  const errs: string[] = []
+  for (const [name, fn] of [
+    ["Groq", groqChat],
+    ["Gemini", geminiChat],
+    ["NVIDIA", nimChat],
+  ] as const) {
+    try {
+      const { text } = await fn(prompt, { retries: 1, maxTokens: 1500 })
+      if (text && text.trim()) return text.trim()
+      errs.push(`${name}: bo'sh javob`)
+    } catch (e) {
+      errs.push(`${name}: ${e instanceof Error ? e.message : "xatolik"}`)
     }
   }
   throw new Error(errs.join(" | "))
@@ -439,6 +461,57 @@ FAQAT JSON qaytar, boshqa matn yozma:
         }
       }
       return errorResponse(errs.join(" | "), 500)
+    }
+
+    /* ---------------- SUHBAT ---------------- */
+    // Tahlildan keyin savol berish uchun. Har safar tarmoq raqamlari
+    // qayta yuboriladi — AI oldingi javobini eslamaydi, kontekst
+    // so'rov ichida bo'lishi shart.
+    if (action === "chat") {
+      const raw = Array.isArray(body.messages) ? body.messages : []
+      // Oxirgi 8 ta xabar yetadi: uzun tarix tokenni behuda yeydi
+      const history = raw
+        .slice(-8)
+        .filter((m: unknown) => m && typeof (m as { content?: unknown }).content === "string")
+        .map((m: { role?: string; content: string }) => ({
+          role: m.role === "ai" ? "AI" : "Foydalanuvchi",
+          content: String(m.content).slice(0, 1500),
+        }))
+      if (!history.length) return errorResponse("Savol yozing", 400)
+
+      const nets = await gatherNetworks()
+      const ctx = nets.length
+        ? nets.map((n) => {
+            if (n.error) return `${n.platform} (${n.name}) — xato: ${n.error}`
+            const parts = [
+              n.followers !== null ? `${n.followers} obunachi` : null,
+              n.posts !== null ? `${n.posts} post` : null,
+              n.avgLikes !== null ? `o'rtacha ${n.avgLikes} layk` : null,
+              n.avgComments !== null ? `${n.avgComments} izoh` : null,
+            ].filter(Boolean)
+            return `${n.platform} (${n.name}): ${parts.join(", ") || "ma'lumot yo'q"}`
+          }).join("\n")
+        : "(hech qaysi tarmoq ulanmagan)"
+
+      const dialog = history.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+
+      const prompt = `Sen "Agro Alliance" agro-media platformasining SMM maslahatchisisan.
+
+TARMOQLAR HOLATI:
+${ctx}
+
+SUHBAT:
+${dialog}
+
+Oxirgi savolga javob ber. Qoidalar:
+- O'zbek tilida (lotin alifbosi), sodda va qisqa yoz
+- Yuqoridagi RAQAMLARGA asoslan, umumiy maslahat berma
+- Ma'lumot yetarli bo'lmasa buni ochiq ayt, o'ylab topma
+- 150 so'zdan oshirma
+- JSON emas, oddiy matn yoz`
+
+      const answer = await askText(prompt)
+      return jsonResponse({ answer })
     }
 
     return errorResponse("Noma'lum amal", 400)

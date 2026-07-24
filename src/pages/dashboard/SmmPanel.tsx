@@ -115,6 +115,12 @@ export default function SmmPanel() {
   const [analyzing, runAnalyze] = useBusy()
   const [aiErr, setAiErr] = useState("")
 
+  /* AI maslahatchi — suhbat */
+  const [chat, setChat] = useState<{ role: "user" | "ai"; content: string }[]>([])
+  const [question, setQuestion] = useState("")
+  const [asking, runAsk] = useBusy()
+  const chatRef = useRef<HTMLDivElement>(null)
+
   /* 3-bosqich: forma */
   const [form, setForm] = useState({ title: "", content: "", hashtags: "", image_url: "" })
   const [origin, setOrigin] = useState("telegram")
@@ -261,6 +267,7 @@ export default function SmmPanel() {
         "/smm/ai?action=analyze", { method: "POST", body: "{}" })
       setAnalysis(d.analysis)
       setNetworks(d.networks || [])
+      scrollChat()
     } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
   })
 
@@ -329,6 +336,38 @@ export default function SmmPanel() {
       setFitting(false)
     }
   }
+
+  /** Suhbat oynasini pastga surish — yangi javob ko'rinib tursin */
+  const scrollChat = () => {
+    requestAnimationFrame(() => {
+      const el = chatRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    })
+  }
+
+  /**
+   * AI maslahatchiga savol. Tarix serverga yuboriladi — AI oldingi
+   * javobini eslamaydi, kontekst har safar so'rov ichida ketishi kerak.
+   */
+  const ask = () => runAsk(async () => {
+    const q = question.trim()
+    if (!q) return
+    setAiErr("")
+    const next = [...chat, { role: "user" as const, content: q }]
+    setChat(next)
+    setQuestion("")
+    scrollChat()
+    try {
+      const d = await api<{ answer: string }>("/smm/ai?action=chat", {
+        method: "POST",
+        body: JSON.stringify({ messages: next }),
+      })
+      setChat([...next, { role: "ai" as const, content: d.answer }])
+      scrollChat()
+    } catch (e) {
+      setAiErr(e instanceof Error ? e.message : "AI javob bermadi")
+    }
+  })
 
   /**
    * AI faylning O'ZINI ko'rib sarlavha, matn va teglarni yozadi.
@@ -651,79 +690,9 @@ export default function SmmPanel() {
             <Icon d={I.robot} className="mt-0.5 h-5 w-5 shrink-0 text-green" />
             <p className="text-sm text-ink/75">
               Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi.
-              Nima yozishni bilmasangiz quyidagi tugmani bosing.
+              Nima yozishni bilmasangiz pastdagi <strong>AI maslahatchi</strong> bilan gaplashing.
             </p>
           </div>
-
-          <button onClick={analyze} disabled={analyzing} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-            <Icon d={I.brain} className="h-4 w-4" /> {analyzing ? "Tahlil qilinmoqda…" : "Tarmoqlarni tahlil qilish"}
-          </button>
-
-          {/* Haqiqiy raqamlar — AI xulosasi shularga asoslangan.
-              Raqamlarni ham ko'rsatamiz, aks holda xulosani tekshirib
-              bo'lmaydi. */}
-          {networks.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {networks.map((n) => (
-                <div key={n.platform} className="rounded-xl border border-green/10 p-3">
-                  <div className="flex items-center gap-2">
-                    <Brand k={n.platform} className="h-4 w-4" />
-                    <span className="truncate text-sm font-semibold">{n.name}</span>
-                  </div>
-                  {n.error ? (
-                    <p className="mt-1 text-xs font-semibold text-red-600">{n.error}</p>
-                  ) : (
-                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                      {n.followers !== null && <span><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</span>}
-                      {n.posts !== null && <span><strong className="text-ink">{n.posts}</strong> post</span>}
-                      {n.avgLikes !== null && <span>o'rtacha <strong className="text-ink">{n.avgLikes}</strong> layk</span>}
-                      {n.avgComments !== null && <span><strong className="text-ink">{n.avgComments}</strong> izoh</span>}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {analysis && (
-            <div className="mt-3">
-              <p className="rounded-xl bg-soft px-4 py-3 text-sm">{analysis.holat}</p>
-
-              {(analysis.kuchli?.length || analysis.zaif?.length) ? (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {analysis.kuchli?.length ? (
-                    <div className="rounded-xl bg-green/5 p-3">
-                      <p className="text-xs font-bold text-green">Kuchli tomonlar</p>
-                      <ul className="mt-1 space-y-1">
-                        {analysis.kuchli.map((k, i) => <li key={i} className="text-xs text-ink/80">• {k}</li>)}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {analysis.zaif?.length ? (
-                    <div className="rounded-xl bg-orange-50 p-3">
-                      <p className="text-xs font-bold text-orange-700">Zaif tomonlar</p>
-                      <ul className="mt-1 space-y-1">
-                        {analysis.zaif.map((z, i) => <li key={i} className="text-xs text-ink/80">• {z}</li>)}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <div className="mt-2 space-y-2">
-                {(analysis.tavsiyalar || []).map((t, i) => (
-                  <button key={i} type="button" onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
-                    className="flex w-full items-start gap-2 rounded-xl border border-green/10 p-3 text-left transition-colors hover:border-green/40 disabled:opacity-50">
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{t.mavzu}</span>
-                      <span className="mt-0.5 block text-xs text-muted">{t.sabab}</span>
-                    </span>
-                    <span className="shrink-0 rounded bg-green/10 px-2 py-0.5 text-[10px] font-bold text-green">{t.format}</span>
-                  </button>
-                ))}
-              </div>
-              {analysis.eng_yaxshi_vaqt && <p className="mt-2 text-xs text-muted">🕐 Eng yaxshi vaqt: {analysis.eng_yaxshi_vaqt}</p>}
-            </div>
-          )}
         </div>
 
         {/* ---- 3. TAHRIRLASH VA SAQLASH ---- */}
@@ -870,6 +839,145 @@ export default function SmmPanel() {
           {msg && (
             <div className={`mt-4 rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : msg.startsWith("⚠️") ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-600"}`}>{msg}</div>
           )}
+        </div>
+      </div>
+
+      {/* ============ AI MASLAHATCHI (chat) ============ */}
+      {/* Alohida karta: tahlil kontent yozishdan boshqa ish. Ilgari u
+          2-karta ichida edi va ikkalasi aralashib ketardi. */}
+      <div className={`${card} mt-5`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-green/10">
+              <Icon d={I.robot} className="h-5 w-5 text-green" />
+            </span>
+            <div>
+              <h3 className="font-display font-bold">AI maslahatchi</h3>
+              <p className="mt-0.5 text-sm text-muted">Tarmoqlaringizni tahlil qiladi va savollarga javob beradi</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {chat.length > 0 && (
+              <button onClick={() => { setChat([]); setAnalysis(null); setNetworks([]) }}
+                className="rounded-xl border border-green/15 px-4 py-2 text-sm font-bold text-muted transition-colors hover:text-ink">
+                Tozalash
+              </button>
+            )}
+            <button onClick={analyze} disabled={analyzing}
+              className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
+              <Icon d={I.brain} className="h-4 w-4" />
+              {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil" : "Tarmoqlarni tahlil qilish"}
+            </button>
+          </div>
+        </div>
+
+        {/* Haqiqiy raqamlar — AI xulosasi shularga asoslangan.
+            Raqamsiz xulosani tekshirib bo'lmaydi. */}
+        {networks.length > 0 && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {networks.map((n) => (
+              <div key={n.platform} className="rounded-xl border border-green/10 p-3">
+                <div className="flex items-center gap-2">
+                  <Brand k={n.platform} className="h-4 w-4" />
+                  <span className="truncate text-sm font-semibold">{n.name}</span>
+                </div>
+                {n.error ? (
+                  <p className="mt-1 text-xs font-semibold text-red-600">{n.error}</p>
+                ) : (
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                    {n.followers !== null && <span><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</span>}
+                    {n.posts !== null && <span><strong className="text-ink">{n.posts}</strong> post</span>}
+                    {n.avgLikes !== null && <span><strong className="text-ink">{n.avgLikes}</strong> layk</span>}
+                    {n.avgComments !== null && <span><strong className="text-ink">{n.avgComments}</strong> izoh</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Suhbat oynasi */}
+        <div ref={chatRef} className="mt-4 max-h-[380px] min-h-[120px] space-y-3 overflow-y-auto rounded-xl bg-soft p-4">
+          {chat.length === 0 && !analysis && (
+            <p className="py-6 text-center text-sm text-muted">
+              "Tarmoqlarni tahlil qilish" ni bosing yoki savolingizni yozing
+            </p>
+          )}
+
+          {analysis && (
+            <div className="max-w-[92%] rounded-2xl rounded-tl-sm bg-white p-4 shadow-sm">
+              <p className="text-sm">{analysis.holat}</p>
+
+              {(analysis.kuchli?.length || analysis.zaif?.length) ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {analysis.kuchli?.length ? (
+                    <div className="rounded-xl bg-green/5 p-3">
+                      <p className="text-xs font-bold text-green">Kuchli tomonlar</p>
+                      <ul className="mt-1 space-y-1">
+                        {analysis.kuchli.map((k, i) => <li key={i} className="text-xs text-ink/80">• {k}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {analysis.zaif?.length ? (
+                    <div className="rounded-xl bg-orange-50 p-3">
+                      <p className="text-xs font-bold text-orange-700">Zaif tomonlar</p>
+                      <ul className="mt-1 space-y-1">
+                        {analysis.zaif.map((z, i) => <li key={i} className="text-xs text-ink/80">• {z}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {(analysis.tavsiyalar || []).length > 0 && (
+                <>
+                  <p className="mt-3 text-xs font-bold text-muted">Tavsiyalar — bosing, AI shu mavzuda yozadi</p>
+                  <div className="mt-1.5 space-y-1.5">
+                    {analysis.tavsiyalar.map((t, i) => (
+                      <button key={i} type="button" onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
+                        className="flex w-full items-start gap-2 rounded-xl border border-green/10 p-2.5 text-left transition-colors hover:border-green/40 disabled:opacity-50">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">{t.mavzu}</span>
+                          <span className="mt-0.5 block text-xs text-muted">{t.sabab}</span>
+                        </span>
+                        <span className="shrink-0 rounded bg-green/10 px-2 py-0.5 text-[10px] font-bold text-green">{t.format}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {analysis.eng_yaxshi_vaqt && <p className="mt-2 text-xs text-muted">🕐 Eng yaxshi vaqt: {analysis.eng_yaxshi_vaqt}</p>}
+            </div>
+          )}
+
+          {chat.map((m, i) => (
+            <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
+              <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl p-3 text-sm ${
+                m.role === "user"
+                  ? "rounded-tr-sm bg-green text-white"
+                  : "rounded-tl-sm bg-white text-ink shadow-sm"
+              }`}>{m.content}</p>
+            </div>
+          ))}
+
+          {asking && (
+            <p className="flex items-center gap-2 text-sm text-muted">
+              <Icon d={I.refresh} className="h-4 w-4 animate-spin" /> Yozmoqda…
+            </p>
+          )}
+        </div>
+
+        {aiErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input value={question} onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask() } }}
+            placeholder="Savol yozing: qaysi tarmoqqa e'tibor bering?"
+            className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={ask} disabled={asking || !question.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">
+            <Icon d={I.send} className="h-4 w-4" /> Yuborish
+          </button>
         </div>
       </div>
 
