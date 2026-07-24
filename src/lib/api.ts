@@ -510,7 +510,13 @@ function resolveAdminUrl(path: string, method: string): string {
   return `${SUPABASE_FUNCTIONS_URL}/${fnName}${qsRaw ? `?${qsRaw}` : ""}`
 }
 
-const REQUEST_TIMEOUT = 15_000
+/**
+ * 15 soniya kam edi: edge funksiya "sovuq" ishga tushganda javob
+ * kechikadi va so'rov uzilib qolardi — holbuki server ishni
+ * BAJARIB bo'lgan bo'lardi. Natijada post saqlanardi, lekin panel
+ * "So'rov vaqti tugadi" deb ko'rsatardi.
+ */
+const REQUEST_TIMEOUT = 30_000
 /**
  * AI so'rovlari sekin (model javobi + zaxira provayder) — 15s yetmaydi va
  * "signal is aborted without reason" xatosi chiqadi. Ularga uzunroq vaqt.

@@ -698,7 +698,18 @@ export default function SmmPanel({ seed }: {
         setMsg("✅ Saqlandi — endi joylashingiz mumkin")
       }
       load()
-    } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
+    } catch (e) {
+      const why = e instanceof Error ? e.message : "Xatolik"
+      // MUHIM: javob kechiksa ham server ishni bajargan bo'lishi mumkin.
+      // Ro'yxatni yangilaymiz — post saqlangan bo'lsa ko'rinadi va
+      // foydalanuvchi uni ikkinchi marta saqlamaydi.
+      if (/vaqti tugadi/i.test(why)) {
+        setMsg("⚠️ Javob kechikdi — pastdagi ro'yxatni tekshiring")
+        load()
+      } else {
+        setMsg(`❌ ${why}`)
+      }
+    }
   })
 
   const clearForm = () => {
