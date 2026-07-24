@@ -787,7 +787,8 @@ export default function SmmPanel() {
             <div className="min-w-0">
               <span className="text-xs font-semibold text-muted">Rasm yoki video (ixtiyoriy)</span>
               <p className="mt-0.5 text-[11px] text-muted">
-                Yuklaganingizdan keyin AI uni ko'rib postni o'zi yozadi
+                Yuklaganingizdan keyin AI uni ko'rib postni o'zi yozadi.
+                Rasm 20 MB, video 100 MB gacha.
               </p>
               <div className="mt-1.5">
                 {form.image_url ? (

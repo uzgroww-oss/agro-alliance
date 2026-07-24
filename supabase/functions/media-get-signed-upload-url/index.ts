@@ -3,9 +3,13 @@ import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { verifyAuth } from "../_shared/auth.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 
+// Video rasmdan ancha og'ir — unga alohida chegara.
 const MAX_SIZE = 20 * 1024 * 1024
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024
 const ALLOWED_MIME = [
   "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+  // Video (SMM postlari uchun)
+  "video/mp4", "video/quicktime", "video/webm",
   // Hujjatlar (TZ fayllari)
   "application/pdf",
   "application/msword",
@@ -20,6 +24,7 @@ function extFromMime(mime: string): string {
   const map: Record<string, string> = {
     "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
     "image/webp": "webp", "image/gif": "gif",
+    "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm",
     "application/pdf": "pdf",
     "application/msword": "doc",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -48,11 +53,13 @@ Deno.serve(async (req) => {
     if (typeof sizeBytes !== "number" || sizeBytes <= 0) {
       return errorResponse("sizeBytes talab qilinadi", 400)
     }
-    if (sizeBytes > MAX_SIZE) {
-      return errorResponse(`Fayl hajmi ${MAX_SIZE / (1024 * 1024)}MB dan oshmasligi kerak`, 400)
-    }
     if (!ALLOWED_MIME.includes(mimeType)) {
       return errorResponse(`Ruxsat etilmagan fayl turi: ${mimeType}`, 400)
+    }
+    // Hajm chegarasi turga bog'liq: 20 MB video uchun juda kam.
+    const limit = String(mimeType).startsWith("video/") ? MAX_VIDEO_SIZE : MAX_SIZE
+    if (sizeBytes > limit) {
+      return errorResponse(`Fayl hajmi ${limit / (1024 * 1024)}MB dan oshmasligi kerak`, 400)
     }
 
     const ext = extFromMime(mimeType)
