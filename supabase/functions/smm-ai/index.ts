@@ -55,16 +55,43 @@ const PROVIDER_TIMEOUT: Record<string, number> = {
 const TIMEOUT_FOR = (name: string) => PROVIDER_TIMEOUT[name] ?? 25_000
 
 /**
- * AI so'ralgan obyektni ba'zan MASSIV ichida qaytaradi: [{...}].
- * Tekshiruv obyekt kutgani uchun bunday javob rad etilardi, holbuki
- * ichidagi ma'lumot to'g'ri edi.
+ * AI so'ralgan obyektni har xil o'rab qaytaradi:
+ *   [{...}]            — massiv ichida
+ *   [{...}, {...}]     — bir nechta variant
+ *   {"post": {...}}    — kalit ostida
+ *
+ * Tekshiruv obyekt kutgani uchun bularning hammasi rad etilardi,
+ * holbuki ichidagi ma'lumot to'g'ri edi. Endi kerakli maydoni bor
+ * obyekt qidirib topiladi.
  */
-function unwrap(v: unknown): unknown {
-  if (Array.isArray(v) && v.length === 1 && v[0] && typeof v[0] === "object") return v[0]
+function unwrap(v: unknown, keys: string[] = [], depth = 0): unknown {
+  const has = (o: unknown) =>
+    Boolean(o && typeof o === "object" && !Array.isArray(o) &&
+      (keys.length === 0 || keys.some((k) => k in (o as Record<string, unknown>))))
+
+  if (has(v)) return v
+  // Chuqurlik cheklangan — cheksiz rekursiyaga tushib qolmaslik uchun
+  if (depth > 3 || !v || typeof v !== "object") return v
+
+  const children = Array.isArray(v) ? v : Object.values(v as Record<string, unknown>)
+  for (const c of children) {
+    const found = unwrap(c, keys, depth + 1)
+    if (has(found)) return found
+  }
+
+  // Mos maydonli obyekt topilmadi — hech bo'lmasa birinchi obyektni
+  // qaytaramiz, tekshiruv o'zi hukm qiladi
+  if (Array.isArray(v) && v.length && v[0] && typeof v[0] === "object") return v[0]
   return v
 }
 
-async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTokens = 3500): Promise<T> {
+async function askAi<T>(
+  prompt: string,
+  validate: (v: unknown) => boolean,
+  maxTokens = 3500,
+  /** Javobda bo'lishi kerak bo'lgan maydonlar — o'rashni ochish uchun */
+  keys: string[] = [],
+): Promise<T> {
   const errs: string[] = []
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
@@ -79,7 +106,7 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTo
       // retries: 0 — bir provayderni qayta sinash o'rniga darhol
       // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
       // va uch provayder x ikki urinish 90 soniyadan oshib ketardi.
-      const raw = unwrap(await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }))
+      const raw = unwrap(await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }), keys)
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -201,6 +228,7 @@ FAQAT JSON qaytar:
       return latin / p.length > 0.6
     },
     600,
+    ["prompt"],
   )
 
   return String(res.prompt || "").trim().slice(0, 400)
@@ -577,7 +605,7 @@ Kamida 4 ta tavsiya ber.`
       const result = await askAi<Analysis>(prompt, (v) => {
         const o = v as Analysis
         return Boolean(o && typeof o === "object" && Array.isArray(o.tavsiyalar) && o.tavsiyalar.length > 0)
-      })
+      }, 3500, ["tavsiyalar", "holat"])
       return jsonResponse({ analysis: result, networks: nets })
     }
 
@@ -634,7 +662,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         if (o.matn.trim().length < 120) return false
         if (isSkeletonList(o.matn)) return false
         return !isRepetitive(o.matn)
-      })
+      }, 3500, ["matn", "sarlavha"])
       return jsonResponse({ generated: result })
     }
 
@@ -731,7 +759,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
       const errs: string[] = []
       for (const a of attempts) {
         try {
-          const result = unwrap(await a.run()) as Generated
+          const result = unwrap(await a.run(), ["matn", "tasvir"]) as Generated
           if (!result?.matn?.trim()) { errs.push(`${a.name}: bo'sh javob`); continue }
           if (isRepetitive(result.matn)) { errs.push(`${a.name}: matn takrorlanib ketdi`); continue }
           if (!saw(result)) {
@@ -1020,7 +1048,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         // raqam qaytarardi va ekranda "0. 3. 0. 2. 0" chiqardi.
         const sotuv = asTextList((o as { sotuv?: unknown }).sotuv)
         return sotuv.length > 0 && sotuv.some(looksLikeSentence)
-      })
+      }, 3500, ["reja", "sotuv"])
       const result = normalizePlan(rawPlan)
       if (!result.reja.length) return errorResponse("AI reja tuza olmadi — qaytadan urining", 500)
 
