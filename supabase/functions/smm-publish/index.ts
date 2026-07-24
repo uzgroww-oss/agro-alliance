@@ -315,15 +315,24 @@ Deno.serve(async (req) => {
       let display = ""
 
       if (platform === "telegram") {
-        const chatId = String(body.chat_id || "").trim()
-        if (!chatId) return errorResponse("Kanal ID yoki @nom kiriting", 400)
+        // Foydalanuvchi ko'pincha to'liq havola kiritadi
+        // (https://t.me/agroalliance1). Telegram esa @nom yoki raqamli
+        // ID kutadi. Havolani tozalab, @ qo'shamiz.
+        let chatId = String(body.chat_id || "").trim()
+        chatId = chatId.replace(/^https?:\/\/(t\.me|telegram\.me)\//i, "").replace(/^@/, "").replace(/\/$/, "")
+        // Raqamli ID (-100...) bo'lmasa — bu username, @ bilan yuboriladi
+        if (chatId && !/^-?\d+$/.test(chatId)) chatId = "@" + chatId
+        if (!chatId) return errorResponse("Kanal @nomi yoki havolasini kiriting", 400)
         // Tekshiramiz: bot shu kanalga yoza oladimi?
         const token = Deno.env.get("TELEGRAM_BOT_TOKEN")
         if (!token) return errorResponse("Telegram bot tokeni yo'q", 400)
         const r = await fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${encodeURIComponent(chatId)}`)
         const d = await r.json().catch(() => ({}))
         if (!r.ok || d.ok === false) {
-          return errorResponse(d.description || "Kanal topilmadi. Botni kanalga admin qilib qo'shing.", 400)
+          const why = String(d.description || "").toLowerCase().includes("not found")
+            ? `${chatId} topilmadi — botni kanalga admin qilib qo'shing va kanal ochiq (public) ekanini tekshiring`
+            : (d.description || "Kanal topilmadi")
+          return errorResponse(why, 400)
         }
         config = { chat_id: chatId }
         display = d.result?.title || d.result?.username || chatId
