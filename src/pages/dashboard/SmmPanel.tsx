@@ -416,6 +416,15 @@ export default function SmmPanel({ seed }: {
     setSeedBusy(true)
     setSeedMsg(`"${sd.topic}" — matn yozilmoqda…`)
     setAiErr(""); setDrawErr(""); setDraft(null)
+    // Eski postni DARHOL tozalaymiz. Ilgari faqat javob kelgach
+    // almashtirilardi — natijada yangi mavzu yozilayotganda ekranda
+    // OLDINGI mavzu matni turardi va foydalanuvchi uni yangisi deb
+    // o'ylardi. Yozish uzoq davom etsa yoki xato bo'lsa esa eski matn
+    // butunlay qolib ketardi.
+    setTopic(sd.topic)
+    setEditingId(null)
+    setAiMade(false)
+    setForm({ title: "", content: "", hashtags: "", image_url: "" })
     try {
       const g = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=generate",

@@ -91,8 +91,15 @@ async function askAi<T>(
   maxTokens = 3500,
   /** Javobda bo'lishi kerak bo'lgan maydonlar — o'rashni ochish uchun */
   keys: string[] = [],
+  /**
+   * Yumshoq tekshiruv: qat'iy tekshiruvdan o'tmagan, lekin YAROQLI javob.
+   * Hech bir provayder qat'iy shartni bajarmasa, xato o'rniga shu javob
+   * qaytariladi — bo'sh ekrandan ko'ra biroz nomukammal matn yaxshiroq.
+   */
+  soft?: (v: unknown) => boolean,
 ): Promise<T> {
   const errs: string[] = []
+  let softHit: unknown = null
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
   // Groq birinchi — uning bepul chegarasi eng keng.
@@ -111,12 +118,14 @@ async function askAi<T>(
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
       if (validate(raw)) return raw as T
+      if (!softHit && soft?.(raw)) softHit = raw
       const peek = JSON.stringify(raw).slice(0, 200)
       errs.push(`${name}: kutilmagan javob — ${peek}`)
     } catch (e) {
       errs.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
+  if (softHit) return softHit as T
   // Uzun xato matni ekranni to'ldirib yuboradi — har provayderdan
   // qisqacha sabab yetarli
   throw new Error(errs.map((e) => e.slice(0, 140)).join(" | "))
@@ -200,18 +209,16 @@ POST:
 ${text.slice(0, 800)}
 
 Ikki bosqich:
-1) "subject" — postdagi asosiy MODDIY narsani ingliz tilida 2-4 so'z
-   bilan yoz. Masalan "drip irrigation tubing", "wheat harvest",
-   "dairy cow in barn".
+1) "subject" — POSTDAGI asosiy MODDIY narsani ingliz tilida 2-4 so'z
+   bilan yoz. Postda nima haqida gap ketsa — o'sha.
    Mavhum tushuncha YOZMA: "convenience", "efficiency", "partnership".
 2) "prompt" — shu subject asosida to'liq rasm so'rovi.
 
 "prompt" QAT'IY QOIDALARI:
 - SUBJECT SO'ROVNING BOSHIDA turishi shart va kadrni EGALLASHI kerak.
-  YOMON: "a farmer in a field with drip irrigation"
-         (odam asosiy bo'lib qoladi, quvur ko'rinmaydi)
-  YAXSHI: "close-up of black drip irrigation tubing with water
-          droplets between rows of cotton plants"
+  Quyidagi misol faqat TUZILISHNI ko'rsatadi, mazmunini ko'chirma:
+    yomon:  "a person next to <narsa>"  (odam asosiy bo'lib qoladi)
+    yaxshi: "close-up of <narsa> with <detal>, <fon>"
 - Subject odam bo'lmasa, so'rovni "close-up" yoki "detailed view"
   bilan boshla va odam qo'shma
 - INGLIZ tilida
@@ -465,6 +472,26 @@ function looksLikeSentence(t: string): boolean {
   return words.length >= 8
 }
 
+/**
+ * Yozilgan matn so'ralgan MAVZU haqidami?
+ *
+ * NEGA KERAK: kichik modellar mavzuni e'tiborsiz qoldirib, so'rovdagi
+ * MISOLNI ko'chirib qo'yadi. Marketing rejasida "Qiziqarli hikoyalar"
+ * bosilganda post "tomchilatib sug'orish" haqida chiqib qolgan edi —
+ * chunki misolda aynan shu yozilgandi. Misol tuzatildi, bu esa
+ * ikkinchi qavat himoya: mavzuga aloqasiz matnni qabul qilmaymiz.
+ *
+ * O'zbek tilida qo'shimchalar ko'p (hikoya -> hikoyalarni), shuning
+ * uchun so'zning O'ZAGI (dastlabki 5 harfi) bo'yicha solishtiramiz.
+ */
+function matchesTopic(topic: string, text: string): boolean {
+  const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ")
+  const stems = norm(topic).split(/\s+/).filter((w) => w.length >= 5).map((w) => w.slice(0, 5))
+  if (!stems.length) return true // mavzu juda qisqa — tekshirib bo'lmaydi
+  const body = norm(text)
+  return stems.some((st) => body.includes(st))
+}
+
 function normalizePlan(raw: unknown): MarketPlan {
   const o = (raw || {}) as Record<string, unknown>
   const reja = Array.isArray(o.reja) ? o.reja : []
@@ -652,11 +679,15 @@ Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompan
 Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
 
 MATN QOIDALARI — qat'iy:
+- FAQAT yuqoridagi MAVZU haqida yoz. Boshqa mavzuga o'tib ketma.
 - TO'LIQ JUMLALAR yoz. Faqat sarlavhalardan iborat ro'yxat YOZMA.
-  YOMON: "1. Yangi texnologiyalar 2. Hamkorlik 3. Savdo"
-  YAXSHI: "Tomchilatib sug'orish suvni 40% tejaydi va ildizga
-  to'g'ridan-to'g'ri yetkazadi. O'rnatish narxi bir gektarga
-  taxminan 3 million so'm."
+
+  Quyidagi misol faqat USLUBNI ko'rsatadi — mazmunini KO'CHIRMA,
+  o'z mavzuyingiz haqida shu uslubda yoz:
+    yomon uslub:  "1. Birinchi narsa 2. Ikkinchi narsa 3. Uchinchi"
+    yaxshi uslub: "<narsa> <qancha> foyda beradi va <qanday>
+                   ishlaydi. Narxi taxminan <qancha>."
+
 - Ro'yxat ishlatsang, HAR BAND kamida bitta to'liq jumla bo'lsin
 - Aniq gapir: raqam, muddat, usul nomi, narsalarning nomi
 - Kamida 3 ta mazmunli jumla bo'lsin
@@ -671,7 +702,8 @@ FAQAT JSON qaytar, boshqa matn yozma:
   "hashtaglar": ["#agro", "#fermer"]
 }`
 
-      const result = await askAi<Generated>(prompt, (v) => {
+      // Yumshoq shart: matn yaroqli, lekin mavzuga mos kelmasligi mumkin
+      const usable = (v: unknown) => {
         const o = v as Generated
         if (!o || typeof o !== "object" || typeof o.matn !== "string" || !o.matn.trim()) return false
         // Juda uzun yoki o'zini takrorlaydigan javobni qabul qilmaymiz —
@@ -681,7 +713,16 @@ FAQAT JSON qaytar, boshqa matn yozma:
         if (o.matn.trim().length < 120) return false
         if (isSkeletonList(o.matn)) return false
         return !isRepetitive(o.matn)
-      }, 3500, ["matn", "sarlavha"])
+      }
+
+      const result = await askAi<Generated>(
+        prompt,
+        // Qat'iy shart: yaroqli VA mavzuga mos
+        (v) => usable(v) && matchesTopic(topic, `${(v as Generated).sarlavha || ""} ${(v as Generated).matn}`),
+        3500,
+        ["matn", "sarlavha"],
+        usable,
+      )
       return jsonResponse({ generated: result })
     }
 
