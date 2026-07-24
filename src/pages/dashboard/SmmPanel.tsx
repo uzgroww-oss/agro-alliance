@@ -464,9 +464,13 @@ export default function SmmPanel({ seed }: {
           const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
           const r = await uploadFile(file)
           setForm((f) => ({ ...f, image_url: r.signedUrl }))
-          // Video so'ralgan bo'lsa-yu chiqmagan bo'lsa — rasm qoldi
+          // Video so'ralgan bo'lsa-yu chiqmagan bo'lsa — rasm qoldi.
+          // SABABNI shu yerda aytamiz: pastdagi drawErr qutisi faqat
+          // qoralama ochiq bo'lganda ko'rinadi, bu oqimda esa qoralama
+          // yo'q — shuning uchun "Video chiqmadi" deb turardi-yu, nega
+          // chiqmagani hech qayerda ko'rinmasdi.
           setSeedMsg(d.video_error
-            ? "✅ Matn va rasm tayyor. Video chiqmadi"
+            ? `✅ Matn va rasm tayyor. Video chiqmadi — ${d.video_error}`
             : "✅ Matn va rasm tayyor — tekshirib saqlang")
           if (d.video_error) setDrawErr(d.video_error)
         } else {
@@ -1059,11 +1063,12 @@ export default function SmmPanel({ seed }: {
 
           {/* Marketing rejasidan kelganda jarayon ko'rinib tursin */}
           {(seedBusy || seedMsg) && (
-            <div className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${
+            <div className={`mt-3 flex items-start gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${
               seedBusy ? "bg-green/10 text-green" : seedMsg.startsWith("✅") ? "bg-green/10 text-green" : "bg-soft text-muted"
             }`}>
-              {seedBusy && <Icon d={I.refresh} className="h-4 w-4 shrink-0 animate-spin" />}
-              <span className="min-w-0 flex-1">{seedMsg}</span>
+              {seedBusy && <Icon d={I.refresh} className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />}
+              {/* Xato sababi uzun bo'lishi mumkin — kesilmasin, o'ralsin */}
+              <span className="min-w-0 flex-1 break-words">{seedMsg}</span>
               {!seedBusy && (
                 <button onClick={() => setSeedMsg("")} className="shrink-0 opacity-60 hover:opacity-100">
                   <Icon d="M18 6L6 18 M6 6l12 12" className="h-3.5 w-3.5" />
