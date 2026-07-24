@@ -443,10 +443,12 @@ export default function SmmPanel({ seed }: {
           text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500),
           aspect,
         })
-        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string }>(
+        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string; prompt?: string }>(
           `/smm/ai?action=${wantVideo ? "video" : "image"}`,
           { method: "POST", body: payload },
         )
+
+        if (d.prompt) setGenPrompt(d.prompt)
 
         if (d.video_b64) {
           const vf = dataUrlToFile(`data:video/mp4;base64,${d.video_b64}`, "ai-video.mp4")
@@ -1136,6 +1138,13 @@ export default function SmmPanel({ seed }: {
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
+                    {/* Qanday so'rov bilan chizilgani — mos kelmasa
+                        darhol ko'rinadi va qaytadan chizdirish mumkin */}
+                    {genPrompt && !seenDesc && (
+                      <p className="mt-2 rounded-lg bg-soft px-3 py-2 text-[11px] text-muted">
+                        <strong className="text-ink">Rasm so'rovi:</strong> {genPrompt}
+                      </p>
+                    )}
                     {(seenDesc || seenTopic) && (
                       <div className="mt-2 space-y-1 rounded-lg bg-green/5 px-3 py-2">
                         {seenDesc && (
@@ -1203,7 +1212,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr(""); setGenPrompt("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.

@@ -162,34 +162,48 @@ async function fetchInlineImage(url: string): Promise<InlineImage> {
  * so'rovdan boshlanadi (video rasmdan yasaladi).
  */
 async function buildImagePrompt(text: string): Promise<string> {
-  const out = await askText(`Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
+  // JSON so'raymiz, erkin matn emas. Ilgari askText ishlatilardi va
+  // model javob oldiga "Here is the image prompt:" kabi kirish so'zi
+  // qo'shsa, birinchi qator o'sha kirish bo'lib qolardi — natijada
+  // rasm mavzuga umuman aloqasiz chiqardi.
+  const res = await askAi<{ prompt?: string; subject?: string }>(
+    `Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
 
 POST:
 ${text.slice(0, 800)}
 
-VAZIFA: postda gap ketayotgan ANIQ NARSANI rasmga sol.
+Ikki bosqich:
+1) "subject" — postdagi asosiy MODDIY narsani ingliz tilida 2-4 so'z
+   bilan yoz. Masalan "drip irrigation in greenhouse", "wheat harvest",
+   "dairy cows in barn".
+   Mavhum tushuncha YOZMA: "convenience", "efficiency", "partnership"
+   — bularni chizib bo'lmaydi.
+2) "prompt" — shu subject asosida to'liq rasm so'rovi.
 
-Qoidalar:
-- Avval postdagi asosiy MODDIY narsani top: qaysi o'simlik, qaysi
-  texnika, qaysi jarayon, qaysi joy haqida gap ketyapti
-- Rasm so'rovi aynan shu narsani ko'rsatsin
-- Mavhum tushunchani rasmga solma. "Qulaylik", "hamkorlik",
-  "samaradorlik" — bularni chizib bo'lmaydi. Ular haqida bo'lsa,
-  ularni KO'RSATADIGAN aniq sahnani tanla
-- INGLIZ tilida yoz
-- Faqat so'rovning o'zini yoz, boshqa hech narsa yozma
-- Fotosurat uslubida: real, tabiiy yorug'lik, aniq detallar
-- O'zbekiston qishloq xo'jaligi muhiti
-- Matn, yozuv, logotip BO'LMASIN
+"prompt" qoidalari:
+- INGLIZ tilida
+- Fotosurat uslubida: photorealistic, natural light, sharp details
+- O'zbekiston/Markaziy Osiyo qishloq xo'jaligi muhiti
+- Odam, ofis, kompyuter, ekran, kostyum YOZMA — agar post ular
+  haqida bo'lmasa
+- Matn, yozuv, logotip bo'lmasin
 - 40 so'zdan oshmasin
 
-Misol:
-Post tomchilatib sug'orish haqida -> "close-up of drip irrigation
-lines watering tomato seedlings in a greenhouse, morning light,
-Central Asia, photorealistic"`)
+FAQAT JSON qaytar:
+{ "subject": "…", "prompt": "…" }`,
+    (v) => {
+      const o = v as { prompt?: unknown }
+      const p = typeof o?.prompt === "string" ? o.prompt.trim() : ""
+      if (p.length < 20 || p.length > 400) return false
+      // Ingliz tilida bo'lishi shart — o'zbekcha so'rovda rasm
+      // modellari tasodifiy natija beradi
+      const latin = (p.match(/[a-z]/gi) || []).length
+      return latin / p.length > 0.6
+    },
+    600,
+  )
 
-  // Model ba'zan izoh qo'shib yuboradi — birinchi qatorni olamiz
-  return out.split("\n")[0].replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 400)
+  return String(res.prompt || "").trim().slice(0, 400)
 }
 
 /* ================= TARMOQLARDAN HAQIQIY MA'LUMOT ================= */
