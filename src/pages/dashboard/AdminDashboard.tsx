@@ -2972,10 +2972,10 @@ export default function AdminDashboard() {
   /* Marketing rejasidan SMM/AI ga o'tish.
      Reja bandi bosilganda bo'lim almashadi va SmmPanel shu mavzuni
      olib, matn va rasmni o'zi yaratadi. */
-  const [smmSeed, setSmmSeed] = useState<{ topic: string; platform: string; at: number } | null>(null)
-  const goCreatePost = useCallback((topic: string, platform: string) => {
+  const [smmSeed, setSmmSeed] = useState<{ topic: string; platform: string; format: string; at: number } | null>(null)
+  const goCreatePost = useCallback((topic: string, platform: string, format: string) => {
     // at — bir xil mavzu qayta bosilganda ham ishga tushsin
-    setSmmSeed({ topic, platform, at: Date.now() })
+    setSmmSeed({ topic, platform, format, at: Date.now() })
     setActive("SMM / AI")
   }, [])
   const nav2 = useNavigate()

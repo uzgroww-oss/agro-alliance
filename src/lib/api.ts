@@ -517,6 +517,11 @@ const REQUEST_TIMEOUT = 15_000
  */
 const SLOW_TIMEOUT = 90_000
 const SLOW_PATHS = ["/smm/ai"]
+/**
+ * Video eng uzoq ketadi: avval rasm chiziladi, keyin u jonlantiriladi
+ * va NVIDIA natijani navbat orqali beradi. 90 soniya yetmaydi.
+ */
+const VIDEO_TIMEOUT = 170_000
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
@@ -557,9 +562,14 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   h.set("apikey", SUPABASE_ANON_KEY)
 
   const slow = SLOW_PATHS.some((p) => path.startsWith(p))
+  const isVideoGen = path.includes("action=video")
   let res: Response
   try {
-    res = await fetchWithTimeout(url, { ...opts, headers: h }, slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT)
+    res = await fetchWithTimeout(
+      url,
+      { ...opts, headers: h },
+      isVideoGen ? VIDEO_TIMEOUT : slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
+    )
   } catch (e) {
     // AbortError xom holda "signal is aborted without reason" deb chiqadi —
     // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.

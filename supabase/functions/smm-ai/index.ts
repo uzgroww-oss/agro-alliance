@@ -6,6 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
+import { nimVideo } from "../_shared/nimVideo.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
@@ -113,6 +114,44 @@ async function fetchInlineImage(url: string): Promise<InlineImage> {
     bin += String.fromCharCode(...buf.subarray(i, i + CHUNK))
   }
   return { mimeType: type, data: btoa(bin) }
+}
+
+/**
+ * Post matnidan INGLIZCHA rasm so'rovi yasaydi.
+ *
+ * Nega ingliz tilida: rasm modellari o'zbekcha so'rovda tasodifiy
+ * natija beradi. Nega alohida funksiya: rasm ham, video ham shu
+ * so'rovdan boshlanadi (video rasmdan yasaladi).
+ */
+async function buildImagePrompt(text: string): Promise<string> {
+  const out = await askText(`Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
+
+POST:
+${text.slice(0, 800)}
+
+VAZIFA: postda gap ketayotgan ANIQ NARSANI rasmga sol.
+
+Qoidalar:
+- Avval postdagi asosiy MODDIY narsani top: qaysi o'simlik, qaysi
+  texnika, qaysi jarayon, qaysi joy haqida gap ketyapti
+- Rasm so'rovi aynan shu narsani ko'rsatsin
+- Mavhum tushunchani rasmga solma. "Qulaylik", "hamkorlik",
+  "samaradorlik" — bularni chizib bo'lmaydi. Ular haqida bo'lsa,
+  ularni KO'RSATADIGAN aniq sahnani tanla
+- INGLIZ tilida yoz
+- Faqat so'rovning o'zini yoz, boshqa hech narsa yozma
+- Fotosurat uslubida: real, tabiiy yorug'lik, aniq detallar
+- O'zbekiston qishloq xo'jaligi muhiti
+- Matn, yozuv, logotip BO'LMASIN
+- 40 so'zdan oshmasin
+
+Misol:
+Post tomchilatib sug'orish haqida -> "close-up of drip irrigation
+lines watering tomato seedlings in a greenhouse, morning light,
+Central Asia, photorealistic"`)
+
+  // Model ba'zan izoh qo'shib yuboradi — birinchi qatorni olamiz
+  return out.split("\n")[0].replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 400)
 }
 
 /* ================= TARMOQLARDAN HAQIQIY MA'LUMOT ================= */
@@ -655,6 +694,104 @@ FAQAT JSON qaytar, boshqa matn yozma:
         }
       }
       return errorResponse(errs.join(" | "), 500)
+    }
+
+    /* ---------------- SUHBAT ---------------- */
+    // Tahlildan keyin savol berish uchun. Har safar tarmoq raqamlari
+    // qayta yuboriladi — AI oldingi javobini eslamaydi, kontekst
+    // so'rov ichida bo'lishi shart.
+    if (action === "chat") {
+      const raw = Array.isArray(body.messages) ? body.messages : []
+      // Oxirgi 8 ta xabar yetadi: uzun tarix tokenni behuda yeydi
+      const history = raw
+        .slice(-8)
+        .filter((m: unknown) => m && typeof (m as { content?: unknown }).content === "string")
+        .map((m: { role?: string; content: string }) => ({
+          role: m.role === "ai" ? "AI" : "Foydalanuvchi",
+          content: String(m.content).slice(0, 1500),
+        }))
+      if (!history.length) return errorResponse("Savol yozing", 400)
+
+      const nets = await gatherNetworks()
+      const ctx = nets.length
+        ? nets.map((n) => {
+            if (n.error) return `${n.platform} (${n.name}) — xato: ${n.error}`
+            const parts = [
+              n.followers !== null ? `${n.followers} obunachi` : null,
+              n.posts !== null ? `${n.posts} post` : null,
+              n.avgLikes !== null ? `o'rtacha ${n.avgLikes} layk` : null,
+              n.avgComments !== null ? `${n.avgComments} izoh` : null,
+            ].filter(Boolean)
+            return `${n.platform} (${n.name}): ${parts.join(", ") || "ma'lumot yo'q"}`
+          }).join("\n")
+        : "(hech qaysi tarmoq ulanmagan)"
+
+      const dialog = history.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+
+      const prompt = `Sen "Agro Alliance" agro-media platformasining SMM maslahatchisisan.
+
+TARMOQLAR HOLATI:
+${ctx}
+
+SUHBAT:
+${dialog}
+
+Oxirgi savolga javob ber. Qoidalar:
+- O'zbek tilida (lotin alifbosi), sodda va qisqa yoz
+- Yuqoridagi RAQAMLARGA asoslan, umumiy maslahat berma
+- Ma'lumot yetarli bo'lmasa buni ochiq ayt, o'ylab topma
+- 150 so'zdan oshirma
+- JSON emas, oddiy matn yoz`
+
+      const answer = await askText(prompt)
+      return jsonResponse({ answer })
+    }
+
+    /* ---------------- RASM YARATISH ---------------- */
+    // Post matni asosida rasm chizadi.
+    //
+    // Ikki bosqich: avval matn modeli o'zbekcha matndan INGLIZCHA
+    // tasvir so'rovi yasaydi, keyin rasm modeli chizadi. Rasm modellari
+    // ingliz tilida ancha yaxshi ishlaydi — o'zbekcha so'rovda natija
+    // tasodifiy chiqadi.
+    if (action === "image" || action === "video") {
+      const text = String(body.text || "").trim()
+      const aspect = (String(body.aspect || "16:9")) as GenAspect
+      if (!text) return errorResponse("Avval post matnini yozing", 400)
+
+      let imgPrompt = ""
+      try {
+        imgPrompt = await buildImagePrompt(text)
+      } catch (e) {
+        return errorResponse(`Rasm so'rovi tayyorlanmadi — ${e instanceof Error ? e.message : "xatolik"}`, 500)
+      }
+      if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
+
+      // Rasm ikkala amalda ham kerak: video RASMDAN yasaladi
+      let img: { data: string; model: string }
+      try {
+        img = await nimImage(imgPrompt, action === "video" ? "16:9" : aspect)
+      } catch (e) {
+        return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
+      }
+
+      if (action === "image") {
+        return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
+      }
+
+      // Video: yasalgan rasm jonlantiriladi
+      try {
+        const video = await nimVideo(img.data, "image/jpeg")
+        return jsonResponse({ video_b64: video, image_b64: img.data, prompt: imgPrompt })
+      } catch (e) {
+        // Video chiqmasa RASM baribir foydali — uni qaytaramiz va
+        // sababni aytamiz. Butun ish behuda ketmasin.
+        return jsonResponse({
+          image_b64: img.data,
+          prompt: imgPrompt,
+          video_error: e instanceof Error ? e.message : "Video yaratilmadi",
+        })
+      }
     }
 
     /* ---------------- SUHBAT ---------------- */

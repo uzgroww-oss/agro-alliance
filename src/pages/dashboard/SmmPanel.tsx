@@ -137,7 +137,7 @@ function Bubble({
   )
 }
 
-export type SmmSeed = { topic: string; platform: string; at: number }
+export type SmmSeed = { topic: string; platform: string; format: string; at: number }
 
 export default function SmmPanel({ seed }: {
   /** Marketing rejasidan kelgan mavzu — matn va rasm o'zi yaratiladi */
@@ -434,22 +434,41 @@ export default function SmmPanel({ seed }: {
       setEditingId(null)
       setTopic(sd.topic)
 
-      // Rasm ham darhol — foydalanuvchi alohida tugma bosmasin
-      setSeedMsg("Rasm chizilmoqda…")
+      // Media ham darhol. Reja "video" desa video, aks holda rasm.
+      const wantVideo = /video|reels|stor/i.test(sd.format || "")
+      setSeedMsg(wantVideo ? "Video yasalmoqda… (bu biroz uzoq)" : "Rasm chizilmoqda…")
       try {
         const aspect = sd.platform === "instagram" ? "4:5" : "16:9"
-        const d = await api<{ image_b64: string }>("/smm/ai?action=image", {
-          method: "POST",
-          body: JSON.stringify({ text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500), aspect }),
+        const payload = JSON.stringify({
+          text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500),
+          aspect,
         })
-        const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
-        const r = await uploadFile(file)
-        setForm((f) => ({ ...f, image_url: r.signedUrl }))
-        setSeedMsg("✅ Matn va rasm tayyor — tekshirib saqlang")
+        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string }>(
+          `/smm/ai?action=${wantVideo ? "video" : "image"}`,
+          { method: "POST", body: payload },
+        )
+
+        if (d.video_b64) {
+          const vf = dataUrlToFile(`data:video/mp4;base64,${d.video_b64}`, "ai-video.mp4")
+          const r = await uploadFile(vf)
+          setForm((f) => ({ ...f, image_url: r.signedUrl }))
+          setSeedMsg("✅ Matn va video tayyor — tekshirib saqlang")
+        } else if (d.image_b64) {
+          const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
+          const r = await uploadFile(file)
+          setForm((f) => ({ ...f, image_url: r.signedUrl }))
+          // Video so'ralgan bo'lsa-yu chiqmagan bo'lsa — rasm qoldi
+          setSeedMsg(d.video_error
+            ? "✅ Matn va rasm tayyor. Video chiqmadi"
+            : "✅ Matn va rasm tayyor — tekshirib saqlang")
+          if (d.video_error) setDrawErr(d.video_error)
+        } else {
+          setSeedMsg("✅ Matn tayyor. Media chiqmadi — qo'lda yuklang")
+        }
       } catch (e) {
-        // Rasm chizilmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
-        setSeedMsg("✅ Matn tayyor. Rasm chizilmadi — qo'lda yuklang")
-        setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
+        // Media chiqmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
+        setSeedMsg("✅ Matn tayyor. Media chiqmadi — qo'lda yuklang")
+        setDrawErr(e instanceof Error ? e.message : "Media yaratilmadi")
       }
     } catch (e) {
       setSeedMsg("")

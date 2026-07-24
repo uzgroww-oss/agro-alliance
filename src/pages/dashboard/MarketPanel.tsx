@@ -57,7 +57,7 @@ const PLATFORM_LABEL: Record<string, string> = {
 
 export default function MarketPanel({ onCreatePost }: {
   /** Reja bandidan post yaratish — SMM/AI bo'limiga o'tkazadi */
-  onCreatePost: (topic: string, platform: string) => void
+  onCreatePost: (topic: string, platform: string, format: string) => void
 }) {
   const [loading, setLoading] = useState(true)
 
@@ -210,7 +210,10 @@ export default function MarketPanel({ onCreatePost }: {
           {/* Kunlik reja */}
           <div className={`${card} mt-5`}>
             <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
-            <p className="mt-0.5 text-sm text-muted">"Post yaratish" — SMM / AI bo'limi ochiladi, AI matn va rasmni o'zi yaratadi</p>
+            <p className="mt-0.5 text-sm text-muted">
+              "Post yaratish" — SMM / AI bo'limi ochiladi, AI matn va rasmni o'zi yaratadi.
+              Format <strong>video</strong> bo'lsa qisqa video ham yasaydi.
+            </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
@@ -235,7 +238,7 @@ export default function MarketPanel({ onCreatePost }: {
                       <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
                       <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
                       <td className="py-3 pr-1 text-right">
-                        <button onClick={() => onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram")}
+                        <button onClick={() => onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post")}
                           className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
                           Post yaratish
                         </button>
