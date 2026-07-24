@@ -216,7 +216,6 @@ export default function SmmPanel({ seed }: {
      bo'lmasdi. */
   const [draft, setDraft] = useState<{ sarlavha: string; matn: string; hashtaglar: string[] } | null>(null)
   const [genImg, setGenImg] = useState("")
-  const [genPrompt, setGenPrompt] = useState("")
   const [drawing, runDraw] = useBusy()
   const [drawErr, setDrawErr] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
@@ -339,7 +338,7 @@ export default function SmmPanel({ seed }: {
         matn: d.generated.matn || "",
         hashtaglar: d.generated.hashtaglar || [],
       })
-      setGenImg(""); setGenPrompt(""); setDrawErr("")
+      setGenImg(""); setDrawErr("")
     } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
   })
 
@@ -356,7 +355,7 @@ export default function SmmPanel({ seed }: {
     }))
     setAiMade(true)
     setEditingId(null)
-    setDraft(null); setGenImg(""); setGenPrompt("")
+    setDraft(null); setGenImg("")
     setMsg("")
   }
 
@@ -394,7 +393,6 @@ export default function SmmPanel({ seed }: {
       } else {
         setGenImg(r.signedUrl)
       }
-      setGenPrompt(d.prompt || "")
     } catch (e) {
       setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
     }
@@ -448,9 +446,7 @@ export default function SmmPanel({ seed }: {
           { method: "POST", body: payload },
         )
 
-        if (d.prompt) setGenPrompt(d.prompt)
-
-        if (d.video_b64) {
+                if (d.video_b64) {
           const vf = dataUrlToFile(`data:video/mp4;base64,${d.video_b64}`, "ai-video.mp4")
           const r = await uploadFile(vf)
           setForm((f) => ({ ...f, image_url: r.signedUrl }))
@@ -979,7 +975,6 @@ export default function SmmPanel({ seed }: {
                   <img src={genImg} alt="" title="Kattalashtirish uchun bosing"
                     onClick={() => setZoomImg(genImg)}
                     className="w-full cursor-zoom-in rounded-lg transition-opacity hover:opacity-90" />
-                  {genPrompt && <p className="mt-1 text-[11px] text-muted">Tasvir so'rovi: {genPrompt}</p>}
                   <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
                     className="mt-1.5 text-xs font-bold text-muted hover:text-green disabled:opacity-50">
                     Boshqa rasm chiz
@@ -1144,13 +1139,6 @@ export default function SmmPanel({ seed }: {
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
-                    {/* Qanday so'rov bilan chizilgani — mos kelmasa
-                        darhol ko'rinadi va qaytadan chizdirish mumkin */}
-                    {genPrompt && !seenDesc && (
-                      <p className="mt-2 rounded-lg bg-soft px-3 py-2 text-[11px] text-muted">
-                        <strong className="text-ink">Rasm so'rovi:</strong> {genPrompt}
-                      </p>
-                    )}
                     {(seenDesc || seenTopic) && (
                       <div className="mt-2 space-y-1 rounded-lg bg-green/5 px-3 py-2">
                         {seenDesc && (
@@ -1218,7 +1206,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr(""); setGenPrompt("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
