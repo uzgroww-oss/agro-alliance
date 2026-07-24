@@ -50,8 +50,16 @@ export async function uploadFile(
         try {
           const body = JSON.parse(xhr.responseText || "{}")
           why = body.message || body.error || ""
-        } catch { why = (xhr.responseText || "").slice(0, 160) }
-        reject(new Error(why ? `Yuklanmadi: ${why}` : `Yuklanmadi (${xhr.status})`))
+        } catch {
+          // Storage HTML xato sahifasi qaytarishi mumkin — undan
+          // faqat sarlavhani olamiz, butun HTML ekranni to'ldiradi
+          const raw = xhr.responseText || ""
+          const title = raw.match(/<title>([^<]+)<\/title>/i)
+          why = title ? title[1] : raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 100)
+        }
+        // Fayl hajmi va turi — sabab ko'pincha shularda
+        const info = `${file.type || "tur noma'lum"}, ${Math.round(file.size / 1024)} KB`
+        reject(new Error(`Yuklanmadi (${xhr.status}): ${why || "sabab noma'lum"} · ${info}`))
       }
     }
 

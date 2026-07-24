@@ -163,11 +163,47 @@ export function composeThumbnail(
   })
 }
 
-/** data URL ni yuklash uchun File ga aylantirish */
+/**
+ * Base64 dan File yasash.
+ *
+ * AI qaytargan base64 canvas'nikidan farq qiladi: ichida yangi qator
+ * bo'lishi, URL-xavfsiz belgilar (- va _) ishlatilishi mumkin. Bunday
+ * satrda atob yiqiladi yoki buzuq bayt beradi — natijada Storage
+ * "400 Bad Request" qaytaradi va sabab noma'lum bo'ladi.
+ *
+ * Tur ham BAYTLARDAN aniqlanadi: FLUX PNG qaytarishi mumkin, biz esa
+ * uni JPEG deb yozib yuborardik.
+ */
 export function dataUrlToFile(dataUrl: string, name: string): File {
   const comma = dataUrl.indexOf(",")
-  const bin = atob(dataUrl.slice(comma + 1))
+  let b64 = comma > -1 && dataUrl.startsWith("data:") ? dataUrl.slice(comma + 1) : dataUrl
+
+  // Bo'shliq va yangi qatorlarni olib tashlaymiz, URL-xavfsiz
+  // belgilarni oddiysiga qaytaramiz
+  b64 = b64.replace(/\s/g, "").replace(/-/g, "+").replace(/_/g, "/")
+  // To'ldiruvchi yetishmasa qo'shamiz
+  const pad = b64.length % 4
+  if (pad) b64 += "=".repeat(4 - pad)
+
+  let bin: string
+  try {
+    bin = atob(b64)
+  } catch {
+    throw new Error("Fayl ma'lumoti buzuq (base64 o'qilmadi)")
+  }
+  if (!bin.length) throw new Error("Fayl bo'sh keldi")
+
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return new File([bytes], name, { type: "image/jpeg" })
+
+  // Sehrli baytlar bo'yicha turni aniqlaymiz
+  let type = "image/jpeg"
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) type = "image/png"
+  else if (bytes[0] === 0x52 && bytes[1] === 0x49) type = "image/webp"
+  else if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) type = "video/mp4"
+
+  const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : type === "video/mp4" ? "mp4" : "jpg"
+  const finalName = name.replace(/\.[^.]+$/, "") + "." + ext
+
+  return new File([bytes], finalName, { type })
 }
