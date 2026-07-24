@@ -4,6 +4,7 @@ import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
 import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy, ErrorState } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import SmmPanel from "./SmmPanel"
+import MarketPanel from "./MarketPanel"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
@@ -14,6 +15,7 @@ const nav = [
   { label: "Topshiriqlar", icon: I.task },
   { label: "Bloger holatlari", icon: I.chart },
   { label: "SMM / AI", icon: I.megaphone },
+  { label: "Marketing", icon: I.target },
   { label: "Hamkorlar", icon: I.handshake },
   { label: "Yangiliklar", icon: I.doc },
   { label: "Kategoriyalar", icon: I.grid },
@@ -2898,7 +2900,7 @@ function AdminRoles() {
   )
 }
 
-const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari", "SMM / AI"]
+const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari", "SMM / AI", "Marketing"]
 const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
 const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
 
@@ -2939,6 +2941,7 @@ export default function AdminDashboard() {
       case "Topshiriqlar": return <AdminTasks />
       case "Bloger holatlari": return <BloggerTaskStatus />
       case "SMM / AI": return <SmmPanel />
+      case "Marketing": return <MarketPanel />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />

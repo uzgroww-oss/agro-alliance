@@ -6,6 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
+import { gatherCompetitors, webTrends } from "../_shared/market.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -257,6 +258,13 @@ type Analysis = {
   zaif: string[]
   tavsiyalar: { mavzu: string; sabab: string; platforma: string; format: string }[]
   eng_yaxshi_vaqt: string
+}
+
+type MarketPlan = {
+  bozor: string
+  raqobat: string[]
+  sotuv: string[]
+  reja: { kun: number; mavzu: string; format: string; platforma: string; vaqt?: string; maqsad?: string }[]
 }
 
 type Generated = {
@@ -607,6 +615,140 @@ Qoidalar:
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
       }
+    }
+
+    /* ---------------- RAQOBATCHILAR RO'YXATI ---------------- */
+    if (action === "competitors") {
+      const { data } = await supabaseAdmin
+        .from("smm_competitors")
+        .select("id, username, label, followers, posts, avg_likes, last_error, checked_at")
+        .order("created_at", { ascending: true })
+      return jsonResponse({ competitors: data || [] })
+    }
+
+    if (action === "competitor_add") {
+      // @ va havolani tozalaymiz — foydalanuvchi ikkalasini ham kiritadi
+      let u = String(body.username || "").trim()
+      u = u.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/\/.*$/, "")
+      if (!u) return errorResponse("Instagram nomini kiriting", 400)
+      if (u.length > 100) return errorResponse("Nom juda uzun", 400)
+
+      const { error } = await supabaseAdmin.from("smm_competitors").upsert({
+        platform: "instagram",
+        username: u,
+        label: body.label ? String(body.label).slice(0, 160) : null,
+        created_by: auth.user.id,
+      }, { onConflict: "platform,username" })
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true, username: u })
+    }
+
+    if (action === "competitor_remove") {
+      const id = String(body.id || "")
+      if (!id) return errorResponse("id kerak", 400)
+      await supabaseAdmin.from("smm_competitors").delete().eq("id", id)
+      return jsonResponse({ success: true })
+    }
+
+    /* ---------------- MARKETING TAHLILI ---------------- */
+    // O'z hisoblarimiz + raqobatchilar + (kalit bo'lsa) veb tendensiyalari
+    // -> sotuvni oshirish yo'llari va kunlik kontent reja.
+    if (action === "market") {
+      const days = [7, 14, 30].includes(Number(body.days)) ? Number(body.days) : 7
+
+      // Uchala manba parallel — ketma-ket bo'lsa javob juda cho'ziladi
+      const [nets, comps, hits] = await Promise.all([
+        gatherNetworks(),
+        gatherCompetitors(),
+        webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
+      ])
+
+      const ownLine = nets.length
+        ? nets.map((n) => {
+            if (n.error) return `${n.platform} (${n.name}) — xato: ${n.error}`
+            const parts = [
+              n.followers !== null ? `${n.followers} obunachi` : null,
+              n.posts !== null ? `${n.posts} post` : null,
+              n.avgLikes !== null ? `o'rtacha ${n.avgLikes} layk` : null,
+            ].filter(Boolean)
+            return `${n.platform} (${n.name}): ${parts.join(", ") || "ma'lumot yo'q"}`
+          }).join("\n")
+        : "(hech qaysi tarmoq ulanmagan)"
+
+      const compLine = comps.length
+        ? comps.map((c) => {
+            if (c.error) return `@${c.username} — ${c.error}`
+            const parts = [
+              c.followers !== null ? `${c.followers} obunachi` : null,
+              c.avgLikes !== null ? `o'rtacha ${c.avgLikes} layk` : null,
+              c.avgComments !== null ? `${c.avgComments} izoh` : null,
+            ].filter(Boolean)
+            const posts = c.recent.length
+              ? ` | Oxirgi postlari: ${c.recent.slice(0, 5).map((r) => `"${r.text.slice(0, 60)}" (${r.likes ?? "?"} layk)`).join("; ")}`
+              : ""
+            return `@${c.username}: ${parts.join(", ")}${posts}`
+          }).join("\n")
+        : "(raqobatchi qo'shilmagan)"
+
+      const webLine = hits.length
+        ? hits.map((h) => `- ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
+        : "(veb qidiruv sozlanmagan)"
+
+      const prompt = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
+
+BIZNING HISOBLARIMIZ:
+${ownLine}
+
+RAQOBATCHILAR:
+${compLine}
+
+VEB TENDENSIYALARI:
+${webLine}
+
+Vazifa: yuqoridagi ma'lumotlarni tahlil qilib, ${days} kunlik kontent reja tuz.
+
+QAT'IY QOIDALAR:
+- FAQAT yuqoridagi raqamlar va faktlardan foydalan
+- Ma'lumot yetarli bo'lmagan joyda buni ochiq ayt, raqam o'ylab topma
+- Raqobatchi ma'lumoti yo'q bo'lsa taqqoslash qilma
+- Har bir tavsiya nima uchun kerakligini raqam bilan asosla
+- Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar
+- Til: o'zbek tili (lotin alifbosi), sodda
+
+FAQAT JSON qaytar, boshqa matn yozma:
+{
+  "bozor": "bozor holati va bizning o'rnimiz haqida 2-3 jumla",
+  "raqobat": ["raqobatchilardan o'rganish mumkin bo'lgan aniq narsa"],
+  "sotuv": ["sotuvni oshirish uchun aniq qadam — nima qilish va nega"],
+  "reja": [
+    { "kun": 1, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
+  ]
+}
+"reja" ichida ${days} ta element bo'lsin, kun 1 dan ${days} gacha.`
+
+      const result = await askAi<MarketPlan>(prompt, (v) => {
+        const o = v as MarketPlan
+        return Boolean(o && typeof o === "object" && Array.isArray(o.reja) && o.reja.length > 0)
+      })
+
+      // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin
+      await supabaseAdmin.from("smm_plans").insert({
+        data: { ...result, networks: nets, competitors: comps, web: hits },
+        days,
+        created_by: auth.user.id,
+      })
+
+      return jsonResponse({ plan: result, networks: nets, competitors: comps, web: hits })
+    }
+
+    if (action === "last_plan") {
+      const { data } = await supabaseAdmin
+        .from("smm_plans")
+        .select("data, days, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return jsonResponse({ last: data || null })
     }
 
     return errorResponse("Noma'lum amal", 400)
