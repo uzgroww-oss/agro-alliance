@@ -6,7 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
-import { gatherCompetitors, fetchCompetitor, webTrends, type Competitor } from "../_shared/market.ts"
+import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
 /**
@@ -57,83 +57,6 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTo
   throw new Error(errs.join(" | "))
 }
 
-
-/**
- * Raqobatchilarni AVTOMATIK topish.
- *
- * MUHIM QOIDA: AI faqat NOMZOD taklif qiladi, raqamlarni O'YLAB
- * TOPMAYDI. Har bir nomzod Instagram business_discovery orqali
- * tekshiriladi va faqat HAQIQATAN mavjud, ochiq ko'rsatkichlari
- * keladigan hisoblar qoladi. Mavjud bo'lmagani jimgina tashlanadi.
- *
- * Shu sababli tahlilga tushadigan har bir raqam API dan keladi.
- */
-async function discoverCompetitors(): Promise<Competitor[]> {
-  const { data: tok } = await supabaseAdmin
-    .from("instagram_tokens")
-    .select("access_token, instagram_account_id, instagram_username")
-    .order("created_at", { ascending: false }).limit(1).maybeSingle()
-
-  if (!tok?.access_token || !tok?.instagram_account_id) return []
-
-  let names: string[] = []
-  try {
-    const raw = await askAi<{ nomzodlar: string[] }>(
-      `O'zbekistondagi qishloq xo'jaligi, fermerlik, agro biznes va oziq-ovqat
-sohasida Instagram'da faol bo'lgan kompaniya va media hisoblarini sanab ber.
-
-Qoidalar:
-- Faqat O'ZBEKISTON bilan bog'liq hisoblar
-- Kompaniya, do'kon, agro media, fermer xo'jaligi hisoblari
-- Faqat foydalanuvchi nomi (username), @ belgisisiz
-- Ishonchsiz bo'lsang ham yoz — ular keyin tekshiriladi
-- 20 ta nom ber
-
-FAQAT JSON qaytar:
-{ "nomzodlar": ["nom1", "nom2"] }`,
-      (v) => Array.isArray((v as { nomzodlar?: unknown }).nomzodlar),
-    )
-    names = (raw.nomzodlar || [])
-      .map((n) => String(n).trim().replace(/^@/, "").replace(/\s+/g, ""))
-      .filter((n) => /^[a-z0-9._]{2,30}$/i.test(n))
-      .slice(0, 20)
-  } catch {
-    return [] // AI javob bermasa avtomatik topish o'tkazib yuboriladi
-  }
-
-  // O'zimizni ro'yxatdan chiqaramiz
-  const own = String(tok.instagram_username || "").toLowerCase()
-  names = names.filter((n) => n.toLowerCase() !== own)
-
-  // Tekshiruv: bir vaqtda 4 tadan — Graph API ni bo'g'ib qo'ymaslik uchun
-  const found: Competitor[] = []
-  for (let i = 0; i < names.length && found.length < 8; i += 4) {
-    const batch = names.slice(i, i + 4)
-    const res = await Promise.all(
-      batch.map((n) => fetchCompetitor(tok.instagram_account_id, tok.access_token, n, null)),
-    )
-    for (const c of res) {
-      // Faqat HAQIQIY raqam qaytganini olamiz
-      if (!c.error && c.followers !== null) found.push(c)
-    }
-  }
-
-  // Topilganlarni saqlaymiz — keyingi safar qayta qidirilmasin
-  for (const c of found) {
-    await supabaseAdmin.from("smm_competitors").upsert({
-      platform: "instagram",
-      username: c.username,
-      label: null,
-      followers: c.followers,
-      posts: c.posts,
-      avg_likes: c.avgLikes,
-      last_error: null,
-      checked_at: new Date().toISOString(),
-    }, { onConflict: "platform,username" })
-  }
-
-  return found
-}
 
 /**
  * Oddiy MATN javobi uchun zanjir (JSON emas).
@@ -370,12 +293,25 @@ function asTextList(v: unknown): string[] {
   return arr.map(asText).map((x) => x.trim()).filter(Boolean)
 }
 
+/**
+ * Matn odam o'qiydigan jumlaga o'xshaydimi?
+ *
+ * AI ba'zan matn maydoniga raqam yoki kalit-qiymat qaytaradi. Normalizator
+ * ularni birlashtirganda "0. 3. 0. 2. 0" kabi bema'nilik hosil bo'lardi —
+ * xatosiz, lekin foydasiz.
+ */
+function looksLikeSentence(t: string): boolean {
+  const s = (t || "").trim()
+  if (s.length < 40) return false
+  const words = s.split(/\s+/).filter((w) => /\p{L}{3,}/u.test(w))
+  return words.length >= 8
+}
+
 function normalizePlan(raw: unknown): MarketPlan {
   const o = (raw || {}) as Record<string, unknown>
   const reja = Array.isArray(o.reja) ? o.reja : []
   return {
     bozor: asText(o.bozor),
-    raqobat: asTextList(o.raqobat),
     sotuv: asTextList(o.sotuv),
     reja: reja.map((r, i) => {
       const it = (r || {}) as Record<string, unknown>
@@ -421,7 +357,6 @@ function isRepetitive(text: string): boolean {
 
 type MarketPlan = {
   bozor: string
-  raqobat: string[]
   sotuv: string[]
   reja: { kun: number; mavzu: string; format: string; platforma: string; vaqt?: string; maqsad?: string }[]
 }
@@ -787,34 +722,13 @@ Qoidalar:
     if (action === "market") {
       const days = [7, 14, 30].includes(Number(body.days)) ? Number(body.days) : 7
 
-      // Raqobatchilarni har safar qaytadan qidirish qimmat: 20 ta nomzod
-      // + 20 ta Graph so'rovi. Ro'yxat yangi bo'lsa saqlangani ishlatiladi,
-      // bir haftadan eski bo'lsa qaytadan qidiriladi.
-      const WEEK = 7 * 24 * 60 * 60 * 1000
-      const { data: freshest } = await supabaseAdmin
-        .from("smm_competitors")
-        .select("checked_at")
-        .order("checked_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const stale =
-        !freshest?.checked_at ||
-        Date.now() - new Date(freshest.checked_at).getTime() > WEEK
-      const needDiscovery = stale || Boolean(body.rediscover)
-
-      // Uchala manba parallel — ketma-ket bo'lsa javob juda cho'ziladi.
-      // Qayta qidirish kerak bo'lsa saqlanganini tekshirish behuda ish.
-      const [nets, savedComps, hits] = await Promise.all([
+      // Ikki manba parallel: o'z hisoblarimiz va internet yangiliklari.
+      // Raqobatchilarni qidirish olib tashlandi — u sekin edi va
+      // Instagram business_discovery ko'p hisoblarni ko'ra olmasdi.
+      const [nets, hits] = await Promise.all([
         gatherNetworks(),
-        needDiscovery ? Promise.resolve([]) : gatherCompetitors(),
         webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
       ])
-
-      let comps = savedComps
-      if (!comps.length) {
-        const found = await discoverCompetitors()
-        if (found.length) comps = found
-      }
 
       const ownLine = nets.length
         ? nets.map((n) => {
@@ -828,51 +742,35 @@ Qoidalar:
           }).join("\n")
         : "(hech qaysi tarmoq ulanmagan)"
 
-      const compLine = comps.length
-        ? comps.map((c) => {
-            if (c.error) return `@${c.username} — ${c.error}`
-            const parts = [
-              c.followers !== null ? `${c.followers} obunachi` : null,
-              c.avgLikes !== null ? `o'rtacha ${c.avgLikes} layk` : null,
-              c.avgComments !== null ? `${c.avgComments} izoh` : null,
-            ].filter(Boolean)
-            const posts = c.recent.length
-              ? ` | Oxirgi postlari: ${c.recent.slice(0, 5).map((r) => `"${r.text.slice(0, 60)}" (${r.likes ?? "?"} layk)`).join("; ")}`
-              : ""
-            return `@${c.username}: ${parts.join(", ")}${posts}`
-          }).join("\n")
-        : "(raqobatchi qo'shilmagan)"
-
       const webLine = hits.length
         ? hits.map((h) => `- ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
         : "(veb qidiruv sozlanmagan)"
 
       const prompt = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
 
-BIZNING HISOBLARIMIZ:
+BIZNING IJTIMOIY TARMOQ HISOBLARIMIZ:
 ${ownLine}
 
-RAQOBATCHILAR:
-${compLine}
-
-VEB TENDENSIYALARI:
+INTERNETDAGI SO'NGGI YANGILIKLAR:
 ${webLine}
 
-Vazifa: yuqoridagi ma'lumotlarni tahlil qilib, ${days} kunlik kontent reja tuz.
+Vazifa: yangiliklarni o'qib, ${days} kunlik kontent reja tuz.
 
 QAT'IY QOIDALAR:
-- FAQAT yuqoridagi raqamlar va faktlardan foydalan
-- Ma'lumot yetarli bo'lmagan joyda buni ochiq ayt, raqam o'ylab topma
-- Raqobatchi ma'lumoti yo'q bo'lsa taqqoslash qilma
-- Har bir tavsiya nima uchun kerakligini raqam bilan asosla
-- Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar
+- Har bir maydonga TO'LIQ JUMLA yoz. Raqam, ro'yxat yoki bo'sh
+  qiymat qaytarma — bu maydonlar odam o'qishi uchun
+- Yangiliklardagi mavzulardan foydalan: nima dolzarb, nima haqida
+  gapirilyapti
+- Bizning raqamlarimiz kichik bo'lsa buni ochiq ayt, bo'rttirma
+- Ma'lumot yetarli bo'lmagan joyda buni yozib qo'y, o'ylab topma
+- Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va
+  agro kompaniyalar
 - Til: o'zbek tili (lotin alifbosi), sodda
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
-  "bozor": "bozor holati va bizning o'rnimiz haqida 2-3 jumla",
-  "raqobat": ["raqobatchilardan o'rganish mumkin bo'lgan aniq narsa"],
-  "sotuv": ["sotuvni oshirish uchun aniq qadam — nima qilish va nega"],
+  "bozor": "hozirgi vaziyat haqida 2-3 to'liq jumla",
+  "sotuv": ["sotuvni oshirish uchun aniq qadam — to'liq jumla bilan"],
   "reja": [
     { "kun": 1, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
   ]
@@ -880,20 +778,24 @@ FAQAT JSON qaytar, boshqa matn yozma:
 "reja" ichida ${days} ta element bo'lsin, kun 1 dan ${days} gacha.`
 
       const rawPlan = await askAi<unknown>(prompt, (v) => {
-        const o = v as { reja?: unknown }
-        return Boolean(o && typeof o === "object" && Array.isArray(o.reja) && o.reja.length > 0)
+        const o = v as { reja?: unknown; bozor?: unknown }
+        if (!o || typeof o !== "object") return false
+        if (!Array.isArray(o.reja) || !o.reja.length) return false
+        // "bozor" jumla bo'lishi shart. Ilgari AI u yerga raqamlar
+        // qaytarardi va ekranda "0. 3. 0. 2. 0" kabi bema'nilik chiqardi.
+        return looksLikeSentence(asText(o.bozor))
       })
       const result = normalizePlan(rawPlan)
       if (!result.reja.length) return errorResponse("AI reja tuza olmadi — qaytadan urining", 500)
 
       // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin
       await supabaseAdmin.from("smm_plans").insert({
-        data: { ...result, networks: nets, competitors: comps, web: hits },
+        data: { ...result, networks: nets, web: hits },
         days,
         created_by: auth.user.id,
       })
 
-      return jsonResponse({ plan: result, networks: nets, competitors: comps, web: hits })
+      return jsonResponse({ plan: result, networks: nets, web: hits })
     }
 
     if (action === "last_plan") {

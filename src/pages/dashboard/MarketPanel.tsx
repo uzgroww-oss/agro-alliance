@@ -6,11 +6,12 @@ import { api } from "../../lib/api"
  * Marketing tahlili.
  *
  * BITTA TUGMA. Foydalanuvchi hech narsa kiritmaydi va sozlamaydi:
- * AI raqobatchilarni o'zi topadi, Instagram API ularni tekshiradi,
- * Google News uch tilda yangiliklarni beradi — natijada kontent reja.
+ * Google News uch tilda so'nggi yangiliklarni beradi, o'z hisoblarimiz
+ * ko'rsatkichlari Graph API dan olinadi — natijada kontent reja.
  *
- * Har bir raqam manbadan keladi: hisob ko'rsatkichlari Graph API dan,
- * yangiliklar RSS dan. AI ularni tahlil qiladi, o'ylab topmaydi.
+ * Raqobatchilarni qidirish OLIB TASHLANDI: u sekin edi va Instagram
+ * business_discovery ko'p hisoblarni ko'ra olmagani uchun natija
+ * to'liq bo'lmasdi.
  */
 
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
@@ -23,12 +24,10 @@ type PlanItem = {
 }
 type Plan = {
   bozor: unknown
-  raqobat: unknown
   sotuv: unknown
   reja: PlanItem[]
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
-type CompStat = { username: string; followers: number | null; avgLikes: number | null; avgComments: number | null; error?: string }
 type WebHit = { title: string; snippet: string; url: string; source?: string; date?: string }
 
 /**
@@ -63,7 +62,6 @@ export default function MarketPanel() {
   const [days, setDays] = useState(7)
   const [plan, setPlan] = useState<Plan | null>(null)
   const [nets, setNets] = useState<NetStat[]>([])
-  const [comps, setComps] = useState<CompStat[]>([])
   const [web, setWeb] = useState<WebHit[]>([])
   const [planAt, setPlanAt] = useState("")
 
@@ -77,13 +75,12 @@ export default function MarketPanel() {
      har safar qaytadan tahlil qilish shart bo'lmasin. */
   const load = useCallback(() => {
     setLoading(true)
-    api<{ last: { data: Plan & { networks?: NetStat[]; competitors?: CompStat[]; web?: WebHit[] }; days: number; created_at: string } | null }>(
+    api<{ last: { data: Plan & { networks?: NetStat[]; web?: WebHit[] }; days: number; created_at: string } | null }>(
       "/smm/ai?action=last_plan", { method: "POST", body: "{}" })
       .then((d) => {
         if (!d.last) return
         setPlan(d.last.data)
         setNets(d.last.data.networks || [])
-        setComps(d.last.data.competitors || [])
         setWeb(d.last.data.web || [])
         setDays(d.last.days || 7)
         setPlanAt(d.last.created_at)
@@ -96,11 +93,10 @@ export default function MarketPanel() {
   const analyze = () => runAnalyze(async () => {
     setErr(""); setMadeMsg("")
     try {
-      const d = await api<{ plan: Plan; networks: NetStat[]; competitors: CompStat[]; web: WebHit[] }>(
+      const d = await api<{ plan: Plan; networks: NetStat[]; web: WebHit[] }>(
         "/smm/ai?action=market", { method: "POST", body: JSON.stringify({ days }) })
       setPlan(d.plan)
       setNets(d.networks || [])
-      setComps(d.competitors || [])
       setWeb(d.web || [])
       setPlanAt(new Date().toISOString())
     } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
@@ -145,7 +141,7 @@ export default function MarketPanel() {
       <div>
         <h2 className="font-display text-xl font-extrabold tracking-tight">Marketing tahlili</h2>
         <p className="mt-1 text-sm text-muted">
-          AI raqobatchilarni topadi, yangiliklarni o'qiydi va kontent reja tuzadi
+          AI internetdagi yangiliklarni o'qib, qanday kontent kerakligini aytadi
         </p>
       </div>
 
@@ -178,8 +174,8 @@ export default function MarketPanel() {
         {/* Uzoq kutishda nima bo'layotgani ko'rinib tursin */}
         {analyzing && (
           <div className="mt-4 space-y-2 rounded-xl bg-green/5 p-4 text-sm text-ink/75">
-            <p className="flex items-center gap-2"><Icon d={I.search} className="h-4 w-4 shrink-0 text-green" /> Raqobatchilar qidirilmoqda va Instagram API orqali tekshirilmoqda</p>
-            <p className="flex items-center gap-2"><Icon d={I.globe} className="h-4 w-4 shrink-0 text-green" /> Yangiliklar uch tilda o'qilmoqda</p>
+            <p className="flex items-center gap-2"><Icon d={I.globe} className="h-4 w-4 shrink-0 text-green" /> Internetdagi yangiliklar uch tilda o'qilmoqda</p>
+            <p className="flex items-center gap-2"><Icon d={I.chart} className="h-4 w-4 shrink-0 text-green" /> Hisoblaringiz ko'rsatkichlari olinmoqda</p>
             <p className="flex items-center gap-2"><Icon d={I.brain} className="h-4 w-4 shrink-0 text-green" /> Kontent reja tuzilmoqda</p>
             <p className="text-xs text-muted">Bu bir necha o'n soniya oladi.</p>
           </div>
@@ -202,48 +198,22 @@ export default function MarketPanel() {
         <>
           {/* Raqamlar — AI xulosasi shularga asoslangan. Ko'rsatamiz,
               aks holda xulosani tekshirib bo'lmaydi. */}
-          {(nets.length > 0 || comps.length > 0) && (
+          {nets.length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Raqamlar</h3>
-              <div className="mt-3 grid gap-4 lg:grid-cols-2">
-                {nets.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-muted">Bizning hisoblar</p>
-                    <div className="mt-1.5 space-y-1.5">
-                      {nets.map((n) => (
-                        <div key={n.platform} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-soft px-3 py-2 text-xs">
-                          <span className="font-semibold">{PLATFORM_LABEL[n.platform] || n.platform}</span>
-                          <span className="truncate text-muted">{n.name}</span>
-                          {n.error ? <span className="text-red-600">{n.error}</span> : (
-                            <span className="text-muted">
-                              {n.followers !== null && <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi </>}
-                              {n.avgLikes !== null && <><strong className="text-ink">{n.avgLikes}</strong> layk</>}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              <h3 className="font-display font-bold">Bizning hisoblar</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {nets.map((n) => (
+                  <div key={n.platform} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-soft px-3 py-2 text-xs">
+                    <span className="font-semibold">{PLATFORM_LABEL[n.platform] || n.platform}</span>
+                    <span className="truncate text-muted">{n.name}</span>
+                    {n.error ? <span className="text-red-600">{n.error}</span> : (
+                      <span className="text-muted">
+                        {n.followers !== null && <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi </>}
+                        {n.avgLikes !== null && <><strong className="text-ink">{n.avgLikes}</strong> layk</>}
+                      </span>
+                    )}
                   </div>
-                )}
-                {comps.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-muted">AI topgan raqobatchilar</p>
-                    <div className="mt-1.5 space-y-1.5">
-                      {comps.map((c) => (
-                        <div key={c.username} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-soft px-3 py-2 text-xs">
-                          <a href={`https://instagram.com/${c.username}`} target="_blank" rel="noreferrer"
-                            className="font-semibold text-green hover:underline">@{c.username}</a>
-                          {c.error ? <span className="text-orange-600">{c.error}</span> : (
-                            <span className="text-muted">
-                              {c.followers !== null && <><strong className="text-ink">{c.followers.toLocaleString("uz")}</strong> obunachi </>}
-                              {c.avgLikes !== null && <><strong className="text-ink">{c.avgLikes}</strong> layk</>}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           )}
@@ -253,24 +223,14 @@ export default function MarketPanel() {
             <h3 className="font-display font-bold">Xulosa</h3>
             <p className="mt-2 rounded-xl bg-soft p-4 text-sm">{txt(plan.bozor)}</p>
 
-            <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              {txtList(plan.raqobat).length > 0 && (
-                <div className="rounded-xl border border-green/10 p-4">
-                  <p className="text-xs font-bold text-green">Raqobatchilardan o'rganish</p>
-                  <ul className="mt-2 space-y-1.5">
-                    {txtList(plan.raqobat).map((r, i) => <li key={i} className="text-sm text-ink/80">• {r}</li>)}
-                  </ul>
-                </div>
-              )}
-              {txtList(plan.sotuv).length > 0 && (
-                <div className="rounded-xl border border-green/10 p-4">
-                  <p className="text-xs font-bold text-green">Sotuvni oshirish</p>
-                  <ul className="mt-2 space-y-1.5">
-                    {txtList(plan.sotuv).map((r, i) => <li key={i} className="text-sm text-ink/80">• {r}</li>)}
-                  </ul>
-                </div>
-              )}
-            </div>
+            {txtList(plan.sotuv).length > 0 && (
+              <div className="mt-3 rounded-xl border border-green/10 p-4">
+                <p className="text-xs font-bold text-green">Sotuvni oshirish</p>
+                <ul className="mt-2 space-y-1.5">
+                  {txtList(plan.sotuv).map((r, i) => <li key={i} className="text-sm text-ink/80">• {r}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Kunlik reja */}
