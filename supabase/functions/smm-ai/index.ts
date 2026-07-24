@@ -2,7 +2,6 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { getDynamicStats } from "../_shared/stats.ts"
 import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
@@ -281,10 +280,6 @@ Deno.serve(async (req) => {
 
     /* ---------------- TAHLIL ---------------- */
     if (action === "analyze") {
-      // Kontekst: platforma statistikasi + oxirgi postlar
-      const stats = await getDynamicStats()
-      const statLine = stats.map((s) => `${s.label}: ${s.value}`).join(", ")
-
       const { data: recent } = await supabaseAdmin
         .from("smm_posts")
         .select("title, content, status, created_at")
@@ -326,19 +321,25 @@ Deno.serve(async (req) => {
       const okCount = (outcomes || []).filter((r) => r.success).length
       const failCount = (outcomes || []).length - okCount
 
-      const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasining SMM strategisisan.
+      // MUHIM: bu yerda platformadagi BLOGERLAR statistikasi (oylik
+      // ko'rishlar, viloyatlar soni) berilmaydi. Ilgari berilardi va AI
+      // uni ulangan hisoblarning natijasi deb o'ylab, "kuchli tomon"
+      // sifatida ko'rsatardi — aslida ular boshqa narsa.
+      const prompt = `Sen "Agro Alliance" ning SMM strategisisan.
 
-PLATFORMA HOLATI: ${statLine}
-
-ULANGAN TARMOQLAR VA ULARNING HOLATI:
+ULANGAN IJTIMOIY TARMOQLAR VA ULARNING HOLATI:
 ${connLine}
 JOYLASH NATIJALARI (oxirgi 20 ta): ${okCount} muvaffaqiyatli, ${failCount} xato
 
-OXIRGI POSTLAR:
+SHU PANEL ORQALI YOZILGAN OXIRGI POSTLAR:
 ${recentLine}
 
 Vazifa: keyingi 1 hafta uchun ijtimoiy tarmoq kontenti bo'yicha tavsiya ber.
-MUHIM: tavsiyalarni FAQAT ulangan tarmoqlar uchun ber. Ulanmagan tarmoqni tavsiya qilma.
+
+QAT'IY QOIDALAR:
+- FAQAT yuqoridagi ulangan tarmoqlar raqamlaridan foydalan
+- Boshqa hech qanday raqamni ishlatma va o'ylab topma
+- Ulanmagan tarmoq uchun tavsiya berma
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
 Til — o'zbek tili.
 
@@ -347,9 +348,9 @@ nimani ko'rsatayotganini ayt.
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
-  "holat": "raqamlarga asoslangan 2-3 jumlalik tahlil",
-  "kuchli": ["nima yaxshi ishlayapti — aniq raqam bilan"],
-  "zaif": ["nima yomon — aniq raqam bilan"],
+  "holat": "ulangan tarmoqlar raqamlariga asoslangan 2-3 jumlalik tahlil",
+  "kuchli": ["ulangan tarmoqlarda nima yaxshi ishlayapti — aniq raqam bilan"],
+  "zaif": ["ulangan tarmoqlarda nima yomon — aniq raqam bilan"],
   "tavsiyalar": [
     { "mavzu": "aniq mavzu", "sabab": "nega aynan shu", "platforma": "telegram|instagram|facebook", "format": "post|video|karusel" }
   ],
