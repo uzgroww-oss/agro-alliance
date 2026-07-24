@@ -416,17 +416,11 @@ export default function SmmPanel() {
     try {
       const r = await api<{ remote?: { platform: string; success: boolean; error?: string }[] }>(
         `/smm/posts/${p.id}${scope}`, { method: "DELETE" })
-      // Post baribir ro'yxatdan o'chdi. Instagram'ni API o'chira olmaydi —
-      // buni XATO emas, ESLATMA sifatida ko'rsatamiz, aks holda muvaffaqiyatli
-      // o'chirish ham qizil xatoga o'xshab qoladi.
-      const remote = r.remote || []
-      const ig = remote.find((x) => x.platform === "instagram" && !x.success)
-      const realBad = remote.filter((x) => !x.success && x.platform !== "instagram")
-
+      // Instagram backend'da o'tkazib yuboriladi — bu yerda faqat
+      // haqiqiy natijalar keladi.
+      const realBad = (r.remote || []).filter((x) => !x.success)
       if (realBad.length) {
         setMsg(`⚠️ Post o'chirildi, lekin: ${realBad.map((b) => `${b.platform} — ${b.error}`).join("; ")}`)
-      } else if (ig) {
-        setMsg("✅ O'chirildi. Instagram'dan qo'lda o'chiring — API buni qo'llamaydi")
       } else if (scope) {
         setMsg("✅ Ro'yxatdan va tarmoqlardan o'chirildi")
       } else {

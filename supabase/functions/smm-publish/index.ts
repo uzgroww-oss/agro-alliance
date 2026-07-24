@@ -242,9 +242,8 @@ async function removeRemote(platform: string, externalId: string): Promise<Publi
       if (d.success || r.ok) return { platform, success: true }
       return { platform, success: false, error: d.error?.message || "O'chirilmadi" }
     }
-    if (platform === "instagram") {
-      return { platform, success: false, error: "Instagram API post o'chirishni qo'llamaydi — ilovadan o'chiring" }
-    }
+    // Instagram DELETE handler'da o'tkazib yuboriladi — bu yerga
+    // yetib kelmaydi. Ehtiyot uchun qoldirilgan.
   } catch (e) {
     return { platform, success: false, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
   }
@@ -532,6 +531,10 @@ Deno.serve(async (req) => {
           .eq("post_id", id)
           .eq("success", true)
         for (const r of (res || []) as { platform: string; external_id: string | null }[]) {
+          // Instagram o'tkazib yuboriladi: Graph API media o'chirishni
+          // qo'llamaydi. Urinib xato qaytargandan ko'ra umuman
+          // tegmaymiz — Instagram'dan post joyida qoladi.
+          if (r.platform === "instagram") continue
           remote.push(await removeRemote(r.platform, r.external_id || ""))
         }
       }
