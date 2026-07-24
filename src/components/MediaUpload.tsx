@@ -124,18 +124,38 @@ export default function MediaUpload({
         disabled={uploading}
         className={
           variant === "box"
-            ? "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-4 py-10 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
+            // Quti ko'rinishi: ikonka doira ichida, ikki qatorli matn.
+            // Ilgari bu shunchaki baland punktir tugma edi va yuklash
+            // maydoniga o'xshamasdi.
+            ? "group flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-green/30 bg-white px-4 py-8 transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
             : "inline-flex items-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-5 py-3 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
         }
       >
-        {uploading ? (
-          <><Icon d={I.refresh} className={`${variant === "box" ? "h-6 w-6" : "h-4 w-4"} animate-spin`} /> Yuklanmoqda…</>
+        {variant === "box" ? (
+          uploading ? (
+            <>
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-green/10">
+                <Icon d={I.refresh} className="h-5 w-5 animate-spin text-green" />
+              </span>
+              <span className="text-sm font-bold text-green">Yuklanmoqda…</span>
+            </>
+          ) : (
+            <>
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-green/10 transition-colors group-hover:bg-green group-hover:text-white">
+                <Icon d={I.upload} className="h-5 w-5 text-green transition-colors group-hover:text-white" />
+              </span>
+              <span className="text-center">
+                <span className="block text-sm font-bold text-ink">
+                  {multiple ? "Fayllarni tanlang" : "Faylni tanlang"}
+                </span>
+                {hint && <span className="mt-0.5 block text-[11px] text-muted">{hint}</span>}
+              </span>
+            </>
+          )
+        ) : uploading ? (
+          <><Icon d={I.refresh} className="h-4 w-4 animate-spin" /> Yuklanmoqda…</>
         ) : (
-          <>
-            <Icon d={I.upload} className={variant === "box" ? "h-6 w-6" : "h-4 w-4"} />
-            {multiple ? "Fayllarni yuklash" : "Fayl yuklash"}
-            {variant === "box" && hint && <span className="text-xs font-normal text-muted">{hint}</span>}
-          </>
+          <><Icon d={I.upload} className="h-4 w-4" /> {multiple ? "Fayllarni yuklash" : "Fayl yuklash"}</>
         )}
       </button>
 

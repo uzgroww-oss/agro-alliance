@@ -358,26 +358,43 @@ export default function SmmPanel() {
    * Server avval matndan inglizcha tasvir so'rovi yasaydi, keyin rasm
    * modeliga beradi — rasm modellari ingliz tilida ancha aniq ishlaydi.
    */
-  const drawImage = () => runDraw(async () => {
-    const text = [draft?.sarlavha, draft?.matn].filter(Boolean).join(". ")
+  /**
+   * Matndan rasm chizdirish.
+   *
+   * @param text  qaysi matn asosida chizilsin
+   * @param toForm  natija to'g'ridan-to'g'ri post rasmiga aylansinmi
+   *
+   * toForm kerak, chunki bu ikki joyda ishlatiladi: 2-kartadagi
+   * qoralamada (u yerda natija alohida ko'rinadi) va 3-kartada
+   * (u yerda darhol postning rasmi bo'lishi kerak).
+   */
+  const drawImage = (text: string, toForm: boolean) => runDraw(async () => {
     if (!text.trim()) { setDrawErr("Avval matn yozdiring"); return }
-    setDrawErr(""); setGenImg("")
+    setDrawErr(""); if (!toForm) setGenImg("")
     try {
       // Tanlangan tarmoqqa qarab nisbat: Instagram tik, qolgani keng
       const aspect = picked.has("instagram") && !picked.has("telegram") ? "4:5" : "16:9"
       const d = await api<{ image_b64: string; prompt: string }>("/smm/ai?action=image", {
         method: "POST",
-        body: JSON.stringify({ text, aspect }),
+        body: JSON.stringify({ text: text.slice(0, 1500), aspect }),
       })
       // Yuklab, doimiy manzil olamiz — base64 ni bazaga saqlab bo'lmaydi
       const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
       const r = await uploadFile(file)
-      setGenImg(r.signedUrl)
+      if (toForm) {
+        setForm((f) => ({ ...f, image_url: r.signedUrl }))
+        setSeenDesc(""); setSeenTopic("")
+      } else {
+        setGenImg(r.signedUrl)
+      }
       setGenPrompt(d.prompt || "")
     } catch (e) {
       setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
     }
   })
+
+  /** 3-kartadagi matn asosida rasm chizdirish */
+  const drawForPost = () => drawImage([form.title, form.content].filter(Boolean).join(". "), true)
 
   const analyze = () => runAnalyze(async () => {
     setAiErr("")
@@ -863,13 +880,13 @@ export default function SmmPanel() {
                 <div className="mt-3">
                   <img src={genImg} alt="" className="w-full rounded-lg" />
                   {genPrompt && <p className="mt-1 text-[11px] text-muted">Tasvir so'rovi: {genPrompt}</p>}
-                  <button type="button" onClick={drawImage} disabled={drawing}
+                  <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
                     className="mt-1.5 text-xs font-bold text-muted hover:text-green disabled:opacity-50">
                     Boshqa rasm chiz
                   </button>
                 </div>
               ) : (
-                <button type="button" onClick={drawImage} disabled={drawing}
+                <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
                   <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
                   {drawing ? "Rasm chizilmoqda…" : "Shu matnga rasm chizdir"}
@@ -1080,13 +1097,38 @@ export default function SmmPanel() {
                     <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
-                  <MediaUpload accept="image/*,video/*"
-                    transform={fitForInstagram}
-                    onUpload={(r) => {
-                      setForm((f) => ({ ...f, image_url: r.signedUrl }))
-                      // Yuklangan zahoti AI o'zi yozadi — tugma bosish shart emas
-                      describeUrl(r.signedUrl)
-                    }} />
+                  // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
+                  // Ilgari chizish faqat 2-kartadagi qoralamada bor edi va
+                  // "Tahrirlashga o'tkazish" bosilgach yo'qolib qolardi.
+                  <div className="rounded-xl border border-green/15 bg-soft p-3">
+                    <MediaUpload accept="image/*,video/*"
+                      variant="box"
+                      hint="JPG, PNG, WebP, MP4 · rasm 20 MB, video 100 MB"
+                      transform={fitForInstagram}
+                      onUpload={(r) => {
+                        setForm((f) => ({ ...f, image_url: r.signedUrl }))
+                        // Yuklangan zahoti AI o'zi yozadi — tugma bosish shart emas
+                        describeUrl(r.signedUrl)
+                      }} />
+
+                    <div className="my-3 flex items-center gap-2">
+                      <span className="h-px flex-1 bg-green/15" />
+                      <span className="text-[11px] font-bold text-muted">yoki</span>
+                      <span className="h-px flex-1 bg-green/15" />
+                    </div>
+
+                    <button type="button" onClick={drawForPost}
+                      disabled={drawing || !form.content.trim()}
+                      title={form.content.trim() ? "" : "Avval post matnini yozing"}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
+                      <Icon d={drawing ? I.refresh : I.media} className={`h-4 w-4 ${drawing ? "animate-spin" : ""}`} />
+                      {drawing ? "Rasm chizilmoqda…" : "Shu matnga AI rasm chizsin"}
+                    </button>
+
+                    {drawErr && (
+                      <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
