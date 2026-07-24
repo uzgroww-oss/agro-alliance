@@ -947,7 +947,7 @@ export default function SmmPanel({ seed }: {
             </button>
           </div>
 
-          {aiErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>}
+          {aiErr && <div className="mt-3 max-h-32 overflow-y-auto rounded-xl bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-600">{aiErr}</div>}
 
           {/* AI yozgan qoralama SHU KARTADA turadi. Ilgari u to'g'ridan-
               to'g'ri 3-kartaga tushib ketardi va nima yozilganini
@@ -1418,7 +1418,7 @@ export default function SmmPanel({ seed }: {
           </div>
 
           {aiErr && (
-            <div className="border-t border-red-100 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>
+            <div className="max-h-32 overflow-y-auto border-t border-red-100 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-600">{aiErr}</div>
           )}
 
           {/* ---- Yozish maydoni ---- */}

@@ -42,8 +42,27 @@ function hasKey(name: string): boolean {
   return true
 }
 
-/** Har provayderga alohida chegara — bittasi butun so'rovni to'smasin */
-const PROVIDER_TIMEOUT = 22_000
+/**
+ * Har provayderga alohida chegara. Bir xil emas:
+ * Groq tez javob beradi, NVIDIA'ning 70B modeli sekinroq va 22
+ * soniyada "Signal timed out" bilan uzilib qolardi.
+ */
+const PROVIDER_TIMEOUT: Record<string, number> = {
+  Groq: 20_000,
+  Gemini: 15_000,
+  NVIDIA: 45_000,
+}
+const TIMEOUT_FOR = (name: string) => PROVIDER_TIMEOUT[name] ?? 25_000
+
+/**
+ * AI so'ralgan obyektni ba'zan MASSIV ichida qaytaradi: [{...}].
+ * Tekshiruv obyekt kutgani uchun bunday javob rad etilardi, holbuki
+ * ichidagi ma'lumot to'g'ri edi.
+ */
+function unwrap(v: unknown): unknown {
+  if (Array.isArray(v) && v.length === 1 && v[0] && typeof v[0] === "object") return v[0]
+  return v
+}
 
 async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTokens = 3500): Promise<T> {
   const errs: string[] = []
@@ -60,7 +79,7 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTo
       // retries: 0 — bir provayderni qayta sinash o'rniga darhol
       // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
       // va uch provayder x ikki urinish 90 soniyadan oshib ketardi.
-      const raw = await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: PROVIDER_TIMEOUT })
+      const raw = unwrap(await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }))
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -71,7 +90,9 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTo
       errs.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
-  throw new Error(errs.join(" | "))
+  // Uzun xato matni ekranni to'ldirib yuboradi — har provayderdan
+  // qisqacha sabab yetarli
+  throw new Error(errs.map((e) => e.slice(0, 140)).join(" | "))
 }
 
 
@@ -88,7 +109,7 @@ async function askText(prompt: string): Promise<string> {
   ] as const) {
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
     try {
-      const { text } = await fn(prompt, { retries: 0, maxTokens: 1500, timeoutMs: PROVIDER_TIMEOUT })
+      const { text } = await fn(prompt, { retries: 0, maxTokens: 1500, timeoutMs: TIMEOUT_FOR(name) })
       if (text && text.trim()) return text.trim()
       errs.push(`${name}: bo'sh javob`)
     } catch (e) {
@@ -688,15 +709,15 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // Ko'ruvchi provayderlar. NVIDIA ikki xil formatda sinaladi:
       // ba'zi VLM modellari OpenAI'ning image_url qismini tushunmaydi.
       const attempts = [
-        { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: PROVIDER_TIMEOUT }) },
-        { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: PROVIDER_TIMEOUT }) },
-        { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const, timeoutMs: PROVIDER_TIMEOUT }) },
+        { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
+        { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
+        { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
       ]
 
       const errs: string[] = []
       for (const a of attempts) {
         try {
-          const result = await a.run()
+          const result = unwrap(await a.run()) as Generated
           if (!result?.matn?.trim()) { errs.push(`${a.name}: bo'sh javob`); continue }
           if (isRepetitive(result.matn)) { errs.push(`${a.name}: matn takrorlanib ketdi`); continue }
           if (!saw(result)) {
