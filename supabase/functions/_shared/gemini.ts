@@ -120,9 +120,18 @@ export async function geminiChat(
       const resp = await fetchWithAuthFallback(url, apiKey, body);
 
       if (resp.status === 429) {
-        // Rate limited — wait and retry
         if (attempt < maxRetries) continue;
-        throw new Error("Gemini API rate limited — all retries exhausted");
+        // MUHIM: Google'ning izohini tashlamaymiz. 429 faqat "juda tez
+        // so'rading" degani emas — kvota umuman ajratilmagan bo'lsa ham
+        // (API yoqilmagan, to'lov sozlanmagan) shu kod qaytadi.
+        // Ilgari bu yerda qat'iy matn bor edi va sababni bilib bo'lmasdi.
+        const body = await resp.text().catch(() => "");
+        let why = "";
+        try {
+          const j = JSON.parse(body);
+          why = j?.error?.message || "";
+        } catch { why = body.slice(0, 200); }
+        throw new Error(why ? `Gemini kvotasi: ${why}` : "Gemini kvotasi tugagan");
       }
 
       if (!resp.ok) {
