@@ -43,7 +43,15 @@ export async function uploadFile(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ ...result, signedUrl: result.publicUrl || result.signedUrl, fileName: file.name })
       } else {
-        reject(new Error("Yuklashda xatolik"))
+        // Storage javobidagi HAQIQIY sababni ko'rsatamiz. Ilgari
+        // "Yuklashda xatolik" deb yutib yuborilardi va bucket cheklovi
+        // (mime turi, hajm) nima ekanini bilib bo'lmasdi.
+        let why = ""
+        try {
+          const body = JSON.parse(xhr.responseText || "{}")
+          why = body.message || body.error || ""
+        } catch { why = (xhr.responseText || "").slice(0, 160) }
+        reject(new Error(why ? `Yuklanmadi: ${why}` : `Yuklanmadi (${xhr.status})`))
       }
     }
 
