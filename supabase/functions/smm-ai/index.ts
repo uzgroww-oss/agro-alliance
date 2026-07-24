@@ -264,6 +264,8 @@ type Generated = {
   hashtaglar: string[]
   /** Faqat describe uchun: AI rasmda nima ko'rganini yozadi */
   tasvir?: string
+  /** Faqat describe uchun: rasm/video nima haqida ekani */
+  mazmun?: string
 }
 
 Deno.serve(async (req) => {
@@ -439,28 +441,40 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // yozadi. Usiz model rasmni ko'rmasa ham chiroyli post to'qib
       // beraverardi va buni bilib bo'lmasdi. Endi ko'rmasa "KO'RINMADI"
       // deb yozishi shart va biz keyingi provayderga o'tamiz.
+      const src = isVideo ? "videodan olingan kadr" : "rasm"
       const prompt = `Sen "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
 
-Yuqorida ${isVideo ? "videodan olingan kadr" : "rasm"} berilgan.
+Yuqorida ${src} berilgan. Uch bosqichda ishla.
 
-BIRINCHI VAZIFA: unda AYNAN nima ko'rinayotganini yoz — narsalar,
-odamlar, joy, ranglar, matn bo'lsa o'sha matn. Taxmin qilma.
-Agar hech qanday ${isVideo ? "kadr" : "rasm"} ko'rmasang yoki uni
-o'qiy olmasang, "tasvir" maydoniga faqat KO'RINMADI deb yoz va
-qolganini bo'sh qoldir.
+1) KO'R: unda aynan nima ko'rinyapti — narsalar, odamlar, joy,
+   yozuvlar bo'lsa o'sha yozuvlar. Taxmin qilma.
+   Agar ${src}ni umuman ko'rmasang yoki o'qiy olmasang, "tasvir"
+   maydoniga faqat KO'RINMADI deb yoz, qolganini bo'sh qoldir.
 
-IKKINCHI VAZIFA: faqat ko'rgan narsangga asoslanib post yoz.
-Rasmda yo'q narsani yozma.
+2) TUSHUN: bu ${src} NIMA HAQIDA? Gap nima ustida ketyapti,
+   nima taklif qilinyapti yoki nima ko'rsatilyapti? Buni "mazmun"
+   maydoniga BITTA jumlada yoz.
+
+3) YOZ: shu mazmunni odamlarga yetkazadigan post yoz.
+
+POST QOIDALARI — qat'iy:
+- QISQA: 2-4 jumla, 400 belgidan oshmasin
+- Birinchi jumlada asosiy fikr bo'lsin
+- Faqat ${src}da BOR narsa haqida yoz. Yo'q narsani qo'shma
+- "Zamonaviy texnologiyalar", "hosildorlikni oshiring" kabi umumiy
+  shiorlarni YOZMA — aniq gapir
+- Reklama ohangida emas, odam gapiradigandek yoz
 
 PLATFORMA: ${platform}
-Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
-Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
+Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar.
+Til — o'zbek tili (lotin alifbosi).
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
-  "tasvir": "${isVideo ? "kadrda" : "rasmda"} aynan nima ko'rinyapti (1-2 jumla)",
-  "sarlavha": "qisqa sarlavha",
-  "matn": "postning to'liq matni",
+  "tasvir": "nima ko'rinyapti (1-2 jumla)",
+  "mazmun": "nima haqida, nima taklif qilinyapti (1 jumla)",
+  "sarlavha": "qisqa sarlavha, 60 belgigacha",
+  "matn": "post matni, 2-4 jumla",
   "hashtaglar": ["#agro", "#fermer"]
 }`
 

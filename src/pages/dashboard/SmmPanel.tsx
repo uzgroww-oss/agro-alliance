@@ -191,6 +191,7 @@ export default function SmmPanel() {
   // AI faylda nima ko'rganini yozadi. Buni ko'rsatamiz — shunda post
   // haqiqatan rasmga asoslanganini tekshirish mumkin.
   const [seenDesc, setSeenDesc] = useState("")
+  const [seenTopic, setSeenTopic] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -437,11 +438,12 @@ export default function SmmPanel() {
         const frame = await extractVideoFrame(mediaUrl)
         payload = { image_b64: frame.data, mime: frame.mimeType, from_video: true, platform: effOrigin }
       }
-      const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[]; tasvir?: string } }>(
+      const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[]; tasvir?: string; mazmun?: string } }>(
         "/smm/ai?action=describe",
         { method: "POST", body: JSON.stringify(payload) },
       )
       setSeenDesc(d.generated.tasvir || "")
+      setSeenTopic(d.generated.mazmun || "")
       setForm((f) => ({
         ...f,
         title: d.generated.sarlavha || f.title,
@@ -450,7 +452,7 @@ export default function SmmPanel() {
       }))
       setAiMade(true)
     } catch (e) {
-      setSeenDesc("")
+      setSeenDesc(""); setSeenTopic("")
       setAiErr(e instanceof Error ? e.message : "AI faylni o'qiy olmadi")
     }
   })
@@ -841,10 +843,19 @@ export default function SmmPanel() {
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
-                    {seenDesc && (
-                      <p className="mt-2 rounded-lg bg-green/5 px-3 py-2 text-xs text-ink/75">
-                        <strong className="text-green">AI ko'rdi:</strong> {seenDesc}
-                      </p>
+                    {(seenDesc || seenTopic) && (
+                      <div className="mt-2 space-y-1 rounded-lg bg-green/5 px-3 py-2">
+                        {seenDesc && (
+                          <p className="text-xs text-ink/75">
+                            <strong className="text-green">AI ko'rdi:</strong> {seenDesc}
+                          </p>
+                        )}
+                        {seenTopic && (
+                          <p className="text-xs text-ink/75">
+                            <strong className="text-green">Mazmuni:</strong> {seenTopic}
+                          </p>
+                        )}
+                      </div>
                     )}
                     {/* Avtomatik yozish yuklashdan keyin o'zi ishga tushadi.
                         Bu tugma qayta yozdirish uchun. */}
@@ -852,7 +863,7 @@ export default function SmmPanel() {
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
                       <Icon d={I.refresh} className="h-3.5 w-3.5" /> Qaytadan yozdirish
                     </button>
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   <MediaUpload accept="image/*,video/*"
