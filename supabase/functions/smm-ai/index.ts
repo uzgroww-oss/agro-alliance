@@ -695,56 +695,37 @@ Qoidalar:
       }
     }
 
-    /* ---------------- RAQOBATCHILAR RO'YXATI ---------------- */
-    if (action === "competitors") {
-      const { data } = await supabaseAdmin
-        .from("smm_competitors")
-        .select("id, username, label, followers, posts, avg_likes, last_error, checked_at")
-        .order("created_at", { ascending: true })
-      return jsonResponse({ competitors: data || [] })
-    }
-
-    if (action === "competitor_add") {
-      // @ va havolani tozalaymiz — foydalanuvchi ikkalasini ham kiritadi
-      let u = String(body.username || "").trim()
-      u = u.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/^@/, "").replace(/\/.*$/, "")
-      if (!u) return errorResponse("Instagram nomini kiriting", 400)
-      if (u.length > 100) return errorResponse("Nom juda uzun", 400)
-
-      const { error } = await supabaseAdmin.from("smm_competitors").upsert({
-        platform: "instagram",
-        username: u,
-        label: body.label ? String(body.label).slice(0, 160) : null,
-        created_by: auth.user.id,
-      }, { onConflict: "platform,username" })
-      if (error) return errorResponse(error.message, 500)
-      return jsonResponse({ success: true, username: u })
-    }
-
-    if (action === "competitor_remove") {
-      const id = String(body.id || "")
-      if (!id) return errorResponse("id kerak", 400)
-      await supabaseAdmin.from("smm_competitors").delete().eq("id", id)
-      return jsonResponse({ success: true })
-    }
-
     /* ---------------- MARKETING TAHLILI ---------------- */
     // O'z hisoblarimiz + raqobatchilar + (kalit bo'lsa) veb tendensiyalari
     // -> sotuvni oshirish yo'llari va kunlik kontent reja.
     if (action === "market") {
       const days = [7, 14, 30].includes(Number(body.days)) ? Number(body.days) : 7
 
-      // Uchala manba parallel — ketma-ket bo'lsa javob juda cho'ziladi
+      // Raqobatchilarni har safar qaytadan qidirish qimmat: 20 ta nomzod
+      // + 20 ta Graph so'rovi. Ro'yxat yangi bo'lsa saqlangani ishlatiladi,
+      // bir haftadan eski bo'lsa qaytadan qidiriladi.
+      const WEEK = 7 * 24 * 60 * 60 * 1000
+      const { data: freshest } = await supabaseAdmin
+        .from("smm_competitors")
+        .select("checked_at")
+        .order("checked_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const stale =
+        !freshest?.checked_at ||
+        Date.now() - new Date(freshest.checked_at).getTime() > WEEK
+      const needDiscovery = stale || Boolean(body.rediscover)
+
+      // Uchala manba parallel — ketma-ket bo'lsa javob juda cho'ziladi.
+      // Qayta qidirish kerak bo'lsa saqlanganini tekshirish behuda ish.
       const [nets, savedComps, hits] = await Promise.all([
         gatherNetworks(),
-        gatherCompetitors(),
+        needDiscovery ? Promise.resolve([]) : gatherCompetitors(),
         webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
       ])
 
-      // Raqobatchi yo'q bo'lsa AI o'zi topadi va API tekshiradi.
-      // rediscover=true bo'lsa qayta qidiriladi.
       let comps = savedComps
-      if (!comps.length || body.rediscover) {
+      if (!comps.length) {
         const found = await discoverCompetitors()
         if (found.length) comps = found
       }
