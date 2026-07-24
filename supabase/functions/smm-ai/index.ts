@@ -6,7 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
-import { gatherCompetitors, webTrends } from "../_shared/market.ts"
+import { gatherCompetitors, fetchCompetitor, webTrends, type Competitor } from "../_shared/market.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -54,6 +54,84 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
     }
   }
   throw new Error(errs.join(" | "))
+}
+
+
+/**
+ * Raqobatchilarni AVTOMATIK topish.
+ *
+ * MUHIM QOIDA: AI faqat NOMZOD taklif qiladi, raqamlarni O'YLAB
+ * TOPMAYDI. Har bir nomzod Instagram business_discovery orqali
+ * tekshiriladi va faqat HAQIQATAN mavjud, ochiq ko'rsatkichlari
+ * keladigan hisoblar qoladi. Mavjud bo'lmagani jimgina tashlanadi.
+ *
+ * Shu sababli tahlilga tushadigan har bir raqam API dan keladi.
+ */
+async function discoverCompetitors(): Promise<Competitor[]> {
+  const { data: tok } = await supabaseAdmin
+    .from("instagram_tokens")
+    .select("access_token, instagram_account_id, instagram_username")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle()
+
+  if (!tok?.access_token || !tok?.instagram_account_id) return []
+
+  let names: string[] = []
+  try {
+    const raw = await askAi<{ nomzodlar: string[] }>(
+      `O'zbekistondagi qishloq xo'jaligi, fermerlik, agro biznes va oziq-ovqat
+sohasida Instagram'da faol bo'lgan kompaniya va media hisoblarini sanab ber.
+
+Qoidalar:
+- Faqat O'ZBEKISTON bilan bog'liq hisoblar
+- Kompaniya, do'kon, agro media, fermer xo'jaligi hisoblari
+- Faqat foydalanuvchi nomi (username), @ belgisisiz
+- Ishonchsiz bo'lsang ham yoz — ular keyin tekshiriladi
+- 20 ta nom ber
+
+FAQAT JSON qaytar:
+{ "nomzodlar": ["nom1", "nom2"] }`,
+      (v) => Array.isArray((v as { nomzodlar?: unknown }).nomzodlar),
+    )
+    names = (raw.nomzodlar || [])
+      .map((n) => String(n).trim().replace(/^@/, "").replace(/\s+/g, ""))
+      .filter((n) => /^[a-z0-9._]{2,30}$/i.test(n))
+      .slice(0, 20)
+  } catch {
+    return [] // AI javob bermasa avtomatik topish o'tkazib yuboriladi
+  }
+
+  // O'zimizni ro'yxatdan chiqaramiz
+  const own = String(tok.instagram_username || "").toLowerCase()
+  names = names.filter((n) => n.toLowerCase() !== own)
+
+  // Tekshiruv: bir vaqtda 4 tadan — Graph API ni bo'g'ib qo'ymaslik uchun
+  const found: Competitor[] = []
+  for (let i = 0; i < names.length && found.length < 8; i += 4) {
+    const batch = names.slice(i, i + 4)
+    const res = await Promise.all(
+      batch.map((n) => fetchCompetitor(tok.instagram_account_id, tok.access_token, n, null)),
+    )
+    for (const c of res) {
+      // Faqat HAQIQIY raqam qaytganini olamiz
+      if (!c.error && c.followers !== null) found.push(c)
+    }
+  }
+
+  // Topilganlarni saqlaymiz — keyingi safar qayta qidirilmasin
+  for (const c of found) {
+    await supabaseAdmin.from("smm_competitors").upsert({
+      platform: "instagram",
+      username: c.username,
+      label: null,
+      followers: c.followers,
+      posts: c.posts,
+      avg_likes: c.avgLikes,
+      last_error: null,
+      checked_at: new Date().toISOString(),
+    }, { onConflict: "platform,username" })
+  }
+
+  return found
 }
 
 /**
@@ -657,11 +735,19 @@ Qoidalar:
       const days = [7, 14, 30].includes(Number(body.days)) ? Number(body.days) : 7
 
       // Uchala manba parallel — ketma-ket bo'lsa javob juda cho'ziladi
-      const [nets, comps, hits] = await Promise.all([
+      const [nets, savedComps, hits] = await Promise.all([
         gatherNetworks(),
         gatherCompetitors(),
         webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
       ])
+
+      // Raqobatchi yo'q bo'lsa AI o'zi topadi va API tekshiradi.
+      // rediscover=true bo'lsa qayta qidiriladi.
+      let comps = savedComps
+      if (!comps.length || body.rediscover) {
+        const found = await discoverCompetitors()
+        if (found.length) comps = found
+      }
 
       const ownLine = nets.length
         ? nets.map((n) => {

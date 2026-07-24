@@ -48,6 +48,9 @@ export default function MarketPanel() {
   const [loading, setLoading] = useState(true)
 
   const [newUser, setNewUser] = useState("")
+  // Qo'lda qo'shish endi asosiy oqim emas — AI o'zi topadi.
+  // Lekin aniq raqobatchini kuzatmoqchi bo'lsa imkoniyat qolsin.
+  const [manualOpen, setManualOpen] = useState(false)
   const [addBusy, runAdd] = useBusy()
   const [compMsg, setCompMsg] = useState("")
 
@@ -101,11 +104,11 @@ export default function MarketPanel() {
     load()
   })
 
-  const analyze = () => runAnalyze(async () => {
+  const analyze = (rediscover = false) => runAnalyze(async () => {
     setErr(""); setMadeMsg("")
     try {
       const d = await api<{ plan: Plan; networks: NetStat[]; competitors: CompStat[]; web: WebHit[] }>(
-        "/smm/ai?action=market", { method: "POST", body: JSON.stringify({ days }) })
+        "/smm/ai?action=market", { method: "POST", body: JSON.stringify({ days, rediscover }) })
       setPlan(d.plan)
       setNets(d.networks || [])
       setCompStats(d.competitors || [])
@@ -160,29 +163,40 @@ export default function MarketPanel() {
 
       {/* ============ RAQOBATCHILAR ============ */}
       <div className={`${card} mt-5`}>
-        <h3 className="font-display font-bold">1. Raqobatchilar</h3>
-        <p className="mt-0.5 text-sm text-muted">
-          Instagram hisoblarini qo'shing — ularning ochiq ko'rsatkichlari tahlilga qo'shiladi
-        </p>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input value={newUser} onChange={(e) => setNewUser(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") addComp() }}
-            placeholder="@nom yoki instagram.com/nom"
-            className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-          <button onClick={addComp} disabled={addBusy}
-            className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
-            <Icon d={I.plus} className="h-4 w-4" /> Qo'shish
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-display font-bold">1. Raqobatchilar</h3>
+            <p className="mt-0.5 text-sm text-muted">
+              AI o'zi topadi — har bir hisob Instagram API orqali tekshiriladi
+            </p>
+          </div>
+          <button onClick={() => setManualOpen((v) => !v)}
+            className="text-xs font-bold text-muted hover:text-green">
+            {manualOpen ? "Yopish" : "Qo'lda qo'shish"}
           </button>
         </div>
 
-        {compMsg && <p className="mt-2 text-sm font-semibold text-red-600">{compMsg}</p>}
+        {manualOpen && (
+          <div className="mt-3">
+            <div className="flex flex-wrap gap-2">
+              <input value={newUser} onChange={(e) => setNewUser(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addComp() }}
+                placeholder="@nom yoki instagram.com/nom"
+                className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+              <button onClick={addComp} disabled={addBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">
+                <Icon d={I.plus} className="h-4 w-4" /> Qo'shish
+              </button>
+            </div>
+            {compMsg && <p className="mt-2 text-sm font-semibold text-red-600">{compMsg}</p>}
+          </div>
+        )}
 
         {loading ? (
           <div className="mt-4"><SkeletonCard /></div>
         ) : comps.length === 0 ? (
           <p className="mt-4 rounded-xl border border-green/10 py-6 text-center text-sm text-muted">
-            Hali raqobatchi qo'shilmagan. Ularsiz tahlil faqat o'z hisoblaringizga asoslanadi.
+            Hali topilmagan. "Tahlil qilish" ni bosing — AI raqobatchilarni o'zi qidiradi.
           </p>
         ) : (
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -229,7 +243,13 @@ export default function MarketPanel() {
                 {d} kun
               </button>
             ))}
-            <button onClick={analyze} disabled={analyzing}
+            {comps.length > 0 && (
+              <button onClick={() => analyze(true)} disabled={analyzing}
+                className="rounded-xl border border-green/20 px-3 py-2 text-xs font-bold text-muted transition-colors hover:border-green/50 hover:text-green disabled:opacity-50">
+                Raqobatchilarni qayta qidirish
+              </button>
+            )}
+            <button onClick={() => analyze(false)} disabled={analyzing}
               className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
               <Icon d={I.brain} className="h-4 w-4" />
               {analyzing ? "Tahlil qilinmoqda…" : "Tahlil qilish"}
@@ -239,7 +259,8 @@ export default function MarketPanel() {
 
         {analyzing && (
           <p className="mt-3 text-sm text-muted">
-            Hisoblar va raqobatchilar tekshirilmoqda — bu bir necha soniya oladi.
+            Raqobatchilar qidirilmoqda va har biri Instagram API orqali tekshirilmoqda —
+            bu bir necha o'n soniya oladi.
           </p>
         )}
         {err && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{err}</div>}
