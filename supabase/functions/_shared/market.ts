@@ -3,13 +3,13 @@ import { supabaseAdmin } from "./supabase.ts";
 /**
  * Bozor ma'lumotlarini yig'ish: raqobatchilar va veb tendensiyalari.
  *
- * MUHIM CHEKLOV — ochiq aytilsin:
- * "Butun internetni tahlil qilish" imkonsiz. Amalda ikki manba bor:
- *   1) Instagram business_discovery — RASMIY API, boshqa Business/
- *      Creator hisoblarining ochiq ko'rsatkichlarini beradi. Ishonchli.
- *   2) Veb qidiruv — qidiruv API kaliti bo'lsagina. Kalitsiz bu qism
- *      shunchaki tushib qoladi, tahlil raqobatchilar asosida davom etadi.
- * O'ylab topilgan "internet tahlili" berilmaydi.
+ * Ikki manba, ikkalasi ham KALITSIZ ishlaydi:
+ *   1) Instagram business_discovery — rasmiy API, boshqa Business/
+ *      Creator hisoblarining ochiq ko'rsatkichlari.
+ *   2) Google News RSS — uch tilda kunlik yangiliklar.
+ *
+ * Foydalanuvchidan hech qanday sozlash so'ralmaydi. O'ylab topilgan
+ * "internet tahlili" ham berilmaydi — har bir fakt shu ikki manbadan.
  */
 
 export type Competitor = {
@@ -117,45 +117,139 @@ export async function gatherCompetitors(): Promise<Competitor[]> {
 
 /* ---------------- Veb tendensiyalari ---------------- */
 
-export type WebHit = { title: string; snippet: string; url: string };
+export type WebHit = { title: string; snippet: string; url: string; source?: string; date?: string };
 
 /**
- * Veb qidiruv. Kalit sozlanmagan bo'lsa BO'SH ro'yxat qaytaradi —
- * xato emas. Tahlil raqobatchilar asosida davom etadi.
- *
- * Ikki provayder qo'llab-quvvatlanadi, qaysi biri sozlangan bo'lsa
- * o'sha ishlatiladi.
+ * TARTIB MUHIM: RSS ning description maydonida teglar BELGILANGAN
+ * holda keladi (&lt;a href…&gt;). Avval teglarni o'chirsak ular
+ * qolib ketadi va matnda "<a href=…" ko'rinadi.
+ * Shuning uchun: belgilarni ochamiz -> teglarni o'chiramiz ->
+ * oxirida &amp; ni ochamiz (aks holda ikki marta ochilib ketadi).
  */
-export async function webTrends(query: string): Promise<WebHit[]> {
+function stripTags(html: string): string {
+  return html
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    // Ikki marta belgilanganlari (&amp;nbsp;) endi &nbsp; bo'lib qoldi —
+    // oxirgi tozalash
+    .replace(/&nbsp;|&#160;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Google News RSS — KALITSIZ ishlaydi va haqiqiy, kunlik yangiliklarni
+ * beradi. Shu sababli asosiy manba sifatida tanlandi: foydalanuvchidan
+ * hech qanday sozlash so'ramaymiz.
+ */
+async function googleNews(query: string, locale: string): Promise<WebHit[]> {
+  const [hl, gl] = locale.split("|");
+  const url =
+    `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
+    `&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split("-")[0]}`;
+
+  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!r.ok) return [];
+  const xml = await r.text();
+
+  const out: WebHit[] = [];
+  // RSS bitta qatorda keladi — qator bo'yicha emas, teg bo'yicha ajratamiz
+  const items = xml.split("<item>").slice(1);
+  for (const it of items.slice(0, 10)) {
+    const pick = (tag: string) => {
+      // [\s\S] EMAS, "s" bayrog'i ishlatilyapti: shablon satri ichida
+      // teskari chiziqni to'g'ri yozish chalkash va oson buziladi
+      // (bitta qolsa regexga [sS] tushib, hech narsa topilmaydi).
+      // "s" bayrog'i bilan nuqta yangi qatorni ham qamrab oladi.
+      const m = it.match(new RegExp("<" + tag + ">(.*?)</" + tag + ">", "s"));
+      return m ? stripTags(m[1]) : "";
+    };
+    const rawTitle = pick("title");
+    if (!rawTitle) continue;
+    // Google sarlavha oxiriga " - Manba" qo'shadi
+    const dash = rawTitle.lastIndexOf(" - ");
+    const title = dash > 20 ? rawTitle.slice(0, dash) : rawTitle;
+    const source = dash > 20 ? rawTitle.slice(dash + 3) : "";
+
+    out.push({
+      title,
+      snippet: pick("description").slice(0, 220),
+      url: pick("link"),
+      source,
+      date: pick("pubDate").slice(0, 16),
+    });
+  }
+  return out;
+}
+
+/**
+ * Veb tendensiyalari.
+ *
+ * Standart holatda Google News RSS ishlatiladi — kalit KERAK EMAS.
+ * BRAVE_API_KEY yoki TAVILY_API_KEY sozlangan bo'lsa, ular qo'shimcha
+ * manba sifatida ishlatiladi (kengroq qamrov beradi).
+ */
+export async function webTrends(_query: string): Promise<WebHit[]> {
+  // Uch tilda qidiramiz: o'zbek manbalari kam, rus va ingliz tilida
+  // O'zbekiston haqidagi agro yangiliklar ancha ko'p.
+  const queries: [string, string][] = [
+    ["O'zbekiston qishloq xo'jaligi fermer", "uz|UZ"],
+    ["Узбекистан сельское хозяйство урожай экспорт", "ru|RU"],
+    ["Uzbekistan agriculture farming export", "en-US|US"],
+  ];
+
+  const results = await Promise.all(
+    queries.map(([q, loc]) => googleNews(q, loc).catch(() => [] as WebHit[])),
+  );
+
+  // Har manbadan 4 tadan olamiz — bittasi hammasini bosib ketmasin
+  const merged: WebHit[] = [];
+  const seen = new Set<string>();
+  for (const list of results) {
+    for (const h of list.slice(0, 4)) {
+      const key = h.title.toLowerCase().slice(0, 60);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(h);
+    }
+  }
+
+  // Qidiruv API kaliti bo'lsa qo'shimcha natijalar
+  const extra = await searchApi(_query).catch(() => [] as WebHit[]);
+  for (const h of extra) {
+    const key = h.title.toLowerCase().slice(0, 60);
+    if (!seen.has(key)) { seen.add(key); merged.push(h); }
+  }
+
+  return merged.slice(0, 14);
+}
+
+/** Ixtiyoriy: kalit sozlangan bo'lsa qo'shimcha qidiruv */
+async function searchApi(query: string): Promise<WebHit[]> {
   const brave = Deno.env.get("BRAVE_API_KEY");
   const tavily = Deno.env.get("TAVILY_API_KEY");
+  if (!brave && !tavily) return [];
 
-  try {
-    if (brave) {
-      const r = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,
-        { headers: { Accept: "application/json", "X-Subscription-Token": brave } },
-      );
-      const d = await r.json().catch(() => ({}));
-      return ((d.web?.results || []) as { title?: string; description?: string; url?: string }[])
-        .slice(0, 8)
-        .map((x) => ({ title: x.title || "", snippet: x.description || "", url: x.url || "" }));
-    }
-
-    if (tavily) {
-      const r = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: tavily, query, max_results: 8, search_depth: "basic" }),
-      });
-      const d = await r.json().catch(() => ({}));
-      return ((d.results || []) as { title?: string; content?: string; url?: string }[])
-        .slice(0, 8)
-        .map((x) => ({ title: x.title || "", snippet: (x.content || "").slice(0, 250), url: x.url || "" }));
-    }
-  } catch {
-    // Qidiruv yiqilsa tahlil to'xtamasin
-    return [];
+  if (brave) {
+    const r = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,
+      { headers: { Accept: "application/json", "X-Subscription-Token": brave } },
+    );
+    const d = await r.json().catch(() => ({}));
+    return ((d.web?.results || []) as { title?: string; description?: string; url?: string }[])
+      .slice(0, 8)
+      .map((x) => ({ title: x.title || "", snippet: x.description || "", url: x.url || "" }));
   }
-  return [];
+
+  const r = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: tavily, query, max_results: 8, search_depth: "basic" }),
+  });
+  const d = await r.json().catch(() => ({}));
+  return ((d.results || []) as { title?: string; content?: string; url?: string }[])
+    .slice(0, 8)
+    .map((x) => ({ title: x.title || "", snippet: (x.content || "").slice(0, 250), url: x.url || "" }));
 }

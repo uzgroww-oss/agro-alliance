@@ -36,7 +36,7 @@ type Plan = {
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
 type CompStat = { username: string; followers: number | null; avgLikes: number | null; avgComments: number | null; error?: string }
-type WebHit = { title: string; snippet: string; url: string }
+type WebHit = { title: string; snippet: string; url: string; source?: string; date?: string }
 
 const PLATFORM_LABEL: Record<string, string> = {
   telegram: "Telegram", instagram: "Instagram", facebook: "Facebook",
@@ -157,7 +157,7 @@ export default function MarketPanel() {
       <div>
         <h2 className="font-display text-xl font-extrabold tracking-tight">Marketing tahlili</h2>
         <p className="mt-1 text-sm text-muted">
-          Raqobatchilar va o'z hisoblaringizni tahlil qilib, kontent reja tuzadi
+          AI raqobatchilarni topadi, yangiliklarni o'qiydi va kontent reja tuzadi
         </p>
       </div>
 
@@ -382,15 +382,15 @@ export default function MarketPanel() {
                   {web.map((h, i) => (
                     <li key={i} className="text-sm">
                       <a href={h.url} target="_blank" rel="noreferrer" className="font-semibold text-green hover:underline">{h.title}</a>
-                      <span className="block text-xs text-muted">{h.snippet}</span>
+                      <span className="block text-xs text-muted">
+                        {[h.source, h.date].filter(Boolean).join(" · ")}
+                      </span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="mt-1 text-sm text-muted">
-                  Veb qidiruv sozlanmagan — tahlil faqat hisoblar va raqobatchilar raqamlariga asoslandi.
-                  Yoqish uchun <code className="rounded bg-soft px-1">BRAVE_API_KEY</code> yoki{" "}
-                  <code className="rounded bg-soft px-1">TAVILY_API_KEY</code> qo'shiladi.
+                  Yangilik topilmadi — tahlil hisoblar va raqobatchilar raqamlariga asoslandi.
                 </p>
               )}
             </div>
