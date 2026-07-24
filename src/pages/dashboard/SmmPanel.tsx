@@ -711,11 +711,17 @@ export default function SmmPanel({ seed }: {
   }
 
   /* ---------------- 4-bosqich ---------------- */
-  const publish = (id: string | null) => runAct(async () => {
+  /**
+   * @param overridePlatforms 4-bosqichdan joylashda HOZIRGI tanlov
+   *   yuboriladi. Jadvaldan joylashda esa postning o'z ro'yxati
+   *   ishlatiladi (undefined qoladi).
+   */
+  const publish = (id: string | null, overridePlatforms?: string[]) => runAct(async () => {
     if (!id) { setMsg("❌ Avval postni saqlang"); return }
     try {
       const r = await api<{ success: boolean; results: { platform: string; success: boolean; error?: string }[] }>(
-        `/smm/posts/${id}?action=publish`, { method: "POST", body: "{}" })
+        `/smm/posts/${id}?action=publish`,
+        { method: "POST", body: JSON.stringify(overridePlatforms ? { platforms: overridePlatforms } : {}) })
       const bad = r.results.filter((x) => !x.success)
       setMsg(r.success
         ? (bad.length ? `⚠️ Qisman joylandi — ${bad.map((b) => `${b.platform}: ${b.error}`).join("; ")}` : "✅ Joylandi")
@@ -1471,7 +1477,7 @@ export default function SmmPanel({ seed }: {
               )}
             </div>
           </div>
-          <button onClick={() => publish(editingId)} disabled={acting || !editingId}
+          <button onClick={() => publish(editingId, Array.from(picked))} disabled={acting || !editingId}
             className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100">
             <Icon d={I.send} className="h-4 w-4" /> {acting ? "Joylanmoqda…" : "Tanlanganlarga joylash"}
           </button>

@@ -516,10 +516,32 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (findErr) return errorResponse(findErr.message, 500)
       if (!post) return errorResponse("Post topilmadi", 404)
-      if (post.status === "published") return errorResponse("Bu post allaqachon joylangan", 409)
 
-      const platforms = (post.platforms || []) as Platform[]
+      // Tanlov so'rovda kelsa o'shani ishlatamiz. Sabab: foydalanuvchi
+      // postni saqlagandan KEYIN tarmoq tanlovini o'zgartirishi mumkin
+      // va tugma "Tanlanganlarga joylash" deb turadi — ya'ni hozirgi
+      // tanlov kutiladi, saqlangani emas.
+      const body = await req.json().catch(() => ({}))
+      const asked = Array.isArray(body.platforms)
+        ? (body.platforms as string[]).filter((x) => (PLATFORMS as readonly string[]).includes(x))
+        : []
+      let platforms = (asked.length ? asked : (post.platforms || [])) as Platform[]
       if (!platforms.length) return errorResponse("Tarmoq tanlanmagan", 400)
+
+      // Allaqachon muvaffaqiyatli joylangan tarmoqlarni takrorlamaymiz —
+      // aks holda bir post ikki marta chiqib ketadi.
+      const { data: done } = await supabaseAdmin
+        .from("smm_post_results")
+        .select("platform")
+        .eq("post_id", id)
+        .eq("success", true)
+      const already = new Set(((done || []) as { platform: string }[]).map((d) => d.platform))
+      const pending = platforms.filter((p) => !already.has(p))
+
+      if (!pending.length) {
+        return errorResponse("Bu post tanlangan tarmoqlarga allaqachon joylangan", 409)
+      }
+      platforms = pending
 
       const text = [post.content, post.hashtags].filter(Boolean).join("\n\n")
       const img = (post.image_url as string) || null
@@ -541,7 +563,10 @@ Deno.serve(async (req) => {
 
       // Kamida bittasi ishlasa — published. Hech biri bo'lmasa — failed.
       const anyOk = results.some((r) => r.success)
+      // Yangi tarmoqlar qo'shilgan bo'lsa postda ham qayd etamiz
+      const merged = Array.from(new Set([...(post.platforms || []), ...platforms]))
       await supabaseAdmin.from("smm_posts").update({
+        platforms: merged,
         status: anyOk ? "published" : "failed",
         published_at: anyOk ? new Date().toISOString() : null,
         approved_by: auth.user.id,
