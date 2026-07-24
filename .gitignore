@@ -73,3 +73,6 @@ ios/DerivedData/
 *.keystore
 *.jks
 .netlify/
+
+# deno check dan qoladigan artefakt — loyihaga kirmaydi
+deno.lock
