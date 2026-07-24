@@ -36,11 +36,16 @@ export async function groqChat(
     // Usiz kichik modellar qo'shtirnoqsiz kalit yoki tushuntirish matni
     // qo'shib yuborardi va JSON.parse yiqilardi.
     // Talab: so'rovda "JSON" so'zi bo'lishi shart (bizning matnda bor).
+    // frequency_penalty MUHIM: llama-3.1-8b-instant kichik model va
+    // usiz bir xil jumlani o'nlab marta takrorlab ketadi
+    // ("Issiqxona uchun foydali takliflar" 20 marta kabi).
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content: prompt }],
       temperature: opts?.temperature ?? 0.7,
       max_tokens: opts?.maxTokens ?? 2048,
+      frequency_penalty: 0.6,
+      presence_penalty: 0.3,
     };
     if (opts?.json) body.response_format = { type: "json_object" };
 

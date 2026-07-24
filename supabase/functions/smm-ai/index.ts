@@ -30,7 +30,7 @@ import { getFacebookPage } from "../_shared/facebook.ts"
  * Ikkalasi ham yiqilsa — HAQIQIY sababni qaytaramiz (kalit yo'qmi,
  * kvota tugaganmi), "AI javob bermadi" degan umumiy xabar emas.
  */
-async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Promise<T> {
+async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTokens = 3500): Promise<T> {
   const errs: string[] = []
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
@@ -43,7 +43,7 @@ async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Prom
     try {
       // maxTokens: tahlil javobi 4+ tavsiya bilan uzun bo'ladi.
       // 2048 da javob o'rtasida kesilib, JSON yarim qolardi.
-      const raw = await fn<unknown>(prompt, { retries: 1, maxTokens: 3500 })
+      const raw = await fn<unknown>(prompt, { retries: 1, maxTokens })
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -392,6 +392,33 @@ function normalizePlan(raw: unknown): MarketPlan {
   }
 }
 
+/**
+ * Matn o'zini takrorlayaptimi?
+ *
+ * Kichik modellar ba'zan bir xil jumlani o'nlab marta yozib ketadi.
+ * Bunday javob foydasiz, lekin "bo'sh emas" bo'lgani uchun tekshiruvdan
+ * o'tib ketardi va ekranga chiqardi.
+ */
+function isRepetitive(text: string): boolean {
+  const words = text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean)
+  // Qisqa matnda takror bo'lishi tabiiy — tekshirmaymiz
+  if (words.length < 40) return false
+
+  // Besh so'zli ketma-ketlik 4 marta takrorlansa — model qotib qolgan
+  const seen = new Map<string, number>()
+  let worst = 0
+  for (let i = 0; i + 5 <= words.length; i++) {
+    const k = words.slice(i, i + 5).join(" ")
+    const n = (seen.get(k) || 0) + 1
+    seen.set(k, n)
+    if (n > worst) worst = n
+  }
+
+  // Yoki lug'at juda tor bo'lsa (bir xil so'zlar aylanib yuribdi)
+  const uniqueRatio = new Set(words).size / words.length
+  return worst >= 4 || uniqueRatio < 0.3
+}
+
 type MarketPlan = {
   bozor: string
   raqobat: string[]
@@ -542,7 +569,11 @@ FAQAT JSON qaytar, boshqa matn yozma:
 
       const result = await askAi<Generated>(prompt, (v) => {
         const o = v as Generated
-        return Boolean(o && typeof o === "object" && typeof o.matn === "string" && o.matn.trim())
+        if (!o || typeof o !== "object" || typeof o.matn !== "string" || !o.matn.trim()) return false
+        // Juda uzun yoki o'zini takrorlaydigan javobni qabul qilmaymiz —
+        // keyingi provayder yaxshiroq yozishi mumkin
+        if (o.matn.length > 2500) return false
+        return !isRepetitive(o.matn)
       })
       return jsonResponse({ generated: result })
     }
@@ -642,6 +673,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         try {
           const result = await a.run()
           if (!result?.matn?.trim()) { errs.push(`${a.name}: bo'sh javob`); continue }
+          if (isRepetitive(result.matn)) { errs.push(`${a.name}: matn takrorlanib ketdi`); continue }
           if (!saw(result)) {
             // Rasmni ko'rmagan — bu javobni ISHLATMAYMIZ, aks holda
             // aloqasiz matn chiqadi.

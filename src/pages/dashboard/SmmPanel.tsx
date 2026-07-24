@@ -894,7 +894,7 @@ export default function SmmPanel() {
               )}
 
               {drawErr && (
-                <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
+                <p className="mt-2 max-h-24 overflow-y-auto rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1126,7 +1126,7 @@ export default function SmmPanel() {
                     </button>
 
                     {drawErr && (
-                      <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
+                      <p className="mt-2 max-h-24 overflow-y-auto rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
                     )}
                   </div>
                 )}
