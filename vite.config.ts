@@ -8,8 +8,9 @@ export default defineConfig({
   server: {
     fs: { strict: false },
     watch: { usePolling: true, interval: 400 },
-    proxy: {
-      "/api": "http://localhost:3001",
-    },
+    // Ilgari bu yerda "/api" -> localhost:3001 proxy'si bor edi. U eski
+    // Node API serveriga qaragan va u server allaqachon yo'q — barcha
+    // so'rovlar 502 qaytarardi. Endi hamma narsa Supabase Edge
+    // funksiyalariga to'g'ridan-to'g'ri boradi.
   },
 })

@@ -24,7 +24,10 @@ export const clearToken = () => {
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
-const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : "http://localhost:3001/api")
+// Zaxira manzil YO'Q: ilgari bu yerda localhost:3001 turardi va sozlama
+// yetishmasa so'rovlar jimgina o'lik manzilga ketardi. Endi bo'sh qoladi
+// va xato so'rov paytida aniq ko'rinadi.
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : "")
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
 
 const PUBLIC_ROUTES: Record<string, string> = {
@@ -534,10 +537,19 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   const publicFn = PUBLIC_FUNCTIONS.some((p) => path === p || path.startsWith(p + "?"))
   const isPublic = path.startsWith("/public/")
   const method = opts.method || "GET"
-  const isAdmin = !isPublic && !publicFn && token !== null
+  const needsAuth = !isPublic && !publicFn
+
+  // MUHIM: token yo'q bo'lsa so'rov ilgari `/api${path}` ga ketardi.
+  // Bunday manzil yo'q — dev'da 502, production'da 404 qaytarardi va
+  // foydalanuvchi "Ma'lumotni yuklab bo'lmadi" degan tushunarsiz xato
+  // ko'rardi. Aslida sabab bitta: sessiya tugagan.
+  if (needsAuth && !token) {
+    throw new Error("Sessiya tugadi — qayta kiring")
+  }
+
   const url = publicFn
     ? `${SUPABASE_FUNCTIONS_URL}${path}`
-    : isPublic ? resolvePublicUrl(path) : isAdmin ? resolveAdminUrl(path, method) : `/api${path}`
+    : isPublic ? resolvePublicUrl(path) : resolveAdminUrl(path, method)
 
   const h = new Headers(opts.headers)
   h.set("Content-Type", "application/json")

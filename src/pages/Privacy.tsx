@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { Reveal } from "../lib/ui"
 import { useStaticSeo } from "../lib/seo"
+import { LEGAL_UPDATED } from "../lib/legal"
 
 export default function Privacy() {
   useStaticSeo("/maxfiylik")
@@ -13,7 +14,7 @@ export default function Privacy() {
           <span className="font-semibold text-green">Maxfiylik siyosati</span>
         </nav>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Maxfiylik siyosati</h1>
-        <p className="mt-2 text-sm text-muted">Oxirgi yangilanish: 2024-yil, 1-yanvar</p>
+        <p className="mt-2 text-sm text-muted">Oxirgi yangilanish: {LEGAL_UPDATED}</p>
       </Reveal>
 
       <Reveal delay={80}>

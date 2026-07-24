@@ -61,7 +61,13 @@ export default function PartnerDashboard() {
   const nav2 = useNavigate()
 
   const reload = () => {
-    api<{ partner: Partner }>("/me/partner").then((d) => setPartner(d.partner)).catch((e) => setErr(e?.message || "Yuklashda xatolik")).finally(() => setLoading(false))
+    // Qayta urinishda eski xato va skeleton to'g'ri tiklanishi kerak
+    setLoading(true)
+    setErr("")
+    api<{ partner: Partner }>("/me/partner")
+      .then((d) => setPartner(d.partner))
+      .catch((e) => setErr(e?.message || "Ma'lumotni yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
     setExtraLoading(true)
     setExtraFailed(false)
     api<{ settings: CompanyExtra; notifications: Notif[] }>("/client/partner")
@@ -103,7 +109,18 @@ export default function PartnerDashboard() {
           </div>
         </div>
       )}
-      {err && !loading && <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-600">{err}</div>}
+      {/* Ilgari bu yerda faqat xato matni turardi — sabab ham, qayta
+          urinish tugmasi ham yo'q edi. */}
+      {err && !loading && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="font-semibold text-red-600">{err}</p>
+          <p className="mt-1 text-sm text-red-500">Internet aloqasini tekshiring yoki qaytadan kiring.</p>
+          <button onClick={reload}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white">
+            <Icon d={I.refresh} className="h-4 w-4" /> Qayta urinish
+          </button>
+        </div>
+      )}
       {!loading && !err && !partner && (
         <div className="grid min-h-[50vh] place-items-center text-center">
           <div>

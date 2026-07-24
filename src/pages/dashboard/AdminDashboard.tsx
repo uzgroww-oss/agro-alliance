@@ -426,9 +426,16 @@ function AdminPartners() {
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Ilgari har vazifa
   // qo'shish/o'chirishda butun hamkorlar ro'yxati skeletonga aylanib ketardi.
+  // Xato bo'lsa ro'yxat bo'sh qoladi va statistika 0 ko'rsatardi —
+  // ya'ni "hamkor yo'q" degan SOXTA ma'lumot. Endi xato alohida.
+  const [failed, setFailed] = useState(false)
   const reload = (silent = false) => {
     if (!silent) setLoading(true)
-    return api<{ partners: Partner[] }>("/partners").then((d) => setList(d.partners)).catch(() => {}).finally(() => setLoading(false))
+    setFailed(false)
+    return api<{ partners: Partner[] }>("/partners")
+      .then((d) => setList(d.partners))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
   }
   useEffect(() => { reload() }, [])
   // Vazifa/mijoz amallari uchun umumiy pending: ikki marta bosish yoki
@@ -575,7 +582,11 @@ function AdminPartners() {
         </button>
       </div>
 
-      {/* stat cards */}
+      {failed && <div className="mt-5"><ErrorState onRetry={() => reload()} message="Hamkorlarni yuklab bo'lmadi." /></div>}
+
+      {/* stat cards — xato bo'lsa umuman ko'rsatilmaydi, aks holda
+          nollar haqiqiy raqamdek ko'rinadi */}
+      {!failed && (
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -585,6 +596,7 @@ function AdminPartners() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Add Partner Modal */}
       {adding && (
@@ -918,8 +930,19 @@ function StatsEditor() {
   const [items, setItems] = useState<StatItem[]>([])
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Ilgari yuklash holati umuman yo'q edi: ro'yxat bo'sh bo'lsa doim
+  // "Yuklanmoqda…" chiqardi va so'rov yiqilganda shu yozuv abadiy
+  // qolib ketardi.
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
 
-  const reload = () => api<{ stats: StatItem[] }>("/stats").then((d) => setItems(d.stats)).catch(() => {})
+  const reload = () => {
+    setLoading(true); setFailed(false)
+    api<{ stats: StatItem[] }>("/stats")
+      .then((d) => setItems(d.stats || []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false))
+  }
   useEffect(() => { reload() }, [])
 
   const set = (i: number, field: "value" | "label", v: string) =>
@@ -960,7 +983,11 @@ function StatsEditor() {
             <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder="Agro blogerlar" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
           </div>
         ))}
-        {items.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Yuklanmoqda…</div>}
+        {loading && <div className="sm:col-span-2 lg:col-span-3"><SkeletonCard /></div>}
+        {!loading && failed && <div className="sm:col-span-2 lg:col-span-3"><ErrorState onRetry={reload} /></div>}
+        {!loading && !failed && items.length === 0 && (
+          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Statistika sozlanmagan.</div>
+        )}
       </div>
     </div>
   )
@@ -972,16 +999,18 @@ type TeamMember = { id: string; name: string; role: string | null; image_url: st
 function AdminTeam() {
   const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [editing, setEditing] = useState<TeamMember | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: "", role: "", image_url: "" })
   const [saving, setSaving] = useState(false)
 
   const load = () => {
-    setLoading(true)
+    setLoading(true); setFailed(false)
     api<{ members: TeamMember[] }>("/team")
       .then((d) => setMembers(d.members || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1095,7 +1124,8 @@ function AdminTeam() {
             </div>
           </div>
         ))}
-        {!loading && members.length === 0 && (
+        {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && members.length === 0 && (
           <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
             <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Hali a'zolar yo'q. "Yangi a'zo" tugmasini bosing.</div>
           </div>
@@ -1126,17 +1156,19 @@ function AdminNews() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const fetchNews = (p: number, q: string, silent = false) => {
-    // Ilgari setLoading(true) yo'q edi: qidiruv yoki sahifa o'zgarganda eski
+    // Ilgari setLoading(true); setFailed(false) yo'q edi: qidiruv yoki sahifa o'zgarganda eski
     // natijalar hech qanday belgisiz turib, keyin birdan almashardi.
     if (!silent) setLoading(true)
     const params = new URLSearchParams({ page: String(p), per_page: "12" })
     if (q.trim()) params.set("search", q.trim())
     return api<{ data: NewsArticle[]; pagination: { total: number } }>(`/news?${params}`)
       .then((d) => { setArticles(d.data || []); setTotal(d.pagination?.total || 0) })
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
 
@@ -1189,7 +1221,8 @@ function AdminNews() {
 
         {loading && <SkeletonTable rows={6} cols={5} />}
 
-        {!loading && articles.length === 0 && (
+        {!loading && failed && <ErrorState onRetry={() => fetchNews(page, query)} />}
+        {!loading && !failed && articles.length === 0 && (
           <div className="py-8 text-center text-muted">Yangiliklar topilmadi.</div>
         )}
 
@@ -1763,14 +1796,16 @@ function BloggerTaskStatus() {
 function AdminMonitoring() {
   const [newsJobs, setNewsJobs] = useState<{ id: string; job_type: string; status: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
 
   // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
   const [refreshing, runRefresh] = useBusy()
   const load = () => {
-    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
+    setLoading(true); setFailed(false)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ jobs: { id: string; job_type: string; status: string; created_at: string }[] }>("/news/jobs")
       .then((d) => setNewsJobs(d.jobs || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
 
@@ -1826,7 +1861,8 @@ function AdminMonitoring() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <h3 className="font-display text-lg font-bold">Yangiliklar ishlari</h3>
         {loading && <div className="py-8"><SkeletonTable rows={4} cols={3} /></div>}
-        {!loading && newsJobs.length === 0 && <div className="py-8 text-center text-muted">Hech qanday ish topilmadi.</div>}
+        {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && newsJobs.length === 0 && <div className="py-8 text-center text-muted">Hech qanday ish topilmadi.</div>}
         {!loading && newsJobs.length > 0 && (
           <div className="mt-4 space-y-2">
             {newsJobs.slice(0, 20).map((j) => (
@@ -1974,20 +2010,22 @@ type RoleOption = { id: string; name: string }
 function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [changingRole, setChangingRole] = useState<string | null>(null)
 
   // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
   const [refreshing, runRefresh] = useBusy()
   const load = () => {
-    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
+    setLoading(true); setFailed(false)  // qayta yuklashda ham skeleton ko'rinsin
     Promise.all([
       api<{ users: AdminUser[] }>("/users"),
       api<{ roles: RoleOption[] }>("/roles"),
     ]).then(([u, r]) => {
       setUsers(u.users || [])
       setRoles(r.roles || [])
-    }).catch(() => {}).finally(() => setLoading(false))
+    }).catch(() => setFailed(true)).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
@@ -2026,7 +2064,8 @@ function AdminUsers() {
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
-        {!loading && users.length === 0 && <div className="py-8 text-center text-muted">Foydalanuvchilar topilmadi.</div>}
+        {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && users.length === 0 && <div className="py-8 text-center text-muted">Foydalanuvchilar topilmadi.</div>}
         {!loading && users.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
@@ -2105,15 +2144,17 @@ type ContactMessage = { id: string; name: string; email: string; phone: string; 
 function AdminContacts() {
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [selected, setSelected] = useState<ContactMessage | null>(null)
 
   // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
   const [refreshing, runRefresh] = useBusy()
   const load = () => {
-    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
+    setLoading(true); setFailed(false)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ messages: ContactMessage[] }>("/messages")
       .then((d) => setMessages(d.messages || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -2149,7 +2190,8 @@ function AdminContacts() {
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
-        {!loading && messages.length === 0 && <div className="py-8 text-center text-muted">Xabarlar yo'q.</div>}
+        {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && messages.length === 0 && <div className="py-8 text-center text-muted">Xabarlar yo'q.</div>}
         {!loading && messages.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
@@ -2205,14 +2247,16 @@ type Subscriber = { id: string; email: string; is_active: boolean; created_at: s
 function AdminSubscribers() {
   const [subs, setSubs] = useState<Subscriber[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
 
   // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
   const [refreshing, runRefresh] = useBusy()
   const load = () => {
-    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
+    setLoading(true); setFailed(false)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ subscribers: Subscriber[] }>("/subscribers")
       .then((d) => setSubs(d.subscribers || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -2236,7 +2280,8 @@ function AdminSubscribers() {
       </div>
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
-        {!loading && subs.length === 0 && <div className="py-8 text-center text-muted">Obunachilar yo'q.</div>}
+        {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && subs.length === 0 && <div className="py-8 text-center text-muted">Obunachilar yo'q.</div>}
         {!loading && subs.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[500px]">
@@ -2276,6 +2321,8 @@ type NewsCategory = { id: string; key: string; name_uz: string; name_ru: string;
 function AdminCategories() {
   const [cats, setCats] = useState<NewsCategory[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -2283,7 +2330,7 @@ function AdminCategories() {
   const blank = { key: "", name_uz: "", name_ru: "", name_en: "" }
   const [form, setForm] = useState(blank)
 
-  const load = () => { setLoading(true); api<{ categories: NewsCategory[] }>("/categories").then((d) => setCats(d.categories || [])).catch(() => {}).finally(() => setLoading(false)) }
+  const load = () => { setLoading(true); setFailed(false); api<{ categories: NewsCategory[] }>("/categories").then((d) => setCats(d.categories || [])).catch(() => setFailed(true)).finally(() => setLoading(false)) }
   useEffect(() => { load() }, [])
 
   const add = async (e: React.FormEvent) => {
@@ -2363,7 +2410,8 @@ function AdminCategories() {
               </tr>
             </thead>
             <tbody>
-              {cats.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
+              {failed && <tr><td colSpan={8} className="py-10 text-center"><ErrorState onRetry={load} /></td></tr>}
+              {!failed && cats.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
               {cats.map((c) => (
                 <tr key={c.id} className="border-t border-green/8 text-sm">
                   <td className="py-3 pr-3 w-10">
@@ -2436,6 +2484,8 @@ type HomepageItem = { id: string; section_id: string; item_key: string; title: s
 function AdminHomepage() {
   const [sections, setSections] = useState<HomepageSection[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [editSec, setEditSec] = useState<string | null>(null)
   const [secForm, setSecForm] = useState<{ title: string; subtitle: string }>({ title: "", subtitle: "" })
   const [editItem, setEditItem] = useState<string | null>(null)
@@ -2445,10 +2495,10 @@ function AdminHomepage() {
   // "Yangilash" tugmasi bloklanmagan edi: N ta parallel so'rov ketardi.
   const [refreshing, runRefresh] = useBusy()
   const load = () => {
-    setLoading(true)  // qayta yuklashda ham skeleton ko'rinsin
+    setLoading(true); setFailed(false)  // qayta yuklashda ham skeleton ko'rinsin
     api<{ sections: HomepageSection[] }>("/homepage")
       .then((d) => setSections(d.sections || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -2488,7 +2538,8 @@ function AdminHomepage() {
         </button>
       </div>
       {loading && <div className="mt-5"><SkeletonTable rows={5} cols={3} /></div>}
-      {!loading && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}
+      {!loading && failed && <ErrorState onRetry={load} />}
+        {!loading && !failed && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}
       <div className="mt-5 space-y-4">
         {sections.map((s) => (
           <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -2567,6 +2618,8 @@ type PermissionItem = { id: string; code: string; name: string; resource: string
 function AdminRoles() {
   const [roles, setRoles] = useState<AdminRole[]>([])
   const [loading, setLoading] = useState(true)
+  // Xato bo'lsa "topilmadi" emas, ochiq xato ko'rsatiladi
+  const [failed, setFailed] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [savingUser, setSavingUser] = useState(false)
   const [userName, setUserName] = useState("")
@@ -2587,8 +2640,10 @@ function AdminRoles() {
     .then((d) => setGroupedPerms(d.grouped || {}))
 
   const loadAll = () => {
+    // Qayta urinishda ham skeleton ko'rinsin va eski xato tozalansin
+    setLoading(true); setFailed(false)
     Promise.all([loadRoles(), loadPermissions()])
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
 
@@ -2759,7 +2814,8 @@ function AdminRoles() {
             </button>
           </div>
         )}
-        {!loading && roles.length === 0 && <div className="py-8 text-center text-muted">Rollar topilmadi.</div>}
+        {!loading && failed && <ErrorState onRetry={loadAll} />}
+        {!loading && !failed && roles.length === 0 && <div className="py-8 text-center text-muted">Rollar topilmadi.</div>}
         {!loading && roles.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
