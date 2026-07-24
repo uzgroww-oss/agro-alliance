@@ -22,10 +22,16 @@ export default function MediaUpload({
   accept = "image/*",
   multiple = false,
   transform,
+  variant = "button",
+  hint,
 }: {
   onUpload?: (result: UploadResult) => void
   accept?: string
   multiple?: boolean
+  /** "box" — baland punktir quti (yon ustunda yaxshi ko'rinadi) */
+  variant?: "button" | "box"
+  /** Qutining ostidagi kichik izoh (ruxsat etilgan turlar, hajm) */
+  hint?: string
   /**
    * Yuklashdan OLDIN faylni o'zgartirish (masalan Instagram nisbatiga
    * keltirish). Ixtiyoriy — berilmasa fayl o'zgarishsiz ketadi, ya'ni
@@ -116,12 +122,20 @@ export default function MediaUpload({
         type="button"
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
-        className="inline-flex items-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-5 py-3 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
+        className={
+          variant === "box"
+            ? "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-4 py-10 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
+            : "inline-flex items-center gap-2 rounded-xl border-2 border-dashed border-green/30 bg-soft px-5 py-3 text-sm font-semibold text-green transition-colors hover:border-green hover:bg-green/5 disabled:opacity-60"
+        }
       >
         {uploading ? (
-          <><Icon d={I.refresh} className="h-4 w-4 animate-spin" /> Yuklanmoqda…</>
+          <><Icon d={I.refresh} className={`${variant === "box" ? "h-6 w-6" : "h-4 w-4"} animate-spin`} /> Yuklanmoqda…</>
         ) : (
-          <><Icon d={I.upload} className="h-4 w-4" /> {multiple ? "Fayllarni yuklash" : "Fayl yuklash"}</>
+          <>
+            <Icon d={I.upload} className={variant === "box" ? "h-6 w-6" : "h-4 w-4"} />
+            {multiple ? "Fayllarni yuklash" : "Fayl yuklash"}
+            {variant === "box" && hint && <span className="text-xs font-normal text-muted">{hint}</span>}
+          </>
         )}
       </button>
 
