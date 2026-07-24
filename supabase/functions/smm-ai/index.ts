@@ -7,6 +7,7 @@ import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
 import { gatherCompetitors, fetchCompetitor, webTrends, type Competitor } from "../_shared/market.ts"
+import { getFacebookPage } from "../_shared/facebook.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -289,12 +290,14 @@ async function gatherTelegram(): Promise<NetworkStat | null> {
 }
 
 async function gatherFacebook(): Promise<NetworkStat | null> {
-  const pageId = await conf("facebook", "page_id", "FACEBOOK_PAGE_ID")
-  const token = await conf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
-  if (!pageId || !token) return null
+  // Token muddati tugagan bo'lsa Instagram tokenidan qayta chiqariladi
+  const page = await getFacebookPage()
+  if (!page) return null
+  const pageId = page.id
+  const token = page.token
 
   const base: NetworkStat = {
-    platform: "facebook", name: pageId,
+    platform: "facebook", name: page.name,
     followers: null, posts: null, avgLikes: null, avgComments: null, recent: [],
   }
   try {

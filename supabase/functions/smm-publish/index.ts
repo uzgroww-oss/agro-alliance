@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { getFacebookPage, exchangeForLongLived } from "../_shared/facebook.ts"
 
 /**
  * smm-publish — SMM postlarini saqlash, tasdiqlash va tarmoqlarga joylash.
@@ -89,11 +90,13 @@ async function publishTelegram(text: string, imageUrl: string | null): Promise<P
 
 /* ---------------- Facebook ---------------- */
 async function publishFacebook(text: string, imageUrl: string | null): Promise<PublishResult> {
-  const pageId = await getConf("facebook", "page_id", "FACEBOOK_PAGE_ID")
-  const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
-  if (!pageId || !token) {
+  // Token muddati tugagan bo'lsa Instagram tokenidan qayta chiqariladi
+  const page = await getFacebookPage()
+  if (!page) {
     return { platform: "facebook", success: false, error: "Facebook ulanmagan" }
   }
+  const pageId = page.id
+  const token = page.token
   try {
     const video = isVideoUrl(imageUrl)
     const endpoint = !imageUrl
@@ -245,7 +248,7 @@ async function stillExists(platform: string, externalId: string): Promise<boolea
       return null
     }
     if (platform === "facebook") {
-      const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
+      const token = (await getFacebookPage())?.token
       if (!token) return null
       const r = await fetch(`https://graph.facebook.com/v22.0/${externalId}?fields=id&access_token=${token}`)
       const d = await r.json().catch(() => ({}))
@@ -282,7 +285,7 @@ async function removeRemote(platform: string, externalId: string): Promise<Publi
       return { platform, success: false, error: d.description || "O'chirilmadi" }
     }
     if (platform === "facebook") {
-      const token = await getConf("facebook", "page_token", "FACEBOOK_PAGE_TOKEN")
+      const token = (await getFacebookPage())?.token
       if (!token) return { platform, success: false, error: "Facebook ulanmagan" }
       const r = await fetch(`https://graph.facebook.com/v22.0/${externalId}?access_token=${token}`, { method: "DELETE" })
       const d = await r.json().catch(() => ({}))
@@ -343,8 +346,11 @@ Deno.serve(async (req) => {
       if (!byPlatform.telegram.connected && Deno.env.get("TELEGRAM_CHAT_ID")) {
         byPlatform.telegram = { connected: true, display_name: null, via: "secret" }
       }
-      if (!byPlatform.facebook.connected && Deno.env.get("FACEBOOK_PAGE_ID") && Deno.env.get("FACEBOOK_PAGE_TOKEN")) {
-        byPlatform.facebook = { connected: true, display_name: null, via: "secret" }
+      // Facebook Instagram tokenidan ham chiqarilishi mumkin —
+      // shuning uchun sozlama yo'q bo'lsa ham tekshiramiz
+      if (!byPlatform.facebook.connected) {
+        const fb = await getFacebookPage()
+        if (fb) byPlatform.facebook = { connected: true, display_name: fb.name, via: "oauth" }
       }
       if (igTok?.instagram_account_id) {
         byPlatform.instagram = { connected: true, display_name: igTok.instagram_username || null, via: "oauth" }
@@ -395,7 +401,10 @@ Deno.serve(async (req) => {
         const r = await fetch(`https://graph.facebook.com/v22.0/${pageId}?fields=name&access_token=${encodeURIComponent(pageToken)}`)
         const d = await r.json().catch(() => ({}))
         if (!r.ok || d.error) return errorResponse(d.error?.message || "Sahifa tekshiruvi o'tmadi", 400)
-        config = { page_id: pageId, page_token: pageToken }
+        // Qo'lda kiritilgan token odatda qisqa muddatli (1-2 soat).
+        // Uzoq muddatliga almashtiramiz, aks holda ertaga yiqiladi.
+        const longLived = await exchangeForLongLived(pageToken)
+        config = { page_id: pageId, page_token: longLived || pageToken }
         display = d.name || pageId
       } else {
         return errorResponse("Bu tarmoq hali qo'llab-quvvatlanmaydi", 400)
