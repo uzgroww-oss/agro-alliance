@@ -55,7 +55,10 @@ const PLATFORM_LABEL: Record<string, string> = {
   linkedin: "LinkedIn", youtube: "YouTube",
 }
 
-export default function MarketPanel() {
+export default function MarketPanel({ onCreatePost }: {
+  /** Reja bandidan post yaratish — SMM/AI bo'limiga o'tkazadi */
+  onCreatePost: (topic: string, platform: string) => void
+}) {
   const [loading, setLoading] = useState(true)
 
   const [days, setDays] = useState(7)
@@ -67,8 +70,6 @@ export default function MarketPanel() {
   const [analyzing, runAnalyze] = useBusy()
   const [err, setErr] = useState("")
 
-  const [making, setMaking] = useState<number | null>(null)
-  const [madeMsg, setMadeMsg] = useState("")
 
   /* Oxirgi saqlangan reja — panel ochilganda darhol ko'rinsin,
      har safar qaytadan tahlil qilish shart bo'lmasin. */
@@ -90,7 +91,7 @@ export default function MarketPanel() {
   useEffect(() => { load() }, [load])
 
   const analyze = () => runAnalyze(async () => {
-    setErr(""); setMadeMsg("")
+    setErr("")
     try {
       const d = await api<{ plan: Plan; networks: NetStat[]; web: WebHit[] }>(
         "/smm/ai?action=market", { method: "POST", body: JSON.stringify({ days }) })
@@ -100,33 +101,6 @@ export default function MarketPanel() {
       setPlanAt(new Date().toISOString())
     } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
   })
-
-  /** Reja bandidan darhol post yaratib, qoralama sifatida saqlash */
-  const makePost = async (item: PlanItem) => {
-    if (making !== null) return
-    setMaking(item.kun); setMadeMsg(""); setErr("")
-    try {
-      const g = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
-        "/smm/ai?action=generate",
-        { method: "POST", body: JSON.stringify({ topic: txt(item.mavzu), platform: txt(item.platforma) }) },
-      )
-      await api("/smm/posts", {
-        method: "POST",
-        body: JSON.stringify({
-          title: g.generated.sarlavha || "",
-          content: g.generated.matn || "",
-          hashtags: (g.generated.hashtaglar || []).join(" "),
-          platforms: [item.platforma],
-          ai_generated: true,
-        }),
-      })
-      setMadeMsg(`✅ ${item.kun}-kun posti yaratildi — SMM / AI bo'limida ko'ring`)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Post yaratilmadi")
-    } finally {
-      setMaking(null)
-    }
-  }
 
   const fmtDate = (iso: string) => {
     if (!iso) return ""
@@ -181,7 +155,6 @@ export default function MarketPanel() {
         )}
 
         {err && <div className="mt-4 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{err}</div>}
-        {madeMsg && <div className="mt-4 rounded-xl bg-green/10 px-4 py-2.5 text-sm font-semibold text-green">{madeMsg}</div>}
 
         {loading && !plan && <div className="mt-4"><SkeletonCard /></div>}
 
@@ -237,7 +210,7 @@ export default function MarketPanel() {
           {/* Kunlik reja */}
           <div className={`${card} mt-5`}>
             <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
-            <p className="mt-0.5 text-sm text-muted">"Post yaratish" — AI shu mavzuda yozib, qoralama qilib saqlaydi</p>
+            <p className="mt-0.5 text-sm text-muted">"Post yaratish" — SMM / AI bo'limi ochiladi, AI matn va rasmni o'zi yaratadi</p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
@@ -262,9 +235,9 @@ export default function MarketPanel() {
                       <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
                       <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
                       <td className="py-3 pr-1 text-right">
-                        <button onClick={() => makePost(it)} disabled={making !== null}
-                          className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white disabled:opacity-40">
-                          {making === it.kun ? "Yozilmoqda…" : "Post yaratish"}
+                        <button onClick={() => onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram")}
+                          className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
+                          Post yaratish
                         </button>
                       </td>
                     </tr>

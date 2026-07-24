@@ -137,7 +137,12 @@ function Bubble({
   )
 }
 
-export default function SmmPanel() {
+export type SmmSeed = { topic: string; platform: string; at: number }
+
+export default function SmmPanel({ seed }: {
+  /** Marketing rejasidan kelgan mavzu — matn va rasm o'zi yaratiladi */
+  seed?: SmmSeed | null
+}) {
   const [posts, setPosts] = useState<SmmPost[]>([])
   const [conns, setConns] = useState<Record<string, SmmConn>>({})
   const [loading, setLoading] = useState(true)
@@ -396,6 +401,70 @@ export default function SmmPanel() {
   /** 3-kartadagi matn asosida rasm chizdirish */
   const drawForPost = () => drawImage([form.title, form.content].filter(Boolean).join(". "), true)
 
+  /**
+   * Marketing rejasidan kelgan mavzu bo'yicha hamma ishni bajarish:
+   * matn yozish -> tahrirlash kartasiga qo'yish -> rasm chizish.
+   *
+   * Qoralama bosqichi o'tkazib yuboriladi: foydalanuvchi rejada
+   * mavzuni allaqachon tanlagan, yana bir marta tasdiqlashi shart emas.
+   */
+  const [seedBusy, setSeedBusy] = useState(false)
+  const [seedMsg, setSeedMsg] = useState("")
+  const seedDone = useRef<number | null>(null)
+
+  const runSeed = useCallback(async (sd: SmmSeed) => {
+    setSeedBusy(true)
+    setSeedMsg(`"${sd.topic}" — matn yozilmoqda…`)
+    setAiErr(""); setDrawErr(""); setDraft(null)
+    try {
+      const g = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
+        "/smm/ai?action=generate",
+        { method: "POST", body: JSON.stringify({ topic: sd.topic, platform: sd.platform }) },
+      )
+      const text = g.generated.matn || ""
+      setForm({
+        title: g.generated.sarlavha || "",
+        content: text,
+        hashtags: (g.generated.hashtaglar || []).join(" "),
+        image_url: "",
+      })
+      setAiMade(true)
+      setEditingId(null)
+      setTopic(sd.topic)
+
+      // Rasm ham darhol — foydalanuvchi alohida tugma bosmasin
+      setSeedMsg("Rasm chizilmoqda…")
+      try {
+        const aspect = sd.platform === "instagram" ? "4:5" : "16:9"
+        const d = await api<{ image_b64: string }>("/smm/ai?action=image", {
+          method: "POST",
+          body: JSON.stringify({ text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500), aspect }),
+        })
+        const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
+        const r = await uploadFile(file)
+        setForm((f) => ({ ...f, image_url: r.signedUrl }))
+        setSeedMsg("✅ Matn va rasm tayyor — tekshirib saqlang")
+      } catch (e) {
+        // Rasm chizilmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
+        setSeedMsg("✅ Matn tayyor. Rasm chizilmadi — qo'lda yuklang")
+        setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
+      }
+    } catch (e) {
+      setSeedMsg("")
+      setAiErr(e instanceof Error ? e.message : "Matn yozilmadi")
+    } finally {
+      setSeedBusy(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    // at — bir xil mavzu qayta yuborilsa ham ishga tushsin,
+    // lekin har renderda takrorlanmasin
+    if (!seed || seedDone.current === seed.at) return
+    seedDone.current = seed.at
+    void runSeed(seed)
+  }, [seed, runSeed])
+
   const analyze = () => runAnalyze(async () => {
     setAiErr("")
     try {
@@ -565,7 +634,7 @@ export default function SmmPanel() {
   })
 
   /** Tanlangan muqovani yuklab, post rasmiga aylantirish */
-  const useThumb = (dataUrl: string) => runThumb(async () => {
+  const applyThumb = (dataUrl: string) => runThumb(async () => {
     setThumbErr("")
     try {
       const file = dataUrlToFile(dataUrl, `muqova-${thumbSize.key}.jpg`)
@@ -942,6 +1011,21 @@ export default function SmmPanel() {
             </div>
           </div>
 
+          {/* Marketing rejasidan kelganda jarayon ko'rinib tursin */}
+          {(seedBusy || seedMsg) && (
+            <div className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${
+              seedBusy ? "bg-green/10 text-green" : seedMsg.startsWith("✅") ? "bg-green/10 text-green" : "bg-soft text-muted"
+            }`}>
+              {seedBusy && <Icon d={I.refresh} className="h-4 w-4 shrink-0 animate-spin" />}
+              <span className="min-w-0 flex-1">{seedMsg}</span>
+              {!seedBusy && (
+                <button onClick={() => setSeedMsg("")} className="shrink-0 opacity-60 hover:opacity-100">
+                  <Icon d="M18 6L6 18 M6 6l12 12" className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             {/* Matn */}
             <div className="min-w-0">
@@ -1083,7 +1167,7 @@ export default function SmmPanel() {
                             <p className="mt-2 text-[11px] text-muted">Birini tanlang:</p>
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
                               {thumbs.map((t, i) => (
-                                <button key={i} type="button" onClick={() => useThumb(t)} disabled={makingThumb}
+                                <button key={i} type="button" onClick={() => applyThumb(t)} disabled={makingThumb}
                                   className="overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green disabled:opacity-50">
                                   <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
                                 </button>

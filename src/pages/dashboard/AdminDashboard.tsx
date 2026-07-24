@@ -2968,6 +2968,16 @@ export default function AdminDashboard() {
     : adminRole === "admin" ? nav.filter((n) => !ADMIN_HIDDEN.includes(n.label))
     : nav
   const [active, setActive] = useState(visibleNav[0]?.label || "Dashboard")
+
+  /* Marketing rejasidan SMM/AI ga o'tish.
+     Reja bandi bosilganda bo'lim almashadi va SmmPanel shu mavzuni
+     olib, matn va rasmni o'zi yaratadi. */
+  const [smmSeed, setSmmSeed] = useState<{ topic: string; platform: string; at: number } | null>(null)
+  const goCreatePost = useCallback((topic: string, platform: string) => {
+    // at — bir xil mavzu qayta bosilganda ham ishga tushsin
+    setSmmSeed({ topic, platform, at: Date.now() })
+    setActive("SMM / AI")
+  }, [])
   const nav2 = useNavigate()
   const initials = (user?.name || "AD").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
@@ -2996,8 +3006,8 @@ export default function AdminDashboard() {
       case "Bloggerlar": return <Bloggers />
       case "Topshiriqlar": return <AdminTasks />
       case "Bloger holatlari": return <BloggerTaskStatus />
-      case "SMM / AI": return <SmmPanel />
-      case "Marketing": return <MarketPanel />
+      case "SMM / AI": return <SmmPanel seed={smmSeed} />
+      case "Marketing": return <MarketPanel onCreatePost={goCreatePost} />
       case "Hamkorlar": return <AdminPartners />
       case "Yangiliklar": return <AdminNews />
       case "Kategoriyalar": return <AdminCategories />
