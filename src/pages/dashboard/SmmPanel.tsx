@@ -3,6 +3,7 @@ import { Icon, I, useBusy, ErrorState, SkeletonCard } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
 import { uploadFile } from "../../lib/upload"
+import { extractVideoFrame } from "../../lib/videoFrame"
 import { api } from "../../lib/api"
 
 /**
@@ -338,9 +339,17 @@ export default function SmmPanel() {
     if (!mediaUrl) { setAiErr("Avval rasm yoki video yuklang"); return }
     setAiErr("")
     try {
+      // Video bo'lsa BUTUN faylni emas, bitta kadrni yuboramiz.
+      // Video AI uchun minglab token — bepul kvota darhol tugaydi.
+      // Kadr esa oddiy rasm va har qanday ko'ruvchi model o'qiy oladi.
+      let payload: Record<string, unknown> = { image_url: mediaUrl, platform: effOrigin }
+      if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(mediaUrl)) {
+        const frame = await extractVideoFrame(mediaUrl)
+        payload = { image_b64: frame.data, mime: frame.mimeType, from_video: true, platform: effOrigin }
+      }
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=describe",
-        { method: "POST", body: JSON.stringify({ image_url: mediaUrl, platform: effOrigin }) },
+        { method: "POST", body: JSON.stringify(payload) },
       )
       setForm((f) => ({
         ...f,

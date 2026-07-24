@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../_shared/supabase.ts"
 import { getDynamicStats } from "../_shared/stats.ts"
 import { geminiJson, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson } from "../_shared/groq.ts"
+import { nimJson } from "../_shared/nim.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -30,9 +31,12 @@ import { groqJson } from "../_shared/groq.ts"
 async function askAi<T>(prompt: string, validate: (v: unknown) => boolean): Promise<T> {
   const errs: string[] = []
 
+  // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
+  // Groq oxirida emas, o'rtada — uning bepul chegarasi eng keng.
   for (const [name, fn] of [
-    ["Gemini", geminiJson],
     ["Groq", groqJson],
+    ["Gemini", geminiJson],
+    ["NVIDIA", nimJson],
   ] as const) {
     try {
       // maxTokens: tahlil javobi 4+ tavsiya bilan uzun bo'ladi.
@@ -384,15 +388,26 @@ FAQAT JSON qaytar, boshqa matn yozma:
     if (action === "describe") {
       const imageUrl = String(body.image_url || "").trim()
       const platform = String(body.platform || "telegram").trim()
-      if (!imageUrl) return errorResponse("Avval rasm yoki video yuklang", 400)
 
+      // Videoda mijoz KADR yuboradi (base64). Butun videoni yuborish
+      // juda ko'p token yeydi va bepul kvota darhol tugaydi. Kadr esa
+      // oddiy rasm — har qanday ko'ruvchi model uni o'qiy oladi.
+      const b64 = String(body.image_b64 || "").trim()
       let image: InlineImage
-      try {
-        image = await fetchInlineImage(imageUrl)
-      } catch (e) {
-        return errorResponse(e instanceof Error ? e.message : "Faylni o'qib bo'lmadi", 400)
+      let fromVideoFrame = false
+
+      if (b64) {
+        image = { mimeType: String(body.mime || "image/jpeg"), data: b64 }
+        fromVideoFrame = Boolean(body.from_video)
+      } else {
+        if (!imageUrl) return errorResponse("Avval rasm yoki video yuklang", 400)
+        try {
+          image = await fetchInlineImage(imageUrl)
+        } catch (e) {
+          return errorResponse(e instanceof Error ? e.message : "Faylni o'qib bo'lmadi", 400)
+        }
       }
-      const isVideo = image.mimeType.startsWith("video/")
+      const isVideo = fromVideoFrame || image.mimeType.startsWith("video/")
       const what = isVideo ? "videoni" : "rasmni"
 
       const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
@@ -411,14 +426,19 @@ FAQAT JSON qaytar, boshqa matn yozma:
   "hashtaglar": ["#agro", "#fermer"]
 }`
 
-      try {
-        const result = await geminiJson<Generated>(prompt, { retries: 1, maxTokens: 2048, image })
-        if (!result?.matn?.trim()) return errorResponse(`AI ${what} tavsiflay olmadi`, 500)
-        return jsonResponse({ generated: result })
-      } catch (e) {
-        const m = e instanceof Error ? e.message : "Xatolik"
-        return errorResponse(`Faylni o'qish uchun Gemini kerak — ${m}`, 500)
+      // Ikkita ko'ruvchi provayder: biri kvotasini tugatsa ikkinchisi
+      // ishlaydi. Groq bu yerda yo'q — undagi model rasmni ko'rmaydi.
+      const errs: string[] = []
+      for (const [name, fn] of [["Gemini", geminiJson], ["NVIDIA", nimJson]] as const) {
+        try {
+          const result = await fn<Generated>(prompt, { retries: 1, maxTokens: 2048, image })
+          if (result?.matn?.trim()) return jsonResponse({ generated: result })
+          errs.push(`${name}: bo'sh javob`)
+        } catch (e) {
+          errs.push(`${name}: ${e instanceof Error ? e.message : "xatolik"}`)
+        }
       }
+      return errorResponse(errs.join(" | "), 500)
     }
 
     return errorResponse("Noma'lum amal", 400)
