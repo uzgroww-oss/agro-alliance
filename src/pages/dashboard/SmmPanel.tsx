@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Icon, I, useBusy, ErrorState, SkeletonCard } from "../../lib/ui"
+import { Icon, I, useBusy, ErrorState, SkeletonTable } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
 import { uploadFile } from "../../lib/upload"
@@ -140,6 +140,9 @@ export default function SmmPanel() {
   const [posts, setPosts] = useState<SmmPost[]>([])
   const [conns, setConns] = useState<Record<string, SmmConn>>({})
   const [loading, setLoading] = useState(true)
+  // Ulanishlar alohida kuzatiladi: yuklanguncha kartada "Ulanmagan"
+  // deb turardi va bu yolg'on ma'lumot edi.
+  const [connLoading, setConnLoading] = useState(true)
   const [failed, setFailed] = useState(false)
 
   /* 1-bosqich: tarmoq tanlash + ulash */
@@ -208,15 +211,21 @@ export default function SmmPanel() {
   const [preview, setPreview] = useState<SmmPost | null>(null)
   const [acting, runAct] = useBusy()
 
+  /**
+   * Postlar va ulanishlar BITTA so'rovda keladi.
+   * Ilgari ikki alohida so'rov ketardi va har biri edge funksiyaning
+   * sovuq ishga tushishini alohida kutardi — panel ikki barobar sekin
+   * ochilardi.
+   */
   const load = useCallback(() => {
-    setLoading(true); setFailed(false)
-    api<{ posts: SmmPost[] }>("/smm/posts")
-      .then((d) => setPosts(d.posts || []))
+    setLoading(true); setConnLoading(true); setFailed(false)
+    api<{ posts: SmmPost[]; connections: Record<string, SmmConn> }>("/smm/posts?action=init")
+      .then((d) => {
+        setPosts(d.posts || [])
+        setConns(d.connections || {})
+      })
       .catch(() => setFailed(true))
-      .finally(() => setLoading(false))
-    api<{ connections: Record<string, SmmConn> }>("/smm/posts?action=connections")
-      .then((d) => setConns(d.connections || {}))
-      .catch(() => { /* ulanishlar yuklanmasa panel baribir ishlaydi */ })
+      .finally(() => { setLoading(false); setConnLoading(false) })
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -606,7 +615,8 @@ export default function SmmPanel() {
             <h3 className="font-display font-bold">1. Ijtimoiy tarmoqlarni tanlang</h3>
             <p className="mt-0.5 text-sm text-muted">Post qaysi tarmoqlarga chiqishini belgilang</p>
           </div>
-          <button onClick={savePick} className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5">
+          <button onClick={savePick} disabled={connLoading}
+            className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
             <Icon d={I.check} className="h-4 w-4" /> Tanlovni saqlash
           </button>
         </div>
@@ -622,20 +632,28 @@ export default function SmmPanel() {
             return (
               // Karta div — ichida kichik tugmalar bo'lgani uchun (button
               // ichida button bo'lmasligi kerak). Bosilganda tanlanadi.
-              <div key={p.key} onClick={() => toggle(p)} role="button" tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(p) } }}
-                className={`group relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 pr-11 text-left transition-colors ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
+              <div key={p.key} onClick={() => { if (!connLoading) toggle(p) }} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (!connLoading && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(p) } }}
+                className={`group relative flex items-center gap-3 rounded-2xl border-2 p-4 pr-11 text-left transition-colors ${connLoading ? "cursor-wait" : "cursor-pointer"} ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
                 <Brand k={p.key} className="h-9 w-9 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display font-bold">{p.label}</span>
-                  <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
-                    {on ? "Ulangan" : "Ulanmagan"}
-                  </span>
-                  {on && (
+                  {connLoading ? (
+                    // Holat noma'lum ekan "Ulanmagan" deb yozish yolg'on
+                    // bo'lardi — kutish belgisi ko'rsatamiz.
+                    <span className="mt-1 block h-[18px] w-20 animate-pulse rounded-md bg-gray-100" />
+                  ) : (
+                    <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
+                      {on ? "Ulangan" : "Ulanmagan"}
+                    </span>
+                  )}
+                  {connLoading ? (
+                    <span className="mt-1 block h-3 w-24 animate-pulse rounded bg-gray-100" />
+                  ) : on ? (
                     <span className="mt-1 block truncate text-xs text-muted" title={acctName(p.key) || ""}>
                       {acctName(p.key) || "hisob nomi noma'lum"}
                     </span>
-                  )}
+                  ) : null}
                 </span>
 
                 {/* Ulangan kartada: qayta ulash (aylana strelka) va uzish.
@@ -649,7 +667,7 @@ export default function SmmPanel() {
                 {/* Amal ikonkalari faqat sichqoncha ustiga kelganda.
                     Doim ko'rinsa karta tiqilib qoladi — mockup'da ular yo'q,
                     lekin funksiya kerak, shuning uchun yashirin turadi. */}
-                {on && (
+                {on && !connLoading && (
                   <span className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <span role="button" tabIndex={0} title="Qayta ulash"
                       onClick={(e) => { e.stopPropagation(); reconnect(p) }}
@@ -1111,7 +1129,7 @@ export default function SmmPanel() {
           <div className="flex flex-wrap gap-2">
             {/* Tarmoqdan qo'lda o'chirilgan postni panel o'zi bilmaydi —
                 shu tugma tekshiradi va holatni yangilaydi. */}
-            <button onClick={sync} disabled={syncing}
+            <button onClick={sync} disabled={syncing || loading}
               className="inline-flex items-center gap-2 rounded-xl border border-green/20 px-3 py-2 text-sm font-bold text-muted transition-colors hover:border-green/40 hover:text-green disabled:opacity-50">
               <Icon d={I.refresh} className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Tekshirilmoqda…" : "Holatni tekshirish"}
@@ -1134,7 +1152,7 @@ export default function SmmPanel() {
         </div>
 
         {loading ? (
-          <div className="mt-4"><SkeletonCard /></div>
+          <div className="mt-4"><SkeletonTable rows={4} cols={6} /></div>
         ) : failed ? (
           <div className="mt-4"><ErrorState onRetry={load} message="Postlarni yuklab bo'lmadi." /></div>
         ) : filtered.length === 0 ? (

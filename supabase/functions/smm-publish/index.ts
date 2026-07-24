@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
     /* ---------- ULANISHLAR ---------- */
     // XAVFSIZLIK: token qiymatlari HECH QACHON frontend'ga qaytarilmaydi.
     // Faqat "ulangan/ulanmagan" va ko'rsatish uchun xavfsiz nom.
-    if (action === "connections" && req.method === "GET") {
+    const loadConnections = async () => {
       const { data: conns } = await supabaseAdmin
         .from("smm_connections")
         .select("platform, config, display_name, updated_at")
@@ -303,7 +303,11 @@ Deno.serve(async (req) => {
         byPlatform.instagram = { connected: true, display_name: igTok.instagram_username || null, via: "oauth" }
       }
 
-      return jsonResponse({ connections: byPlatform })
+      return byPlatform
+    }
+
+    if (action === "connections" && req.method === "GET") {
+      return jsonResponse({ connections: await loadConnections() })
     }
 
     if (action === "connect" && req.method === "POST") {
@@ -368,14 +372,14 @@ Deno.serve(async (req) => {
     }
 
     /* ---------- Ro'yxat ---------- */
-    if (req.method === "GET") {
+    const loadPosts = async () => {
       const { data, error } = await supabaseAdmin
         .from("smm_posts")
         .select("id, seq, title, content, hashtags, image_url, platforms, status, ai_generated, scheduled_at, published_at, created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50)
-      if (error) return errorResponse(error.message, 500)
+      if (error) throw new Error(error.message)
 
       const ids = (data || []).map((p: { id: string }) => p.id)
       const resultsByPost: Record<string, PublishResult[]> = {}
@@ -389,10 +393,21 @@ Deno.serve(async (req) => {
           resultsByPost[r.post_id].push({ platform: r.platform, success: r.success, error: r.error || undefined })
         }
       }
-      const posts = (data || []).map((p: Record<string, unknown>) => ({
+      return (data || []).map((p: Record<string, unknown>) => ({
         ...p, results: resultsByPost[p.id as string] || [],
       }))
-      return jsonResponse({ posts })
+    }
+
+    // Panel ochilganda ikkala ma'lumot ham kerak. Ilgari ikki alohida
+    // so'rov ketardi — har biri o'z sovuq ishga tushishini kutardi.
+    // Bitta so'rov: ikki barobar tez.
+    if (action === "init" && req.method === "GET") {
+      const [posts, connections] = await Promise.all([loadPosts(), loadConnections()])
+      return jsonResponse({ posts, connections })
+    }
+
+    if (req.method === "GET") {
+      return jsonResponse({ posts: await loadPosts() })
     }
 
     /* ---------- TASDIQLASH VA JOYLASH ---------- */
