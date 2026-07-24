@@ -567,7 +567,7 @@ export default function SmmPanel() {
               // ichida button bo'lmasligi kerak). Bosilganda tanlanadi.
               <div key={p.key} onClick={() => toggle(p)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(p) } }}
-                className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 text-left transition-colors ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
+                className={`group relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 pr-11 text-left transition-colors ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
                 <Brand k={p.key} className="h-9 w-9 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display font-bold">{p.label}</span>
@@ -584,26 +584,30 @@ export default function SmmPanel() {
                 {/* Ulangan kartada: qayta ulash (aylana strelka) va uzish.
                     Faqat shu tarmoqqa tegishli — pastdagi umumiy tugmalar
                     qatori olib tashlandi. */}
+                {/* Belgilash katakchasi — doim o'ng yuqorida, qat'iy joyda */}
+                <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
+                  {sel && <Icon d={I.check} className="h-3 w-3" />}
+                </span>
+
+                {/* Amal ikonkalari faqat sichqoncha ustiga kelganda.
+                    Doim ko'rinsa karta tiqilib qoladi — mockup'da ular yo'q,
+                    lekin funksiya kerak, shuning uchun yashirin turadi. */}
                 {on && (
-                  <span className="absolute right-2 top-2 flex gap-1">
+                  <span className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <span role="button" tabIndex={0} title="Qayta ulash"
                       onClick={(e) => { e.stopPropagation(); reconnect(p) }}
-                      className={`grid h-7 w-7 place-items-center rounded-lg text-muted transition-colors hover:bg-green/10 hover:text-green ${connBusy ? "pointer-events-none opacity-50" : ""}`}>
-                      <Icon d={I.refresh} className={`h-3.5 w-3.5 ${connBusy ? "animate-spin" : ""}`} />
+                      className={`grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-muted shadow-sm transition-colors hover:text-green ${connBusy ? "pointer-events-none opacity-50" : ""}`}>
+                      <Icon d={I.refresh} className={`h-3 w-3 ${connBusy ? "animate-spin" : ""}`} />
                     </span>
                     {p.key !== "instagram" && (
                       <span role="button" tabIndex={0} title="Uzish"
                         onClick={(e) => { e.stopPropagation(); disconnect(p.key) }}
-                        className="grid h-7 w-7 place-items-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-500">
-                        <Icon d="M18 6L6 18 M6 6l12 12" className="h-3.5 w-3.5" />
+                        className="grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-red-400 shadow-sm transition-colors hover:text-red-500">
+                        <Icon d="M18 6L6 18 M6 6l12 12" className="h-3 w-3" />
                       </span>
                     )}
                   </span>
                 )}
-
-                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
-                  {sel && <Icon d={I.check} className="h-3 w-3" />}
-                </span>
               </div>
             )
           })}
@@ -654,23 +658,6 @@ export default function SmmPanel() {
           <h3 className="font-display font-bold">2. Kontent yaratish</h3>
           <p className="mt-0.5 text-sm text-muted">Mavzu yozing — AI tayyor post qaytaradi</p>
 
-          {/* Uslub tanlash faqat 1-bosqichda TANLANGAN tarmoqlardan iborat.
-              Bu manzil emas — matn uzunligi va ohangi shunga moslanadi. */}
-          {picked.size > 1 && (
-            <div className="mt-3">
-              <span className="text-xs font-semibold text-muted">AI qaysi tarmoq uslubida yozsin</span>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {Array.from(picked).map((k) => (
-                  <button key={k} type="button" onClick={() => setOrigin(k)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${effOrigin === k ? "border-2 border-green bg-green/5 text-green" : "border border-green/15 text-muted hover:border-green/40"}`}>
-                    <Brand k={k} className="h-3.5 w-3.5" />
-                    {PLATFORMS.find((p) => p.key === k)?.label ?? k}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="relative min-w-[200px] flex-1">
               <Icon d={I.paperclip} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -709,7 +696,7 @@ export default function SmmPanel() {
                 </button>
               )}
               <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-                <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : editingId ? "Yangilash" : "Saqlash"}
+                <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : editingId ? "Yangilash" : "Faylni saqlash"}
               </button>
             </div>
           </div>
@@ -820,18 +807,36 @@ export default function SmmPanel() {
             </div>
           </div>
 
-          <div className="mt-4">
-            <span className="text-xs font-semibold text-muted"># Teglar (ixtiyoriy)</span>
-            <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))}
-              placeholder="#teg1, #teg2, …"
-              className="mt-1.5 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div>
+              <span className="text-xs font-semibold text-muted"># Teglar (ixtiyoriy)</span>
+              <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))}
+                placeholder="#teg1, #teg2, …"
+                className="mt-1.5 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+
+            {/* MUHIM: bu MANZIL emas, USLUB.
+                Mockup'da bu joyda "Original tarmoq" turadi, lekin o'sha nom
+                post qayerga chiqishini belgilaydi deb tushunilardi va
+                Instagram tanlansa post Telegram'ga ketardi. Nomi
+                "AI uslubi" ga o'zgartirildi va ro'yxat faqat 1-bosqichda
+                TANLANGAN tarmoqlardan iborat — bu yerdan manzil tanlab
+                bo'lmaydi. */}
+            {picked.size > 1 && (
+              <div>
+                <span className="text-xs font-semibold text-muted">AI uslubi</span>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {Array.from(picked).map((k) => (
+                    <button key={k} type="button" onClick={() => setOrigin(k)}
+                      className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${effOrigin === k ? "bg-green text-white" : "border border-green/15 text-muted hover:border-green/40"}`}>
+                      {PLATFORMS.find((p) => p.key === k)?.label ?? k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Post qayerga chiqishi FAQAT 1-bosqichda belgilanadi. Bu yerda
-              ikkinchi tarmoq tanlagichi turgan edi ("Original tarmoq") va u
-              manzilni o'zgartiradi deb tushunilardi — aslida u faqat AI
-              uslubiga ta'sir qilardi. Chalkashlik bo'lmasligi uchun olib
-              tashlandi, uslub tanlash 2-bosqichga ko'chirildi. */}
           <p className="mt-3 rounded-xl bg-soft px-4 py-2.5 text-xs text-muted">
             Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "1-bosqichda tarmoq tanlanmagan"}</strong>
           </p>
@@ -843,36 +848,23 @@ export default function SmmPanel() {
         {/* ============ AI MASLAHATCHI (chat) ============ */}
         {/* Alohida karta: tahlil kontent yozishdan boshqa ish. Ilgari u
             2-karta ichida edi va ikkalasi aralashib ketardi. */}
-        <div className={`${card} mt-5`}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-green/10">
-                <Icon d={I.robot} className="h-5 w-5 text-green" />
-              </span>
-              <div>
-                <h3 className="font-display font-bold">AI maslahatchi</h3>
-                <p className="mt-0.5 text-sm text-muted">Tarmoqlaringizni tahlil qiladi va savollarga javob beradi</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {chat.length > 0 && (
-                <button onClick={() => { setChat([]); setAnalysis(null); setNetworks([]) }}
-                  className="rounded-xl border border-green/15 px-4 py-2 text-sm font-bold text-muted transition-colors hover:text-ink">
-                  Tozalash
-                </button>
-              )}
-              <button onClick={analyze} disabled={analyzing}
-                className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-                <Icon d={I.brain} className="h-4 w-4" />
-                {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil" : "Tarmoqlarni tahlil qilish"}
-              </button>
-            </div>
+        <div className={card}>
+          {/* Sarlavha va tugma BIR QATORDA — ilgari tugma pastga tushib
+              ketardi va karta boshqalardan baland bo'lib qolardi. */}
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-display font-bold">AI maslahatchi</h3>
+            <button onClick={analyze} disabled={analyzing}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-green px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
+              <Icon d={I.brain} className="h-3.5 w-3.5" />
+              {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil" : "Tarmoqlarni tahlil qilish"}
+            </button>
           </div>
+          <p className="mt-0.5 text-sm text-muted">Tarmoqlaringizni tahlil qiladi va savollarga javob beradi</p>
 
           {/* Haqiqiy raqamlar — AI xulosasi shularga asoslangan.
               Raqamsiz xulosani tekshirib bo'lmaydi. */}
           {networks.length > 0 && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
               {networks.map((n) => (
                 <div key={n.platform} className="rounded-xl border border-green/10 p-3">
                   <div className="flex items-center gap-2">
@@ -895,11 +887,14 @@ export default function SmmPanel() {
           )}
 
           {/* Suhbat oynasi */}
-          <div ref={chatRef} className="mt-4 max-h-[380px] min-h-[120px] space-y-3 overflow-y-auto rounded-xl bg-soft p-4">
+          <div ref={chatRef} className="mt-4 max-h-[420px] min-h-[240px] space-y-3 overflow-y-auto rounded-xl bg-green/5 p-4">
             {chat.length === 0 && !analysis && (
-              <p className="py-6 text-center text-sm text-muted">
-                "Tarmoqlarni tahlil qilish" ni bosing yoki savolingizni yozing
-              </p>
+              <div className="flex gap-2.5">
+                <Icon d={I.bolt} className="mt-0.5 h-4 w-4 shrink-0 text-green" />
+                <p className="text-sm text-ink/70">
+                  "Tarmoqlarni tahlil qilish" ni bosing yoki savolingizni yozing
+                </p>
+              </div>
             )}
 
             {analysis && (
@@ -972,14 +967,14 @@ export default function SmmPanel() {
               className="mt-2 text-xs font-bold text-muted hover:text-ink">Suhbatni tozalash</button>
           )}
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex gap-2">
             <input value={question} onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask() } }}
-              placeholder="Savol yozing: qaysi tarmoqqa e'tibor bering?"
-              className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-            <button onClick={ask} disabled={asking || !question.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">
-              <Icon d={I.send} className="h-4 w-4" /> Yuborish
+              placeholder="Savol yozing yoki tarmoqqa oid masala bering…"
+              className="min-w-0 flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+            <button onClick={ask} disabled={asking || !question.trim()} title="Yuborish"
+              className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-green/25 text-green transition-colors hover:bg-green hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-green">
+              <Icon d={I.send} className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -1031,7 +1026,7 @@ export default function SmmPanel() {
             </span>
             <select value={filter} onChange={(e) => setFilter(e.target.value)}
               className="rounded-xl border border-green/15 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-green">
-              <option value="all">Barchasi</option>
+              <option value="all">Holat bo'yicha: barchasi</option>
               <option value="pending_approval">Saqlangan</option>
               <option value="published">Joylandi</option>
               <option value="failed">Xato</option>
