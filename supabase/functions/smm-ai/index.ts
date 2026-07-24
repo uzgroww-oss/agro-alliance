@@ -201,18 +201,22 @@ ${text.slice(0, 800)}
 
 Ikki bosqich:
 1) "subject" — postdagi asosiy MODDIY narsani ingliz tilida 2-4 so'z
-   bilan yoz. Masalan "drip irrigation in greenhouse", "wheat harvest",
-   "dairy cows in barn".
-   Mavhum tushuncha YOZMA: "convenience", "efficiency", "partnership"
-   — bularni chizib bo'lmaydi.
+   bilan yoz. Masalan "drip irrigation tubing", "wheat harvest",
+   "dairy cow in barn".
+   Mavhum tushuncha YOZMA: "convenience", "efficiency", "partnership".
 2) "prompt" — shu subject asosida to'liq rasm so'rovi.
 
-"prompt" qoidalari:
+"prompt" QAT'IY QOIDALARI:
+- SUBJECT SO'ROVNING BOSHIDA turishi shart va kadrni EGALLASHI kerak.
+  YOMON: "a farmer in a field with drip irrigation"
+         (odam asosiy bo'lib qoladi, quvur ko'rinmaydi)
+  YAXSHI: "close-up of black drip irrigation tubing with water
+          droplets between rows of cotton plants"
+- Subject odam bo'lmasa, so'rovni "close-up" yoki "detailed view"
+  bilan boshla va odam qo'shma
 - INGLIZ tilida
-- Fotosurat uslubida: photorealistic, natural light, sharp details
+- photorealistic, natural light, sharp focus
 - O'zbekiston/Markaziy Osiyo qishloq xo'jaligi muhiti
-- Odam, ofis, kompyuter, ekran, kostyum YOZMA — agar post ular
-  haqida bo'lmasa
 - Matn, yozuv, logotip bo'lmasin
 - 40 so'zdan oshmasin
 
@@ -231,7 +235,22 @@ FAQAT JSON qaytar:
     ["prompt"],
   )
 
-  return String(res.prompt || "").trim().slice(0, 400)
+  let prompt = String(res.prompt || "").trim().slice(0, 400)
+  const subject = String(res.subject || "").toLowerCase()
+
+  /**
+   * Model qoidani unutib, so'rovga odam qo'shib yuboradi va o'shanda
+   * odam kadrni egallab, asosiy narsa ko'rinmay qoladi.
+   *
+   * Subject odam haqida bo'lmasa — buni SO'ROV ICHIDA taqiqlaymiz.
+   * negative_prompt ishlatib bo'lmaydi: FLUX uni qabul qilmaydi.
+   */
+  const aboutPeople = /farmer|people|person|worker|man|woman|child|hand/.test(subject)
+  if (!aboutPeople && !/no people/i.test(prompt)) {
+    prompt = `${prompt}, no people in frame`
+  }
+
+  return prompt.slice(0, 400)
 }
 
 /* ================= TARMOQLARDAN HAQIQIY MA'LUMOT ================= */
