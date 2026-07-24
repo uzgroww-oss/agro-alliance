@@ -4,6 +4,7 @@ import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
 import { uploadFile } from "../../lib/upload"
 import { extractVideoFrame } from "../../lib/videoFrame"
+import { extractFrames, composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "../../lib/thumbnail"
 import { api } from "../../lib/api"
 
 /**
@@ -195,6 +196,12 @@ export default function SmmPanel() {
   // haqiqatan rasmga asoslanganini tekshirish mumkin.
   const [seenDesc, setSeenDesc] = useState("")
   const [seenTopic, setSeenTopic] = useState("")
+
+  /* Video muqovasi (YouTube prevyusi kabi) */
+  const [thumbSize, setThumbSize] = useState<ThumbSize>(THUMB_SIZES[0])
+  const [thumbs, setThumbs] = useState<string[]>([])
+  const [makingThumb, runThumb] = useBusy()
+  const [thumbErr, setThumbErr] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -466,6 +473,42 @@ export default function SmmPanel() {
     }
   })
   const describe = () => describeUrl(form.image_url)
+
+  /**
+   * Videodan muqova variantlarini yasash.
+   *
+   * AI rasm CHIZMAYDI — muqova videoning haqiqiy kadridan yasaladi.
+   * O'ylab topilgan rasm chiroyli bo'lsa ham videoga aloqasi bo'lmaydi
+   * va odam bosganda aldangandek his qiladi.
+   */
+  const makeThumbs = (size: ThumbSize) => runThumb(async () => {
+    setThumbErr(""); setThumbs([])
+    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
+    // Sarlavha bo'lmasa AI ko'rgan mazmundan foydalanamiz
+    const title = (form.title || seenTopic || "").trim()
+    try {
+      const frames = await extractFrames(form.image_url, 4)
+      const out: string[] = []
+      for (const f of frames) out.push(await composeThumbnail(f, title, size))
+      setThumbs(out)
+    } catch (e) {
+      setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
+    }
+  })
+
+  /** Tanlangan muqovani yuklab, post rasmiga aylantirish */
+  const useThumb = (dataUrl: string) => runThumb(async () => {
+    setThumbErr("")
+    try {
+      const file = dataUrlToFile(dataUrl, `muqova-${thumbSize.key}.jpg`)
+      const r = await uploadFile(file)
+      setForm((f) => ({ ...f, image_url: r.signedUrl }))
+      setThumbs([])
+      setMsg("✅ Muqova post rasmiga aylantirildi")
+    } catch (e) {
+      setThumbErr(e instanceof Error ? e.message : "Muqovani yuklab bo'lmadi")
+    }
+  })
 
   /* Joylangan postlar tarmoqda hali turibdimi */
   const sync = () => runSync(async () => {
@@ -881,7 +924,54 @@ export default function SmmPanel() {
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
                       <Icon d={I.refresh} className="h-3.5 w-3.5" /> Qaytadan yozdirish
                     </button>
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+
+                    {/* ---- Video muqovasi (YouTube prevyusi kabi) ---- */}
+                    {isVideo && (
+                      <div className="mt-3 rounded-xl border border-green/15 bg-white p-3">
+                        <p className="text-xs font-bold text-muted">Muqova rasmi</p>
+                        <p className="mt-0.5 text-[11px] text-muted">
+                          Videoning kadridan yasaladi, ustiga sarlavha yoziladi
+                        </p>
+
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {THUMB_SIZES.map((sz) => (
+                            <button key={sz.key} type="button"
+                              onClick={() => { setThumbSize(sz); makeThumbs(sz) }}
+                              disabled={makingThumb}
+                              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors disabled:opacity-50 ${
+                                thumbSize.key === sz.key ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/50"
+                              }`}>
+                              {sz.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {makingThumb && (
+                          <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-green">
+                            <Icon d={I.refresh} className="h-3.5 w-3.5 animate-spin" /> Muqova yasalmoqda…
+                          </p>
+                        )}
+                        {thumbErr && (
+                          <p className="mt-2 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">{thumbErr}</p>
+                        )}
+
+                        {thumbs.length > 0 && (
+                          <>
+                            <p className="mt-2 text-[11px] text-muted">Birini tanlang:</p>
+                            <div className="mt-1.5 grid grid-cols-2 gap-2">
+                              {thumbs.map((t, i) => (
+                                <button key={i} type="button" onClick={() => useThumb(t)} disabled={makingThumb}
+                                  className="overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green disabled:opacity-50">
+                                  <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   <MediaUpload accept="image/*,video/*"

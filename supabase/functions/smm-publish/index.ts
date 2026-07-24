@@ -22,6 +22,18 @@ type Platform = typeof PLATFORMS[number]
 type PublishResult = { platform: string; success: boolean; external_id?: string; error?: string }
 
 /**
+ * Fayl video ekanini manzil oxiridan aniqlaymiz.
+ *
+ * NEGA KERAK: media_url rasm ham, video ham bo'lishi mumkin. Ilgari
+ * hammasi RASM deb yuborilardi — video yuklangan post Telegram'da
+ * sendPhoto bilan ketib, "wrong file identifier" xatosi bilan
+ * yiqilardi.
+ */
+function isVideoUrl(url: string | null): boolean {
+  return Boolean(url && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url))
+}
+
+/**
  * Sozlamani olish: avval bazadagi ulanish (admin panel orqali), topilmasa
  * env secret (eski usul). Shunda ikkalasi ham ishlaydi.
  */
@@ -46,7 +58,13 @@ async function publishTelegram(text: string, imageUrl: string | null): Promise<P
 
   try {
     let resp: Response
-    if (imageUrl) {
+    if (imageUrl && isVideoUrl(imageUrl)) {
+      resp = await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, video: imageUrl, caption: text.slice(0, 1024) }),
+      })
+    } else if (imageUrl) {
       resp = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,12 +95,17 @@ async function publishFacebook(text: string, imageUrl: string | null): Promise<P
     return { platform: "facebook", success: false, error: "Facebook ulanmagan" }
   }
   try {
-    const endpoint = imageUrl
-      ? `https://graph.facebook.com/v22.0/${pageId}/photos`
-      : `https://graph.facebook.com/v22.0/${pageId}/feed`
-    const payload: Record<string, string> = imageUrl
-      ? { url: imageUrl, caption: text, access_token: token }
-      : { message: text, access_token: token }
+    const video = isVideoUrl(imageUrl)
+    const endpoint = !imageUrl
+      ? `https://graph.facebook.com/v22.0/${pageId}/feed`
+      : video
+        ? `https://graph.facebook.com/v22.0/${pageId}/videos`
+        : `https://graph.facebook.com/v22.0/${pageId}/photos`
+    const payload: Record<string, string> = !imageUrl
+      ? { message: text, access_token: token }
+      : video
+        ? { file_url: imageUrl, description: text, access_token: token }
+        : { url: imageUrl, caption: text, access_token: token }
 
     const resp = await fetch(endpoint, {
       method: "POST",
@@ -115,7 +138,7 @@ function igError(err: { message?: string; code?: number } | undefined, status: n
 /* ---------------- Instagram (2 bosqich) ---------------- */
 async function publishInstagram(text: string, imageUrl: string | null): Promise<PublishResult> {
   if (!imageUrl) {
-    return { platform: "instagram", success: false, error: "Instagram uchun rasm majburiy" }
+    return { platform: "instagram", success: false, error: "Instagram uchun rasm yoki video majburiy" }
   }
   // Instagram Sozlamalar bo'limidagi OAuth orqali ulanadi — o'sha token
   // instagram_tokens jadvalida turadi. Avval shu yerdan olamiz.
@@ -132,15 +155,39 @@ async function publishInstagram(text: string, imageUrl: string | null): Promise<
     return { platform: "instagram", success: false, error: "Instagram ulanmagan" }
   }
   try {
-    // 1) media konteyner
+    // 1) media konteyner. Video Instagram'da REELS sifatida ketadi —
+    // oddiy feed videosi uchun API yo'q.
+    const video = isVideoUrl(imageUrl)
+    const container = video
+      ? { media_type: "REELS", video_url: imageUrl, caption: text.slice(0, 2200), access_token: token }
+      : { image_url: imageUrl, caption: text.slice(0, 2200), access_token: token }
+
     const createResp = await fetch(`https://graph.facebook.com/v22.0/${igUserId}/media`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_url: imageUrl, caption: text.slice(0, 2200), access_token: token }),
+      body: JSON.stringify(container),
     })
     const created = await createResp.json().catch(() => ({}))
     if (!createResp.ok || created.error) {
       return { platform: "instagram", success: false, error: igError(created.error, createResp.status) }
+    }
+
+    // Video konteyneri darhol tayyor bo'lmaydi — Instagram uni qayta
+    // ishlaydi. Tayyor bo'lguncha kutamiz, aks holda media_publish
+    // "not ready" xatosi bilan yiqiladi.
+    if (video) {
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 3000))
+        const st = await fetch(`https://graph.facebook.com/v22.0/${created.id}?fields=status_code&access_token=${token}`)
+        const sd = await st.json().catch(() => ({}))
+        if (sd.status_code === "FINISHED") break
+        if (sd.status_code === "ERROR") {
+          return { platform: "instagram", success: false, error: "Instagram videoni qabul qilmadi" }
+        }
+        if (i === 19) {
+          return { platform: "instagram", success: false, error: "Video tayyorlanmadi — keyinroq urining" }
+        }
+      }
     }
     // 2) publish
     const pubResp = await fetch(`https://graph.facebook.com/v22.0/${igUserId}/media_publish`, {
