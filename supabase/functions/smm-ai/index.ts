@@ -311,7 +311,6 @@ function normalizePlan(raw: unknown): MarketPlan {
   const o = (raw || {}) as Record<string, unknown>
   const reja = Array.isArray(o.reja) ? o.reja : []
   return {
-    bozor: asText(o.bozor),
     sotuv: asTextList(o.sotuv),
     reja: reja.map((r, i) => {
       const it = (r || {}) as Record<string, unknown>
@@ -356,7 +355,6 @@ function isRepetitive(text: string): boolean {
 }
 
 type MarketPlan = {
-  bozor: string
   sotuv: string[]
   reja: { kun: number; mavzu: string; format: string; platforma: string; vaqt?: string; maqsad?: string }[]
 }
@@ -769,7 +767,6 @@ QAT'IY QOIDALAR:
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
-  "bozor": "hozirgi vaziyat haqida 2-3 to'liq jumla",
   "sotuv": ["sotuvni oshirish uchun aniq qadam — to'liq jumla bilan"],
   "reja": [
     { "kun": 1, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
@@ -778,12 +775,13 @@ FAQAT JSON qaytar, boshqa matn yozma:
 "reja" ichida ${days} ta element bo'lsin, kun 1 dan ${days} gacha.`
 
       const rawPlan = await askAi<unknown>(prompt, (v) => {
-        const o = v as { reja?: unknown; bozor?: unknown }
+        const o = v as { reja?: unknown }
         if (!o || typeof o !== "object") return false
         if (!Array.isArray(o.reja) || !o.reja.length) return false
-        // "bozor" jumla bo'lishi shart. Ilgari AI u yerga raqamlar
-        // qaytarardi va ekranda "0. 3. 0. 2. 0" kabi bema'nilik chiqardi.
-        return looksLikeSentence(asText(o.bozor))
+        // Tavsiyalar jumla bo'lishi shart. Ilgari AI matn maydonlariga
+        // raqam qaytarardi va ekranda "0. 3. 0. 2. 0" chiqardi.
+        const sotuv = asTextList((o as { sotuv?: unknown }).sotuv)
+        return sotuv.length > 0 && sotuv.some(looksLikeSentence)
       })
       const result = normalizePlan(rawPlan)
       if (!result.reja.length) return errorResponse("AI reja tuza olmadi — qaytadan urining", 500)

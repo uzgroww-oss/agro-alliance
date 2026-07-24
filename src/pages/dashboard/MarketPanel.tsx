@@ -23,7 +23,6 @@ type PlanItem = {
   vaqt?: unknown; maqsad?: unknown
 }
 type Plan = {
-  bozor: unknown
   sotuv: unknown
   reja: PlanItem[]
 }
@@ -218,20 +217,22 @@ export default function MarketPanel() {
             </div>
           )}
 
-          {/* Xulosa */}
-          <div className={`${card} mt-5`}>
-            <h3 className="font-display font-bold">Xulosa</h3>
-            <p className="mt-2 rounded-xl bg-soft p-4 text-sm">{txt(plan.bozor)}</p>
-
-            {txtList(plan.sotuv).length > 0 && (
-              <div className="mt-3 rounded-xl border border-green/10 p-4">
-                <p className="text-xs font-bold text-green">Sotuvni oshirish</p>
-                <ul className="mt-2 space-y-1.5">
-                  {txtList(plan.sotuv).map((r, i) => <li key={i} className="text-sm text-ink/80">• {r}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
+          {/* Umumiy "Xulosa" bandi olib tashlandi: AI u yerga ko'pincha
+              raqam qaytarardi va foydali ma'lumot bermasdi. Aniq
+              tavsiyalar qoldi. */}
+          {txtList(plan.sotuv).length > 0 && (
+            <div className={`${card} mt-5`}>
+              <h3 className="font-display font-bold">Sotuvni oshirish</h3>
+              <ul className="mt-3 space-y-2">
+                {txtList(plan.sotuv).map((r, i) => (
+                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Kunlik reja */}
           <div className={`${card} mt-5`}>
