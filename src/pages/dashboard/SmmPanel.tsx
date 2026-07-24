@@ -202,6 +202,16 @@ export default function SmmPanel() {
   const [thumbs, setThumbs] = useState<string[]>([])
   const [makingThumb, runThumb] = useBusy()
   const [thumbErr, setThumbErr] = useState("")
+
+  /* 2-karta: AI yozgan qoralama shu yerda turadi va foydalanuvchi
+     uni ko'rib, keyin 3-kartaga o'tkazadi. Ilgari matn to'g'ridan-
+     to'g'ri 3-kartaga tushib ketardi va nima o'zgarganini bilib
+     bo'lmasdi. */
+  const [draft, setDraft] = useState<{ sarlavha: string; matn: string; hashtaglar: string[] } | null>(null)
+  const [genImg, setGenImg] = useState("")
+  const [genPrompt, setGenPrompt] = useState("")
+  const [drawing, runDraw] = useBusy()
+  const [drawErr, setDrawErr] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -316,16 +326,57 @@ export default function SmmPanel() {
         "/smm/ai?action=generate",
         { method: "POST", body: JSON.stringify({ topic: useTopic, platform: effOrigin }) },
       )
-      setForm({
-        title: d.generated.sarlavha || "",
-        content: d.generated.matn || "",
-        hashtags: (d.generated.hashtaglar || []).join(" "),
-        image_url: "",
+      // 3-kartaga EMAS, shu kartadagi qoralamaga yoziladi
+      setDraft({
+        sarlavha: d.generated.sarlavha || "",
+        matn: d.generated.matn || "",
+        hashtaglar: d.generated.hashtaglar || [],
       })
-      setAiMade(true)
-      setEditingId(null)
-      setMsg("")
+      setGenImg(""); setGenPrompt(""); setDrawErr("")
     } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
+  })
+
+  /** Qoralamani tahrirlash kartasiga o'tkazish */
+  const useDraft = () => {
+    if (!draft) return
+    setForm((f) => ({
+      ...f,
+      title: draft.sarlavha,
+      content: draft.matn,
+      hashtags: (draft.hashtaglar || []).join(" "),
+      // Yaratilgan rasm bo'lsa u ham ketadi
+      image_url: genImg || f.image_url,
+    }))
+    setAiMade(true)
+    setEditingId(null)
+    setDraft(null); setGenImg(""); setGenPrompt("")
+    setMsg("")
+  }
+
+  /**
+   * Qoralama matni asosida rasm chizdirish.
+   * Server avval matndan inglizcha tasvir so'rovi yasaydi, keyin rasm
+   * modeliga beradi — rasm modellari ingliz tilida ancha aniq ishlaydi.
+   */
+  const drawImage = () => runDraw(async () => {
+    const text = [draft?.sarlavha, draft?.matn].filter(Boolean).join(". ")
+    if (!text.trim()) { setDrawErr("Avval matn yozdiring"); return }
+    setDrawErr(""); setGenImg("")
+    try {
+      // Tanlangan tarmoqqa qarab nisbat: Instagram tik, qolgani keng
+      const aspect = picked.has("instagram") && !picked.has("telegram") ? "4:5" : "16:9"
+      const d = await api<{ image_b64: string; prompt: string }>("/smm/ai?action=image", {
+        method: "POST",
+        body: JSON.stringify({ text, aspect }),
+      })
+      // Yuklab, doimiy manzil olamiz — base64 ni bazaga saqlab bo'lmaydi
+      const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
+      const r = await uploadFile(file)
+      setGenImg(r.signedUrl)
+      setGenPrompt(d.prompt || "")
+    } catch (e) {
+      setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
+    }
   })
 
   const analyze = () => runAnalyze(async () => {
@@ -791,13 +842,68 @@ export default function SmmPanel() {
 
           {aiErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>}
 
-          <div className="mt-4 flex gap-3 rounded-xl bg-green/5 p-4">
-            <Icon d={I.robot} className="mt-0.5 h-5 w-5 shrink-0 text-green" />
-            <p className="text-sm text-ink/75">
-              Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi.
-              Nima yozishni bilmasangiz pastdagi <strong>AI maslahatchi</strong> bilan gaplashing.
-            </p>
-          </div>
+          {/* AI yozgan qoralama SHU KARTADA turadi. Ilgari u to'g'ridan-
+              to'g'ri 3-kartaga tushib ketardi va nima yozilganini
+              ko'rmasdan qabul qilishga to'g'ri kelardi. */}
+          {draft ? (
+            <div className="mt-4 rounded-xl border border-green/20 bg-green/5 p-4">
+              <div className="flex items-center gap-2">
+                <Icon d={I.robot} className="h-4 w-4 shrink-0 text-green" />
+                <span className="text-xs font-bold text-green">AI yozdi</span>
+              </div>
+
+              {draft.sarlavha && <p className="mt-2 font-display font-bold">{draft.sarlavha}</p>}
+              <p className="mt-1 whitespace-pre-wrap text-sm text-ink/85">{draft.matn}</p>
+              {draft.hashtaglar?.length > 0 && (
+                <p className="mt-2 text-xs text-green">{draft.hashtaglar.join(" ")}</p>
+              )}
+
+              {/* Matn asosida rasm chizish */}
+              {genImg ? (
+                <div className="mt-3">
+                  <img src={genImg} alt="" className="w-full rounded-lg" />
+                  {genPrompt && <p className="mt-1 text-[11px] text-muted">Tasvir so'rovi: {genPrompt}</p>}
+                  <button type="button" onClick={drawImage} disabled={drawing}
+                    className="mt-1.5 text-xs font-bold text-muted hover:text-green disabled:opacity-50">
+                    Boshqa rasm chiz
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={drawImage} disabled={drawing}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
+                  <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
+                  {drawing ? "Rasm chizilmoqda…" : "Shu matnga rasm chizdir"}
+                </button>
+              )}
+
+              {drawErr && (
+                <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={useDraft}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white">
+                  <Icon d={I.check} className="h-3.5 w-3.5" /> Tahrirlashga o'tkazish
+                </button>
+                <button type="button" onClick={() => generate()} disabled={generating}
+                  className="rounded-xl border border-green/20 px-3 py-2 text-xs font-bold text-muted hover:text-green disabled:opacity-50">
+                  Qaytadan
+                </button>
+                <button type="button" onClick={() => { setDraft(null); setGenImg(""); setDrawErr("") }}
+                  className="rounded-xl px-2 py-2 text-xs font-bold text-red-400 hover:text-red-500">
+                  Bekor
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex gap-3 rounded-xl bg-green/5 p-4">
+              <Icon d={I.robot} className="mt-0.5 h-5 w-5 shrink-0 text-green" />
+              <p className="text-sm text-ink/75">
+                Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi.
+                Nima yozishni bilmasangiz o'ngdagi <strong>AI maslahatchi</strong> bilan gaplashing.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ---- 3. TAHRIRLASH VA SAQLASH ---- */}

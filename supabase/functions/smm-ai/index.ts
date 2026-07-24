@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../_shared/supabase.ts"
 import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
+import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -564,6 +565,48 @@ Oxirgi savolga javob ber. Qoidalar:
 
       const answer = await askText(prompt)
       return jsonResponse({ answer })
+    }
+
+    /* ---------------- RASM YARATISH ---------------- */
+    // Post matni asosida rasm chizadi.
+    //
+    // Ikki bosqich: avval matn modeli o'zbekcha matndan INGLIZCHA
+    // tasvir so'rovi yasaydi, keyin rasm modeli chizadi. Rasm modellari
+    // ingliz tilida ancha yaxshi ishlaydi — o'zbekcha so'rovda natija
+    // tasodifiy chiqadi.
+    if (action === "image") {
+      const text = String(body.text || "").trim()
+      const aspect = (String(body.aspect || "16:9")) as GenAspect
+      if (!text) return errorResponse("Avval post matnini yozing", 400)
+
+      let imgPrompt = ""
+      try {
+        imgPrompt = await askText(`Quyidagi o'zbekcha post matni uchun rasm so'rovi (image prompt) yoz.
+
+POST:
+${text.slice(0, 800)}
+
+Qoidalar:
+- INGLIZ tilida yoz
+- Faqat so'rovning o'zini yoz, boshqa hech narsa yozma
+- Fotosurat uslubida: real, tabiiy yorug'lik
+- O'zbekiston qishloq xo'jaligi muhiti
+- Matn, yozuv, logotip BO'LMASIN
+- 40 so'zdan oshmasin`)
+      } catch (e) {
+        return errorResponse(`Rasm so'rovi tayyorlanmadi — ${e instanceof Error ? e.message : "xatolik"}`, 500)
+      }
+
+      // Model ba'zan izoh qo'shib yuboradi — birinchi qatorni olamiz
+      imgPrompt = imgPrompt.split("\n")[0].replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 400)
+      if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
+
+      try {
+        const img = await nimImage(imgPrompt, aspect)
+        return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
+      } catch (e) {
+        return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
+      }
     }
 
     return errorResponse("Noma'lum amal", 400)
