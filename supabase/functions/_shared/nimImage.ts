@@ -24,12 +24,14 @@ function getApiKey(): string {
  * cfg_scale 0 dan katta bo'lsa 422 qaytaradi. Umumiy sozlama bilan
  * yuborilganda aynan shu xato chiqardi.
  */
-type ModelCfg = { cfg: number; steps: number };
+type ModelCfg = { cfg: number; steps: number; negative: boolean };
 const MODEL_PARAMS: Record<string, ModelCfg> = {
-  "black-forest-labs/flux.1-schnell": { cfg: 0, steps: 4 },
-  "black-forest-labs/flux.1-dev": { cfg: 3.5, steps: 30 },
+  // FLUX negative_prompt ni QABUL QILMAYDI — yuborilsa
+  // "Extra inputs are not permitted" xatosi qaytadi.
+  "black-forest-labs/flux.1-schnell": { cfg: 0, steps: 4, negative: false },
+  "black-forest-labs/flux.1-dev": { cfg: 3.5, steps: 30, negative: false },
 };
-const DEFAULT_PARAMS: ModelCfg = { cfg: 4.5, steps: 30 };
+const DEFAULT_PARAMS: ModelCfg = { cfg: 4.5, steps: 30, negative: true };
 
 /** Sinaladigan modellar — biri ishlamasa keyingisi */
 function models(): string[] {
@@ -101,22 +103,40 @@ export async function nimImage(
   for (const model of models()) {
     const params = MODEL_PARAMS[model] || DEFAULT_PARAMS;
     try {
-      const resp = await fetch(`${GENAI_BASE}/${model}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          prompt,
-          negative_prompt: "text, watermark, logo, blurry, distorted, deformed hands",
-          aspect_ratio: aspect,
-          cfg_scale: params.cfg,
-          steps: params.steps,
-          seed: 0,
-        }),
-      });
+      const send = (body: Record<string, unknown>) =>
+        fetch(`${GENAI_BASE}/${model}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+      const full: Record<string, unknown> = {
+        prompt,
+        aspect_ratio: aspect,
+        cfg_scale: params.cfg,
+        steps: params.steps,
+        seed: 0,
+      };
+      if (params.negative) {
+        full.negative_prompt = "text, watermark, logo, blurry, distorted, deformed hands";
+      }
+
+      let resp = await send(full);
+
+      // Modellar qabul qiladigan maydonlar ro'yxati har xil va NVIDIA
+      // uni o'zgartirib turadi. Ortiqcha maydon xatosida eng oddiy
+      // so'rov bilan qayta urinamiz — har maydonni oldindan bilish
+      // shart bo'lmaydi.
+      if (resp.status === 422) {
+        const t = await resp.clone().text().catch(() => "");
+        if (t.includes("Extra inputs are not permitted")) {
+          resp = await send({ prompt, cfg_scale: params.cfg, seed: 0 });
+        }
+      }
 
       if (!resp.ok) {
         const t = await resp.text().catch(() => "");
