@@ -216,9 +216,8 @@ Ikki bosqich:
 
 "prompt" QAT'IY QOIDALARI:
 - SUBJECT SO'ROVNING BOSHIDA turishi shart va kadrni EGALLASHI kerak.
-  Quyidagi misol faqat TUZILISHNI ko'rsatadi, mazmunini ko'chirma:
-    yomon:  "a person next to <narsa>"  (odam asosiy bo'lib qoladi)
-    yaxshi: "close-up of <narsa> with <detal>, <fon>"
+  Odamni birinchi qo'ysang, u kadrni egallab, asosiy narsa
+  ko'rinmay qoladi.
 - Subject odam bo'lmasa, so'rovni "close-up" yoki "detailed view"
   bilan boshla va odam qo'shma
 - INGLIZ tilida
@@ -233,6 +232,7 @@ FAQAT JSON qaytar:
       const o = v as { prompt?: unknown }
       const p = typeof o?.prompt === "string" ? o.prompt.trim() : ""
       if (p.length < 20 || p.length > 400) return false
+      if (leaksInstructions(p)) return false
       // Ingliz tilida bo'lishi shart — o'zbekcha so'rovda rasm
       // modellari tasodifiy natija beradi
       const latin = (p.match(/[a-z]/gi) || []).length
@@ -473,6 +473,29 @@ function looksLikeSentence(t: string): boolean {
 }
 
 /**
+ * Javobga so'rovning O'ZI sizib chiqqanmi?
+ *
+ * NEGA: kichik modellar ko'rsatmadagi namunani mavzu haqida o'ylash
+ * o'rniga shundoq ko'chirib qo'yadi. Postda "<narsa> <qancha> foyda
+ * beradi" degan bo'sh o'rinlar chiqib qolgan edi. Namunalar so'rovdan
+ * olib tashlandi, bu esa ikkinchi qavat: bunday matnni qabul qilmaymiz.
+ *
+ * Burchakli qavs ichidagi so'z HTML tegi bo'lsa ruxsat — matn muharriri
+ * <b>, <li> kabi teglarni haqiqatan ishlatadi.
+ */
+const HTML_TAGS = new Set([
+  "b", "i", "u", "s", "em", "strong", "strike", "br", "p", "a",
+  "ul", "ol", "li", "div", "span", "h1", "h2", "h3", "blockquote", "code",
+])
+function leaksInstructions(text: string): boolean {
+  const t = text || ""
+  for (const m of t.matchAll(/<\/?([a-zA-Z][a-zA-Z0-9']{0,20})\s*\/?>/g)) {
+    if (!HTML_TAGS.has(m[1].toLowerCase())) return true
+  }
+  return /\b(?:QOIDALARI|image prompt|yaxshi uslub|yomon uslub)\b|MAVZU:|PLATFORMA:|FAQAT JSON/i.test(t)
+}
+
+/**
  * Yozilgan matn so'ralgan MAVZU haqidami?
  *
  * NEGA KERAK: kichik modellar mavzuni e'tiborsiz qoldirib, so'rovdagi
@@ -680,14 +703,9 @@ Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
 
 MATN QOIDALARI — qat'iy:
 - FAQAT yuqoridagi MAVZU haqida yoz. Boshqa mavzuga o'tib ketma.
+- Bu ko'rsatmalarning o'zini javobga ko'chirma. Javobda faqat
+  o'quvchiga qaratilgan tayyor post bo'lsin.
 - TO'LIQ JUMLALAR yoz. Faqat sarlavhalardan iborat ro'yxat YOZMA.
-
-  Quyidagi misol faqat USLUBNI ko'rsatadi — mazmunini KO'CHIRMA,
-  o'z mavzuyingiz haqida shu uslubda yoz:
-    yomon uslub:  "1. Birinchi narsa 2. Ikkinchi narsa 3. Uchinchi"
-    yaxshi uslub: "<narsa> <qancha> foyda beradi va <qanday>
-                   ishlaydi. Narxi taxminan <qancha>."
-
 - Ro'yxat ishlatsang, HAR BAND kamida bitta to'liq jumla bo'lsin
 - Aniq gapir: raqam, muddat, usul nomi, narsalarning nomi
 - Kamida 3 ta mazmunli jumla bo'lsin
@@ -712,6 +730,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         // Juda qisqa yoki quruq ro'yxat bo'lsa keyingi provayder yozsin
         if (o.matn.trim().length < 120) return false
         if (isSkeletonList(o.matn)) return false
+        if (leaksInstructions(o.matn)) return false
         return !isRepetitive(o.matn)
       }
 
@@ -921,7 +940,7 @@ Oxirgi savolga javob ber. Qoidalar:
 
       // Video: yasalgan rasm jonlantiriladi
       try {
-        const video = await nimVideo(img.data, "image/jpeg")
+        const video = await nimVideo(img.data)
         return jsonResponse({ video_b64: video, image_b64: img.data, prompt: imgPrompt })
       } catch (e) {
         // Video chiqmasa RASM baribir foydali — uni qaytaramiz va
