@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Icon, I, useBusy, ErrorState, SkeletonCard } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
@@ -88,6 +88,54 @@ function Brand({ k, className = "h-6 w-6", color }: { k: string; className?: str
    qanday yozilsa, tarmoqqa shunday ketadi. */
 const EMOJIS = ["🌱", "🌾", "🚜", "🐄", "🍅", "💧", "☀️", "📈", "✅", "🔥", "💡", "📌", "🎯", "👏", "❤️", "🙌"]
 
+/* ---------------- Chat ---------------- */
+type ChatMsg = { role: "user" | "ai"; content: string; at: string }
+
+/** Bo'sh chatda ko'rinadigan tayyor savollar */
+const QUICK_ASKS: { label: string; run?: "analyze" }[] = [
+  { label: "Tarmoqlarimni tahlil qil", run: "analyze" },
+  { label: "Qaysi vaqtda joylayin?" },
+  { label: "Obunachini qanday ko'paytiraman?" },
+]
+
+const nowTime = () => {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
+/**
+ * Suhbat pufakchasi.
+ * AI chapda avatar bilan, foydalanuvchi o'ngda — haqiqiy chatlardagidek.
+ * `wide` — tahlil natijasi uchun (ichida ro'yxat va tugmalar bo'ladi).
+ */
+function Bubble({
+  side, children, at, wide = false,
+}: {
+  side: "ai" | "user"
+  children: ReactNode
+  at?: string
+  wide?: boolean
+}) {
+  const isAi = side === "ai"
+  return (
+    <div className={`flex items-end gap-2 ${isAi ? "" : "flex-row-reverse"}`}>
+      {isAi && (
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green text-white">
+          <Icon d={I.robot} className="h-4 w-4" />
+        </span>
+      )}
+      <div className={`min-w-0 ${wide ? "max-w-full flex-1" : "max-w-[85%]"}`}>
+        <div className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
+          isAi ? "rounded-bl-sm bg-white text-ink shadow-sm" : "rounded-br-sm bg-green text-white"
+        }`}>
+          {children}
+        </div>
+        {at && <p className={`mt-1 text-[10px] text-muted ${isAi ? "" : "text-right"}`}>{at}</p>}
+      </div>
+    </div>
+  )
+}
+
 export default function SmmPanel() {
   const [posts, setPosts] = useState<SmmPost[]>([])
   const [conns, setConns] = useState<Record<string, SmmConn>>({})
@@ -116,7 +164,7 @@ export default function SmmPanel() {
   const [aiErr, setAiErr] = useState("")
 
   /* AI maslahatchi — suhbat */
-  const [chat, setChat] = useState<{ role: "user" | "ai"; content: string }[]>([])
+  const [chat, setChat] = useState<ChatMsg[]>([])
   const [question, setQuestion] = useState("")
   const [asking, runAsk] = useBusy()
   const chatRef = useRef<HTMLDivElement>(null)
@@ -353,7 +401,7 @@ export default function SmmPanel() {
     const q = question.trim()
     if (!q) return
     setAiErr("")
-    const next = [...chat, { role: "user" as const, content: q }]
+    const next: ChatMsg[] = [...chat, { role: "user", content: q, at: nowTime() }]
     setChat(next)
     setQuestion("")
     scrollChat()
@@ -362,7 +410,7 @@ export default function SmmPanel() {
         method: "POST",
         body: JSON.stringify({ messages: next }),
       })
-      setChat([...next, { role: "ai" as const, content: d.answer }])
+      setChat([...next, { role: "ai", content: d.answer, at: nowTime() }])
       scrollChat()
     } catch (e) {
       setAiErr(e instanceof Error ? e.message : "AI javob bermadi")
@@ -848,73 +896,89 @@ export default function SmmPanel() {
         {/* ============ AI MASLAHATCHI (chat) ============ */}
         {/* Alohida karta: tahlil kontent yozishdan boshqa ish. Ilgari u
             2-karta ichida edi va ikkalasi aralashib ketardi. */}
-        <div className={card}>
-          {/* Sarlavha va tugma BIR QATORDA — ilgari tugma pastga tushib
-              ketardi va karta boshqalardan baland bo'lib qolardi. */}
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-display font-bold">AI maslahatchi</h3>
-            <button onClick={analyze} disabled={analyzing}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-green px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-              <Icon d={I.brain} className="h-3.5 w-3.5" />
-              {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil" : "Tarmoqlarni tahlil qilish"}
-            </button>
-          </div>
-          <p className="mt-0.5 text-sm text-muted">Tarmoqlaringizni tahlil qiladi va savollarga javob beradi</p>
-
-          {/* Haqiqiy raqamlar — AI xulosasi shularga asoslangan.
-              Raqamsiz xulosani tekshirib bo'lmaydi. */}
-          {networks.length > 0 && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-              {networks.map((n) => (
-                <div key={n.platform} className="rounded-xl border border-green/10 p-3">
-                  <div className="flex items-center gap-2">
-                    <Brand k={n.platform} className="h-4 w-4" />
-                    <span className="truncate text-sm font-semibold">{n.name}</span>
-                  </div>
-                  {n.error ? (
-                    <p className="mt-1 text-xs font-semibold text-red-600">{n.error}</p>
-                  ) : (
-                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-                      {n.followers !== null && <span><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</span>}
-                      {n.posts !== null && <span><strong className="text-ink">{n.posts}</strong> post</span>}
-                      {n.avgLikes !== null && <span><strong className="text-ink">{n.avgLikes}</strong> layk</span>}
-                      {n.avgComments !== null && <span><strong className="text-ink">{n.avgComments}</strong> izoh</span>}
-                    </div>
-                  )}
-                </div>
-              ))}
+        <div className={`${card} flex flex-col p-0`}>
+          {/* ---- Chat sarlavhasi: bot avatari + holat ---- */}
+          <div className="flex items-center gap-3 border-b border-green/10 px-5 py-4">
+            <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green text-white">
+              <Icon d={I.robot} className="h-5 w-5" />
+              {/* Yashil nuqta — bot tayyor ekanini bildiradi */}
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-display font-bold">AI maslahatchi</h3>
+              <p className="text-xs text-muted">{asking || analyzing ? "yozmoqda…" : "onlayn"}</p>
             </div>
-          )}
+            {(chat.length > 0 || analysis) && (
+              <button onClick={() => { setChat([]); setAnalysis(null); setNetworks([]); setAiErr("") }}
+                title="Suhbatni tozalash"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
+                <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6" className="h-4 w-4" />
+              </button>
+            )}
+          </div>
 
-          {/* Suhbat oynasi */}
-          <div ref={chatRef} className="mt-4 max-h-[420px] min-h-[240px] space-y-3 overflow-y-auto rounded-xl bg-green/5 p-4">
-            {chat.length === 0 && !analysis && (
-              <div className="flex gap-2.5">
-                <Icon d={I.bolt} className="mt-0.5 h-4 w-4 shrink-0 text-green" />
-                <p className="text-sm text-ink/70">
-                  "Tarmoqlarni tahlil qilish" ni bosing yoki savolingizni yozing
-                </p>
+          {/* ---- Xabarlar oqimi ---- */}
+          <div ref={chatRef} className="min-h-[300px] flex-1 space-y-4 overflow-y-auto bg-soft px-4 py-4"
+            style={{ maxHeight: "min(60vh, 520px)" }}>
+
+            {/* Bot birinchi bo'lib salomlashadi — bo'sh ekran chatga
+                o'xshamaydi. */}
+            <Bubble side="ai">
+              Salom! Men Agro Alliance SMM maslahatchisiman.
+              Tarmoqlaringizdagi raqamlarni ko'rib, nima qilish kerakligini aytaman.
+            </Bubble>
+
+            {chat.length === 0 && !analysis && !analyzing && (
+              <div className="ml-10 flex flex-wrap gap-1.5">
+                {QUICK_ASKS.map((q) => (
+                  <button key={q.label} type="button"
+                    onClick={() => { if (q.run === "analyze") analyze(); else setQuestion(q.label) }}
+                    className="rounded-full border border-green/25 bg-white px-3 py-1.5 text-xs font-semibold text-green transition-colors hover:bg-green hover:text-white">
+                    {q.label}
+                  </button>
+                ))}
               </div>
             )}
 
+            {/* Tahlil natijasi — bot xabari sifatida */}
             {analysis && (
-              <div className="max-w-[92%] rounded-2xl rounded-tl-sm bg-white p-4 shadow-sm">
+              <Bubble side="ai" wide>
                 <p className="text-sm">{analysis.holat}</p>
 
+                {networks.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {networks.map((n) => (
+                      <div key={n.platform} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-soft px-2.5 py-2">
+                        <Brand k={n.platform} className="h-4 w-4 shrink-0" />
+                        <span className="truncate text-xs font-semibold">{n.name}</span>
+                        {n.error ? (
+                          <span className="text-xs text-red-600">{n.error}</span>
+                        ) : (
+                          <span className="flex flex-wrap gap-x-2.5 text-[11px] text-muted">
+                            {n.followers !== null && <span><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</span>}
+                            {n.avgLikes !== null && <span><strong className="text-ink">{n.avgLikes}</strong> layk</span>}
+                            {n.avgComments !== null && <span><strong className="text-ink">{n.avgComments}</strong> izoh</span>}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {(analysis.kuchli?.length || analysis.zaif?.length) ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-3 space-y-2">
                     {analysis.kuchli?.length ? (
-                      <div className="rounded-xl bg-green/5 p-3">
-                        <p className="text-xs font-bold text-green">Kuchli tomonlar</p>
-                        <ul className="mt-1 space-y-1">
+                      <div className="rounded-lg bg-green/5 p-2.5">
+                        <p className="text-[11px] font-bold text-green">Kuchli tomonlar</p>
+                        <ul className="mt-1 space-y-0.5">
                           {analysis.kuchli.map((k, i) => <li key={i} className="text-xs text-ink/80">• {k}</li>)}
                         </ul>
                       </div>
                     ) : null}
                     {analysis.zaif?.length ? (
-                      <div className="rounded-xl bg-orange-50 p-3">
-                        <p className="text-xs font-bold text-orange-700">Zaif tomonlar</p>
-                        <ul className="mt-1 space-y-1">
+                      <div className="rounded-lg bg-orange-50 p-2.5">
+                        <p className="text-[11px] font-bold text-orange-700">Zaif tomonlar</p>
+                        <ul className="mt-1 space-y-0.5">
                           {analysis.zaif.map((z, i) => <li key={i} className="text-xs text-ink/80">• {z}</li>)}
                         </ul>
                       </div>
@@ -924,57 +988,67 @@ export default function SmmPanel() {
 
                 {(analysis.tavsiyalar || []).length > 0 && (
                   <>
-                    <p className="mt-3 text-xs font-bold text-muted">Tavsiyalar — bosing, AI shu mavzuda yozadi</p>
+                    <p className="mt-3 text-[11px] font-bold text-muted">Bosing — shu mavzuda post yozaman</p>
                     <div className="mt-1.5 space-y-1.5">
                       {analysis.tavsiyalar.map((t, i) => (
                         <button key={i} type="button" onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
-                          className="flex w-full items-start gap-2 rounded-xl border border-green/10 p-2.5 text-left transition-colors hover:border-green/40 disabled:opacity-50">
+                          className="flex w-full items-start gap-2 rounded-lg border border-green/15 p-2 text-left transition-colors hover:border-green hover:bg-green/5 disabled:opacity-50">
                           <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-semibold">{t.mavzu}</span>
-                            <span className="mt-0.5 block text-xs text-muted">{t.sabab}</span>
+                            <span className="block text-xs font-semibold">{t.mavzu}</span>
+                            <span className="mt-0.5 block text-[11px] text-muted">{t.sabab}</span>
                           </span>
-                          <span className="shrink-0 rounded bg-green/10 px-2 py-0.5 text-[10px] font-bold text-green">{t.format}</span>
+                          <span className="shrink-0 rounded bg-green/10 px-1.5 py-0.5 text-[10px] font-bold text-green">{t.format}</span>
                         </button>
                       ))}
                     </div>
                   </>
                 )}
-                {analysis.eng_yaxshi_vaqt && <p className="mt-2 text-xs text-muted">🕐 Eng yaxshi vaqt: {analysis.eng_yaxshi_vaqt}</p>}
-              </div>
+                {analysis.eng_yaxshi_vaqt && (
+                  <p className="mt-2 text-[11px] text-muted">🕐 Eng yaxshi vaqt: {analysis.eng_yaxshi_vaqt}</p>
+                )}
+              </Bubble>
             )}
 
             {chat.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
-                <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl p-3 text-sm ${
-                  m.role === "user"
-                    ? "rounded-tr-sm bg-green text-white"
-                    : "rounded-tl-sm bg-white text-ink shadow-sm"
-                }`}>{m.content}</p>
-              </div>
+              <Bubble key={i} side={m.role} at={m.at}>{m.content}</Bubble>
             ))}
 
-            {asking && (
-              <p className="flex items-center gap-2 text-sm text-muted">
-                <Icon d={I.refresh} className="h-4 w-4 animate-spin" /> Yozmoqda…
-              </p>
+            {/* Yozmoqda — uchta sakrayotgan nuqta, haqiqiy chatlardagidek */}
+            {(asking || analyzing) && (
+              <div className="flex items-end gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green text-white">
+                  <Icon d={I.robot} className="h-4 w-4" />
+                </span>
+                <span className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-white px-4 py-3 shadow-sm">
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-green/60"
+                      style={{ animationDelay: `${d}ms` }} />
+                  ))}
+                </span>
+              </div>
             )}
           </div>
 
-          {aiErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>}
-
-          {(chat.length > 0 || analysis) && (
-            <button onClick={() => { setChat([]); setAnalysis(null); setNetworks([]); setAiErr("") }}
-              className="mt-2 text-xs font-bold text-muted hover:text-ink">Suhbatni tozalash</button>
+          {aiErr && (
+            <div className="border-t border-red-100 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{aiErr}</div>
           )}
 
-          <div className="mt-3 flex gap-2">
-            <input value={question} onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask() } }}
-              placeholder="Savol yozing yoki tarmoqqa oid masala bering…"
-              className="min-w-0 flex-1 rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-            <button onClick={ask} disabled={asking || !question.trim()} title="Yuborish"
-              className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-green/25 text-green transition-colors hover:bg-green hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-green">
-              <Icon d={I.send} className="h-4 w-4" />
+          {/* ---- Yozish maydoni ---- */}
+          <div className="border-t border-green/10 px-4 py-3">
+            <div className="flex items-center gap-2 rounded-full border border-green/20 bg-white py-1 pl-4 pr-1 focus-within:border-green">
+              <input value={question} onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask() } }}
+                placeholder="Xabar yozing…"
+                className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
+              <button onClick={ask} disabled={asking || !question.trim()} title="Yuborish"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green text-white transition-opacity hover:opacity-90 disabled:opacity-30">
+                <Icon d={I.send} className="h-4 w-4" />
+              </button>
+            </div>
+            <button onClick={analyze} disabled={analyzing}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green disabled:opacity-50">
+              <Icon d={I.brain} className="h-3.5 w-3.5" />
+              {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil qilish" : "Tarmoqlarni tahlil qilish"}
             </button>
           </div>
         </div>
