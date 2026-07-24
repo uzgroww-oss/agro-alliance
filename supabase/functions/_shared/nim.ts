@@ -36,19 +36,33 @@ function sleep(ms: number): Promise<void> {
 
 export async function nimChat(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; image?: NimImage; json?: boolean },
+  opts?: {
+    model?: string; temperature?: number; maxTokens?: number; retries?: number;
+    image?: NimImage; json?: boolean;
+    /**
+     * Rasmni qanday joylash. NVIDIA ba'zi VLM modellarida OpenAI'ning
+     * image_url qismini emas, matn ICHIGA qo'yilgan <img> tegini kutadi.
+     * Qaysi biri kerakligini oldindan bilib bo'lmaydi — ikkalasi ham
+     * sinaladi.
+     */
+    imageStyle?: "openai" | "inline";
+  },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? (opts?.image ? visionModel() : textModel());
   const maxRetries = opts?.retries ?? 1;
 
-  // Rasm OpenAI formatida — data URI sifatida matn ichida yuboriladi
-  const content: unknown = opts?.image
-    ? [
-        { type: "text", text: prompt },
-        { type: "image_url", image_url: { url: `data:${opts.image.mimeType};base64,${opts.image.data}` } },
-      ]
-    : prompt;
+  const dataUri = opts?.image ? `data:${opts.image.mimeType};base64,${opts.image.data}` : "";
+  const content: unknown = !opts?.image
+    ? prompt
+    : opts.imageStyle === "inline"
+      // NVIDIA'ning ba'zi VLM modellari rasmni matn ichida <img> tegi
+      // sifatida kutadi
+      ? `<img src="${dataUri}" /> ${prompt}`
+      : [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: dataUri } },
+        ];
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) await sleep(3000 * attempt);
@@ -95,7 +109,10 @@ export async function nimChat(
 
 export async function nimJson<T = unknown>(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; image?: NimImage },
+  opts?: {
+    model?: string; temperature?: number; maxTokens?: number; retries?: number;
+    image?: NimImage; imageStyle?: "openai" | "inline";
+  },
 ): Promise<T> {
   const { text } = await nimChat(prompt, { ...opts, json: true });
   return parseJson<T>(text);

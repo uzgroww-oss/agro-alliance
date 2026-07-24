@@ -262,6 +262,8 @@ type Generated = {
   sarlavha: string
   matn: string
   hashtaglar: string[]
+  /** Faqat describe uchun: AI rasmda nima ko'rganini yozadi */
+  tasvir?: string
 }
 
 Deno.serve(async (req) => {
@@ -433,10 +435,22 @@ FAQAT JSON qaytar, boshqa matn yozma:
       const isVideo = fromVideoFrame || image.mimeType.startsWith("video/")
       const what = isVideo ? "videoni" : "rasmni"
 
-      const prompt = `Sen O'zbekistondagi "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
+      // MUHIM: "tasvir" maydoni — AI rasmda AYNAN nima ko'rganini
+      // yozadi. Usiz model rasmni ko'rmasa ham chiroyli post to'qib
+      // beraverardi va buni bilib bo'lmasdi. Endi ko'rmasa "KO'RINMADI"
+      // deb yozishi shart va biz keyingi provayderga o'tamiz.
+      const prompt = `Sen "Agro Alliance" agro-media platformasi uchun kontent yozuvchisan.
 
-Yuqoridagi ${what} diqqat bilan ko'r. Aynan shunga mos post yoz.
-${isVideo ? "Videoda nima sodir bo'layotganini" : "Rasmda nima borligini"} aniq nomlab o't — umumiy gaplar yozma.
+Yuqorida ${isVideo ? "videodan olingan kadr" : "rasm"} berilgan.
+
+BIRINCHI VAZIFA: unda AYNAN nima ko'rinayotganini yoz — narsalar,
+odamlar, joy, ranglar, matn bo'lsa o'sha matn. Taxmin qilma.
+Agar hech qanday ${isVideo ? "kadr" : "rasm"} ko'rmasang yoki uni
+o'qiy olmasang, "tasvir" maydoniga faqat KO'RINMADI deb yoz va
+qolganini bo'sh qoldir.
+
+IKKINCHI VAZIFA: faqat ko'rgan narsangga asoslanib post yoz.
+Rasmda yo'q narsani yozma.
 
 PLATFORMA: ${platform}
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
@@ -444,21 +458,44 @@ Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
+  "tasvir": "${isVideo ? "kadrda" : "rasmda"} aynan nima ko'rinyapti (1-2 jumla)",
   "sarlavha": "qisqa sarlavha",
   "matn": "postning to'liq matni",
   "hashtaglar": ["#agro", "#fermer"]
 }`
 
-      // Ikkita ko'ruvchi provayder: biri kvotasini tugatsa ikkinchisi
-      // ishlaydi. Groq bu yerda yo'q — undagi model rasmni ko'rmaydi.
+      /** Javob haqiqatan rasmga asoslanganmi? */
+      const saw = (r: Generated | undefined) => {
+        const t = String(r?.tasvir || "").trim()
+        if (!t) return false
+        if (/ko'rinmadi|korinmadi|ko‘rinmadi/i.test(t)) return false
+        // "rasm yo'q", "men rasmni ko'ra olmayman" kabi rad javoblari
+        if (/(ko'r|kor)\w*\s+(olmayman|olmadim)|rasm\s+(yo'q|yoq)|no image|cannot see/i.test(t)) return false
+        return true
+      }
+
+      // Ko'ruvchi provayderlar. NVIDIA ikki xil formatda sinaladi:
+      // ba'zi VLM modellari OpenAI'ning image_url qismini tushunmaydi.
+      const attempts = [
+        { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 1, maxTokens: 2048, image }) },
+        { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image }) },
+        { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const }) },
+      ]
+
       const errs: string[] = []
-      for (const [name, fn] of [["Gemini", geminiJson], ["NVIDIA", nimJson]] as const) {
+      for (const a of attempts) {
         try {
-          const result = await fn<Generated>(prompt, { retries: 1, maxTokens: 2048, image })
-          if (result?.matn?.trim()) return jsonResponse({ generated: result })
-          errs.push(`${name}: bo'sh javob`)
+          const result = await a.run()
+          if (!result?.matn?.trim()) { errs.push(`${a.name}: bo'sh javob`); continue }
+          if (!saw(result)) {
+            // Rasmni ko'rmagan — bu javobni ISHLATMAYMIZ, aks holda
+            // aloqasiz matn chiqadi.
+            errs.push(`${a.name}: rasmni ko'ra olmadi`)
+            continue
+          }
+          return jsonResponse({ generated: result })
         } catch (e) {
-          errs.push(`${name}: ${e instanceof Error ? e.message : "xatolik"}`)
+          errs.push(`${a.name}: ${e instanceof Error ? e.message : "xatolik"}`)
         }
       }
       return errorResponse(errs.join(" | "), 500)
