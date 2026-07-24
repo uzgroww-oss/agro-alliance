@@ -338,6 +338,57 @@ type Analysis = {
   eng_yaxshi_vaqt: string
 }
 
+/**
+ * AI so'ralgan JSON shaklini har doim ham aniq bermaydi. Masalan
+ * "bozor" matn o'rniga { description, position, goals } obyekti bo'lib
+ * kelgan va frontend uni chizmoqchi bo'lganda butun sahifa yiqilgan
+ * ("Objects are not valid as a React child").
+ *
+ * Shuning uchun javob FRONTENDGA BERILISHDAN OLDIN majburan
+ * to'g'rilanadi: matn kutilgan joyda matn, ro'yxat kutilgan joyda
+ * matnlar ro'yxati bo'ladi.
+ */
+function asText(v: unknown): string {
+  if (v === null || v === undefined) return ""
+  if (typeof v === "string") return v.trim()
+  if (typeof v === "number" || typeof v === "boolean") return String(v)
+  if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(" ")
+  if (typeof v === "object") {
+    // Obyekt bo'lsa qiymatlarini birlashtiramiz — kalitlar odatda
+    // ichki sarlavhalar bo'ladi va matnning o'zi qiymatda turadi
+    return Object.values(v as Record<string, unknown>).map(asText).filter(Boolean).join(". ")
+  }
+  return ""
+}
+
+function asTextList(v: unknown): string[] {
+  if (!v) return []
+  const arr = Array.isArray(v) ? v : [v]
+  return arr.map(asText).map((x) => x.trim()).filter(Boolean)
+}
+
+function normalizePlan(raw: unknown): MarketPlan {
+  const o = (raw || {}) as Record<string, unknown>
+  const reja = Array.isArray(o.reja) ? o.reja : []
+  return {
+    bozor: asText(o.bozor),
+    raqobat: asTextList(o.raqobat),
+    sotuv: asTextList(o.sotuv),
+    reja: reja.map((r, i) => {
+      const it = (r || {}) as Record<string, unknown>
+      const kun = Number(it.kun)
+      return {
+        kun: Number.isFinite(kun) && kun > 0 ? kun : i + 1,
+        mavzu: asText(it.mavzu),
+        format: asText(it.format) || "post",
+        platforma: asText(it.platforma) || "telegram",
+        vaqt: asText(it.vaqt),
+        maqsad: asText(it.maqsad),
+      }
+    }).filter((r) => r.mavzu),
+  }
+}
+
 type MarketPlan = {
   bozor: string
   raqobat: string[]
@@ -793,10 +844,12 @@ FAQAT JSON qaytar, boshqa matn yozma:
 }
 "reja" ichida ${days} ta element bo'lsin, kun 1 dan ${days} gacha.`
 
-      const result = await askAi<MarketPlan>(prompt, (v) => {
-        const o = v as MarketPlan
+      const rawPlan = await askAi<unknown>(prompt, (v) => {
+        const o = v as { reja?: unknown }
         return Boolean(o && typeof o === "object" && Array.isArray(o.reja) && o.reja.length > 0)
       })
+      const result = normalizePlan(rawPlan)
+      if (!result.reja.length) return errorResponse("AI reja tuza olmadi — qaytadan urining", 500)
 
       // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin
       await supabaseAdmin.from("smm_plans").insert({
