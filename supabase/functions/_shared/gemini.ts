@@ -46,6 +46,7 @@ async function fetchWithAuthFallback(
   url: string,
   apiKey: string,
   body: unknown,
+  timeoutMs = 25_000,
 ): Promise<Response> {
   const modes = workingMode ? [workingMode] : AUTH_MODES;
   let last: Response | null = null;
@@ -56,6 +57,7 @@ async function fetchWithAuthFallback(
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     // Faqat autentifikatsiya xatosida keyingi usulni sinaymiz.
@@ -85,7 +87,7 @@ export async function geminiChat(
   prompt: string,
   opts?: {
     model?: string; temperature?: number; maxTokens?: number; retries?: number;
-    image?: InlineImage;
+    image?: InlineImage; timeoutMs?: number;
   },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
@@ -117,7 +119,7 @@ export async function geminiChat(
     };
 
     try {
-      const resp = await fetchWithAuthFallback(url, apiKey, body);
+      const resp = await fetchWithAuthFallback(url, apiKey, body, opts?.timeoutMs);
 
       if (resp.status === 429) {
         if (attempt < maxRetries) continue;
@@ -161,7 +163,7 @@ export async function geminiChat(
  */
 export async function geminiJson<T = unknown>(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; image?: InlineImage },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; image?: InlineImage; timeoutMs?: number },
 ): Promise<T> {
   const { text } = await geminiChat(prompt, opts);
   // Qavslar muvozanati bo'yicha ajratamiz — AI JSON atrofiga matn

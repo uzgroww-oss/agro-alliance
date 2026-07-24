@@ -45,7 +45,7 @@ export async function nimChat(
      * Qaysi biri kerakligini oldindan bilib bo'lmaydi — ikkalasi ham
      * sinaladi.
      */
-    imageStyle?: "openai" | "inline";
+    imageStyle?: "openai" | "inline"; timeoutMs?: number;
   },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
@@ -83,6 +83,7 @@ export async function nimChat(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(opts?.timeoutMs ?? 25_000),
       });
 
       if (resp.status === 429) {
@@ -111,7 +112,7 @@ export async function nimJson<T = unknown>(
   prompt: string,
   opts?: {
     model?: string; temperature?: number; maxTokens?: number; retries?: number;
-    image?: NimImage; imageStyle?: "openai" | "inline";
+    image?: NimImage; imageStyle?: "openai" | "inline"; timeoutMs?: number;
   },
 ): Promise<T> {
   const { text } = await nimChat(prompt, { ...opts, json: true });

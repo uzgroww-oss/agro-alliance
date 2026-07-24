@@ -31,20 +31,36 @@ import { getFacebookPage } from "../_shared/facebook.ts"
  * Ikkalasi ham yiqilsa — HAQIQIY sababni qaytaramiz (kalit yo'qmi,
  * kvota tugaganmi), "AI javob bermadi" degan umumiy xabar emas.
  */
+/**
+ * Kaliti sozlanmagan provayderni sinash behuda — vaqt yeydi va
+ * baribir yiqiladi.
+ */
+function hasKey(name: string): boolean {
+  if (name === "Groq") return Boolean(Deno.env.get("GROQ_API_KEY"))
+  if (name === "Gemini") return Boolean(Deno.env.get("GEMINI_API_KEY"))
+  if (name === "NVIDIA") return Boolean(Deno.env.get("NVIDIA_API_KEY"))
+  return true
+}
+
+/** Har provayderga alohida chegara — bittasi butun so'rovni to'smasin */
+const PROVIDER_TIMEOUT = 22_000
+
 async function askAi<T>(prompt: string, validate: (v: unknown) => boolean, maxTokens = 3500): Promise<T> {
   const errs: string[] = []
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
-  // Groq oxirida emas, o'rtada — uning bepul chegarasi eng keng.
+  // Groq birinchi — uning bepul chegarasi eng keng.
   for (const [name, fn] of [
     ["Groq", groqJson],
     ["Gemini", geminiJson],
     ["NVIDIA", nimJson],
   ] as const) {
+    if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
     try {
-      // maxTokens: tahlil javobi 4+ tavsiya bilan uzun bo'ladi.
-      // 2048 da javob o'rtasida kesilib, JSON yarim qolardi.
-      const raw = await fn<unknown>(prompt, { retries: 1, maxTokens })
+      // retries: 0 — bir provayderni qayta sinash o'rniga darhol
+      // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
+      // va uch provayder x ikki urinish 90 soniyadan oshib ketardi.
+      const raw = await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: PROVIDER_TIMEOUT })
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -70,8 +86,9 @@ async function askText(prompt: string): Promise<string> {
     ["Gemini", geminiChat],
     ["NVIDIA", nimChat],
   ] as const) {
+    if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
     try {
-      const { text } = await fn(prompt, { retries: 1, maxTokens: 1500 })
+      const { text } = await fn(prompt, { retries: 0, maxTokens: 1500, timeoutMs: PROVIDER_TIMEOUT })
       if (text && text.trim()) return text.trim()
       errs.push(`${name}: bo'sh javob`)
     } catch (e) {
@@ -671,9 +688,9 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // Ko'ruvchi provayderlar. NVIDIA ikki xil formatda sinaladi:
       // ba'zi VLM modellari OpenAI'ning image_url qismini tushunmaydi.
       const attempts = [
-        { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 1, maxTokens: 2048, image }) },
-        { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image }) },
-        { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const }) },
+        { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: PROVIDER_TIMEOUT }) },
+        { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: PROVIDER_TIMEOUT }) },
+        { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const, timeoutMs: PROVIDER_TIMEOUT }) },
       ]
 
       const errs: string[] = []

@@ -20,7 +20,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function groqChat(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; json?: boolean },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; json?: boolean; timeoutMs?: number },
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? "llama-3.1-8b-instant";
@@ -50,6 +50,8 @@ export async function groqChat(
     if (opts?.json) body.response_format = { type: "json_object" };
 
     try {
+      // Provayder sekin bo'lsa butun so'rovni to'sib qo'yadi —
+      // shuning uchun har biriga alohida chegara
       const resp = await fetch(url, {
         method: "POST",
         headers: {
@@ -57,6 +59,7 @@ export async function groqChat(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(opts?.timeoutMs ?? 25_000),
       });
 
       if (resp.status === 429) {
@@ -92,7 +95,7 @@ export async function groqChat(
  */
 export async function groqJson<T = unknown>(
   prompt: string,
-  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number },
+  opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; timeoutMs?: number },
 ): Promise<T> {
   const { text } = await groqChat(prompt, { ...opts, json: true });
   return parseJson<T>(text);
