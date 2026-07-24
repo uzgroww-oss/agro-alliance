@@ -211,6 +211,17 @@ export default function SmmPanel() {
     } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
   })
 
+  /**
+   * Qayta ulash — tarmoqqa qarab usul har xil:
+   *   Instagram — Facebook OAuth (igConnect)
+   *   Telegram/Facebook — ulash formasini ochamiz (kalit qayta kiritiladi)
+   */
+  const reconnect = (p: Platform) => {
+    setPickMsg("")
+    if (p.key === "instagram") { igConnect(); return }
+    setConnOpen(p.key)
+  }
+
   const disconnect = (platform: string) => runConn(async () => {
     try {
       await api("/smm/posts?action=disconnect", { method: "POST", body: JSON.stringify({ platform }) })
@@ -504,47 +515,50 @@ export default function SmmPanel() {
             const on = Boolean(conns[p.key]?.connected)
             const sel = picked.has(p.key)
             return (
-              <button key={p.key} type="button" onClick={() => toggle(p)}
-                className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-colors ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
+              // Karta div — ichida kichik tugmalar bo'lgani uchun (button
+              // ichida button bo'lmasligi kerak). Bosilganda tanlanadi.
+              <div key={p.key} onClick={() => toggle(p)} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(p) } }}
+                className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 text-left transition-colors ${sel ? "border-green bg-green/5" : "border-green/10 hover:border-green/30"}`}>
                 <Brand k={p.key} className="h-9 w-9 shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-display font-bold">{p.label}</span>
                   <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
                     {on ? "Ulangan" : "Ulanmagan"}
                   </span>
-                  {/* Qaysi hisobga chiqishini shu yerda ko'rsatamiz — "Ulangan"
-                      degan so'zning o'zi qaysi akkaunt ekanini aytmaydi. */}
                   {on && (
                     <span className="mt-1 block truncate text-xs text-muted" title={acctName(p.key) || ""}>
                       {acctName(p.key) || "hisob nomi noma'lum"}
                     </span>
                   )}
                 </span>
+
+                {/* Ulangan kartada: qayta ulash (aylana strelka) va uzish.
+                    Faqat shu tarmoqqa tegishli — pastdagi umumiy tugmalar
+                    qatori olib tashlandi. */}
+                {on && (
+                  <span className="absolute right-2 top-2 flex gap-1">
+                    <span role="button" tabIndex={0} title="Qayta ulash"
+                      onClick={(e) => { e.stopPropagation(); reconnect(p) }}
+                      className={`grid h-7 w-7 place-items-center rounded-lg text-muted transition-colors hover:bg-green/10 hover:text-green ${connBusy ? "pointer-events-none opacity-50" : ""}`}>
+                      <Icon d={I.refresh} className={`h-3.5 w-3.5 ${connBusy ? "animate-spin" : ""}`} />
+                    </span>
+                    {p.key !== "instagram" && (
+                      <span role="button" tabIndex={0} title="Uzish"
+                        onClick={(e) => { e.stopPropagation(); disconnect(p.key) }}
+                        className="grid h-7 w-7 place-items-center rounded-lg text-red-400 transition-colors hover:bg-red-50 hover:text-red-500">
+                        <Icon d="M18 6L6 18 M6 6l12 12" className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+                  </span>
+                )}
+
                 <span className={`grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
                   {sel && <Icon d={I.check} className="h-3 w-3" />}
                 </span>
-              </button>
+              </div>
             )
           })}
-        </div>
-
-        {/* Ulangan tarmoqni uzish + Instagram qayta ulash */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={igConnect} disabled={connBusy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 transition-colors hover:bg-pink-50 disabled:opacity-50">
-            <Brand k="instagram" className="h-3.5 w-3.5" />
-            {conns.instagram?.connected ? "Instagram'ni qayta ulash" : "Instagram'ni ulash"}
-          </button>
-          <button onClick={load} disabled={connBusy}
-            className="rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-muted transition-colors hover:border-green/40 hover:text-green disabled:opacity-50">
-            Yangilash
-          </button>
-          {PLATFORMS.filter((p) => conns[p.key]?.connected && p.key !== "instagram").map((p) => (
-            <button key={p.key} onClick={() => disconnect(p.key)} disabled={connBusy}
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">
-              {p.label}ni uzish
-            </button>
-          ))}
         </div>
 
         {connOpen === "telegram" && (
