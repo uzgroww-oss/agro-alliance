@@ -294,6 +294,26 @@ function asTextList(v: unknown): string[] {
 }
 
 /**
+ * Matn faqat sarlavhalardan iborat quruq ro'yxatmi?
+ *
+ * Kichik modellar mavzuni "1. Texnologiya 2. Hamkorlik 3. Savdo" kabi
+ * ma'nosiz ro'yxat bilan yopib qo'yadi. Bunday post odamga hech narsa
+ * bermaydi, lekin uzunligi yetarli bo'lgani uchun tekshiruvdan o'tardi.
+ */
+function isSkeletonList(text: string): boolean {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
+  if (lines.length < 3) return false
+  // Raqam yoki belgi bilan boshlanadigan, lekin jumla bo'lmagan qatorlar
+  const stubs = lines.filter((l) => {
+    if (!/^([0-9]+[.)]|[-•*])\s/.test(l)) return false
+    const body = l.replace(/^([0-9]+[.)]|[-•*])\s*/, "")
+    // Qisqa va tinish belgisi yo'q — ya'ni sarlavha, jumla emas
+    return body.length < 45 && !/[.!?]/.test(body)
+  })
+  return stubs.length >= 3 && stubs.length >= lines.length * 0.4
+}
+
+/**
  * Matn odam o'qiydigan jumlaga o'xshaydimi?
  *
  * AI ba'zan matn maydoniga raqam yoki kalit-qiymat qaytaradi. Normalizator
@@ -491,7 +511,20 @@ MAVZU: ${topic}
 PLATFORMA: ${platform} (${limits[platform] || limits.telegram})
 
 Auditoriya — O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro kompaniyalar.
-Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli. Reklama shiori emas.
+Til — o'zbek tili (lotin alifbosi). Ohang — foydali, sodda, ishonchli.
+
+MATN QOIDALARI — qat'iy:
+- TO'LIQ JUMLALAR yoz. Faqat sarlavhalardan iborat ro'yxat YOZMA.
+  YOMON: "1. Yangi texnologiyalar 2. Hamkorlik 3. Savdo"
+  YAXSHI: "Tomchilatib sug'orish suvni 40% tejaydi va ildizga
+  to'g'ridan-to'g'ri yetkazadi. O'rnatish narxi bir gektarga
+  taxminan 3 million so'm."
+- Ro'yxat ishlatsang, HAR BAND kamida bitta to'liq jumla bo'lsin
+- Aniq gapir: raqam, muddat, usul nomi, narsalarning nomi
+- Kamida 3 ta mazmunli jumla bo'lsin
+- "Qulaylik yaratish", "samaradorlikni oshirish" kabi bo'sh iboralarni
+  ishlatma — nima qilinishini aniq yoz
+- Reklama shiori emas, foydali maslahat
 
 FAQAT JSON qaytar, boshqa matn yozma:
 {
@@ -506,6 +539,9 @@ FAQAT JSON qaytar, boshqa matn yozma:
         // Juda uzun yoki o'zini takrorlaydigan javobni qabul qilmaymiz —
         // keyingi provayder yaxshiroq yozishi mumkin
         if (o.matn.length > 2500) return false
+        // Juda qisqa yoki quruq ro'yxat bo'lsa keyingi provayder yozsin
+        if (o.matn.trim().length < 120) return false
+        if (isSkeletonList(o.matn)) return false
         return !isRepetitive(o.matn)
       })
       return jsonResponse({ generated: result })
@@ -686,18 +722,31 @@ Oxirgi savolga javob ber. Qoidalar:
 
       let imgPrompt = ""
       try {
-        imgPrompt = await askText(`Quyidagi o'zbekcha post matni uchun rasm so'rovi (image prompt) yoz.
+        imgPrompt = await askText(`Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
 
 POST:
 ${text.slice(0, 800)}
 
+VAZIFA: postda gap ketayotgan ANIQ NARSANI rasmga sol.
+
 Qoidalar:
+- Avval postdagi asosiy MODDIY narsani top: qaysi o'simlik, qaysi
+  texnika, qaysi jarayon, qaysi joy haqida gap ketyapti
+- Rasm so'rovi aynan shu narsani ko'rsatsin
+- Mavhum tushunchani rasmga solma. "Qulaylik", "hamkorlik",
+  "samaradorlik" — bularni chizib bo'lmaydi. Ular haqida bo'lsa,
+  ularni KO'RSATADIGAN aniq sahnani tanla
 - INGLIZ tilida yoz
 - Faqat so'rovning o'zini yoz, boshqa hech narsa yozma
-- Fotosurat uslubida: real, tabiiy yorug'lik
+- Fotosurat uslubida: real, tabiiy yorug'lik, aniq detallar
 - O'zbekiston qishloq xo'jaligi muhiti
 - Matn, yozuv, logotip BO'LMASIN
-- 40 so'zdan oshmasin`)
+- 40 so'zdan oshmasin
+
+Misol:
+Post tomchilatib sug'orish haqida -> "close-up of drip irrigation
+lines watering tomato seedlings in a greenhouse, morning light,
+Central Asia, photorealistic"`)
       } catch (e) {
         return errorResponse(`Rasm so'rovi tayyorlanmadi — ${e instanceof Error ? e.message : "xatolik"}`, 500)
       }

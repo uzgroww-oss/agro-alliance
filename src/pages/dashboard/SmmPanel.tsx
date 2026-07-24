@@ -201,6 +201,8 @@ export default function SmmPanel({ seed }: {
   // haqiqatan rasmga asoslanganini tekshirish mumkin.
   const [seenDesc, setSeenDesc] = useState("")
   const [seenTopic, setSeenTopic] = useState("")
+  // Rasmni to'liq ekranda ko'rish — kichik ko'rinishda detallar bilinmaydi
+  const [zoomImg, setZoomImg] = useState("")
 
   /* Video muqovasi (YouTube prevyusi kabi) */
   const [thumbSize, setThumbSize] = useState<ThumbSize>(THUMB_SIZES[0])
@@ -947,7 +949,9 @@ export default function SmmPanel({ seed }: {
               {/* Matn asosida rasm chizish */}
               {genImg ? (
                 <div className="mt-3">
-                  <img src={genImg} alt="" className="w-full rounded-lg" />
+                  <img src={genImg} alt="" title="Kattalashtirish uchun bosing"
+                    onClick={() => setZoomImg(genImg)}
+                    className="w-full cursor-zoom-in rounded-lg transition-opacity hover:opacity-90" />
                   {genPrompt && <p className="mt-1 text-[11px] text-muted">Tasvir so'rovi: {genPrompt}</p>}
                   <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
                     className="mt-1.5 text-xs font-bold text-muted hover:text-green disabled:opacity-50">
@@ -1088,7 +1092,9 @@ export default function SmmPanel({ seed }: {
                       // orqali o'tkazish videoni buzadi.
                       <video src={form.image_url} controls className="h-32 w-full rounded-lg bg-black object-contain" />
                     ) : (
-                      <img src={form.image_url} alt="" className="h-32 w-full rounded-lg object-contain"
+                      <img src={form.image_url} alt="" title="Kattalashtirish uchun bosing"
+                        onClick={() => setZoomImg(form.image_url)}
+                        className="h-32 w-full cursor-zoom-in rounded-lg object-contain transition-opacity hover:opacity-90"
                         onLoad={(e) => {
                           const el = e.currentTarget
                           const r = el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0
@@ -1558,6 +1564,19 @@ export default function SmmPanel({ seed }: {
         )}
       </div>
 
+      {/* Rasmni to'liq ekranda ko'rish */}
+      {zoomImg && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/80 p-4"
+          onClick={() => setZoomImg("")}>
+          <img src={zoomImg} alt="" className="max-h-[92vh] max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()} />
+          <button onClick={() => setZoomImg("")}
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25">
+            <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
       {/* Ko'rish oynasi */}
       {preview && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPreview(null)}>
@@ -1571,7 +1590,11 @@ export default function SmmPanel({ seed }: {
               <button onClick={() => setPreview(null)} className="text-muted hover:text-ink"><Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" /></button>
             </div>
             {preview.title && <h4 className="mt-3 font-display text-lg font-bold">{preview.title}</h4>}
-            {preview.image_url && <img src={preview.image_url} alt="" className="mt-3 w-full rounded-xl object-cover" />}
+            {preview.image_url && (
+              <img src={preview.image_url} alt="" title="Kattalashtirish uchun bosing"
+                onClick={() => setZoomImg(preview.image_url!)}
+                className="mt-3 w-full cursor-zoom-in rounded-xl object-cover" />
+            )}
             <p className="mt-3 whitespace-pre-wrap text-sm text-ink/85">{preview.content}</p>
             {preview.hashtags && <p className="mt-2 text-sm text-green">{preview.hashtags}</p>}
             {(preview.results?.length ?? 0) > 0 && (
