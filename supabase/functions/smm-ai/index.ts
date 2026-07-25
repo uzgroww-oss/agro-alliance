@@ -487,6 +487,14 @@ const HTML_TAGS = new Set([
   "b", "i", "u", "s", "em", "strong", "strike", "br", "p", "a",
   "ul", "ol", "li", "div", "span", "h1", "h2", "h3", "blockquote", "code",
 ])
+/**
+ * Matn media'ni TASVIRLAYAPTIMI? Bizga tayyor post kerak, "bu videoda
+ * ... ko'rsatilgan" degan tavsif emas.
+ */
+function describesMedia(text: string): boolean {
+  return /videoda|videoni|videoning|videodagi|bu\s+video|ushbu\s+video|mazkur\s+video|klipda|kadrda|bu\s+rasmda|rasmda\s+ko|suratda|tasvirda\s+ko/i.test(text || "")
+}
+
 function leaksInstructions(text: string): boolean {
   const t = text || ""
   for (const m of t.matchAll(/<\/?([a-zA-Z][a-zA-Z0-9']{0,20})\s*\/?>/g)) {
@@ -788,12 +796,10 @@ FAQAT JSON:
 
         // Videoni TASVIRLAYDIGAN matnni rad etamiz — bizga tayyor post
         // kerak, "bu videoda ... ko'rsatilgan" degan tavsif emas.
-        const describesVideo = (t: string) =>
-          /videoda|videoni|videoning|videodagi|bu\s+video|ushbu\s+video|mazkur\s+video|ushbu\s+rolik|klipda|kadrda/i.test(t)
         const usableT = (v: unknown) => {
           const o = v as Generated
           const m = String(o?.matn || "")
-          return Boolean(m.trim().length >= 40 && !isRepetitive(m) && !describesVideo(m))
+          return Boolean(m.trim().length >= 40 && !isRepetitive(m) && !describesMedia(m))
         }
         try {
           const res = await askAi<Generated>(tPrompt,
@@ -844,14 +850,17 @@ Yuqorida ${src} berilgan. Uch bosqichda ishla.
    nima taklif qilinyapti yoki nima ko'rsatilyapti? Buni "mazmun"
    maydoniga BITTA jumlada yoz.
 
-3) YOZ: shu mazmunni odamlarga yetkazadigan post yoz.
+3) YOZ: shu MAVZU bo'yicha odam o'z sahifasiga qo'yadigan JONLI post yoz.
 
 POST QOIDALARI — qat'iy:
+- ${src}ni TASVIRLAMA. "Bu rasmda", "${src}da ko'rsatilgan",
+  "... turibdi", "logotip ko'rinyapti" kabi TASVIR iboralari MUTLAQO
+  ISHLATMA. Nima ko'rganingni emas, o'sha MAVZU haqida gapir.
+- O'quvchiga qaratilgan tayyor post: jozibali boshlanish, foydali gap,
+  oxirida yengil harakatga undash.
 - QISQA: 2-4 jumla, 400 belgidan oshmasin
-- Birinchi jumlada asosiy fikr bo'lsin
-- Faqat ${src}da BOR narsa haqida yoz. Yo'q narsani qo'shma
-- "Zamonaviy texnologiyalar", "hosildorlikni oshiring" kabi umumiy
-  shiorlarni YOZMA — aniq gapir
+- Aniq gapir. "Zamonaviy texnologiyalar", "hosildorlikni oshiring" kabi
+  quruq shiorlarni yozma
 - Reklama ohangida emas, odam gapiradigandek yoz
 
 PLATFORMA: ${platform}
@@ -886,6 +895,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
       ]
 
       const errs: string[] = []
+      let soft: Generated | null = null // ko'rgan, lekin tasvirlab yozgan
       for (const a of attempts) {
         try {
           const result = unwrap(await a.run(), ["matn", "tasvir"]) as Generated
@@ -897,11 +907,19 @@ FAQAT JSON qaytar, boshqa matn yozma:
             errs.push(`${a.name}: rasmni ko'ra olmadi`)
             continue
           }
+          // Tasvirlab yozgan bo'lsa — keyingi provayder yaxshiroq
+          // yozishi mumkin. Toza javob topilmasa shu ishlatiladi.
+          if (describesMedia(result.matn)) {
+            if (!soft) soft = result
+            errs.push(`${a.name}: media'ni tasvirlab yozdi`)
+            continue
+          }
           return jsonResponse({ generated: result })
         } catch (e) {
           errs.push(`${a.name}: ${e instanceof Error ? e.message : "xatolik"}`)
         }
       }
+      if (soft) return jsonResponse({ generated: soft })
       return errorResponse(errs.join(" | "), 500)
     }
 

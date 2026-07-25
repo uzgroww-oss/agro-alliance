@@ -215,7 +215,7 @@ export default function SmmPanel({ seed }: {
   // Video ovozidan olingan matn (transcript) — bir marta olinadi va
   // ham post yozishда, ham muqovada ishlatiladi. URL bilan birga
   // saqlanadi: boshqa video yuklansa qaytadan olinadi.
-  const [transcript, setTranscript] = useState<{ url: string; text: string } | null>(null)
+  const [transcript, setTranscript] = useState<{ url: string; text: string; error?: string } | null>(null)
 
   /* 2-karta: AI yozgan qoralama shu yerda turadi va foydalanuvchi
      uni ko'rib, keyin 3-kartaga o'tkazadi. Ilgari matn to'g'ridan-
@@ -619,10 +619,12 @@ export default function SmmPanel({ seed }: {
         { method: "POST", body: JSON.stringify({ video_url: videoUrl }) },
       )
       const text = (r.transcript || "").trim()
-      setTranscript({ url: videoUrl, text })
+      // Xatoni SAQLAYMIZ va ekranga chiqaramiz — ovoz nega o'qilmaganini
+      // bilib olamiz (NVIDIA ASR ishlayaptimi yoki yo'qmi).
+      setTranscript({ url: videoUrl, text, error: text ? undefined : (r.error || "Ovoz o'qilmadi") })
       return text
-    } catch {
-      setTranscript({ url: videoUrl, text: "" })
+    } catch (e) {
+      setTranscript({ url: videoUrl, text: "", error: e instanceof Error ? e.message : "Ovoz o'qilmadi" })
       return ""
     }
   }
@@ -1193,7 +1195,22 @@ export default function SmmPanel({ seed }: {
                     {isVideo ? (
                       // Videoga o'lcham to'g'irlash qo'llanmaydi — canvas
                       // orqali o'tkazish videoni buzadi.
-                      <video src={form.image_url} controls className="h-32 w-full rounded-lg bg-black object-contain" />
+                      <>
+                        <video src={form.image_url} controls className="h-32 w-full rounded-lg bg-black object-contain" />
+                        {/* Ovoz o'qilgan/o'qilmaganini ko'rsatamiz — matn va
+                            muqova shu ovozga tayanadi */}
+                        {transcript?.url === form.image_url && (
+                          transcript.text ? (
+                            <p className="mt-1.5 rounded-lg bg-green/5 px-2.5 py-1.5 text-[11px] text-ink/70">
+                              🎙️ Ovoz o'qildi ({transcript.text.length} belgi) — matn va muqova shunga mos yoziladi
+                            </p>
+                          ) : transcript.error ? (
+                            <p className="mt-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">
+                              🎙️ Ovoz o'qilmadi: {transcript.error} — matn kadrga qarab yozildi
+                            </p>
+                          ) : null
+                        )}
+                      </>
                     ) : (
                       <img src={form.image_url} alt="" title="Kattalashtirish uchun bosing"
                         onClick={() => setZoomImg(form.image_url)}
