@@ -1201,9 +1201,11 @@ export default function SmmPanel({ seed }: {
                             muqova shu ovozga tayanadi */}
                         {transcript?.url === form.image_url && (
                           transcript.text ? (
-                            <p className="mt-1.5 rounded-lg bg-green/5 px-2.5 py-1.5 text-[11px] text-ink/70">
-                              🎙️ Ovoz o'qildi ({transcript.text.length} belgi) — matn va muqova shunga mos yoziladi
-                            </p>
+                            <div className="mt-1.5 rounded-lg bg-green/5 px-2.5 py-1.5 text-[11px] text-ink/70">
+                              <p className="font-semibold text-green">🎙️ Videoda eshitilgan matn:</p>
+                              <p className="mt-0.5 max-h-20 overflow-y-auto italic">"{transcript.text.slice(0, 400)}{transcript.text.length > 400 ? "…" : ""}"</p>
+                              <p className="mt-0.5">Post va muqova shunga mos yoziladi.</p>
+                            </div>
                           ) : transcript.error ? (
                             <p className="mt-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">
                               🎙️ Ovoz o'qilmadi: {transcript.error} — matn kadrga qarab yozildi

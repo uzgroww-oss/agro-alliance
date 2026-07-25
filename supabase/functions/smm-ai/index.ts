@@ -779,12 +779,17 @@ ${transcript.slice(0, 4000)}
 """
 
 ENG MUHIM:
-- Videoni TASVIRLAMA. "Bu videoda", "videoda ko'rsatilgan", "videoда
-  fermer turibdi" kabi iboralar MUTLAQO ISHLATMA.
-- Video nimani gapirsa, o'sha MAVZU haqida O'QUVCHIGA qaratilgan post
-  yoz — go'yo o'zing shu haqda gapirayotgandek.
-- Jozibali boshla (hook), foydali gap ayt, oxirida yengil harakatga
-  undash (masalan "batafsil — profilda", "fikringizni yozing").
+- Videoning ANIQ MAVZUSINI aniqla (masalan "issiqxona qurish",
+  "tomchilatib sug'orish", "urug' sotish") va post AYNAN shu haqda
+  bo'lsin. Umumiy "qishloq xo'jaligini rivojlantiramiz", "biz bilan
+  ishlang", "mahsulotingizni eksport qiling" kabi HECH NARSA
+  demaydigan gaplarni YOZMA.
+- Video matnidagi ANIQ narsalarni ishlat: taklif qilinayotgan xizmat/
+  mahsulot nomi, aniq foyda, raqam, shart bo'lsa — o'shalarni yoz.
+- Videoni TASVIRLAMA ("bu videoda", "videoда ko'rsatilgan" ISHLATMA).
+  Go'yo o'zing shu xizmatni taklif qilayotgandek yoz.
+- Jozibali boshla (hook), aniq foyda ayt, oxirida yengil harakatga
+  undash (masalan "batafsil — profilda").
 
 QOIDALAR:
 - QISQA: 2-4 jumla, 500 belgidan oshmasin
