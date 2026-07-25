@@ -1197,20 +1197,13 @@ export default function SmmPanel({ seed }: {
                       // orqali o'tkazish videoni buzadi.
                       <>
                         <video src={form.image_url} controls className="h-32 w-full rounded-lg bg-black object-contain" />
-                        {/* Ovoz o'qilgan/o'qilmaganini ko'rsatamiz — matn va
-                            muqova shu ovozga tayanadi */}
-                        {transcript?.url === form.image_url && (
-                          transcript.text ? (
-                            <div className="mt-1.5 rounded-lg bg-green/5 px-2.5 py-1.5 text-[11px] text-ink/70">
-                              <p className="font-semibold text-green">🎙️ Videoda eshitilgan matn:</p>
-                              <p className="mt-0.5 max-h-20 overflow-y-auto italic">"{transcript.text.slice(0, 400)}{transcript.text.length > 400 ? "…" : ""}"</p>
-                              <p className="mt-0.5">Post va muqova shunga mos yoziladi.</p>
-                            </div>
-                          ) : transcript.error ? (
-                            <p className="mt-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">
-                              🎙️ Ovoz o'qilmadi: {transcript.error} — matn kadrga qarab yozildi
-                            </p>
-                          ) : null
+                        {/* Ovoz o'qilmasa xabar beramiz (matn kadrga qarab
+                            yoziladi). Muvaffaqiyatda ortiqcha narsa
+                            ko'rsatmaymiz — post va muqova o'zi chiqadi. */}
+                        {transcript?.url === form.image_url && !transcript.text && transcript.error && (
+                          <p className="mt-1.5 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">
+                            🎙️ Ovoz o'qilmadi: {transcript.error} — matn kadrga qarab yozildi
+                          </p>
                         )}
                       </>
                     ) : (
@@ -1239,18 +1232,11 @@ export default function SmmPanel({ seed }: {
                     {fitErr && (
                       <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">{fitErr}</p>
                     )}
-                    {(seenDesc || seenTopic) && (
-                      <div className="mt-2 space-y-1 rounded-lg bg-green/5 px-3 py-2">
-                        {seenDesc && (
-                          <p className="text-xs text-ink/75">
-                            <strong className="text-green">AI ko'rdi:</strong> {seenDesc}
-                          </p>
-                        )}
-                        {seenTopic && (
-                          <p className="text-xs text-ink/75">
-                            <strong className="text-green">Mazmuni:</strong> {seenTopic}
-                          </p>
-                        )}
+                    {seenDesc && (
+                      <div className="mt-2 rounded-lg bg-green/5 px-3 py-2">
+                        <p className="text-xs text-ink/75">
+                          <strong className="text-green">AI ko'rdi:</strong> {seenDesc}
+                        </p>
                       </div>
                     )}
                     {/* AI matn yozdirish: RASM uchun avtomatik ishlagan,
