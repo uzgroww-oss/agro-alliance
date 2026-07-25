@@ -854,6 +854,73 @@ FAQAT JSON qaytar, boshqa matn yozma:
       return errorResponse(errs.join(" | "), 500)
     }
 
+    /* ---------------- VIDEO MUQOVASI (AI ko'rib chizadi) ---------------- */
+    // AI videoning KADRINI ko'radi, nima haqida ekanini tushunadi va
+    // shu mazmunga MOS muqova rasmini FLUX bilan chizadi. Xom kadr emas —
+    // videoga mos, chiroyli, yozuvsiz muqova. Ustiga sarlavha frontendда
+    // yoziladi.
+    if (action === "cover") {
+      const b64 = String(body.image_b64 || "").trim()
+      if (!b64) return errorResponse("Video kadri kelmadi", 400)
+      const aspect = (String(body.aspect || "16:9")) as GenAspect
+      const image: InlineImage = { mimeType: String(body.mime || "image/jpeg"), data: b64 }
+
+      // 1) AI kadrni ko'rib: mazmun + sarlavha + INGLIZCHA rasm so'rovi
+      const visionPrompt = `Bu videodan olingan KADR. Uni diqqat bilan ko'r.
+
+Vazifa: shu videoga MOS, chiroyli muqova (thumbnail) uchun ma'lumot ber.
+
+1) "sarlavha" — video mazmunini ochadigan qisqa, jozibali o'zbekcha
+   sarlavha (lotin, 5 so'zgacha). Video nima haqidaligini aks ettirsin.
+2) "prompt" — shu videodagi ASOSIY narsani ko'rsatadigan INGLIZCHA
+   rasm so'rovi. Kadrда nima ko'rinsa — o'shani tasvirla (masalan
+   "close-up of ripe wheat field at sunset"). Chiroyli, realistik,
+   O'zbekiston qishloq xo'jaligi muhitida. Yozuv/logotip bo'lmasin.
+   40 so'zdan oshmasin, faqat ingliz tilida.
+
+Agar kadrni umuman ko'rmasang, "prompt" ni bo'sh qoldir.
+
+FAQAT JSON qaytar:
+{ "sarlavha": "…", "prompt": "…" }`
+
+      let title = ""
+      let imgPrompt = ""
+      const visErrs: string[] = []
+      for (const a of [
+        { name: "Gemini", run: () => geminiJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
+        { name: "NVIDIA", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
+        { name: "NVIDIA(inline)", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
+      ]) {
+        try {
+          const r = unwrap(await a.run(), ["prompt", "sarlavha"]) as { sarlavha?: string; prompt?: string }
+          const p = String(r?.prompt || "").trim()
+          // Ingliz tilida bo'lishi shart — aks holda rasm modeli adashadi
+          const latin = (p.match(/[a-z]/gi) || []).length
+          if (p.length >= 15 && latin / p.length > 0.6) {
+            imgPrompt = p.slice(0, 400)
+            title = String(r?.sarlavha || "").trim().slice(0, 80)
+            break
+          }
+          visErrs.push(`${a.name}: so'rov bo'sh/o'zbekcha`)
+        } catch (e) {
+          visErrs.push(`${a.name}: ${e instanceof Error ? e.message : "xato"}`)
+        }
+      }
+
+      if (!imgPrompt) {
+        // AI kadrni ko'ra olmadi — frontend xom kadrga qaytadi
+        return jsonResponse({ vision_failed: true, error: visErrs.join(" | ") })
+      }
+
+      // 2) Mos muqova rasmini chizamiz
+      try {
+        const img = await nimImage(imgPrompt, aspect)
+        return jsonResponse({ image_b64: img.data, title, prompt: imgPrompt, model: img.model })
+      } catch (e) {
+        return jsonResponse({ vision_failed: true, error: e instanceof Error ? e.message : "Rasm chizilmadi" })
+      }
+    }
+
     /* ---------------- SUHBAT ---------------- */
     // Tahlildan keyin savol berish uchun. Har safar tarmoq raqamlari
     // qayta yuboriladi — AI oldingi javobini eslamaydi, kontekst

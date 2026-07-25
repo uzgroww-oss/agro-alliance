@@ -645,12 +645,35 @@ export default function SmmPanel({ seed }: {
   const makeThumbs = (size: ThumbSize) => runThumb(async () => {
     setThumbErr(""); setThumbs([])
     if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
-    // Sarlavha bo'lmasa AI ko'rgan mazmundan foydalanamiz
-    const title = (form.title || seenTopic || "").trim()
+    const aspect = size.key === "youtube" ? "16:9" : size.key === "instagram" ? "4:5" : "1:1"
+    let title = (form.title || seenTopic || "").trim()
+    const out: string[] = []
     try {
-      const frames = await extractFrames(form.image_url, 4)
-      const out: string[] = []
-      for (const f of frames) out.push(await composeThumbnail(f, title, size))
+      // 1) Videodan bitta kadr olamiz — uni AI ko'radi
+      const frame = await extractVideoFrame(form.image_url)
+
+      // 2) AI kadrni KO'RIB, videoga MOS muqova rasmini chizadi va
+      //    jozibali sarlavha beradi. Bu xom kadr emas — videoga mos,
+      //    chiroyli generatsiya qilingan muqova.
+      try {
+        const c = await api<{ image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
+          "/smm/ai?action=cover",
+          { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect }) },
+        )
+        if (c.image_b64) {
+          if (c.title) title = c.title
+          out.push(await composeThumbnail(`data:image/jpeg;base64,${c.image_b64}`, title, size))
+        }
+      } catch { /* AI muqova chiqmasa pastda xom kadrlarga tayanamiz */ }
+
+      // 3) Videoning HAQIQIY kadrlaridan ham variant beramiz — tanlov
+      //    bo'lsin (ba'zida aynan videodagi kadr yaxshiroq).
+      try {
+        const frames = await extractFrames(form.image_url, 3)
+        for (const f of frames) out.push(await composeThumbnail(f, title, size))
+      } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
+
+      if (!out.length) { setThumbErr("Muqova yasab bo'lmadi — videoni tekshiring"); return }
       setThumbs(out)
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
@@ -1193,16 +1216,17 @@ export default function SmmPanel({ seed }: {
                       <div className="mt-3 rounded-xl border border-green/15 bg-white p-3">
                         <p className="text-xs font-bold text-ink">Muqova (video ustidagi rasm)</p>
                         <p className="mt-0.5 text-[11px] text-muted">
-                          Videoning kadridan yasaladi, ustiga sarlavha yoziladi.
-                          YouTube va Instagramга shu muqova bilan chiqadi.
+                          AI videoni ko'rib, mazmuniga MOS muqova chizadi.
+                          Instagramga shu muqova bilan chiqadi.
                         </p>
 
-                        {/* Tanlangan muqova */}
+                        {/* Tanlangan muqova — bosib kattalashtirish mumkin */}
                         {form.thumb_url && (
                           <div className="mt-2">
-                            <img src={form.thumb_url} alt="Tanlangan muqova"
-                              className="w-full rounded-lg border-2 border-green object-contain" />
-                            <p className="mt-1 text-[11px] font-semibold text-green">✅ Shu muqova ishlatiladi</p>
+                            <img src={form.thumb_url} alt="Tanlangan muqova" title="Kattalashtirish uchun bosing"
+                              onClick={() => setZoomImg(form.thumb_url)}
+                              className="w-full cursor-zoom-in rounded-lg border-2 border-green object-contain transition-opacity hover:opacity-90" />
+                            <p className="mt-1 text-[11px] font-semibold text-green">✅ Shu muqova ishlatiladi — kattalashtirish uchun bosing</p>
                           </div>
                         )}
 
@@ -1231,13 +1255,25 @@ export default function SmmPanel({ seed }: {
 
                         {thumbs.length > 0 && (
                           <>
-                            <p className="mt-2 text-[11px] text-muted">Birini tanlang:</p>
+                            <p className="mt-2 text-[11px] text-muted">
+                              Birini tanlang. Birinchisi — AI chizgan muqova, qolganlari videodan kadr.
+                            </p>
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
                               {thumbs.map((t, i) => (
-                                <button key={i} type="button" onClick={() => applyThumb(t)} disabled={makingThumb}
-                                  className="overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green disabled:opacity-50">
-                                  <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
-                                </button>
+                                <div key={i} className="group relative overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green">
+                                  <button type="button" onClick={() => applyThumb(t)} disabled={makingThumb}
+                                    className="block w-full disabled:opacity-50">
+                                    <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
+                                  </button>
+                                  {i === 0 && (
+                                    <span className="absolute left-1 top-1 rounded bg-green px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
+                                  )}
+                                  {/* Kattalashtirish — tanlashga xalaqit bermasin */}
+                                  <button type="button" onClick={() => setZoomImg(t)} title="Kattalashtirish"
+                                    className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100">
+                                    <Icon d={I.search} className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </>
