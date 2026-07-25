@@ -218,6 +218,9 @@ export default function SmmPanel({ seed }: {
   const [genImg, setGenImg] = useState("")
   const [drawing, runDraw] = useBusy()
   const [drawErr, setDrawErr] = useState("")
+  // NVIDIA model tekshiruvi natijalari
+  const [probe, setProbe] = useState<{ model: string; ok: boolean; note: string }[] | null>(null)
+  const [probing, runProbe] = useBusy()
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -400,6 +403,19 @@ export default function SmmPanel({ seed }: {
 
   /** 3-kartadagi matn asosida rasm chizdirish */
   const drawForPost = () => drawImage([form.title, form.content].filter(Boolean).join(". "), true)
+
+  /** NVIDIA kaliti qaysi rasm/video modellariga kira olishini tekshirish */
+  const checkModels = () => runProbe(async () => {
+    setProbe(null)
+    try {
+      const r = await api<{ results: { model: string; ok: boolean; note: string }[]; error?: string }>(
+        "/smm/ai?action=probe", { method: "POST", body: "{}" })
+      if (r.error) { setDrawErr(r.error); return }
+      setProbe(r.results || [])
+    } catch (e) {
+      setDrawErr(e instanceof Error ? e.message : "Tekshirib bo'lmadi")
+    }
+  })
 
   /**
    * Videoni tayyor bo'lguncha kutamiz.
@@ -1305,6 +1321,31 @@ export default function SmmPanel({ seed }: {
 
                     {drawErr && (
                       <p className="mt-2 max-h-24 overflow-y-auto rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
+                    )}
+
+                    {/* NVIDIA modellarini tekshirish — video/rasm chiqmasa
+                        qaysi model ishlashini bilib beradi */}
+                    <button type="button" onClick={checkModels} disabled={probing}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/20 px-4 py-2 text-[11px] font-bold text-muted transition-colors hover:text-green disabled:opacity-50">
+                      <Icon d={probing ? I.refresh : I.check} className={`h-3.5 w-3.5 ${probing ? "animate-spin" : ""}`} />
+                      {probing ? "Tekshirilmoqda…" : "NVIDIA modellarini tekshirish"}
+                    </button>
+
+                    {probe && (
+                      <div className="mt-2 rounded-lg border border-green/15 bg-white p-2 text-[11px]">
+                        <p className="mb-1 font-bold text-ink">Ishlaydigan modellar (✓) shu kalitda:</p>
+                        <ul className="space-y-0.5">
+                          {probe.map((r) => (
+                            <li key={r.model} className={`flex items-center justify-between gap-2 ${r.ok ? "text-green" : "text-muted"}`}>
+                              <span className="truncate font-mono">{r.model}</span>
+                              <span className="shrink-0 font-semibold">{r.ok ? "✓ " : "✗ "}{r.note}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {!probe.some((r) => r.model.includes("stable-video") && r.ok) && (
+                          <p className="mt-1.5 text-orange-700">Video modeli topilmadi — bu kalitda rasmdan-video yo'q.</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

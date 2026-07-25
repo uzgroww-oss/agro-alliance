@@ -975,6 +975,61 @@ Oxirgi savolga javob ber. Qoidalar:
       }
     }
 
+    /* ---------------- NVIDIA MODELLARINI TEKSHIRISH ---------------- */
+    // Kalitingiz qaysi rasm/video modellariga kira olishini bilib
+    // beradi. Har model manziliga bo'sh so'rov yuboramiz va javob
+    // kodiga qaraymiz — hech qanaqa rasm yasalmaydi, faqat tekshiruv:
+    //   404 -> model hisobingizda YO'Q
+    //   400/422 -> model BOR (faqat so'rov tanasi bo'sh edi)
+    //   401/403 -> kalit rad etildi
+    //   200/202 -> model BOR va ishga tushdi
+    if (action === "probe") {
+      const key = Deno.env.get("NVIDIA_API_KEY")
+      if (!key) return jsonResponse({ results: [], error: "NVIDIA kaliti sozlanmagan" })
+      const GENAI = "https://ai.api.nvidia.com/v1/genai"
+      // Rasm va video/rasmdan-video modellari. Foydalanuvchi
+      // qo'shimcha nomlar yuborsa, ularni ham sinaymiz.
+      const extra = Array.isArray(body.models) ? body.models.map((m: unknown) => String(m)).filter(Boolean) : []
+      const candidates = [...new Set([
+        // rasmdan video (kerak bo'lgani)
+        "stabilityai/stable-video-diffusion",
+        // rasm (zaxira uchun ham foydali)
+        "black-forest-labs/flux.1-schnell",
+        "black-forest-labs/flux.1-dev",
+        "black-forest-labs/flux.1-kontext",
+        "stabilityai/stable-diffusion-3-medium",
+        "stabilityai/stable-diffusion-3.5-large",
+        "stabilityai/sdxl-turbo",
+        "stabilityai/stable-diffusion-xl",
+        ...extra,
+      ])]
+      const results = await Promise.all(candidates.map(async (m) => {
+        try {
+          const r = await fetch(`${GENAI}/${m}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+            body: JSON.stringify({}),
+            signal: AbortSignal.timeout(12_000),
+          })
+          const exists = r.status !== 404
+          const authBad = r.status === 401 || r.status === 403
+          let note = ""
+          if (r.status === 404) note = "hisobingizda yo'q"
+          else if (authBad) note = "kalit rad etildi"
+          else if (r.status === 400 || r.status === 422) note = "bor ✓"
+          else if (r.status === 200 || r.status === 202) note = "bor ✓ (ishladi)"
+          else if (r.status === 429) note = "bor, lekin limit"
+          else note = `holat ${r.status}`
+          return { model: m, status: r.status, ok: exists && !authBad, note }
+        } catch {
+          return { model: m, status: 0, ok: false, note: "javob bermadi (vaqt tugadi)" }
+        }
+      }))
+      // Ishlaydiganlarni oldinga chiqaramiz
+      results.sort((a, b) => Number(b.ok) - Number(a.ok))
+      return jsonResponse({ results })
+    }
+
     /* ---------------- SUHBAT ---------------- */
     // Tahlildan keyin savol berish uchun. Har safar tarmoq raqamlari
     // qayta yuboriladi — AI oldingi javobini eslamaydi, kontekst
