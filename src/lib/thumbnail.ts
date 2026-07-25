@@ -96,18 +96,38 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines
 }
 
+/** Muqova matni: sarlavha + ixtiyoriy afzallik chiplari */
+export type ThumbMeta = { title: string; benefits?: string[] }
+
+/** Yumaloq burchakli to'rtburchak (eski brauzerlar uchun ham) */
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.min(r, h / 2, w / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rr)
+  ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr)
+  ctx.arcTo(x, y, x + w, y, rr)
+  ctx.closePath()
+}
+
 /**
- * Kadr + sarlavhadan muqova yasaydi.
+ * Brend shabloni bilan professional muqova yasaydi.
  *
- * Kadr "cover" tarzida joylanadi (cho'zilmaydi, kesiladi), pastiga
- * qorayuvchi gradient qo'yiladi va sarlavha oq harflar bilan yoziladi —
- * har qanday rasmda o'qilishi uchun.
+ * NEGA SHABLON: FLUX toza yozuv/logotip chizolmaydi (o'zbekchani buzadi,
+ * odam qo'shadi). Shuning uchun FON (AI rasm yoki video kadri) + DIZAYN
+ * (kod bilan) ajratilgan: logotip, yirik sarlavha, afzallik chiplari —
+ * hammasi bir xil brend ko'rinishida, YouTube prevyusiga o'xshash.
  */
 export function composeThumbnail(
   frameDataUrl: string,
-  title: string,
+  meta: string | ThumbMeta,
   size: ThumbSize,
 ): Promise<string> {
+  const title = typeof meta === "string" ? meta : meta.title
+  const benefits = (typeof meta === "string" ? [] : meta.benefits || [])
+    .map((b) => (b || "").trim()).filter(Boolean).slice(0, 3)
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
@@ -123,46 +143,95 @@ export function composeThumbnail(
       const dh = img.height * scale
       ctx.drawImage(img, (size.w - dw) / 2, (size.h - dh) / 2, dw, dh)
 
-      // YouTube prevyusi uslubi: YIRIK, QALIN, BOSH HARFLI yozuv, oq/yashil
-      // ranglar, qora kontur — har qanday fonda o'qiladi va "professional
-      // muqova" ko'rinishini beradi (oddiy foto+yozuv emas).
+      const GREEN = "#8BE04A"
+      const pad = Math.round(size.w * 0.05)
+      ctx.lineJoin = "round"
+      ctx.textBaseline = "bottom"
+
+      // Pastki qism — chiplar joyi (afzalliklar bo'lsa)
+      let chipsTop = size.h - pad
+      const chipFont = Math.round(size.w * (size.key === "youtube" ? 0.032 : 0.036))
+      const chipH = Math.round(chipFont * 2.1)
+      if (benefits.length) {
+        ctx.font = `800 ${chipFont}px "Segoe UI", system-ui, sans-serif`
+        const gap = Math.round(size.w * 0.02)
+        const chipPadX = Math.round(chipFont * 0.9)
+        // Chiplarni chapdan joylaymiz, kenglikка sig'ganini olamiz
+        const drawn: { text: string; w: number }[] = []
+        let total = 0
+        for (const b of benefits) {
+          const w = Math.ceil(ctx.measureText(b.toUpperCase()).width) + chipPadX * 2 + chipH * 0.5
+          if (total + w + gap > size.w - pad * 2) break
+          drawn.push({ text: b.toUpperCase(), w })
+          total += w + gap
+        }
+        const chipY = size.h - pad - chipH
+        chipsTop = chipY
+        let x = pad
+        for (const c of drawn) {
+          ctx.fillStyle = "rgba(20,40,10,0.72)"
+          roundRect(ctx, x, chipY, c.w, chipH, chipH / 2)
+          ctx.fill()
+          // yashil nuqta
+          ctx.fillStyle = GREEN
+          ctx.beginPath()
+          ctx.arc(x + chipPadX + chipH * 0.18, chipY + chipH / 2, chipH * 0.16, 0, Math.PI * 2)
+          ctx.fill()
+          // matn
+          ctx.fillStyle = "#ffffff"
+          ctx.textBaseline = "middle"
+          ctx.fillText(c.text, x + chipPadX + chipH * 0.5, chipY + chipH / 2 + 1)
+          ctx.textBaseline = "bottom"
+          x += c.w + gap
+        }
+      }
+
+      // Sarlavha — yirik, qalin, bosh harfli, oq/yashil galma-gal, kontur
       const text = (title || "").trim().toUpperCase()
       if (text) {
-        const pad = Math.round(size.w * 0.05)
-        const fontSize = Math.round(size.w * (size.key === "youtube" ? 0.10 : 0.088))
-        // Eng qalin shrift — Arial Black / Impact bo'lsa o'shani oladi
+        const fontSize = Math.round(size.w * (size.key === "youtube" ? 0.098 : 0.086))
         ctx.font = `900 ${fontSize}px "Arial Black", "Segoe UI", Impact, sans-serif`
-        ctx.textBaseline = "bottom"
-        ctx.lineJoin = "round"
-
         const lines = wrapText(ctx, text, size.w - pad * 2).slice(0, 3)
         const lineH = Math.round(fontSize * 1.06)
         const blockH = lines.length * lineH
+        const titleBottom = chipsTop - (benefits.length ? Math.round(pad * 0.5) : 0)
 
-        // Pastdan yuqoriga qorayuvchi gradient
-        const gradTop = size.h - blockH - pad * 2.6
+        // Gradient — matn+chiplar hududini qoraytiradi
+        const gradTop = titleBottom - blockH - pad * 1.4
         const grad = ctx.createLinearGradient(0, gradTop, 0, size.h)
         grad.addColorStop(0, "rgba(0,0,0,0)")
-        grad.addColorStop(1, "rgba(0,0,0,0.78)")
+        grad.addColorStop(1, "rgba(0,0,0,0.8)")
         ctx.fillStyle = grad
         ctx.fillRect(0, gradTop, size.w, size.h - gradTop)
 
-        // Yashil urg'u chizig'i (matn tepasida)
-        const barY = size.h - pad - blockH - Math.round(fontSize * 0.42)
-        ctx.fillStyle = "#8BE04A"
-        ctx.fillRect(pad, barY, Math.round(size.w * 0.12), Math.round(fontSize * 0.14))
+        // Yashil urg'u chizig'i
+        ctx.fillStyle = GREEN
+        ctx.fillRect(pad, titleBottom - blockH - Math.round(fontSize * 0.42), Math.round(size.w * 0.12), Math.round(fontSize * 0.14))
 
-        // Har qatorni: qalin QORA kontur + ustiga rang (oq/yashil galma-gal)
         const strokeW = Math.max(4, Math.round(fontSize * 0.16))
         lines.forEach((l, i) => {
-          const y = size.h - pad - (lines.length - 1 - i) * lineH
+          const y = titleBottom - (lines.length - 1 - i) * lineH
           ctx.lineWidth = strokeW
           ctx.strokeStyle = "rgba(0,0,0,0.92)"
           ctx.strokeText(l, pad, y)
-          // Galma-gal: bir qator oq, bir qator yashil — YouTube uslubi
-          ctx.fillStyle = i % 2 === 1 ? "#8BE04A" : "#ffffff"
+          ctx.fillStyle = i % 2 === 1 ? GREEN : "#ffffff"
           ctx.fillText(l, pad, y)
         })
+      }
+
+      // Brend logotipi — yuqori chapda "AGRO ALLIANCE"
+      {
+        const lf = Math.round(size.w * 0.030)
+        ctx.font = `900 ${lf}px "Segoe UI", system-ui, sans-serif`
+        ctx.textBaseline = "top"
+        ctx.shadowColor = "rgba(0,0,0,0.6)"
+        ctx.shadowBlur = lf * 0.4
+        ctx.fillStyle = GREEN
+        ctx.fillText("AGRO", pad, pad)
+        const aw = ctx.measureText("AGRO ").width
+        ctx.fillStyle = "#ffffff"
+        ctx.fillText("ALLIANCE", pad + aw, pad)
+        ctx.shadowBlur = 0
       }
 
       resolve(canvas.toDataURL("image/jpeg", 0.92))

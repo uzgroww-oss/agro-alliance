@@ -694,14 +694,16 @@ export default function SmmPanel({ seed }: {
       //    generatsiya.
       let aiCount = 0
       let aiErr = ""
+      let benefits: string[] = []
       try {
-        const c = await api<{ images?: string[]; image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
+        const c = await api<{ images?: string[]; image_b64?: string; title?: string; benefits?: string[]; vision_failed?: boolean; error?: string }>(
           "/smm/ai?action=cover",
           { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect, transcript: spoken }) },
         )
         const imgs = c.images && c.images.length ? c.images : (c.image_b64 ? [c.image_b64] : [])
         if (c.title) title = c.title
-        for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, title, size))
+        if (Array.isArray(c.benefits)) benefits = c.benefits
+        for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, { title, benefits }, size))
         aiCount = imgs.length
         // AI rasm bermagan bo'lsa — SABABINI ko'rsatamiz (ilgari jimgina
         // yutilardi va nega faqat kadr chiqqani noma'lum edi).
@@ -715,7 +717,7 @@ export default function SmmPanel({ seed }: {
       if (aiCount < 4) {
         try {
           const frames = await extractFrames(form.image_url, 4 - aiCount)
-          for (const f of frames) out.push(await composeThumbnail(f, title, size))
+          for (const f of frames) out.push(await composeThumbnail(f, { title, benefits }, size))
         } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
       }
 

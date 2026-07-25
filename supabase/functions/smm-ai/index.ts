@@ -1075,33 +1075,40 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       // so'rovini TO'LIQ o'zbekchaga tarjima qilamiz.
       const isEnglishy = (s: string) =>
         /\b(greenhouse|green\s?house|modern|farm|farmer|harvest|drip|irrigation|plant|crop|field|soil|the|and|with|of|for)\b/i.test(s)
+      // Sarlavha + 3 ta AFZALLIK so'zi — muqova shablonidagi chiplar uchun
+      // (masalan "Zamonaviy texnologiya", "Tomchilatib sug'orish",
+      // "Yuqori daromad"). Hammasi toza o'zbekcha.
+      let benefits: string[] = []
       try {
-        const tr = await askAi<{ sarlavha?: string }>(
-          `Quyidagi ingliz tilidagi rasm mavzusini qisqa, jozibali O'ZBEKCHA
-sarlavhaga aylantir.
+        const tr = await askAi<{ sarlavha?: string; afzalliklar?: string[] }>(
+          `Quyidagi ingliz tilidagi rasm mavzusi asosida muqova uchun matn ber.
 
 MAVZU: ${imgPrompt}
 
 QAT'IY QOIDALAR:
 - FAQAT o'zbek tili (lotin alifbosi). BIRORTA inglizcha so'z QOLMASIN.
-- Inglizcha so'zlarni tarjima qil: greenhouse=issiqxona,
-  drip irrigation=tomchilatib sug'orish, harvest=hosil, farm=ferma,
-  field=dala, crop=ekin, plant=o'simlik.
-- 2-4 so'z, imlosi to'g'ri, jozibali.
+  Inglizchani tarjima qil: greenhouse=issiqxona, drip irrigation=
+  tomchilatib sug'orish, harvest=hosil, farm=ferma, crop=ekin.
+- "sarlavha" — jozibali, 2-4 so'z, imlosi to'g'ri.
+- "afzalliklar" — mavzuga oid 3 ta qisqa afzallik (har biri 1-2 so'z,
+  masalan "Yuqori daromad", "Zamonaviy texnologiya", "Kam xarajat").
 
-FAQAT JSON: { "sarlavha": "…" }`,
+FAQAT JSON: { "sarlavha": "…", "afzalliklar": ["…","…","…"] }`,
           (v) => {
             const s = String((v as { sarlavha?: string })?.sarlavha || "").trim()
             return s.length >= 3 && s.length <= 60 && !isEnglishy(s)
           },
-          200, ["sarlavha"],
+          300, ["sarlavha"],
         )
         const t = String(tr.sarlavha || "").trim().replace(/^["']+|["']+$/g, "").slice(0, 60)
         if (t.length >= 3 && !isEnglishy(t)) title = t
-      } catch { /* sarlavha chiqmasa avvalgisi qoladi */ }
-      // Avvalgi (transcriptdan) sarlavha ham inglizcha/buzuq bo'lsa —
-      // bo'sh qoldiramiz, muqova yozuvsiz chiqadi (yozuvsiz muqova
-      // yarimta inglizcha yozuvdan yaxshiroq)
+        benefits = (Array.isArray(tr.afzalliklar) ? tr.afzalliklar : [])
+          .map((b) => String(b).trim().replace(/^["']+|["']+$/g, "").slice(0, 24))
+          .filter((b) => b.length >= 2 && !isEnglishy(b))
+          .slice(0, 3)
+      } catch { /* sarlavha/afzallik chiqmasa avvalgisi qoladi */ }
+      // Sarlavha inglizcha/buzuq bo'lsa — bo'sh qoldiramiz (yozuvsiz
+      // muqova yarimta inglizcha yozuvdan yaxshiroq)
       if (isEnglishy(title)) title = ""
 
       // 2) TO'RTTA mos muqova rasmi — har biri boshqa seed bilan, tanlov
@@ -1125,7 +1132,7 @@ FAQAT JSON: { "sarlavha": "…" }`,
       if (!images.length) {
         return jsonResponse({ vision_failed: true, error: firstErr || "Rasm chizilmadi" })
       }
-      return jsonResponse({ images, title, prompt: imgPrompt })
+      return jsonResponse({ images, title, benefits, prompt: imgPrompt })
     }
 
     /* ---------------- VIDEO OVOZINI MATNGA ---------------- */
