@@ -806,10 +806,18 @@ FAQAT JSON:
           const m = String(o?.matn || "")
           return Boolean(m.trim().length >= 40 && !isRepetitive(m) && !describesMedia(m))
         }
+        // YUMSHOQ shart: matn bor va tasvirlab yozilmagan bo'lsa yetadi.
+        // Sabab: Gemini kvotasi 0, NVIDIA rate-limit bo'lganда faqat Groq
+        // qoladi. Uning javobi mavzuga to'liq mos bo'lmasa ham, XATO
+        // (500) berishdan ko'ra shu matnni qaytargan yaxshi.
+        const softT = (v: unknown) => {
+          const m = String((v as Generated)?.matn || "")
+          return m.trim().length >= 20 && !describesMedia(m)
+        }
         try {
           const res = await askAi<Generated>(tPrompt,
             (v) => usableT(v) && matchesTopic(transcript.slice(0, 400), String((v as Generated).matn)),
-            2048, ["matn", "sarlavha"], usableT)
+            2048, ["matn", "sarlavha"], softT)
           return jsonResponse({ generated: { ...res, tasvir: "", mazmun: (res as Generated).mazmun || "" } })
         } catch (e) {
           return errorResponse(e instanceof Error ? e.message : "Videodan matn yozib bo'lmadi", 500)
@@ -1078,7 +1086,11 @@ FAQAT JSON: { "sarlavha": "…" }`,
       // 2) TO'RTTA mos muqova rasmi — har biri boshqa seed bilan, tanlov
       // bo'lsin. Ketma-ket: NVIDIA bepul tarifi bir vaqtda ko'p so'rovni
       // rad etishi mumkin, ketma-ket ishonchliroq.
-      const seeds = [11, 27, 44, 68]
+      // 2 ta AI rasm — 4 ta emas. NVIDIA bepul tarifi "16 so'rov"
+      // chegarasiga ega; 4 ta rasm butun kvotani tugatib, describe va
+      // boshqa amallar 503 (ResourceExhausted) berardi. Qolgan 2 ta
+      // variant videoning haqiqiy kadridan to'ldiriladi.
+      const seeds = [11, 27]
       const images: string[] = []
       let firstErr = ""
       for (const s of seeds) {
