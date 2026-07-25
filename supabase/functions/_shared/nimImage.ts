@@ -96,6 +96,7 @@ function extractBase64(data: Record<string, unknown>): string | null {
 export async function nimImage(
   prompt: string,
   aspect: GenAspect = "16:9",
+  seed = 0,
 ): Promise<{ data: string; model: string }> {
   const apiKey = getApiKey();
   const errs: string[] = [];
@@ -125,7 +126,7 @@ export async function nimImage(
         aspect_ratio: aspect,
         cfg_scale: params.cfg,
         steps: params.steps,
-        seed: 0,
+        seed,
       };
       if (params.negative) {
         full.negative_prompt = "text, watermark, logo, blurry, distorted, deformed hands";
@@ -140,7 +141,7 @@ export async function nimImage(
       if (resp.status === 422) {
         const t = await resp.clone().text().catch(() => "");
         if (t.includes("Extra inputs are not permitted")) {
-          resp = await send({ prompt, cfg_scale: params.cfg, seed: 0 });
+          resp = await send({ prompt, cfg_scale: params.cfg, seed });
         }
       }
 

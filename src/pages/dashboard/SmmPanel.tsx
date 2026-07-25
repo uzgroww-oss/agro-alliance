@@ -210,6 +210,8 @@ export default function SmmPanel({ seed }: {
   /* Video muqovasi (YouTube prevyusi kabi) */
   const [thumbSize, setThumbSize] = useState<ThumbSize>(THUMB_SIZES[0])
   const [thumbs, setThumbs] = useState<string[]>([])
+  // Nechta muqova AI chizgan (boshidagi) — qolganlari videodan kadr
+  const [aiThumbs, setAiThumbs] = useState(0)
   const [makingThumb, runThumb] = useBusy()
   const [thumbErr, setThumbErr] = useState("")
   // Video ovozidan olingan matn (transcript) — bir marta olinadi va
@@ -687,27 +689,32 @@ export default function SmmPanel({ seed }: {
       //    NIMA GAPIRILGANIga mos bo'lsin (bitta kadr buni bermaydi).
       const spoken = await ensureTranscript(form.image_url)
 
-      // 3) AI shu mazmunga MOS muqova rasmini chizadi va jozibali
-      //    sarlavha beradi. Xom kadr emas — videoga mos generatsiya.
+      // 3) AI shu mazmunga MOS 4 ta muqova rasmini chizadi va toza
+      //    o'zbekcha sarlavha beradi. Xom kadr emas — videoga mos
+      //    generatsiya.
+      let aiCount = 0
       try {
-        const c = await api<{ image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
+        const c = await api<{ images?: string[]; image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
           "/smm/ai?action=cover",
           { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect, transcript: spoken }) },
         )
-        if (c.image_b64) {
-          if (c.title) title = c.title
-          out.push(await composeThumbnail(`data:image/jpeg;base64,${c.image_b64}`, title, size))
-        }
+        const imgs = c.images && c.images.length ? c.images : (c.image_b64 ? [c.image_b64] : [])
+        if (c.title) title = c.title
+        for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, title, size))
+        aiCount = imgs.length
       } catch { /* AI muqova chiqmasa pastda xom kadrlarga tayanamiz */ }
 
-      // 3) Videoning HAQIQIY kadrlaridan ham variant beramiz — tanlov
-      //    bo'lsin (ba'zida aynan videodagi kadr yaxshiroq).
-      try {
-        const frames = await extractFrames(form.image_url, 3)
-        for (const f of frames) out.push(await composeThumbnail(f, title, size))
-      } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
+      // AI to'liq 4 ta bermasa — videoning HAQIQIY kadrlaridan
+      // to'ldiramiz (4 taga yetkazamiz).
+      if (aiCount < 4) {
+        try {
+          const frames = await extractFrames(form.image_url, 4 - aiCount)
+          for (const f of frames) out.push(await composeThumbnail(f, title, size))
+        } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
+      }
 
       if (!out.length) { setThumbErr("Muqova yasab bo'lmadi — videoni tekshiring"); return }
+      setAiThumbs(aiCount)
       setThumbs(out)
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
@@ -1293,7 +1300,7 @@ export default function SmmPanel({ seed }: {
                         {thumbs.length > 0 && (
                           <>
                             <p className="mt-2 text-[11px] text-muted">
-                              Birini tanlang. Birinchisi — AI chizgan muqova, qolganlari videodan kadr.
+                              Birini tanlang. "AI" belgililari — AI chizgan muqova, qolganlari videodan kadr.
                             </p>
                             <div className="mt-1.5 grid grid-cols-2 gap-2">
                               {thumbs.map((t, i) => (
@@ -1302,7 +1309,7 @@ export default function SmmPanel({ seed }: {
                                     className="block w-full disabled:opacity-50">
                                     <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
                                   </button>
-                                  {i === 0 && (
+                                  {i < aiThumbs && (
                                     <span className="absolute left-1 top-1 rounded bg-green px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
                                   )}
                                   {/* Kattalashtirish — tanlashga xalaqit bermasin */}

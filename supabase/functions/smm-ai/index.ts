@@ -1041,13 +1041,40 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
         imgPrompt = `${imgPrompt}, photorealistic, no people, no faces, no text`.slice(0, 400)
       }
 
-      // 2) Mos muqova rasmini chizamiz
+      // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
+      // o'rniga TOZA inglizcha rasm so'rovidan to'g'ri o'zbekcha sarlavha
+      // yasaymiz. Inglizcha so'rov ishonchli ("modern greenhouse"), demak
+      // undan olingan sarlavha ham to'g'ri chiqadi.
       try {
-        const img = await nimImage(imgPrompt, aspect)
-        return jsonResponse({ image_b64: img.data, title, prompt: imgPrompt, model: img.model })
-      } catch (e) {
-        return jsonResponse({ vision_failed: true, error: e instanceof Error ? e.message : "Rasm chizilmadi" })
+        const clean = await askText(
+          `Ushbu ingliz tilidagi rasm mavzusidan qisqa, jozibali sarlavha yoz.
+QAT'IY: TO'G'RI, adabiy o'zbek tilida (lotin alifbosi), imlosi mukammal,
+2-4 so'z, har so'z ma'noli. Faqat sarlavhani qaytar, boshqa hech narsa.
+
+MAVZU: ${imgPrompt}`,
+        )
+        const t = clean.trim().replace(/^["']+|["']+$/g, "").split("\n")[0].slice(0, 60).trim()
+        if (t.length >= 3) title = t
+      } catch { /* sarlavha chiqmasa avvalgisi qoladi */ }
+
+      // 2) TO'RTTA mos muqova rasmi — har biri boshqa seed bilan, tanlov
+      // bo'lsin. Ketma-ket: NVIDIA bepul tarifi bir vaqtda ko'p so'rovni
+      // rad etishi mumkin, ketma-ket ishonchliroq.
+      const seeds = [11, 27, 44, 68]
+      const images: string[] = []
+      let firstErr = ""
+      for (const s of seeds) {
+        try {
+          const img = await nimImage(imgPrompt, aspect, s)
+          images.push(img.data)
+        } catch (e) {
+          if (!firstErr) firstErr = e instanceof Error ? e.message : "Rasm chizilmadi"
+        }
       }
+      if (!images.length) {
+        return jsonResponse({ vision_failed: true, error: firstErr || "Rasm chizilmadi" })
+      }
+      return jsonResponse({ images, title, prompt: imgPrompt })
     }
 
     /* ---------------- VIDEO OVOZINI MATNGA ---------------- */
