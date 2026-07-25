@@ -760,27 +760,40 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // ko'rishdan ancha aniq — video mazmuni ko'pincha gapda bo'ladi.
       const transcript = String(body.transcript || "").trim()
       if (transcript) {
-        const tPrompt = `Quyida VIDEONING OVOZIDAN olingan matn (nima gapirilgani) berilgan.
-Shu asosda ${platform} uchun post yoz.
+        const tPrompt = `Sen "Agro Alliance" ning tajribali SMM mutaxassisisan.
+Quyida videoning ovozidan olingan matn (mavzu) bor. Shu MAVZU bo'yicha
+${platform} uchun tayyor post yoz — xuddi odam o'z sahifasiga qo'yadigan
+jonli, qiziqarli post.
 
-VIDEO MATNI:
+VIDEO MAVZUSI:
 """
 ${transcript.slice(0, 4000)}
 """
 
-QOIDALAR — qat'iy:
-- FAQAT videoда gapirilgan mavzu haqida yoz, o'zingdan qo'shma
+ENG MUHIM:
+- Videoni TASVIRLAMA. "Bu videoda", "videoda ko'rsatilgan", "videoда
+  fermer turibdi" kabi iboralar MUTLAQO ISHLATMA.
+- Video nimani gapirsa, o'sha MAVZU haqida O'QUVCHIGA qaratilgan post
+  yoz — go'yo o'zing shu haqda gapirayotgandek.
+- Jozibali boshla (hook), foydali gap ayt, oxirida yengil harakatga
+  undash (masalan "batafsil — profilda", "fikringizni yozing").
+
+QOIDALAR:
 - QISQA: 2-4 jumla, 500 belgidan oshmasin
-- Aniq gapir, umumiy shior yozma
-- "mazmun" — video nima haqida ekanini BITTA jumlada yoz
+- Aniq va tabiiy, quruq shior emas
 - O'zbek tili (lotin alifbosi), odam gapiradigandek
 
 FAQAT JSON:
-{ "mazmun": "video nima haqida (1 jumla)", "sarlavha": "qisqa sarlavha 60 belgigacha", "matn": "post matni 2-4 jumla", "hashtaglar": ["#agro","#fermer"] }`
+{ "mazmun": "mavzu bir jumlada (o'zingga eslatma)", "sarlavha": "qisqa sarlavha 60 belgigacha", "matn": "tayyor post matni, videoni tasvirlamasdan", "hashtaglar": ["#agro","#fermer"] }`
 
+        // Videoni TASVIRLAYDIGAN matnni rad etamiz — bizga tayyor post
+        // kerak, "bu videoda ... ko'rsatilgan" degan tavsif emas.
+        const describesVideo = (t: string) =>
+          /videoda|videoni|videoning|videodagi|bu\s+video|ushbu\s+video|mazkur\s+video|ushbu\s+rolik|klipda|kadrda/i.test(t)
         const usableT = (v: unknown) => {
           const o = v as Generated
-          return Boolean(o && typeof o.matn === "string" && o.matn.trim().length >= 40 && !isRepetitive(o.matn))
+          const m = String(o?.matn || "")
+          return Boolean(m.trim().length >= 40 && !isRepetitive(m) && !describesVideo(m))
         }
         try {
           const res = await askAi<Generated>(tPrompt,
