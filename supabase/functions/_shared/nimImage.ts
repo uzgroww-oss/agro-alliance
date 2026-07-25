@@ -160,6 +160,15 @@ export async function nimImage(
         }
       }
 
+      // Rate-limit (429) yoki band (503 ResourceExhausted) — NVIDIA bepul
+      // tarifining "16 so'rov" chegarasi ketma-ket rasmda tez uriladi.
+      // Darhol keyingi modelga o'tish o'rniga bir marta KUTIB, SHU
+      // modelni qayta uramiz — ko'pincha 2-3 soniyada bo'shaydi.
+      if (resp.status === 429 || resp.status === 503) {
+        await new Promise((r) => setTimeout(r, 3000));
+        resp = await send(full);
+      }
+
       if (!resp.ok) {
         const t = await resp.text().catch(() => "");
         errs.push(shortError(model, resp.status, t));

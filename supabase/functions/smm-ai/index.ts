@@ -55,6 +55,28 @@ const PROVIDER_TIMEOUT: Record<string, number> = {
 const TIMEOUT_FOR = (name: string) => PROVIDER_TIMEOUT[name] ?? 25_000
 
 /**
+ * Matn provayderlari TARTIBI — env orqali sozlanadi.
+ *
+ * Standart: Groq birinchi (hozir yagona ishonchli — Gemini kvotasi 0).
+ * Gemini kvotasi yoqilgach, Supabase secrets'ga
+ *   AI_TEXT_ORDER=gemini,groq,nvidia
+ * qo'yilsa, sifatliroq Gemini oldinga chiqadi — KOD O'ZGARTIRMASDAN.
+ */
+const DEFAULT_ORDER = ["Groq", "Gemini", "NVIDIA"]
+function providerOrder(): string[] {
+  const raw = Deno.env.get("AI_TEXT_ORDER")
+  if (!raw) return DEFAULT_ORDER
+  const norm: Record<string, string> = { groq: "Groq", gemini: "Gemini", nvidia: "NVIDIA" }
+  const want = raw.split(",").map((s) => norm[s.trim().toLowerCase()]).filter(Boolean)
+  // Ro'yxatga kirmay qolgan provayderlarni oxiriga qo'shamiz (zaxira)
+  return [...new Set([...want, ...DEFAULT_ORDER])]
+}
+// deno-lint-ignore no-explicit-any
+const JSON_FN: Record<string, any> = { Groq: groqJson, Gemini: geminiJson, NVIDIA: nimJson }
+// deno-lint-ignore no-explicit-any
+const CHAT_FN: Record<string, any> = { Groq: groqChat, Gemini: geminiChat, NVIDIA: nimChat }
+
+/**
  * AI so'ralgan obyektni har xil o'rab qaytaradi:
  *   [{...}]            — massiv ichida
  *   [{...}, {...}]     — bir nechta variant
@@ -103,17 +125,15 @@ async function askAi<T>(
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
   // Groq birinchi — uning bepul chegarasi eng keng.
-  for (const [name, fn] of [
-    ["Groq", groqJson],
-    ["Gemini", geminiJson],
-    ["NVIDIA", nimJson],
-  ] as const) {
+  for (const name of providerOrder()) {
+    const fn = JSON_FN[name]
+    if (!fn) continue
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
     try {
       // retries: 0 — bir provayderni qayta sinash o'rniga darhol
       // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
       // va uch provayder x ikki urinish 90 soniyadan oshib ketardi.
-      const raw = unwrap(await fn<unknown>(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }), keys)
+      const raw = unwrap(await fn(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }), keys)
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -138,11 +158,9 @@ async function askAi<T>(
  */
 async function askText(prompt: string): Promise<string> {
   const errs: string[] = []
-  for (const [name, fn] of [
-    ["Groq", groqChat],
-    ["Gemini", geminiChat],
-    ["NVIDIA", nimChat],
-  ] as const) {
+  for (const name of providerOrder()) {
+    const fn = CHAT_FN[name]
+    if (!fn) continue
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
     try {
       const { text } = await fn(prompt, { retries: 0, maxTokens: 1500, timeoutMs: TIMEOUT_FOR(name) })
