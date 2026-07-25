@@ -999,18 +999,22 @@ VIDEO MATNI:
 ${transcript.slice(0, 4000)}
 """
 
-1) "sarlavha" — video mavzusini ochadigan qisqa sarlavha. QAT'IY:
-   - TO'G'RI, ADABIY O'ZBEK TILIDA (lotin alifbosi), imlosi mukammal.
-   - Matndagi noaniq/buzuq so'zlarni XOM KO'CHIRMA. Mavzuni TUSHUNIB,
-     to'g'ri o'zbekcha yoz (masalan mavzu issiqxona bo'lsa
-     "Zamonaviy issiqxonalar", "isteihanalar" EMAS).
-   - 2-5 so'z, katta harf bilan boshlanadigan tabiiy ibora.
+1) "sarlavha" — videoning ASOSIY TAKLIFI/XIZMATINI aks ettiruvchi
+   qisqa, jozibali sarlavha. QAT'IY:
+   - TO'G'RI, ADABIY O'ZBEK TILIDA (lotin), imlosi mukammal.
+   - Videodagi TAKLIF nima ekanini yoz (masalan xizmat issiqxona
+     qurish bo'lsa "Zamonaviy issiqxona qurish", "Issiqxona quramiz").
+   - JOY NOMI, tuman, ism, kishilik ma'lumot ISHLATMA — faqat mavzu/taklif.
+   - Noaniq/buzuq so'zlarni ko'chirma, mavzuni tushunib yoz.
+   - 2-5 so'z, jozibali.
 2) "prompt" — INGLIZCHA rasm so'rovi. QAT'IY:
-   - FAQAT mavzudagi QISHLOQ XO'JALIGI narsasi/manzarasini ko'rsat
-     (masalan issiqxona bo'lsa "modern glass greenhouse with rows of
-     green plants inside").
-   - ODAM, yuz, portret, diniy tasvir, naqsh, bezak, gazlama BO'LMASIN.
-   - Realistik foto, tabiiy yorug'lik, yozuv yo'q. Faqat ingliz tilida,
+   - Mavzudagi OBYEKTNI ko'rsat, ODAMSIZ. Masalan issiqxona bo'lsa
+     "empty modern greenhouse interior, rows of green plants, steel and
+     glass structure, architectural photography, wide shot".
+   - Xizmat/qurilish bo'lsa STRUKTURANI ko'rsat (metall karkas, oyna
+     panellar), ishchi/odam EMAS.
+   - HECH QANDAY odam, yuz, portret, ishchi, fermer BO'LMASIN.
+   - Realistik foto, tabiiy yorug'lik, yozuvsiz. Faqat ingliz tilida,
      40 so'zdan oshmasin.
 
 FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
@@ -1082,11 +1086,10 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
       // taqiqlaymiz.
       // FLUX inkorni ("no people") yaxshi tushunmaydi va aksincha odam
-      // qo'shib yuboradi. Shuning uchun IJOBIY iboralar bilan bo'sh
-      // sahnaga yo'naltiramiz: "empty", "wide establishing shot".
-      if (!/empty|no people/i.test(imgPrompt)) {
-        imgPrompt = `empty ${imgPrompt}, wide establishing shot, no people, photorealistic, no text`.slice(0, 400)
-      }
+      // qo'shib yuboradi. Shuning uchun IJOBIY, "arxitektura fotosi"
+      // uslubiga yo'naltiramiz — bunda odam kamdan-kam chiqadi.
+      imgPrompt = `empty ${imgPrompt.replace(/\b(farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, architectural photography, wide shot, deserted, unoccupied, no people, no humans, photorealistic, no text`
+        .replace(/\s{2,}/g, " ").slice(0, 400)
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
       // yoki inglizcha so'z ("Greenhouse") qolmasin. Inglizcha rasm
@@ -1107,7 +1110,8 @@ QAT'IY QOIDALAR:
 - FAQAT o'zbek tili (lotin alifbosi). BIRORTA inglizcha so'z QOLMASIN.
   Inglizchani tarjima qil: greenhouse=issiqxona, drip irrigation=
   tomchilatib sug'orish, harvest=hosil, farm=ferma, crop=ekin.
-- "sarlavha" — jozibali, 2-4 so'z, imlosi to'g'ri.
+- "sarlavha" — mavzuning ASOSIY TAKLIFI, jozibali, 2-4 so'z, imlosi
+  to'g'ri. JOY NOMI, tuman, ism ISHLATMA.
 - "afzalliklar" — mavzuga oid 3 ta qisqa afzallik (har biri 1-2 so'z,
   masalan "Yuqori daromad", "Zamonaviy texnologiya", "Kam xarajat").
 
