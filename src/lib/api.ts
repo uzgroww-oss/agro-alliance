@@ -526,14 +526,6 @@ const REQUEST_TIMEOUT = 30_000
 // shuning uchun 110s qo'yamiz — backend edge chegarasi (150s) ichida.
 const SLOW_TIMEOUT = 110_000
 const SLOW_PATHS = ["/smm/ai"]
-/**
- * Video BOSHLASH so'rovi (action=video): rasm chizib, NVIDIA'ga
- * yuboradi va so'rov raqamini qaytaradi. Kutish endi bu so'rovda
- * emas — u alohida video_status so'rovlari bilan qilinadi (150s edge
- * chegarasiga urilmaslik uchun). Shunga qaramay rasm chizish bir necha
- * provayderni sinashi mumkin, shuning uchun keng oraliq qoldiramiz.
- */
-const VIDEO_TIMEOUT = 120_000
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
@@ -574,19 +566,18 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   h.set("apikey", SUPABASE_ANON_KEY)
 
   const slow = SLOW_PATHS.some((p) => path.startsWith(p))
-  const isVideoGen = path.includes("action=video")
   let res: Response
   try {
     res = await fetchWithTimeout(
       url,
       { ...opts, headers: h },
-      isVideoGen ? VIDEO_TIMEOUT : slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
+      slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
     )
   } catch (e) {
     // AbortError xom holda "signal is aborted without reason" deb chiqadi —
     // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error("So'rov vaqti tugadi — qayta urining")
+      throw new Error("So'rov vaqti tugadi — qayta urining", { cause: e })
     }
     throw e
   }

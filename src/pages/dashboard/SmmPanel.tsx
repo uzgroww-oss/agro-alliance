@@ -21,7 +21,7 @@ const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_
 
 export type SmmPost = {
   id: string; seq: number | null; title: string | null; content: string; hashtags: string | null
-  image_url: string | null; platforms: string[]; status: string
+  image_url: string | null; cover_url: string | null; platforms: string[]; status: string
   ai_generated: boolean; published_at: string | null; created_at: string
   results?: { platform: string; success: boolean; error?: string }[]
 }
@@ -179,7 +179,10 @@ export default function SmmPanel({ seed }: {
   const chatRef = useRef<HTMLDivElement>(null)
 
   /* 3-bosqich: forma */
-  const [form, setForm] = useState({ title: "", content: "", hashtags: "", image_url: "" })
+  // thumb_url — video uchun MUQOVA. Video image_url'da qoladi, muqova
+  // alohida saqlanadi. Ilgari muqova image_url ni almashtirar va video
+  // yo'qolardi.
+  const [form, setForm] = useState({ title: "", content: "", hashtags: "", image_url: "", thumb_url: "" })
   const [origin, setOrigin] = useState("telegram")
   const [aiMade, setAiMade] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -218,9 +221,6 @@ export default function SmmPanel({ seed }: {
   const [genImg, setGenImg] = useState("")
   const [drawing, runDraw] = useBusy()
   const [drawErr, setDrawErr] = useState("")
-  // NVIDIA model tekshiruvi natijalari
-  const [probe, setProbe] = useState<{ model: string; ok: boolean; note: string }[] | null>(null)
-  const [probing, runProbe] = useBusy()
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -404,46 +404,6 @@ export default function SmmPanel({ seed }: {
   /** 3-kartadagi matn asosida rasm chizdirish */
   const drawForPost = () => drawImage([form.title, form.content].filter(Boolean).join(". "), true)
 
-  /** NVIDIA kaliti qaysi rasm/video modellariga kira olishini tekshirish */
-  const checkModels = () => runProbe(async () => {
-    setProbe(null)
-    try {
-      const r = await api<{ results: { model: string; ok: boolean; note: string }[]; error?: string }>(
-        "/smm/ai?action=probe", { method: "POST", body: "{}" })
-      if (r.error) { setDrawErr(r.error); return }
-      setProbe(r.results || [])
-    } catch (e) {
-      setDrawErr(e instanceof Error ? e.message : "Tekshirib bo'lmadi")
-    }
-  })
-
-  /**
-   * Videoni tayyor bo'lguncha kutamiz.
-   *
-   * NEGA POLLING: SVD video ~1-2 daqiqa yasaladi. Butun jarayonni
-   * bitta so'rovda kutish Supabase'ning 150 soniyalik chegarasiga
-   * urilib "504 idle timeout" berardi (aynan shu xato chiqqan edi).
-   * Endi backend so'rov raqamini darrov qaytaradi, biz esa holatini
-   * bir necha soniyada bir tekshirib turamiz — har so'rov qisqa.
-   *
-   * @returns tayyor video base64, yoki chiqmasa xato tashlaydi
-   */
-  const awaitVideo = useCallback(async (reqId: string, onTick?: (sec: number) => void): Promise<string> => {
-    const DEADLINE = 4 * 60_000 // 4 daqiqa — undan uzoq ketsa tashlab yuboramiz
-    const start = Date.now()
-    while (Date.now() - start < DEADLINE) {
-      await new Promise((r) => setTimeout(r, 4000))
-      const s = await api<{ done: boolean; video_b64?: string; video_error?: string }>(
-        "/smm/ai?action=video_status",
-        { method: "POST", body: JSON.stringify({ req_id: reqId }) },
-      )
-      if (s.video_error) throw new Error(s.video_error)
-      if (s.done && s.video_b64) return s.video_b64
-      onTick?.(Math.round((Date.now() - start) / 1000))
-    }
-    throw new Error("Video juda uzoq tayyorlandi — keyinroq qayta urinib ko'ring")
-  }, [])
-
   /**
    * Marketing rejasidan kelgan mavzu bo'yicha hamma ishni bajarish:
    * matn yozish -> tahrirlash kartasiga qo'yish -> rasm chizish.
@@ -467,7 +427,7 @@ export default function SmmPanel({ seed }: {
     setTopic(sd.topic)
     setEditingId(null)
     setAiMade(false)
-    setForm({ title: "", content: "", hashtags: "", image_url: "" })
+    setForm({ title: "", content: "", hashtags: "", image_url: "", thumb_url: "" })
     try {
       const g = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
         "/smm/ai?action=generate",
@@ -479,64 +439,39 @@ export default function SmmPanel({ seed }: {
         content: text,
         hashtags: (g.generated.hashtaglar || []).join(" "),
         image_url: "",
+        thumb_url: "",
       })
       setAiMade(true)
       setEditingId(null)
       setTopic(sd.topic)
 
-      // Media ham darhol. Reja "video" desa video, aks holda rasm.
-      const wantVideo = /video|reels|stor/i.test(sd.format || "")
-      setSeedMsg(wantVideo ? "Video yasalmoqda… (bu biroz uzoq)" : "Rasm chizilmoqda…")
+      // Matn asosida AI rasm chizadi. (Video generatsiyasi olib
+      // tashlandi — bepul, ishonchli matndan-video AI amalda yo'q.
+      // Video formatli post ham rasm oladi; video kerak bo'lsa
+      // foydalanuvchi o'zi yuklaydi va muqova yasaydi.)
+      setSeedMsg("Rasm chizilmoqda…")
       try {
         const aspect = sd.platform === "instagram" ? "4:5" : "16:9"
         const payload = JSON.stringify({
           text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500),
           aspect,
         })
-        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string; req_id?: string; prompt?: string }>(
-          `/smm/ai?action=${wantVideo ? "video" : "image"}`,
+        const d = await api<{ image_b64?: string; prompt?: string }>(
+          "/smm/ai?action=image",
           { method: "POST", body: payload },
         )
-
-        // Rasm har doim bor (video ham rasmdan yasaladi) — uni DARROV
-        // ko'rsatamiz. Video chiqmasa ham foydalanuvchi rasmga ega bo'ladi.
         if (d.image_b64) {
           const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
           const r = await uploadFile(file)
           setForm((f) => ({ ...f, image_url: r.signedUrl }))
-        }
-
-        if (!wantVideo) {
-          setSeedMsg(d.image_b64 ? "✅ Matn va rasm tayyor — tekshirib saqlang" : "✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
-        } else if (d.video_error) {
-          // Video umuman boshlanmadi — sababi bilan
-          setSeedMsg(`✅ Matn va rasm tayyor. Video chiqmadi — ${d.video_error}`)
-          setDrawErr(d.video_error)
+          setSeedMsg("✅ Matn va rasm tayyor — tekshirib saqlang")
         } else {
-          // Video boshlandi. Darrov tayyor bo'lsa video_b64 keladi,
-          // aks holda req_id bo'yicha kutamiz.
-          let videoB64 = d.video_b64
-          if (!videoB64 && d.req_id) {
-            setSeedMsg("Rasm tayyor. Video tayyorlanmoqda… (~1-2 daqiqa)")
-            try {
-              videoB64 = await awaitVideo(d.req_id, (sec) =>
-                setSeedMsg(`Rasm tayyor. Video tayyorlanmoqda… ${sec}s`))
-            } catch (ve) {
-              setSeedMsg(`✅ Matn va rasm tayyor. Video chiqmadi — ${ve instanceof Error ? ve.message : "xatolik"}`)
-              setDrawErr(ve instanceof Error ? ve.message : "Video chiqmadi")
-            }
-          }
-          if (videoB64) {
-            const vf = dataUrlToFile(`data:video/mp4;base64,${videoB64}`, "ai-video.mp4")
-            const r = await uploadFile(vf)
-            setForm((f) => ({ ...f, image_url: r.signedUrl }))
-            setSeedMsg("✅ Matn va video tayyor — tekshirib saqlang")
-          }
+          setSeedMsg("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
         }
       } catch (e) {
-        // Media chiqmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
-        setSeedMsg("✅ Matn tayyor. Media chiqmadi — qo'lda yuklang")
-        setDrawErr(e instanceof Error ? e.message : "Media yaratilmadi")
+        // Rasm chiqmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
+        setSeedMsg("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
+        setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
       }
     } catch (e) {
       setSeedMsg("")
@@ -544,7 +479,7 @@ export default function SmmPanel({ seed }: {
     } finally {
       setSeedBusy(false)
     }
-  }, [awaitVideo])
+  }, [])
 
   useEffect(() => {
     // at — bir xil mavzu qayta yuborilsa ham ishga tushsin,
@@ -722,15 +657,22 @@ export default function SmmPanel({ seed }: {
     }
   })
 
-  /** Tanlangan muqovani yuklab, post rasmiga aylantirish */
+  /**
+   * Tanlangan muqovani yuklab, VIDEO MUQOVASI qilib qo'yish.
+   *
+   * MUHIM: image_url (video) DAHLSIZ qoladi — muqova thumb_url ga
+   * yoziladi. Ilgari muqova image_url ni almashtirar, video yo'qolib
+   * o'rniga rasm joylanardi. Endi video + muqova birga joylanadi:
+   * Instagram REELS uchun cover, YouTube uchun thumbnail.
+   */
   const applyThumb = (dataUrl: string) => runThumb(async () => {
     setThumbErr("")
     try {
       const file = dataUrlToFile(dataUrl, `muqova-${thumbSize.key}.jpg`)
       const r = await uploadFile(file)
-      setForm((f) => ({ ...f, image_url: r.signedUrl }))
+      setForm((f) => ({ ...f, thumb_url: r.signedUrl }))
       setThumbs([])
-      setMsg("✅ Muqova post rasmiga aylantirildi")
+      setMsg("✅ Muqova tayyor — video shu muqova bilan joylanadi")
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqovani yuklab bo'lmadi")
     }
@@ -753,16 +695,17 @@ export default function SmmPanel({ seed }: {
     if (!form.content.trim()) { setMsg("❌ Post matni bo'sh"); return }
     if (picked.size === 0) { setMsg("❌ Kamida bitta tarmoq tanlang"); return }
     try {
+      // Muqova (thumb_url) backendда cover_url deb saqlanadi
       if (editingId) {
         await api(`/smm/posts/${editingId}`, {
           method: "PATCH",
-          body: JSON.stringify({ ...form, platforms: Array.from(picked) }),
+          body: JSON.stringify({ ...form, cover_url: form.thumb_url || null, platforms: Array.from(picked) }),
         })
         setMsg("✅ Yangilandi")
       } else {
         const r = await api<{ id: string }>("/smm/posts", {
           method: "POST",
-          body: JSON.stringify({ ...form, platforms: Array.from(picked), ai_generated: aiMade }),
+          body: JSON.stringify({ ...form, cover_url: form.thumb_url || null, platforms: Array.from(picked), ai_generated: aiMade }),
         })
         setEditingId(r.id)
         setMsg("✅ Saqlandi — endi joylashingiz mumkin")
@@ -783,7 +726,7 @@ export default function SmmPanel({ seed }: {
   })
 
   const clearForm = () => {
-    setForm({ title: "", content: "", hashtags: "", image_url: "" })
+    setForm({ title: "", content: "", hashtags: "", image_url: "", thumb_url: "" })
     setEditingId(null); setAiMade(false); setMsg("")
   }
 
@@ -843,7 +786,7 @@ export default function SmmPanel({ seed }: {
   })
 
   const edit = (p: SmmPost) => {
-    setForm({ title: p.title || "", content: p.content, hashtags: p.hashtags || "", image_url: p.image_url || "" })
+    setForm({ title: p.title || "", content: p.content, hashtags: p.hashtags || "", image_url: p.image_url || "", thumb_url: p.cover_url || "" })
     setEditingId(p.id)
     setAiMade(p.ai_generated)
     if (p.platforms.length) setPicked(new Set(p.platforms))
@@ -1185,7 +1128,8 @@ export default function SmmPanel({ seed }: {
             <div className="min-w-0">
               <span className="text-xs font-semibold text-muted">Rasm yoki video (ixtiyoriy)</span>
               <p className="mt-0.5 text-[11px] text-muted">
-                Yuklaganingizdan keyin AI uni ko'rib postni o'zi yozadi.
+                Rasm yuklasangiz AI uni ko'rib postni o'zi yozadi. Video
+                yuklasangiz "Muqova tayyorlash" tugmasini bosing.
                 Rasm 20 MB, video 100 MB gacha.
               </p>
               <div className="mt-1.5">
@@ -1235,20 +1179,32 @@ export default function SmmPanel({ seed }: {
                         )}
                       </div>
                     )}
-                    {/* Avtomatik yozish yuklashdan keyin o'zi ishga tushadi.
-                        Bu tugma qayta yozdirish uchun. */}
+                    {/* AI matn yozdirish: RASM uchun avtomatik ishlagan,
+                        bu qayta yozdirish. VIDEO uchun avtomatik EMAS —
+                        foydalanuvchi xohlasa bosadi. */}
                     <button type="button" onClick={describe} disabled={describing || fitting}
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-                      <Icon d={I.refresh} className="h-3.5 w-3.5" /> Qaytadan yozdirish
+                      <Icon d={I.refresh} className="h-3.5 w-3.5" />
+                      {isVideo ? "AI videoni ko'rib matn yozsin" : "Qaytadan yozdirish"}
                     </button>
 
                     {/* ---- Video muqovasi (YouTube prevyusi kabi) ---- */}
                     {isVideo && (
                       <div className="mt-3 rounded-xl border border-green/15 bg-white p-3">
-                        <p className="text-xs font-bold text-muted">Muqova rasmi</p>
+                        <p className="text-xs font-bold text-ink">Muqova (video ustidagi rasm)</p>
                         <p className="mt-0.5 text-[11px] text-muted">
-                          Videoning kadridan yasaladi, ustiga sarlavha yoziladi
+                          Videoning kadridan yasaladi, ustiga sarlavha yoziladi.
+                          YouTube va Instagramга shu muqova bilan chiqadi.
                         </p>
+
+                        {/* Tanlangan muqova */}
+                        {form.thumb_url && (
+                          <div className="mt-2">
+                            <img src={form.thumb_url} alt="Tanlangan muqova"
+                              className="w-full rounded-lg border-2 border-green object-contain" />
+                            <p className="mt-1 text-[11px] font-semibold text-green">✅ Shu muqova ishlatiladi</p>
+                          </div>
+                        )}
 
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {THUMB_SIZES.map((sz) => (
@@ -1263,11 +1219,12 @@ export default function SmmPanel({ seed }: {
                           ))}
                         </div>
 
-                        {makingThumb && (
-                          <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-green">
-                            <Icon d={I.refresh} className="h-3.5 w-3.5 animate-spin" /> Muqova yasalmoqda…
-                          </p>
-                        )}
+                        <button type="button" onClick={() => makeThumbs(thumbSize)} disabled={makingThumb}
+                          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+                          <Icon d={makingThumb ? I.refresh : I.media} className={`h-3.5 w-3.5 ${makingThumb ? "animate-spin" : ""}`} />
+                          {makingThumb ? "Muqova yasalmoqda…" : form.thumb_url ? "Boshqa muqova tayyorlash" : "Muqova tayyorlash"}
+                        </button>
+
                         {thumbErr && (
                           <p className="mt-2 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">{thumbErr}</p>
                         )}
@@ -1288,7 +1245,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
@@ -1300,9 +1257,14 @@ export default function SmmPanel({ seed }: {
                       hint="JPG, PNG, WebP, MP4 · rasm 20 MB, video 100 MB"
                       transform={fitForInstagram}
                       onUpload={(r) => {
-                        setForm((f) => ({ ...f, image_url: r.signedUrl }))
-                        // Yuklangan zahoti AI o'zi yozadi — tugma bosish shart emas
-                        describeUrl(r.signedUrl)
+                        setForm((f) => ({ ...f, image_url: r.signedUrl, thumb_url: "" }))
+                        // RASM yuklansa AI o'zi ko'rib yozadi. VIDEO esa
+                        // avtomatik ko'rilmaydi — foydalanuvchi tugma bilan
+                        // muqova tayyorlaydi (video AI uchun og'ir va
+                        // ko'pincha keraksiz).
+                        if (!/\.(mp4|mov|webm|m4v)(\?|$)/i.test(r.signedUrl)) {
+                          describeUrl(r.signedUrl)
+                        }
                       }} />
 
                     <div className="my-3 flex items-center gap-2">
@@ -1323,30 +1285,6 @@ export default function SmmPanel({ seed }: {
                       <p className="mt-2 max-h-24 overflow-y-auto rounded-lg bg-orange-50 px-3 py-2 text-[11px] font-semibold text-orange-700">{drawErr}</p>
                     )}
 
-                    {/* NVIDIA modellarini tekshirish — video/rasm chiqmasa
-                        qaysi model ishlashini bilib beradi */}
-                    <button type="button" onClick={checkModels} disabled={probing}
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/20 px-4 py-2 text-[11px] font-bold text-muted transition-colors hover:text-green disabled:opacity-50">
-                      <Icon d={probing ? I.refresh : I.check} className={`h-3.5 w-3.5 ${probing ? "animate-spin" : ""}`} />
-                      {probing ? "Tekshirilmoqda…" : "NVIDIA modellarini tekshirish"}
-                    </button>
-
-                    {probe && (
-                      <div className="mt-2 rounded-lg border border-green/15 bg-white p-2 text-[11px]">
-                        <p className="mb-1 font-bold text-ink">Ishlaydigan modellar (✓) shu kalitda:</p>
-                        <ul className="space-y-0.5">
-                          {probe.map((r) => (
-                            <li key={r.model} className={`flex items-center justify-between gap-2 ${r.ok ? "text-green" : "text-muted"}`}>
-                              <span className="truncate font-mono">{r.model}</span>
-                              <span className="shrink-0 font-semibold">{r.ok ? "✓ " : "✗ "}{r.note}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        {!probe.some((r) => r.model.includes("stable-video") && r.ok) && (
-                          <p className="mt-1.5 text-orange-700">Video modeli topilmadi — bu kalitda rasmdan-video yo'q.</p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

@@ -139,7 +139,7 @@ function igError(err: { message?: string; code?: number } | undefined, status: n
 }
 
 /* ---------------- Instagram (2 bosqich) ---------------- */
-async function publishInstagram(text: string, imageUrl: string | null): Promise<PublishResult> {
+async function publishInstagram(text: string, imageUrl: string | null, coverUrl: string | null = null): Promise<PublishResult> {
   if (!imageUrl) {
     return { platform: "instagram", success: false, error: "Instagram uchun rasm yoki video majburiy" }
   }
@@ -161,9 +161,12 @@ async function publishInstagram(text: string, imageUrl: string | null): Promise<
     // 1) media konteyner. Video Instagram'da REELS sifatida ketadi —
     // oddiy feed videosi uchun API yo'q.
     const video = isVideoUrl(imageUrl)
-    const container = video
+    const container: Record<string, string> = video
       ? { media_type: "REELS", video_url: imageUrl, caption: text.slice(0, 2200), access_token: token }
       : { image_url: imageUrl, caption: text.slice(0, 2200), access_token: token }
+    // Video muqovasi — REELS'ning boshqa rasmi. Berilgan bo'lsa
+    // qo'shamiz; bo'lmasa Instagram videoning kadridan oladi.
+    if (video && coverUrl) container.cover_url = coverUrl
 
     const createResp = await fetch(`https://graph.facebook.com/v22.0/${igUserId}/media`, {
       method: "POST",
@@ -431,7 +434,7 @@ Deno.serve(async (req) => {
     const loadPosts = async () => {
       const { data, error } = await supabaseAdmin
         .from("smm_posts")
-        .select("id, seq, title, content, hashtags, image_url, platforms, status, ai_generated, scheduled_at, published_at, created_at")
+        .select("id, seq, title, content, hashtags, image_url, cover_url, platforms, status, ai_generated, scheduled_at, published_at, created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50)
@@ -510,7 +513,7 @@ Deno.serve(async (req) => {
 
       const { data: post, error: findErr } = await supabaseAdmin
         .from("smm_posts")
-        .select("id, title, content, hashtags, image_url, platforms, status")
+        .select("id, title, content, hashtags, image_url, cover_url, platforms, status")
         .eq("id", id)
         .is("deleted_at", null)
         .maybeSingle()
@@ -545,12 +548,15 @@ Deno.serve(async (req) => {
 
       const text = [post.content, post.hashtags].filter(Boolean).join("\n\n")
       const img = (post.image_url as string) || null
+      // Video muqovasi (cover). Faqat video postda ma'noga ega —
+      // Instagram REELS uchun cover_url sifatida ishlatiladi.
+      const cover = (post.cover_url as string) || null
 
       const results: PublishResult[] = []
       for (const p of platforms) {
         if (p === "telegram") results.push(await publishTelegram(text, img))
         else if (p === "facebook") results.push(await publishFacebook(text, img))
-        else if (p === "instagram") results.push(await publishInstagram(text, img))
+        else if (p === "instagram") results.push(await publishInstagram(text, img, cover))
         else results.push(notReady(p))
       }
 
@@ -592,6 +598,7 @@ Deno.serve(async (req) => {
         content,
         hashtags: body.hashtags ? String(body.hashtags).slice(0, 500) : null,
         image_url: body.image_url ? String(body.image_url).slice(0, 1000) : null,
+        cover_url: body.cover_url ? String(body.cover_url).slice(0, 1000) : null,
         platforms,
         status: "pending_approval",
         ai_generated: Boolean(body.ai_generated),
@@ -614,6 +621,8 @@ Deno.serve(async (req) => {
       }
       if (typeof body.hashtags === "string") patch.hashtags = body.hashtags.slice(0, 500) || null
       if (typeof body.image_url === "string") patch.image_url = body.image_url.slice(0, 1000) || null
+      // cover_url null bo'lishi ham mumkin (muqova olib tashlansa)
+      if ("cover_url" in body) patch.cover_url = body.cover_url ? String(body.cover_url).slice(0, 1000) : null
       if (Array.isArray(body.platforms)) {
         patch.platforms = (body.platforms as string[]).filter((p) => (PLATFORMS as readonly string[]).includes(p))
       }

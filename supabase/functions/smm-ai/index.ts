@@ -6,7 +6,6 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
-import { startVideo, pollVideo } from "../_shared/nimVideo.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
@@ -913,7 +912,7 @@ Oxirgi savolga javob ber. Qoidalar:
     // tasvir so'rovi yasaydi, keyin rasm modeli chizadi. Rasm modellari
     // ingliz tilida ancha yaxshi ishlaydi — o'zbekcha so'rovda natija
     // tasodifiy chiqadi.
-    if (action === "image" || action === "video") {
+    if (action === "image") {
       const text = String(body.text || "").trim()
       const aspect = (String(body.aspect || "16:9")) as GenAspect
       if (!text) return errorResponse("Avval post matnini yozing", 400)
@@ -926,108 +925,13 @@ Oxirgi savolga javob ber. Qoidalar:
       }
       if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
 
-      // Rasm ikkala amalda ham kerak: video RASMDAN yasaladi
       let img: { data: string; model: string }
       try {
-        img = await nimImage(imgPrompt, action === "video" ? "16:9" : aspect)
+        img = await nimImage(imgPrompt, aspect)
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
       }
-
-      if (action === "image") {
-        return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
-      }
-
-      // Video: yasalgan rasmdan video BOSHLANADI, lekin kutilmaydi.
-      // Kutish 150s edge chegarasiga uriladi (504 idle timeout). Shuning
-      // uchun so'rov raqamini qaytaramiz — frontend uni video_status
-      // bilan tekshirib turadi. Rasm ham darrov qaytadi: video chiqmasa
-      // ham foydalanuvchi hech bo'lmasa rasmga ega bo'ladi.
-      try {
-        const started = await startVideo(img.data)
-        return jsonResponse({
-          image_b64: img.data,
-          prompt: imgPrompt,
-          // NVIDIA darrov tayyor qilsa — video shu yerda keladi
-          video_b64: started.video,
-          req_id: started.reqId,
-        })
-      } catch (e) {
-        return jsonResponse({
-          image_b64: img.data,
-          prompt: imgPrompt,
-          video_error: e instanceof Error ? e.message : "Video boshlanmadi",
-        })
-      }
-    }
-
-    /* ---------------- VIDEO HOLATINI TEKSHIRISH ---------------- */
-    // Frontend buni bir necha soniyada bir chaqiradi. Har so'rov qisqa —
-    // NVIDIA'dan bir marta holat so'raladi, kutilmaydi.
-    if (action === "video_status") {
-      const reqId = String(body.req_id || "").trim()
-      if (!reqId) return errorResponse("Video so'rovi raqami yo'q", 400)
-      try {
-        const res = await pollVideo(reqId)
-        return jsonResponse(res.done ? { done: true, video_b64: res.video } : { done: false })
-      } catch (e) {
-        return jsonResponse({ done: true, video_error: e instanceof Error ? e.message : "Video holati noma'lum" })
-      }
-    }
-
-    /* ---------------- NVIDIA MODELLARINI TEKSHIRISH ---------------- */
-    // Kalitingiz qaysi rasm/video modellariga kira olishini bilib
-    // beradi. Har model manziliga bo'sh so'rov yuboramiz va javob
-    // kodiga qaraymiz — hech qanaqa rasm yasalmaydi, faqat tekshiruv:
-    //   404 -> model hisobingizda YO'Q
-    //   400/422 -> model BOR (faqat so'rov tanasi bo'sh edi)
-    //   401/403 -> kalit rad etildi
-    //   200/202 -> model BOR va ishga tushdi
-    if (action === "probe") {
-      const key = Deno.env.get("NVIDIA_API_KEY")
-      if (!key) return jsonResponse({ results: [], error: "NVIDIA kaliti sozlanmagan" })
-      const GENAI = "https://ai.api.nvidia.com/v1/genai"
-      // Rasm va video/rasmdan-video modellari. Foydalanuvchi
-      // qo'shimcha nomlar yuborsa, ularni ham sinaymiz.
-      const extra = Array.isArray(body.models) ? body.models.map((m: unknown) => String(m)).filter(Boolean) : []
-      const candidates = [...new Set([
-        // rasmdan video (kerak bo'lgani)
-        "stabilityai/stable-video-diffusion",
-        // rasm (zaxira uchun ham foydali)
-        "black-forest-labs/flux.1-schnell",
-        "black-forest-labs/flux.1-dev",
-        "black-forest-labs/flux.1-kontext",
-        "stabilityai/stable-diffusion-3-medium",
-        "stabilityai/stable-diffusion-3.5-large",
-        "stabilityai/sdxl-turbo",
-        "stabilityai/stable-diffusion-xl",
-        ...extra,
-      ])]
-      const results = await Promise.all(candidates.map(async (m) => {
-        try {
-          const r = await fetch(`${GENAI}/${m}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-            body: JSON.stringify({}),
-            signal: AbortSignal.timeout(12_000),
-          })
-          const exists = r.status !== 404
-          const authBad = r.status === 401 || r.status === 403
-          let note = ""
-          if (r.status === 404) note = "hisobingizda yo'q"
-          else if (authBad) note = "kalit rad etildi"
-          else if (r.status === 400 || r.status === 422) note = "bor ✓"
-          else if (r.status === 200 || r.status === 202) note = "bor ✓ (ishladi)"
-          else if (r.status === 429) note = "bor, lekin limit"
-          else note = `holat ${r.status}`
-          return { model: m, status: r.status, ok: exists && !authBad, note }
-        } catch {
-          return { model: m, status: 0, ok: false, note: "javob bermadi (vaqt tugadi)" }
-        }
-      }))
-      // Ishlaydiganlarni oldinga chiqaramiz
-      results.sort((a, b) => Number(b.ok) - Number(a.ok))
-      return jsonResponse({ results })
+      return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
     }
 
     /* ---------------- SUHBAT ---------------- */
