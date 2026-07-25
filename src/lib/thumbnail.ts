@@ -123,40 +123,49 @@ export function composeThumbnail(
       const dh = img.height * scale
       ctx.drawImage(img, (size.w - dw) / 2, (size.h - dh) / 2, dw, dh)
 
-      const text = (title || "").trim()
+      // YouTube prevyusi uslubi: YIRIK, QALIN, BOSH HARFLI yozuv, oq/yashil
+      // ranglar, qora kontur — har qanday fonda o'qiladi va "professional
+      // muqova" ko'rinishini beradi (oddiy foto+yozuv emas).
+      const text = (title || "").trim().toUpperCase()
       if (text) {
-        const pad = Math.round(size.w * 0.06)
-        const fontSize = Math.round(size.w * (size.key === "youtube" ? 0.072 : 0.065))
-        ctx.font = `800 ${fontSize}px system-ui, "Segoe UI", sans-serif`
+        const pad = Math.round(size.w * 0.05)
+        const fontSize = Math.round(size.w * (size.key === "youtube" ? 0.10 : 0.088))
+        // Eng qalin shrift — Arial Black / Impact bo'lsa o'shani oladi
+        ctx.font = `900 ${fontSize}px "Arial Black", "Segoe UI", Impact, sans-serif`
         ctx.textBaseline = "bottom"
+        ctx.lineJoin = "round"
 
         const lines = wrapText(ctx, text, size.w - pad * 2).slice(0, 3)
-        const lineH = Math.round(fontSize * 1.18)
+        const lineH = Math.round(fontSize * 1.06)
         const blockH = lines.length * lineH
 
-        // Pastdan yuqoriga qorayuvchi gradient — matn har qanday
-        // fon ustida o'qiladi
-        const gradTop = size.h - blockH - pad * 2.2
+        // Pastdan yuqoriga qorayuvchi gradient
+        const gradTop = size.h - blockH - pad * 2.6
         const grad = ctx.createLinearGradient(0, gradTop, 0, size.h)
         grad.addColorStop(0, "rgba(0,0,0,0)")
-        grad.addColorStop(1, "rgba(0,0,0,0.82)")
+        grad.addColorStop(1, "rgba(0,0,0,0.78)")
         ctx.fillStyle = grad
         ctx.fillRect(0, gradTop, size.w, size.h - gradTop)
 
-        // Yashil urg'u chizig'i
-        ctx.fillStyle = "#5BB420"
-        ctx.fillRect(pad, size.h - pad - blockH - Math.round(fontSize * 0.5), Math.round(size.w * 0.09), Math.round(fontSize * 0.12))
+        // Yashil urg'u chizig'i (matn tepasida)
+        const barY = size.h - pad - blockH - Math.round(fontSize * 0.42)
+        ctx.fillStyle = "#8BE04A"
+        ctx.fillRect(pad, barY, Math.round(size.w * 0.12), Math.round(fontSize * 0.14))
 
-        ctx.fillStyle = "#ffffff"
-        ctx.shadowColor = "rgba(0,0,0,0.55)"
-        ctx.shadowBlur = Math.round(fontSize * 0.25)
+        // Har qatorni: qalin QORA kontur + ustiga rang (oq/yashil galma-gal)
+        const strokeW = Math.max(4, Math.round(fontSize * 0.16))
         lines.forEach((l, i) => {
-          ctx.fillText(l, pad, size.h - pad - (lines.length - 1 - i) * lineH)
+          const y = size.h - pad - (lines.length - 1 - i) * lineH
+          ctx.lineWidth = strokeW
+          ctx.strokeStyle = "rgba(0,0,0,0.92)"
+          ctx.strokeText(l, pad, y)
+          // Galma-gal: bir qator oq, bir qator yashil — YouTube uslubi
+          ctx.fillStyle = i % 2 === 1 ? "#8BE04A" : "#ffffff"
+          ctx.fillText(l, pad, y)
         })
-        ctx.shadowBlur = 0
       }
 
-      resolve(canvas.toDataURL("image/jpeg", 0.9))
+      resolve(canvas.toDataURL("image/jpeg", 0.92))
     }
     img.onerror = () => reject(new Error("Kadrni o'qib bo'lmadi"))
     img.src = frameDataUrl

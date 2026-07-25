@@ -1063,8 +1063,11 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       // avvalgi natijada issiqxona o'rniga odam portreti chiqqan edi.
       // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
       // taqiqlaymiz.
-      if (!/no people|without people/i.test(imgPrompt)) {
-        imgPrompt = `${imgPrompt}, photorealistic, no people, no faces, no text`.slice(0, 400)
+      // FLUX inkorni ("no people") yaxshi tushunmaydi va aksincha odam
+      // qo'shib yuboradi. Shuning uchun IJOBIY iboralar bilan bo'sh
+      // sahnaga yo'naltiramiz: "empty", "wide establishing shot".
+      if (!/empty|no people/i.test(imgPrompt)) {
+        imgPrompt = `empty ${imgPrompt}, wide establishing shot, no people, photorealistic, no text`.slice(0, 400)
       }
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
