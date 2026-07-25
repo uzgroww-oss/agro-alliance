@@ -6,6 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
+import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
@@ -754,6 +755,43 @@ FAQAT JSON qaytar, boshqa matn yozma:
       const imageUrl = String(body.image_url || "").trim()
       const platform = String(body.platform || "telegram").trim()
 
+      // VIDEO uchun: ovozdan olingan matn (transcript) berilsa, postni
+      // AYNAN videoda gapirilgani asosida yozamiz. Bu bitta kadrni
+      // ko'rishdan ancha aniq — video mazmuni ko'pincha gapda bo'ladi.
+      const transcript = String(body.transcript || "").trim()
+      if (transcript) {
+        const tPrompt = `Quyida VIDEONING OVOZIDAN olingan matn (nima gapirilgani) berilgan.
+Shu asosda ${platform} uchun post yoz.
+
+VIDEO MATNI:
+"""
+${transcript.slice(0, 4000)}
+"""
+
+QOIDALAR — qat'iy:
+- FAQAT videoда gapirilgan mavzu haqida yoz, o'zingdan qo'shma
+- QISQA: 2-4 jumla, 500 belgidan oshmasin
+- Aniq gapir, umumiy shior yozma
+- "mazmun" — video nima haqida ekanini BITTA jumlada yoz
+- O'zbek tili (lotin alifbosi), odam gapiradigandek
+
+FAQAT JSON:
+{ "mazmun": "video nima haqida (1 jumla)", "sarlavha": "qisqa sarlavha 60 belgigacha", "matn": "post matni 2-4 jumla", "hashtaglar": ["#agro","#fermer"] }`
+
+        const usableT = (v: unknown) => {
+          const o = v as Generated
+          return Boolean(o && typeof o.matn === "string" && o.matn.trim().length >= 40 && !isRepetitive(o.matn))
+        }
+        try {
+          const res = await askAi<Generated>(tPrompt,
+            (v) => usableT(v) && matchesTopic(transcript.slice(0, 400), String((v as Generated).matn)),
+            2048, ["matn", "sarlavha"], usableT)
+          return jsonResponse({ generated: { ...res, tasvir: "", mazmun: (res as Generated).mazmun || "" } })
+        } catch (e) {
+          return errorResponse(e instanceof Error ? e.message : "Videodan matn yozib bo'lmadi", 500)
+        }
+      }
+
       // Videoda mijoz KADR yuboradi (base64). Butun videoni yuborish
       // juda ko'p token yeydi va bepul kvota darhol tugaydi. Kadr esa
       // oddiy rasm — har qanday ko'ruvchi model uni o'qiy oladi.
@@ -820,7 +858,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
       const saw = (r: Generated | undefined) => {
         const t = String(r?.tasvir || "").trim()
         if (!t) return false
-        if (/ko'rinmadi|korinmadi|ko‘rinmadi/i.test(t)) return false
+        if (/ko'rinma|korinma|ko‘rinma/i.test(t)) return false
         // "rasm yo'q", "men rasmni ko'ra olmayman" kabi rad javoblari
         if (/(ko'r|kor)\w*\s+(olmayman|olmadim)|rasm\s+(yo'q|yoq)|no image|cannot see/i.test(t)) return false
         return true
@@ -861,54 +899,91 @@ FAQAT JSON qaytar, boshqa matn yozma:
     // yoziladi.
     if (action === "cover") {
       const b64 = String(body.image_b64 || "").trim()
-      if (!b64) return errorResponse("Video kadri kelmadi", 400)
       const aspect = (String(body.aspect || "16:9")) as GenAspect
-      const image: InlineImage = { mimeType: String(body.mime || "image/jpeg"), data: b64 }
-
-      // 1) AI kadrni ko'rib: mazmun + sarlavha + INGLIZCHA rasm so'rovi
-      const visionPrompt = `Bu videodan olingan KADR. Uni diqqat bilan ko'r.
-
-Vazifa: shu videoga MOS, chiroyli muqova (thumbnail) uchun ma'lumot ber.
-
-1) "sarlavha" — video mazmunini ochadigan qisqa, jozibali o'zbekcha
-   sarlavha (lotin, 5 so'zgacha). Video nima haqidaligini aks ettirsin.
-2) "prompt" — shu videodagi ASOSIY narsani ko'rsatadigan INGLIZCHA
-   rasm so'rovi. Kadrда nima ko'rinsa — o'shani tasvirla (masalan
-   "close-up of ripe wheat field at sunset"). Chiroyli, realistik,
-   O'zbekiston qishloq xo'jaligi muhitida. Yozuv/logotip bo'lmasin.
-   40 so'zdan oshmasin, faqat ingliz tilida.
-
-Agar kadrni umuman ko'rmasang, "prompt" ni bo'sh qoldir.
-
-FAQAT JSON qaytar:
-{ "sarlavha": "…", "prompt": "…" }`
+      const transcript = String(body.transcript || "").trim()
 
       let title = ""
       let imgPrompt = ""
       const visErrs: string[] = []
-      for (const a of [
-        { name: "Gemini", run: () => geminiJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
-        { name: "NVIDIA", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
-        { name: "NVIDIA(inline)", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
-      ]) {
+
+      // ENG YAXSHI YO'L: videoning ovozidan olingan matn (transcript).
+      // Videoда NIMA GAPIRILGANI muqova mavzusini belgilaydi — bitta
+      // kadrdagi tasvirdan ancha aniq. Matn modeli ishonchli (Groq).
+      if (transcript) {
+        const tPrompt = `Quyida videoning OVOZIDAN olingan matn bor. Shu video uchun
+jozibali muqova (thumbnail) ma'lumotini ber.
+
+VIDEO MATNI:
+"""
+${transcript.slice(0, 4000)}
+"""
+
+1) "sarlavha" — video NIMA HAQIDA ekanini ochadigan qisqa, jozibali
+   o'zbekcha sarlavha (lotin, 3-6 so'z). Muqova ustiga yoziladi.
+2) "prompt" — shu MAVZUGA mos, INGLIZCHA rasm so'rovi (image prompt).
+   Videoда gap nima ustida ketsa — o'sha narsani ko'rsatsin (masalan
+   gap tomchilatib sug'orish haqida bo'lsa "close-up of drip irrigation
+   tubing between crop rows"). Realistik, O'zbekiston qishloq xo'jaligi
+   muhitida, yozuv/logotip yo'q, 40 so'zdan oshmasin, faqat ingliz tilida.
+
+FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
         try {
-          const r = unwrap(await a.run(), ["prompt", "sarlavha"]) as { sarlavha?: string; prompt?: string }
-          const p = String(r?.prompt || "").trim()
-          // Ingliz tilida bo'lishi shart — aks holda rasm modeli adashadi
-          const latin = (p.match(/[a-z]/gi) || []).length
-          if (p.length >= 15 && latin / p.length > 0.6) {
-            imgPrompt = p.slice(0, 400)
-            title = String(r?.sarlavha || "").trim().slice(0, 80)
-            break
-          }
-          visErrs.push(`${a.name}: so'rov bo'sh/o'zbekcha`)
+          const r = await askAi<{ sarlavha?: string; prompt?: string }>(
+            tPrompt,
+            (v) => {
+              const p = String((v as { prompt?: string })?.prompt || "").trim()
+              const latin = (p.match(/[a-z]/gi) || []).length
+              return p.length >= 15 && latin / p.length > 0.6 && !leaksInstructions(p)
+            },
+            500, ["prompt", "sarlavha"],
+          )
+          imgPrompt = String(r.prompt || "").trim().slice(0, 400)
+          title = String(r.sarlavha || "").trim().slice(0, 80)
         } catch (e) {
-          visErrs.push(`${a.name}: ${e instanceof Error ? e.message : "xato"}`)
+          visErrs.push(`matn: ${e instanceof Error ? e.message : "xato"}`)
+        }
+      }
+
+      // Transcript bo'lmasa (yoki muvaffaqiyatsiz) — kadrni AI KO'RADI
+      if (!imgPrompt) {
+        if (!b64) {
+          return jsonResponse({ vision_failed: true, error: visErrs.join(" | ") || "Ma'lumot yetarli emas" })
+        }
+        const image: InlineImage = { mimeType: String(body.mime || "image/jpeg"), data: b64 }
+        const visionPrompt = `Bu videodan olingan KADR. Uni diqqat bilan ko'r.
+
+Vazifa: shu videoga MOS, chiroyli muqova uchun ma'lumot ber.
+
+1) "sarlavha" — qisqa, jozibali o'zbekcha sarlavha (lotin, 5 so'zgacha).
+2) "prompt" — kadrда ko'ringan ASOSIY narsani ko'rsatadigan INGLIZCHA
+   rasm so'rovi. Realistik, O'zbekiston qishloq xo'jaligi muhitida,
+   yozuv/logotip yo'q, 40 so'zdan oshmasin.
+
+Kadrni umuman ko'rmasang "prompt" ni bo'sh qoldir.
+FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
+        for (const a of [
+          { name: "Gemini", run: () => geminiJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
+          { name: "NVIDIA", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
+          { name: "NVIDIA(inline)", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
+        ]) {
+          try {
+            const r = unwrap(await a.run(), ["prompt", "sarlavha"]) as { sarlavha?: string; prompt?: string }
+            const p = String(r?.prompt || "").trim()
+            const latin = (p.match(/[a-z]/gi) || []).length
+            if (p.length >= 15 && latin / p.length > 0.6) {
+              imgPrompt = p.slice(0, 400)
+              title = String(r?.sarlavha || "").trim().slice(0, 80)
+              break
+            }
+            visErrs.push(`${a.name}: so'rov bo'sh/o'zbekcha`)
+          } catch (e) {
+            visErrs.push(`${a.name}: ${e instanceof Error ? e.message : "xato"}`)
+          }
         }
       }
 
       if (!imgPrompt) {
-        // AI kadrni ko'ra olmadi — frontend xom kadrga qaytadi
+        // AI ko'ra olmadi — frontend xom kadrga qaytadi
         return jsonResponse({ vision_failed: true, error: visErrs.join(" | ") })
       }
 
@@ -918,6 +993,23 @@ FAQAT JSON qaytar:
         return jsonResponse({ image_b64: img.data, title, prompt: imgPrompt, model: img.model })
       } catch (e) {
         return jsonResponse({ vision_failed: true, error: e instanceof Error ? e.message : "Rasm chizilmadi" })
+      }
+    }
+
+    /* ---------------- VIDEO OVOZINI MATNGA ---------------- */
+    // Videoning ovozini Groq Whisper bilan matnga aylantiradi. Frontend
+    // buni bir marta chaqiradi va natijani describe/cover uchun ishlatadi
+    // — shunday qilib videoда GAPIRILGANI mazmun sifatida ishlatiladi.
+    if (action === "transcribe") {
+      const videoUrl = String(body.video_url || "").trim()
+      if (!videoUrl) return errorResponse("Video manzili yo'q", 400)
+      if (!transcribeAvailable()) return jsonResponse({ transcript: "", error: "Groq kaliti sozlanmagan" })
+      try {
+        const transcript = await transcribeVideo(videoUrl)
+        return jsonResponse({ transcript })
+      } catch (e) {
+        // Xato bo'lsa ham frontend xom kadrga tushib muqova yasay oladi
+        return jsonResponse({ transcript: "", error: e instanceof Error ? e.message : "Ovozni o'qib bo'lmadi" })
       }
     }
 

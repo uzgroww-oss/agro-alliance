@@ -212,6 +212,10 @@ export default function SmmPanel({ seed }: {
   const [thumbs, setThumbs] = useState<string[]>([])
   const [makingThumb, runThumb] = useBusy()
   const [thumbErr, setThumbErr] = useState("")
+  // Video ovozidan olingan matn (transcript) — bir marta olinadi va
+  // ham post yozishда, ham muqovada ishlatiladi. URL bilan birga
+  // saqlanadi: boshqa video yuklansa qaytadan olinadi.
+  const [transcript, setTranscript] = useState<{ url: string; text: string } | null>(null)
 
   /* 2-karta: AI yozgan qoralama shu yerda turadi va foydalanuvchi
      uni ko'rib, keyin 3-kartaga o'tkazadi. Ilgari matn to'g'ridan-
@@ -603,17 +607,42 @@ export default function SmmPanel({ seed }: {
    * Yuklangandan keyin avtomatik chaqiriladi — mavzu yozib o'tirish
    * shart emas.
    */
+  /**
+   * Videoning ovozini matnga aylantirib, keshda saqlaymiz. Bir marta
+   * olinadi — describe ham, muqova ham shuni ishlatadi.
+   */
+  const ensureTranscript = async (videoUrl: string): Promise<string> => {
+    if (transcript && transcript.url === videoUrl) return transcript.text
+    try {
+      const r = await api<{ transcript?: string; error?: string }>(
+        "/smm/ai?action=transcribe",
+        { method: "POST", body: JSON.stringify({ video_url: videoUrl }) },
+      )
+      const text = (r.transcript || "").trim()
+      setTranscript({ url: videoUrl, text })
+      return text
+    } catch {
+      setTranscript({ url: videoUrl, text: "" })
+      return ""
+    }
+  }
+
   const describeUrl = (mediaUrl: string) => runDescribe(async () => {
     if (!mediaUrl) { setAiErr("Avval rasm yoki video yuklang"); return }
     setAiErr("")
     try {
-      // Video bo'lsa BUTUN faylni emas, bitta kadrni yuboramiz.
-      // Video AI uchun minglab token — bepul kvota darhol tugaydi.
-      // Kadr esa oddiy rasm va har qanday ko'ruvchi model o'qiy oladi.
       let payload: Record<string, unknown> = { image_url: mediaUrl, platform: effOrigin }
       if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(mediaUrl)) {
-        const frame = await extractVideoFrame(mediaUrl)
-        payload = { image_b64: frame.data, mime: frame.mimeType, from_video: true, platform: effOrigin }
+        // Video: AVVAL ovozini matnga aylantiramiz — postни videoda
+        // AYNAN gapirilgani asosida yozamiz. Ovoz o'qilmasa (juda katta
+        // yoki gap yo'q) — bitta kadrni yuborib, tasvirга tayanamiz.
+        const spoken = await ensureTranscript(mediaUrl)
+        if (spoken) {
+          payload = { transcript: spoken, platform: effOrigin }
+        } else {
+          const frame = await extractVideoFrame(mediaUrl)
+          payload = { image_b64: frame.data, mime: frame.mimeType, from_video: true, platform: effOrigin }
+        }
       }
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[]; tasvir?: string; mazmun?: string } }>(
         "/smm/ai?action=describe",
@@ -649,16 +678,19 @@ export default function SmmPanel({ seed }: {
     let title = (form.title || seenTopic || "").trim()
     const out: string[] = []
     try {
-      // 1) Videodan bitta kadr olamiz — uni AI ko'radi
+      // 1) Videodan bitta kadr olamiz — AI ko'ra olishi uchun zaxira
       const frame = await extractVideoFrame(form.image_url)
 
-      // 2) AI kadrni KO'RIB, videoga MOS muqova rasmini chizadi va
-      //    jozibali sarlavha beradi. Bu xom kadr emas — videoga mos,
-      //    chiroyli generatsiya qilingan muqova.
+      // 2) Videoning ovozini matnga aylantiramiz — muqova videoда
+      //    NIMA GAPIRILGANIga mos bo'lsin (bitta kadr buni bermaydi).
+      const spoken = await ensureTranscript(form.image_url)
+
+      // 3) AI shu mazmunga MOS muqova rasmini chizadi va jozibali
+      //    sarlavha beradi. Xom kadr emas — videoga mos generatsiya.
       try {
         const c = await api<{ image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
           "/smm/ai?action=cover",
-          { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect }) },
+          { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect, transcript: spoken }) },
         )
         if (c.image_b64) {
           if (c.title) title = c.title
@@ -1281,7 +1313,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr("") }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr(""); setTranscript(null) }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
@@ -1294,6 +1326,7 @@ export default function SmmPanel({ seed }: {
                       transform={fitForInstagram}
                       onUpload={(r) => {
                         setForm((f) => ({ ...f, image_url: r.signedUrl, thumb_url: "" }))
+                        setTranscript(null) // yangi fayl — eski matn yaramaydi
                         // RASM yuklansa AI o'zi ko'rib yozadi. VIDEO esa
                         // avtomatik ko'rilmaydi — foydalanuvchi tugma bilan
                         // muqova tayyorlaydi (video AI uchun og'ir va
