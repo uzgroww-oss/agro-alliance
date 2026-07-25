@@ -189,9 +189,20 @@ export function composeThumbnail(
       // Sarlavha — yirik, qalin, bosh harfli, oq/yashil galma-gal, kontur
       const text = (title || "").trim().toUpperCase()
       if (text) {
-        const fontSize = Math.round(size.w * (size.key === "youtube" ? 0.098 : 0.086))
-        ctx.font = `900 ${fontSize}px "Arial Black", "Segoe UI", Impact, sans-serif`
-        const lines = wrapText(ctx, text, size.w - pad * 2).slice(0, 3)
+        const maxW = size.w - pad * 2
+        // Shriftni MOSLAB olamiz: eng uzun so'z ham kadrga sig'sin.
+        // Ilgari uzun so'z ("ISSIQXONASINING") o'ng chetdan toshib
+        // ketardi — endi sig'guncha kichraytiramiz.
+        let fontSize = Math.round(size.w * (size.key === "youtube" ? 0.098 : 0.086))
+        const minSize = Math.round(size.w * 0.045)
+        let lines: string[] = []
+        for (;;) {
+          ctx.font = `900 ${fontSize}px "Arial Black", "Segoe UI", Impact, sans-serif`
+          lines = wrapText(ctx, text, maxW).slice(0, 3)
+          const widest = Math.max(...lines.map((l) => ctx.measureText(l).width))
+          if (widest <= maxW || fontSize <= minSize) break
+          fontSize = Math.round(fontSize * 0.92)
+        }
         const lineH = Math.round(fontSize * 1.06)
         const blockH = lines.length * lineH
         const titleBottom = chipsTop - (benefits.length ? Math.round(pad * 0.5) : 0)

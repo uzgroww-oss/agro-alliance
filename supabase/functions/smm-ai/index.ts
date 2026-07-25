@@ -1085,11 +1085,13 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       // avvalgi natijada issiqxona o'rniga odam portreti chiqqan edi.
       // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
       // taqiqlaymiz.
-      // FLUX inkorni ("no people") yaxshi tushunmaydi va aksincha odam
-      // qo'shib yuboradi. Shuning uchun IJOBIY, "arxitektura fotosi"
-      // uslubiga yo'naltiramiz — bunda odam kamdan-kam chiqadi.
-      imgPrompt = `empty ${imgPrompt.replace(/\b(farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, architectural photography, wide shot, deserted, unoccupied, no people, no humans, photorealistic, no text`
-        .replace(/\s{2,}/g, " ").slice(0, 400)
+      // MUHIM: mavzu (masalan "greenhouse") KUCHLI qolishi kerak. Ilgari
+      // "architectural photography, deserted" qo'shganda FLUX issiqxona
+      // o'rniga bo'sh xona/oshxona chizib qo'yardi. Endi faqat odam
+      // haqidagi so'zlarni olib tashlaymiz va YENGIL no-people qo'shamiz —
+      // sahna turini o'zgartirmaymiz.
+      imgPrompt = `${imgPrompt.replace(/\b(farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, empty, no people, photorealistic, no text`
+        .replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",").slice(0, 400)
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
       // yoki inglizcha so'z ("Greenhouse") qolmasin. Inglizcha rasm
@@ -1111,7 +1113,8 @@ QAT'IY QOIDALAR:
   Inglizchani tarjima qil: greenhouse=issiqxona, drip irrigation=
   tomchilatib sug'orish, harvest=hosil, farm=ferma, crop=ekin.
 - "sarlavha" — mavzuning ASOSIY TAKLIFI, jozibali, 2-4 so'z, imlosi
-  to'g'ri. JOY NOMI, tuman, ism ISHLATMA.
+  to'g'ri. TO'LIQ, TABIIY ibora bo'lsin (yarim gap yoki qaratqich
+  ("...ning") bilan tugamasin). JOY NOMI, tuman, ism ISHLATMA.
 - "afzalliklar" — mavzuga oid 3 ta qisqa afzallik (har biri 1-2 so'z,
   masalan "Yuqori daromad", "Zamonaviy texnologiya", "Kam xarajat").
 
