@@ -814,13 +814,31 @@ FAQAT JSON:
           const m = String((v as Generated)?.matn || "")
           return m.trim().length >= 20 && !describesMedia(m)
         }
+        // Strict tekshiruv — usableT (matnli, tasvirsiz). matchesTopic'ni
+        // strictdan OLIB TASHLADIK: u Groq'ning yagona javobini rad etib,
+        // o'lik Gemini/rate-limitli NVIDIAga o'tkazar va kaskad xato
+        // (500) berardi. Endi Groq yaroqli javob bersa darhol qaytadi —
+        // ortiqcha provayder chaqirilmaydi, NVIDIA charchamaydi.
         try {
-          const res = await askAi<Generated>(tPrompt,
-            (v) => usableT(v) && matchesTopic(transcript.slice(0, 400), String((v as Generated).matn)),
-            2048, ["matn", "sarlavha"], softT)
+          const res = await askAi<Generated>(tPrompt, usableT, 2048, ["matn", "sarlavha"], softT)
           return jsonResponse({ generated: { ...res, tasvir: "", mazmun: (res as Generated).mazmun || "" } })
-        } catch (e) {
-          return errorResponse(e instanceof Error ? e.message : "Videodan matn yozib bo'lmadi", 500)
+        } catch {
+          // JSON yo'li ishlamasa (bo'sh matn, rate-limit) — ODDIY MATN
+          // so'raymiz. Bu JSON muammosini chetlab o'tadi va Groq odatda
+          // javob beradi. 500 o'rniga matn qaytadi.
+          try {
+            const plain = await askText(
+              `Quyidagi video ovozidan olingan matn asosida 2-3 jumlalik tayyor
+o'zbekcha post yoz. Videoni tasvirlamasdan, mavzu haqida jonli yoz.
+Faqat post matnini qaytar.
+
+MATN: ${transcript.slice(0, 2000)}`)
+            const m = plain.trim().slice(0, 600)
+            if (m.length >= 20 && !describesMedia(m)) {
+              return jsonResponse({ generated: { matn: m, sarlavha: "", hashtaglar: [], tasvir: "", mazmun: "" } })
+            }
+          } catch { /* pastda umumiy xato */ }
+          return errorResponse("Matn yozib bo'lmadi — biroz kuting va qayta urining", 500)
         }
       }
 
