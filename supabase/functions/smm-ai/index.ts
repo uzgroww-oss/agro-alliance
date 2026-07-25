@@ -946,30 +946,40 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // Videoда NIMA GAPIRILGANI muqova mavzusini belgilaydi — bitta
       // kadrdagi tasvirdan ancha aniq. Matn modeli ishonchli (Groq).
       if (transcript) {
-        const tPrompt = `Quyida videoning OVOZIDAN olingan matn bor. Shu video uchun
-jozibali muqova (thumbnail) ma'lumotini ber.
+        const tPrompt = `Quyida videoning OVOZIDAN olingan matn bor (ovoz noaniq
+eshitilgan yoki qoraqalpoqcha bo'lishi mumkin). Shu video uchun muqova
+ma'lumotini ber.
 
 VIDEO MATNI:
 """
 ${transcript.slice(0, 4000)}
 """
 
-1) "sarlavha" — video NIMA HAQIDA ekanini ochadigan qisqa, jozibali
-   o'zbekcha sarlavha (lotin, 3-6 so'z). Muqova ustiga yoziladi.
-2) "prompt" — shu MAVZUGA mos, INGLIZCHA rasm so'rovi (image prompt).
-   Videoда gap nima ustida ketsa — o'sha narsani ko'rsatsin (masalan
-   gap tomchilatib sug'orish haqida bo'lsa "close-up of drip irrigation
-   tubing between crop rows"). Realistik, O'zbekiston qishloq xo'jaligi
-   muhitida, yozuv/logotip yo'q, 40 so'zdan oshmasin, faqat ingliz tilida.
+1) "sarlavha" — video mavzusini ochadigan qisqa sarlavha. QAT'IY:
+   - TO'G'RI, ADABIY O'ZBEK TILIDA (lotin alifbosi), imlosi mukammal.
+   - Matndagi noaniq/buzuq so'zlarni XOM KO'CHIRMA. Mavzuni TUSHUNIB,
+     to'g'ri o'zbekcha yoz (masalan mavzu issiqxona bo'lsa
+     "Zamonaviy issiqxonalar", "isteihanalar" EMAS).
+   - 2-5 so'z, katta harf bilan boshlanadigan tabiiy ibora.
+2) "prompt" — INGLIZCHA rasm so'rovi. QAT'IY:
+   - FAQAT mavzudagi QISHLOQ XO'JALIGI narsasi/manzarasini ko'rsat
+     (masalan issiqxona bo'lsa "modern glass greenhouse with rows of
+     green plants inside").
+   - ODAM, yuz, portret, diniy tasvir, naqsh, bezak, gazlama BO'LMASIN.
+   - Realistik foto, tabiiy yorug'lik, yozuv yo'q. Faqat ingliz tilida,
+     40 so'zdan oshmasin.
 
 FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
         try {
           const r = await askAi<{ sarlavha?: string; prompt?: string }>(
             tPrompt,
             (v) => {
-              const p = String((v as { prompt?: string })?.prompt || "").trim()
+              const o = v as { prompt?: string; sarlavha?: string }
+              const p = String(o?.prompt || "").trim()
               const latin = (p.match(/[a-z]/gi) || []).length
-              return p.length >= 15 && latin / p.length > 0.6 && !leaksInstructions(p)
+              if (p.length < 15 || latin / p.length <= 0.6 || leaksInstructions(p)) return false
+              // Sarlavha bo'sh bo'lmasin
+              return String(o?.sarlavha || "").trim().length >= 3
             },
             500, ["prompt", "sarlavha"],
           )
@@ -1021,6 +1031,14 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       if (!imgPrompt) {
         // AI ko'ra olmadi — frontend xom kadrga qaytadi
         return jsonResponse({ vision_failed: true, error: visErrs.join(" | ") })
+      }
+
+      // Muqova rasmda odam/portret/diniy tasvir chiqib ketmasin —
+      // avvalgi natijada issiqxona o'rniga odam portreti chiqqan edi.
+      // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
+      // taqiqlaymiz.
+      if (!/no people|without people/i.test(imgPrompt)) {
+        imgPrompt = `${imgPrompt}, photorealistic, no people, no faces, no text`.slice(0, 400)
       }
 
       // 2) Mos muqova rasmini chizamiz
