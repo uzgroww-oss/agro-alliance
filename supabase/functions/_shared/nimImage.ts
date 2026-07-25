@@ -33,16 +33,31 @@ const MODEL_PARAMS: Record<string, ModelCfg> = {
 };
 const DEFAULT_PARAMS: ModelCfg = { cfg: 4.5, steps: 30, negative: true };
 
+/**
+ * Ishlagan model ESLAB QOLINADI. Muqova uchun 4 ta rasm ketma-ket
+ * chiziladi — har safar barcha modellarni qaytadan sinash (ishlamaydigani
+ * 20 soniyadan uzilishini kutish) butun so'rovni sekinlashtirib, vaqt
+ * chegarasiga urardi va natijada 0 ta rasm chiqardi. Endi birinchi
+ * ishlagan model keyingilarida to'g'ridan-to'g'ri ishlatiladi.
+ */
+let workingModel: string | null = null;
+
 /** Sinaladigan modellar — biri ishlamasa keyingisi */
 function models(): string[] {
   const custom = Deno.env.get("NVIDIA_IMAGE_MODELS");
-  if (custom) return custom.split(",").map((s) => s.trim()).filter(Boolean);
-  return [
-    "black-forest-labs/flux.1-schnell", // tez, hisoblarda odatda yoqilgan
-    "black-forest-labs/flux.1-dev",
-    "stabilityai/stable-diffusion-3-medium",
-    "stabilityai/sdxl-turbo",
-  ];
+  const list = custom
+    ? custom.split(",").map((s) => s.trim()).filter(Boolean)
+    : [
+        "black-forest-labs/flux.1-schnell", // tez, hisoblarda odatda yoqilgan
+        "black-forest-labs/flux.1-dev",
+        "stabilityai/stable-diffusion-3-medium",
+        "stabilityai/sdxl-turbo",
+      ];
+  // Eslab qolingan model bo'lsa — birinchi bo'lib sinaladi
+  if (workingModel && list.includes(workingModel)) {
+    return [workingModel, ...list.filter((m) => m !== workingModel)];
+  }
+  return list;
 }
 
 /**
@@ -157,6 +172,7 @@ export async function nimImage(
         errs.push(`${model}: javobda rasm yo'q`);
         continue;
       }
+      workingModel = model; // keyingi rasmlar shu modeldan boshlaydi
       return { data: b64, model };
     } catch (e) {
       const name = model.split("/").pop();
