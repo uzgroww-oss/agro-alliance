@@ -1008,12 +1008,14 @@ ${transcript.slice(0, 4000)}
    - Noaniq/buzuq so'zlarni ko'chirma, mavzuni tushunib yoz.
    - 2-5 so'z, jozibali.
 2) "prompt" — INGLIZCHA rasm so'rovi. QAT'IY:
-   - Mavzudagi OBYEKTNI ko'rsat, ODAMSIZ. Masalan issiqxona bo'lsa
-     "empty modern greenhouse interior, rows of green plants, steel and
-     glass structure, architectural photography, wide shot".
-   - Xizmat/qurilish bo'lsa STRUKTURANI ko'rsat (metall karkas, oyna
-     panellar), ishchi/odam EMAS.
-   - HECH QANDAY odam, yuz, portret, ishchi, fermer BO'LMASIN.
+   - ANIQ va KONKRET tasvir yoz, mavzuni aniq ko'rsat. Issiqxona bo'lsa
+     ALBATTA shu elementlar bo'lsin: "agricultural greenhouse, long rows
+     of green plants growing in soil, transparent glass/polycarbonate
+     roof and walls, sunlight coming through, farming". Bu XONA/oshxona
+     EMAS — QISHLOQ XO'JALIGI issiqxonasi.
+   - "modern interior", "room", "kitchen" kabi UMUMIY ichki makon
+     so'zlarini YOZMA — aks holda oddiy xona chiqadi.
+   - Odam/ishchi/fermer BO'LMASIN.
    - Realistik foto, tabiiy yorug'lik, yozuvsiz. Faqat ingliz tilida,
      40 so'zdan oshmasin.
 
@@ -1085,13 +1087,13 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       // avvalgi natijada issiqxona o'rniga odam portreti chiqqan edi.
       // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
       // taqiqlaymiz.
-      // MUHIM: mavzu (masalan "greenhouse") KUCHLI qolishi kerak. Ilgari
-      // "architectural photography, deserted" qo'shganda FLUX issiqxona
-      // o'rniga bo'sh xona/oshxona chizib qo'yardi. Endi faqat odam
-      // haqidagi so'zlarni olib tashlaymiz va YENGIL no-people qo'shamiz —
-      // sahna turini o'zgartirmaymiz.
-      imgPrompt = `${imgPrompt.replace(/\b(farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, empty, no people, photorealistic, no text`
-        .replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",").slice(0, 400)
+      // MUHIM: mavzu (masalan "greenhouse") KUCHLI qolishi kerak.
+      // "empty"/"architectural" kabi so'zlar FLUX'ni bo'sh xona/oshxona
+      // chizishga burardi. Endi ularni ISHLATMAYMIZ — faqat odam
+      // so'zlarini olib tashlaymiz va yengil "no people" qo'shamiz.
+      // Sahna turi (issiqxona) o'zgarmaydi.
+      imgPrompt = `${imgPrompt.replace(/\b(empty|deserted|unoccupied|farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, no people, photorealistic, no text`
+        .replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",").replace(/^\s*,/, "").slice(0, 400)
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
       // yoki inglizcha so'z ("Greenhouse") qolmasin. Inglizcha rasm
