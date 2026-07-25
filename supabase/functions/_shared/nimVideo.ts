@@ -100,6 +100,7 @@ async function uploadAsset(bytes: Uint8Array, apiKey: string): Promise<string> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ contentType: "image/jpeg", description: "agro-alliance-frame" }),
+    signal: AbortSignal.timeout(15_000),
   });
   if (!create.ok) {
     const t = await create.text().catch(() => "");
@@ -117,6 +118,7 @@ async function uploadAsset(bytes: Uint8Array, apiKey: string): Promise<string> {
     // qabul qilinmaydi. slice() yangi, o'z buferiga ega nusxa beradi —
     // shundagina tur ArrayBuffer bo'lib to'g'ri keladi.
     body: new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/jpeg" }),
+    signal: AbortSignal.timeout(20_000),
   });
   if (!put.ok) throw new Error(`Rasm yuklanmadi (${put.status})`);
   return assetId;
@@ -202,7 +204,12 @@ export async function startVideo(imageB64: string): Promise<{ reqId?: string; vi
       Authorization: `Bearer ${apiKey}`,
     };
     if (assetId) headers["NVCF-INPUT-ASSET-REFERENCES"] = assetId;
-    return fetch(`${GENAI_BASE}/${m}`, { method: "POST", headers, body: JSON.stringify(body) });
+    // Boshlash so'rovi tez javob berishi kerak (202). 25 soniyada
+    // javob bermasa qotib qolgan — uzamiz.
+    return fetch(`${GENAI_BASE}/${m}`, {
+      method: "POST", headers, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25_000),
+    });
   };
 
   let resp = await send({ image: imageField, cfg_scale: 1.8, seed: 0 });
@@ -252,6 +259,7 @@ export async function pollVideo(reqId: string): Promise<{ done: boolean; video?:
   const apiKey = getApiKey();
   const r = await fetch(`${STATUS_BASE}/${reqId}`, {
     headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+    signal: AbortSignal.timeout(15_000),
   });
   if (r.status === 202) return { done: false }; // hali tayyor emas
   if (!r.ok) {

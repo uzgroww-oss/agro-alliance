@@ -521,7 +521,10 @@ const REQUEST_TIMEOUT = 30_000
  * AI so'rovlari sekin (model javobi + zaxira provayder) — 15s yetmaydi va
  * "signal is aborted without reason" xatosi chiqadi. Ularga uzunroq vaqt.
  */
-const SLOW_TIMEOUT = 90_000
+// Rasm generatsiyasi bir necha modelni sinashi mumkin (har biri
+// 20s), ustiga so'rov matnini tayyorlash. Eng yomon holat ~85s,
+// shuning uchun 110s qo'yamiz — backend edge chegarasi (150s) ichida.
+const SLOW_TIMEOUT = 110_000
 const SLOW_PATHS = ["/smm/ai"]
 /**
  * Video BOSHLASH so'rovi (action=video): rasm chizib, NVIDIA'ga

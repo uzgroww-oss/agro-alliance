@@ -103,6 +103,11 @@ export async function nimImage(
   for (const model of models()) {
     const params = MODEL_PARAMS[model] || DEFAULT_PARAMS;
     try {
+      // MUHIM: har so'rovga vaqt chegarasi. Ilgari chegara yo'q edi va
+      // bitta model javob bermay qotib qolsa, butun zanjir to'xtardi —
+      // mijoz esa "So'rov vaqti tugadi" deb uzib yuborardi. Endi 20
+      // soniyada javob bermasa, keyingi modelga o'tamiz. To'rt model x
+      // 20s = 80s, bu 90s mijoz chegarasiga sig'adi.
       const send = (body: Record<string, unknown>) =>
         fetch(`${GENAI_BASE}/${model}`, {
           method: "POST",
@@ -112,6 +117,7 @@ export async function nimImage(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(20_000),
         });
 
       const full: Record<string, unknown> = {
@@ -152,7 +158,12 @@ export async function nimImage(
       }
       return { data: b64, model };
     } catch (e) {
-      errs.push(`${model.split("/").pop()}: ${e instanceof Error ? e.message : "xatolik"}`);
+      const name = model.split("/").pop();
+      // AbortSignal.timeout TimeoutError tashlaydi — uni tushunarli yozamiz
+      const msg = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")
+        ? "javob bermadi (vaqt tugadi)"
+        : e instanceof Error ? e.message : "xatolik";
+      errs.push(`${name}: ${msg}`);
     }
   }
 
