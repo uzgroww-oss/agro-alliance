@@ -1042,20 +1042,38 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
       }
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
-      // o'rniga TOZA inglizcha rasm so'rovidan to'g'ri o'zbekcha sarlavha
-      // yasaymiz. Inglizcha so'rov ishonchli ("modern greenhouse"), demak
-      // undan olingan sarlavha ham to'g'ri chiqadi.
+      // yoki inglizcha so'z ("Greenhouse") qolmasin. Inglizcha rasm
+      // so'rovini TO'LIQ o'zbekchaga tarjima qilamiz.
+      const isEnglishy = (s: string) =>
+        /\b(greenhouse|green\s?house|modern|farm|farmer|harvest|drip|irrigation|plant|crop|field|soil|the|and|with|of|for)\b/i.test(s)
       try {
-        const clean = await askText(
-          `Ushbu ingliz tilidagi rasm mavzusidan qisqa, jozibali sarlavha yoz.
-QAT'IY: TO'G'RI, adabiy o'zbek tilida (lotin alifbosi), imlosi mukammal,
-2-4 so'z, har so'z ma'noli. Faqat sarlavhani qaytar, boshqa hech narsa.
+        const tr = await askAi<{ sarlavha?: string }>(
+          `Quyidagi ingliz tilidagi rasm mavzusini qisqa, jozibali O'ZBEKCHA
+sarlavhaga aylantir.
 
-MAVZU: ${imgPrompt}`,
+MAVZU: ${imgPrompt}
+
+QAT'IY QOIDALAR:
+- FAQAT o'zbek tili (lotin alifbosi). BIRORTA inglizcha so'z QOLMASIN.
+- Inglizcha so'zlarni tarjima qil: greenhouse=issiqxona,
+  drip irrigation=tomchilatib sug'orish, harvest=hosil, farm=ferma,
+  field=dala, crop=ekin, plant=o'simlik.
+- 2-4 so'z, imlosi to'g'ri, jozibali.
+
+FAQAT JSON: { "sarlavha": "…" }`,
+          (v) => {
+            const s = String((v as { sarlavha?: string })?.sarlavha || "").trim()
+            return s.length >= 3 && s.length <= 60 && !isEnglishy(s)
+          },
+          200, ["sarlavha"],
         )
-        const t = clean.trim().replace(/^["']+|["']+$/g, "").split("\n")[0].slice(0, 60).trim()
-        if (t.length >= 3) title = t
+        const t = String(tr.sarlavha || "").trim().replace(/^["']+|["']+$/g, "").slice(0, 60)
+        if (t.length >= 3 && !isEnglishy(t)) title = t
       } catch { /* sarlavha chiqmasa avvalgisi qoladi */ }
+      // Avvalgi (transcriptdan) sarlavha ham inglizcha/buzuq bo'lsa —
+      // bo'sh qoldiramiz, muqova yozuvsiz chiqadi (yozuvsiz muqova
+      // yarimta inglizcha yozuvdan yaxshiroq)
+      if (isEnglishy(title)) title = ""
 
       // 2) TO'RTTA mos muqova rasmi — har biri boshqa seed bilan, tanlov
       // bo'lsin. Ketma-ket: NVIDIA bepul tarifi bir vaqtda ko'p so'rovni
