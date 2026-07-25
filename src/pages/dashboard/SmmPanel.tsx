@@ -402,6 +402,33 @@ export default function SmmPanel({ seed }: {
   const drawForPost = () => drawImage([form.title, form.content].filter(Boolean).join(". "), true)
 
   /**
+   * Videoni tayyor bo'lguncha kutamiz.
+   *
+   * NEGA POLLING: SVD video ~1-2 daqiqa yasaladi. Butun jarayonni
+   * bitta so'rovda kutish Supabase'ning 150 soniyalik chegarasiga
+   * urilib "504 idle timeout" berardi (aynan shu xato chiqqan edi).
+   * Endi backend so'rov raqamini darrov qaytaradi, biz esa holatini
+   * bir necha soniyada bir tekshirib turamiz — har so'rov qisqa.
+   *
+   * @returns tayyor video base64, yoki chiqmasa xato tashlaydi
+   */
+  const awaitVideo = useCallback(async (reqId: string, onTick?: (sec: number) => void): Promise<string> => {
+    const DEADLINE = 4 * 60_000 // 4 daqiqa — undan uzoq ketsa tashlab yuboramiz
+    const start = Date.now()
+    while (Date.now() - start < DEADLINE) {
+      await new Promise((r) => setTimeout(r, 4000))
+      const s = await api<{ done: boolean; video_b64?: string; video_error?: string }>(
+        "/smm/ai?action=video_status",
+        { method: "POST", body: JSON.stringify({ req_id: reqId }) },
+      )
+      if (s.video_error) throw new Error(s.video_error)
+      if (s.done && s.video_b64) return s.video_b64
+      onTick?.(Math.round((Date.now() - start) / 1000))
+    }
+    throw new Error("Video juda uzoq tayyorlandi — keyinroq qayta urinib ko'ring")
+  }, [])
+
+  /**
    * Marketing rejasidan kelgan mavzu bo'yicha hamma ishni bajarish:
    * matn yozish -> tahrirlash kartasiga qo'yish -> rasm chizish.
    *
@@ -450,31 +477,45 @@ export default function SmmPanel({ seed }: {
           text: [g.generated.sarlavha, text].filter(Boolean).join(". ").slice(0, 1500),
           aspect,
         })
-        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string; prompt?: string }>(
+        const d = await api<{ image_b64?: string; video_b64?: string; video_error?: string; req_id?: string; prompt?: string }>(
           `/smm/ai?action=${wantVideo ? "video" : "image"}`,
           { method: "POST", body: payload },
         )
 
-                if (d.video_b64) {
-          const vf = dataUrlToFile(`data:video/mp4;base64,${d.video_b64}`, "ai-video.mp4")
-          const r = await uploadFile(vf)
-          setForm((f) => ({ ...f, image_url: r.signedUrl }))
-          setSeedMsg("✅ Matn va video tayyor — tekshirib saqlang")
-        } else if (d.image_b64) {
+        // Rasm har doim bor (video ham rasmdan yasaladi) — uni DARROV
+        // ko'rsatamiz. Video chiqmasa ham foydalanuvchi rasmga ega bo'ladi.
+        if (d.image_b64) {
           const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
           const r = await uploadFile(file)
           setForm((f) => ({ ...f, image_url: r.signedUrl }))
-          // Video so'ralgan bo'lsa-yu chiqmagan bo'lsa — rasm qoldi.
-          // SABABNI shu yerda aytamiz: pastdagi drawErr qutisi faqat
-          // qoralama ochiq bo'lganda ko'rinadi, bu oqimda esa qoralama
-          // yo'q — shuning uchun "Video chiqmadi" deb turardi-yu, nega
-          // chiqmagani hech qayerda ko'rinmasdi.
-          setSeedMsg(d.video_error
-            ? `✅ Matn va rasm tayyor. Video chiqmadi — ${d.video_error}`
-            : "✅ Matn va rasm tayyor — tekshirib saqlang")
-          if (d.video_error) setDrawErr(d.video_error)
+        }
+
+        if (!wantVideo) {
+          setSeedMsg(d.image_b64 ? "✅ Matn va rasm tayyor — tekshirib saqlang" : "✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
+        } else if (d.video_error) {
+          // Video umuman boshlanmadi — sababi bilan
+          setSeedMsg(`✅ Matn va rasm tayyor. Video chiqmadi — ${d.video_error}`)
+          setDrawErr(d.video_error)
         } else {
-          setSeedMsg("✅ Matn tayyor. Media chiqmadi — qo'lda yuklang")
+          // Video boshlandi. Darrov tayyor bo'lsa video_b64 keladi,
+          // aks holda req_id bo'yicha kutamiz.
+          let videoB64 = d.video_b64
+          if (!videoB64 && d.req_id) {
+            setSeedMsg("Rasm tayyor. Video tayyorlanmoqda… (~1-2 daqiqa)")
+            try {
+              videoB64 = await awaitVideo(d.req_id, (sec) =>
+                setSeedMsg(`Rasm tayyor. Video tayyorlanmoqda… ${sec}s`))
+            } catch (ve) {
+              setSeedMsg(`✅ Matn va rasm tayyor. Video chiqmadi — ${ve instanceof Error ? ve.message : "xatolik"}`)
+              setDrawErr(ve instanceof Error ? ve.message : "Video chiqmadi")
+            }
+          }
+          if (videoB64) {
+            const vf = dataUrlToFile(`data:video/mp4;base64,${videoB64}`, "ai-video.mp4")
+            const r = await uploadFile(vf)
+            setForm((f) => ({ ...f, image_url: r.signedUrl }))
+            setSeedMsg("✅ Matn va video tayyor — tekshirib saqlang")
+          }
         }
       } catch (e) {
         // Media chiqmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
@@ -487,7 +528,7 @@ export default function SmmPanel({ seed }: {
     } finally {
       setSeedBusy(false)
     }
-  }, [])
+  }, [awaitVideo])
 
   useEffect(() => {
     // at — bir xil mavzu qayta yuborilsa ham ishga tushsin,

@@ -6,7 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
-import { nimVideo } from "../_shared/nimVideo.ts"
+import { startVideo, pollVideo } from "../_shared/nimVideo.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
@@ -938,18 +938,40 @@ Oxirgi savolga javob ber. Qoidalar:
         return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
       }
 
-      // Video: yasalgan rasm jonlantiriladi
+      // Video: yasalgan rasmdan video BOSHLANADI, lekin kutilmaydi.
+      // Kutish 150s edge chegarasiga uriladi (504 idle timeout). Shuning
+      // uchun so'rov raqamini qaytaramiz — frontend uni video_status
+      // bilan tekshirib turadi. Rasm ham darrov qaytadi: video chiqmasa
+      // ham foydalanuvchi hech bo'lmasa rasmga ega bo'ladi.
       try {
-        const video = await nimVideo(img.data)
-        return jsonResponse({ video_b64: video, image_b64: img.data, prompt: imgPrompt })
-      } catch (e) {
-        // Video chiqmasa RASM baribir foydali — uni qaytaramiz va
-        // sababni aytamiz. Butun ish behuda ketmasin.
+        const started = await startVideo(img.data)
         return jsonResponse({
           image_b64: img.data,
           prompt: imgPrompt,
-          video_error: e instanceof Error ? e.message : "Video yaratilmadi",
+          // NVIDIA darrov tayyor qilsa — video shu yerda keladi
+          video_b64: started.video,
+          req_id: started.reqId,
         })
+      } catch (e) {
+        return jsonResponse({
+          image_b64: img.data,
+          prompt: imgPrompt,
+          video_error: e instanceof Error ? e.message : "Video boshlanmadi",
+        })
+      }
+    }
+
+    /* ---------------- VIDEO HOLATINI TEKSHIRISH ---------------- */
+    // Frontend buni bir necha soniyada bir chaqiradi. Har so'rov qisqa —
+    // NVIDIA'dan bir marta holat so'raladi, kutilmaydi.
+    if (action === "video_status") {
+      const reqId = String(body.req_id || "").trim()
+      if (!reqId) return errorResponse("Video so'rovi raqami yo'q", 400)
+      try {
+        const res = await pollVideo(reqId)
+        return jsonResponse(res.done ? { done: true, video_b64: res.video } : { done: false })
+      } catch (e) {
+        return jsonResponse({ done: true, video_error: e instanceof Error ? e.message : "Video holati noma'lum" })
       }
     }
 

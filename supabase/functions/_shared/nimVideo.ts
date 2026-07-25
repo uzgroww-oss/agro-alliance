@@ -42,10 +42,6 @@ function model(): string {
   return Deno.env.get("NVIDIA_VIDEO_MODEL") || "stabilityai/stable-video-diffusion";
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -162,32 +158,23 @@ function why(status: number, body: string): string {
 }
 
 /**
- * Video uzoq yasaladi, shuning uchun NVIDIA 202 qaytarib, natijani
- * keyinroq beradi. Tayyor bo'lguncha so'rab turamiz.
- */
-async function waitForResult(reqId: string, apiKey: string): Promise<Record<string, unknown>> {
-  // 30 x 3s = 90 soniya. Ko'proq kutish edge funksiya chegarasidan
-  // oshib ketadi va so'rov baribir uziladi.
-  for (let i = 0; i < 30; i++) {
-    await sleep(3000);
-    const r = await fetch(`${STATUS_BASE}/${reqId}`, {
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
-    });
-    if (r.status === 202) continue; // hali tayyor emas
-    if (!r.ok) {
-      const t = await r.text().catch(() => "");
-      throw new Error(`Video holati: ${why(r.status, t)}`);
-    }
-    return await r.json().catch(() => ({}));
-  }
-  throw new Error("Video tayyorlanmadi — juda uzoq ketdi");
-}
-
-/**
- * Rasmdan video yasaydi.
+ * Video yaratishni BOSHLAYDI — kutmaydi.
+ *
+ * NEGA IKKIGA BO'LINDI: SVD video ~1-2 daqiqa yasaladi. Butun jarayonni
+ * bitta so'rovda kutish Supabase edge funksiyasining 150 soniyalik
+ * chegarasiga uriladi va "504 idle timeout" beradi. Shuning uchun:
+ *   1) startVideo — rasmni yuboradi, NVIDIA'ning so'rov raqamini
+ *      (reqId) darhol qaytaradi. Bu tez.
+ *   2) pollVideo — o'sha raqam bo'yicha bir marta holatni tekshiradi.
+ * Frontend pollVideo'ni bir necha soniyada bir chaqirib turadi —
+ * har so'rov qisqa, chegaraga yaqinlashmaydi.
+ *
+ * Ba'zan NVIDIA darrov 200 bilan tayyor video qaytaradi — o'shanda
+ * reqId o'rniga to'g'ridan-to'g'ri video qaytariladi.
+ *
  * @param imageB64 base64 JPEG/PNG (prefikssiz)
  */
-export async function nimVideo(imageB64: string): Promise<string> {
+export async function startVideo(imageB64: string): Promise<{ reqId?: string; video?: string }> {
   const apiKey = getApiKey();
   const m = model();
 
@@ -241,10 +228,7 @@ export async function nimVideo(imageB64: string): Promise<string> {
   if (resp.status === 202) {
     const reqId = resp.headers.get("nvcf-reqid");
     if (!reqId) throw new Error("Video so'rovi raqami kelmadi");
-    const data = await waitForResult(reqId, apiKey);
-    const v = extractVideo(data);
-    if (!v) throw new Error("Javobda video yo'q");
-    return v;
+    return { reqId };
   }
 
   if (!resp.ok) {
@@ -257,5 +241,25 @@ export async function nimVideo(imageB64: string): Promise<string> {
   const data = await resp.json().catch(() => ({}));
   const v = extractVideo(data);
   if (!v) throw new Error("Javobda video yo'q");
-  return v;
+  return { video: v };
+}
+
+/**
+ * Boshlangan videoning holatini BIR MARTA tekshiradi (kutmaydi).
+ * @returns tayyor bo'lsa {done:true, video}, aks holda {done:false}
+ */
+export async function pollVideo(reqId: string): Promise<{ done: boolean; video?: string }> {
+  const apiKey = getApiKey();
+  const r = await fetch(`${STATUS_BASE}/${reqId}`, {
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+  });
+  if (r.status === 202) return { done: false }; // hali tayyor emas
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(`Video holati: ${why(r.status, t)}`);
+  }
+  const data = await r.json().catch(() => ({}));
+  const v = extractVideo(data);
+  if (!v) throw new Error("Javobda video yo'q");
+  return { done: true, video: v };
 }

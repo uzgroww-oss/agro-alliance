@@ -524,10 +524,13 @@ const REQUEST_TIMEOUT = 30_000
 const SLOW_TIMEOUT = 90_000
 const SLOW_PATHS = ["/smm/ai"]
 /**
- * Video eng uzoq ketadi: avval rasm chiziladi, keyin u jonlantiriladi
- * va NVIDIA natijani navbat orqali beradi. 90 soniya yetmaydi.
+ * Video BOSHLASH so'rovi (action=video): rasm chizib, NVIDIA'ga
+ * yuboradi va so'rov raqamini qaytaradi. Kutish endi bu so'rovda
+ * emas — u alohida video_status so'rovlari bilan qilinadi (150s edge
+ * chegarasiga urilmaslik uchun). Shunga qaramay rasm chizish bir necha
+ * provayderni sinashi mumkin, shuning uchun keng oraliq qoldiramiz.
  */
-const VIDEO_TIMEOUT = 170_000
+const VIDEO_TIMEOUT = 120_000
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
