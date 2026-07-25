@@ -693,6 +693,7 @@ export default function SmmPanel({ seed }: {
       //    o'zbekcha sarlavha beradi. Xom kadr emas — videoga mos
       //    generatsiya.
       let aiCount = 0
+      let aiErr = ""
       try {
         const c = await api<{ images?: string[]; image_b64?: string; title?: string; vision_failed?: boolean; error?: string }>(
           "/smm/ai?action=cover",
@@ -702,7 +703,12 @@ export default function SmmPanel({ seed }: {
         if (c.title) title = c.title
         for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, title, size))
         aiCount = imgs.length
-      } catch { /* AI muqova chiqmasa pastda xom kadrlarga tayanamiz */ }
+        // AI rasm bermagan bo'lsa — SABABINI ko'rsatamiz (ilgari jimgina
+        // yutilardi va nega faqat kadr chiqqani noma'lum edi).
+        if (!aiCount) aiErr = c.error || "AI muqova chizmadi"
+      } catch (e) {
+        aiErr = e instanceof Error ? e.message : "AI muqova chizmadi"
+      }
 
       // AI to'liq 4 ta bermasa — videoning HAQIQIY kadrlaridan
       // to'ldiramiz (4 taga yetkazamiz).
@@ -716,6 +722,8 @@ export default function SmmPanel({ seed }: {
       if (!out.length) { setThumbErr("Muqova yasab bo'lmadi — videoni tekshiring"); return }
       setAiThumbs(aiCount)
       setThumbs(out)
+      // AI chizmagan bo'lsa sababini aytamiz — kadrlar zaxira sifatida qoladi
+      if (!aiCount && aiErr) setThumbErr(`AI muqova chizmadi: ${aiErr}. Pastda videodan kadrlar.`)
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
     }
