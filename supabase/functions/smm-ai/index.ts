@@ -1034,7 +1034,7 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
     if (action === "transcribe") {
       const videoUrl = String(body.video_url || "").trim()
       if (!videoUrl) return errorResponse("Video manzili yo'q", 400)
-      if (!transcribeAvailable()) return jsonResponse({ transcript: "", error: "NVIDIA kaliti sozlanmagan" })
+      if (!transcribeAvailable()) return jsonResponse({ transcript: "", error: "Groq kaliti sozlanmagan" })
       try {
         const transcript = await transcribeVideo(videoUrl)
         return jsonResponse({ transcript })
