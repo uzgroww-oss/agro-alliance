@@ -195,10 +195,18 @@ export default function MarketPanel({ onCreatePost }: {
   const [srcMsg, setSrcMsg] = useState("")
   const [srcBusy, runSrc] = useBusy()
 
+  /**
+   * MUHIM: ilgari xato jimgina yutilardi va ekranda "Hali manba
+   * qo'shilmagan" chiqardi. Bu YOLG'ON — manbalar bor bo'lishi mumkin,
+   * shunchaki so'rov yiqilgan. Foydalanuvchi ularni qayta kiritishga
+   * urinishi mumkin edi.
+   */
+  const [srcFailed, setSrcFailed] = useState(false)
   const loadSources = useCallback(() => {
+    setSrcFailed(false)
     api<{ sources: Source[] }>("/smm/ai?action=sources", { method: "POST", body: "{}" })
       .then((d) => setSrcList(d.sources || []))
-      .catch(() => { /* manba yo'q — normal holat */ })
+      .catch(() => setSrcFailed(true))
   }, [])
 
   const addSource = () => runSrc(async () => {
@@ -324,8 +332,13 @@ export default function MarketPanel({ onCreatePost }: {
 
   /* Oxirgi saqlangan reja — panel ochilganda darhol ko'rinsin,
      har safar qaytadan tahlil qilish shart bo'lmasin. */
+  // Xato "reja yo'q" degani EMAS: ilgari tarmoq uzilsa ham "Hali tahlil
+  // qilinmagan" chiqib, foydalanuvchi tayyor rejasi yo'qolgan deb o'ylardi
+  // va tokenni bekorga sarflab qaytadan tahlil qildirardi.
+  const [planFailed, setPlanFailed] = useState(false)
   const load = useCallback(() => {
     setLoading(true)
+    setPlanFailed(false)
     api<{ last: { data: Plan & { networks?: NetStat[]; web?: WebHit[]; world?: WebHit[]; sources?: WebHit[] }; days: number; created_at: string } | null }>(
       "/smm/ai?action=last_plan", { method: "POST", body: "{}" })
       .then((d) => {
@@ -342,7 +355,7 @@ export default function MarketPanel({ onCreatePost }: {
         setDays(d.last.days || 7)
         setPlanAt(d.last.created_at)
       })
-      .catch(() => { /* reja yo'q — normal holat */ })
+      .catch(() => setPlanFailed(true))
       .finally(() => setLoading(false))
   }, [])
   useEffect(() => { load(); loadSources() }, [load, loadSources])
@@ -517,9 +530,16 @@ export default function MarketPanel({ onCreatePost }: {
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="font-display font-bold">Tahlil va kontent reja</h3>
-            <p className="mt-0.5 text-sm text-muted">
-              {planAt ? `Oxirgi yangilanish: ${fmtDate(planAt)}` : "Hali tahlil qilinmagan"}
+            <p className={`mt-0.5 text-sm ${planFailed ? "text-red-600" : "text-muted"}`}>
+              {planFailed
+                ? "Rejani yuklab bo'lmadi — mavjud reja yo'qolgani anglatmaydi"
+                : planAt ? `Oxirgi yangilanish: ${fmtDate(planAt)}` : "Hali tahlil qilinmagan"}
             </p>
+            {planFailed && (
+              <button onClick={load} className="mt-1 text-xs font-bold text-green underline">
+                Qayta urinish
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {[7, 14, 30].map((d) => (
@@ -653,10 +673,18 @@ export default function MarketPanel({ onCreatePost }: {
              alohida element bo'lib qolar va ikonka chetda osilib
              turardi. Inline-flex + span buni to'g'irlaydi. */
           <div className="mt-3 rounded-xl bg-soft px-4 py-6 text-center">
+            {srcFailed ? (
+              <p className="inline-flex items-center gap-2 text-sm text-red-600">
+                <Icon d={I.bolt} className="h-4 w-4 shrink-0" />
+                <span>Manbalarni yuklab bo'lmadi.</span>
+                <button onClick={loadSources} className="font-bold underline">Qayta urinish</button>
+              </p>
+            ) : (
             <p className="inline-flex items-center gap-2 text-sm text-muted">
               <Icon d={I.bolt} className="h-4 w-4 shrink-0 text-green" />
               <span>Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.</span>
             </p>
+            )}
           </div>
         )}
       </div>
