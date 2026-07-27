@@ -30,6 +30,8 @@ type Plan = {
   kontent_turlari?: unknown
   /** Bajarilgan kunlar */
   done?: unknown
+  /** Yozilgan to'liq rejalar: kun -> tafsilot */
+  details?: unknown
   reja: PlanItem[]
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
@@ -135,11 +137,19 @@ export default function MarketPanel({ onCreatePost }: {
   // Yozilgan tafsilotlar keshlanadi — qayta ochilsa qayta yozilmasin
   const detailCache = useRef<Record<string, PlanDetail>>({})
 
-  const openPlanItem = (it: PlanItem) => {
+  /**
+   * Reja bandini ochish.
+   *
+   * @param force  true bo'lsa saqlangan tafsilot e'tiborga olinmaydi
+   *   va AI qaytadan yozadi ("qaytadan yozdirish" tugmasi).
+   */
+  const openPlanItem = (it: PlanItem, force = false) => {
     setOpenItem(it); setDetailErr("")
     const key = `${it.kun}|${txt(it.mavzu)}`
     const hit = detailCache.current[key]
-    if (hit) { setDetail(hit); return }
+    // Bir marta yozilgan reja SAQLANADI va qayta yozdirilmaydi —
+    // har ochishда AI chaqirilsa token behuda ketardi.
+    if (hit && !force) { setDetail(hit); return }
     setDetail(null)
     void runDetail(async () => {
       try {
@@ -152,6 +162,15 @@ export default function MarketPanel({ onCreatePost }: {
         })
         detailCache.current[key] = d.detail
         setDetail(d.detail)
+        // SERVERGA saqlaymiz — bir marta yozilgan reja qayta
+        // yozdirilmasin (token behuda ketmasin). Xato bo'lsa jim
+        // o'tamiz: tafsilot ekranda baribir turibdi.
+        try {
+          await api("/smm/ai?action=plan_update", {
+            method: "POST",
+            body: JSON.stringify({ details: { [key]: d.detail } }),
+          })
+        } catch { /* saqlanmasa keyingi safar qayta yoziladi */ }
       } catch (e) {
         setDetailErr(e instanceof Error ? e.message : "Reja yozilmadi")
       }
@@ -172,6 +191,9 @@ export default function MarketPanel({ onCreatePost }: {
         setWeb(d.last.data.web || [])
         setSources(d.last.data.sources || [])
         setDone(Array.isArray(d.last.data.done) ? (d.last.data.done as number[]) : [])
+        // Ilgari yozilgan to'liq rejalar — qayta yozdirmaymiz
+        const saved = d.last.data.details
+        detailCache.current = (saved && typeof saved === "object" ? saved : {}) as Record<string, PlanDetail>
         setDays(d.last.days || 7)
         setPlanAt(d.last.created_at)
       })
@@ -190,6 +212,7 @@ export default function MarketPanel({ onCreatePost }: {
       setWeb(d.web || [])
       setSources(d.sources || [])
       setDone([]) // yangi reja — belgilar nolga qaytadi
+      detailCache.current = {} // eski tafsilotlar yangi rejaga to'g'ri kelmaydi
       setPlanAt(new Date().toISOString())
     } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
   })
@@ -551,10 +574,19 @@ export default function MarketPanel({ onCreatePost }: {
                 <p className="text-xs font-bold text-green">{openItem.kun}-kun · {txt(openItem.format) || "post"} · {PLATFORM_LABEL[txt(openItem.platforma)] || txt(openItem.platforma)}</p>
                 <h3 className="mt-0.5 font-display text-lg font-extrabold">{txt(openItem.mavzu)}</h3>
               </div>
-              <button onClick={() => setOpenItem(null)} aria-label="Yopish"
-                className="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-soft hover:text-ink">
-                <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Saqlangan reja yoqmasa — qaytadan yozdirish */}
+                {detail && !loadingDetail && (
+                  <button onClick={() => openPlanItem(openItem, true)} title="Qaytadan yozdirish"
+                    className="rounded-lg border border-green/20 px-2.5 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green/5">
+                    <Icon d={I.refresh} className="mr-1 inline h-3 w-3" /> Qaytadan
+                  </button>
+                )}
+                <button onClick={() => setOpenItem(null)} aria-label="Yopish"
+                  className="rounded-lg p-1.5 text-muted transition-colors hover:bg-soft hover:text-ink">
+                  <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {loadingDetail && (

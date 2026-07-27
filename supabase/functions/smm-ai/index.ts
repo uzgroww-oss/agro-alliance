@@ -1653,6 +1653,14 @@ FAQAT JSON qaytar, boshqa matn yozma:
       const cur = (last.data || {}) as Record<string, unknown>
       const patch: Record<string, unknown> = { ...cur }
 
+      // Yozilgan TO'LIQ REJALAR (kun -> tafsilot). Bir marta yozilgach
+      // saqlanadi va qayta ochilganda AI qayta chaqirilmaydi — token
+      // behuda ketmaydi. Mavjudlari ustiga qo'shiladi (almashtirilmaydi).
+      if (body.details && typeof body.details === "object") {
+        const cur0 = (cur.details || {}) as Record<string, unknown>
+        patch.details = { ...cur0, ...(body.details as Record<string, unknown>) }
+      }
+
       // Bajarilgan kunlar — takrorlanmaydigan, tartiblangan raqamlar
       if (Array.isArray(body.done)) {
         patch.done = [...new Set(
@@ -1801,6 +1809,15 @@ ${mediaFields}
         // Namuna matnni o'qishga qulay formatlaymiz
         if (typeof detail.matn_namuna === "string") {
           detail.matn_namuna = prettyFormat(detail.matn_namuna)
+        }
+        // FORMATGA MOS BO'LMAGAN maydonlarni kesib tashlaymiz. So'rovda
+        // faqat kerakli maydonlar so'ralgan bo'lsa ham, model ba'zan
+        // ikkalasini ham qaytaradi — video rejasida rasm tavsifi
+        // chiqib qolardi.
+        for (const k of isVideo
+          ? ["tasvir_mazmuni", "kompozitsiya"]
+          : ["ssenariy", "video_mazmuni", "suratga_olish"]) {
+          delete detail[k]
         }
         return jsonResponse({ detail })
       } catch (e) {
