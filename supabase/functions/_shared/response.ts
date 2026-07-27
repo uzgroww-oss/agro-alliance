@@ -32,10 +32,12 @@ export function errorResponse(
   code?: string,
   details?: unknown,
 ): Response {
-  return jsonResponse(
-    { error: message, ...(code && { code }), ...(details && { details }) },
-    status,
-  )
+  // `...(details && {details})` — details unknown bo'lgani uchun TS uni
+  // obyekt deb kafolatlay olmasdi. Endi maydonlar aniq qo'shiladi.
+  const body: Record<string, unknown> = { error: message }
+  if (code) body.code = code
+  if (details !== undefined && details !== null) body.details = details
+  return jsonResponse(body, status)
 }
 
 export function paginatedResponse<T>(

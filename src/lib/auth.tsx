@@ -144,4 +144,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(Ctx)
+/**
+ * MUHIM: kontekst standart qiymati `null` edi. Provayder yetib bormagan
+ * har qanday holatda (masalan dev'da HMR paytida modul qayta yuklanib
+ * yangi kontekst yaratilsa) `const { user } = useAuth()` darhol
+ * "Cannot destructure property 'user' of null" bilan qulab, BUTUN
+ * sahifani ErrorBoundary'ga tashlardi. Endi xavfsiz standart qaytadi —
+ * eng yomon holatda foydalanuvchi tizimga kirmagandek ko'rinadi,
+ * lekin sayt ishlashda davom etadi.
+ */
+const FALLBACK: AuthCtx = {
+  user: null,
+  loading: false,
+  login: () => Promise.reject(new Error("AuthProvider topilmadi")),
+  logout: () => {},
+  setLoading: () => {},
+}
+
+export const useAuth = (): AuthCtx => useContext(Ctx) ?? FALLBACK

@@ -56,9 +56,9 @@ Deno.serve(async (req) => {
         cat: cat.key || "",
         desc: a.excerpt || "",
         date: formatNewsDate(publishedAt),
-        views: (a.view_count || 0) > 1000
-          ? `${Math.floor((a.view_count as number) / 1000)}K+`
-          : `${a.view_count || 0}`,
+        views: (Number(a.view_count) || 0) > 1000
+          ? `${Math.floor(Number(a.view_count) / 1000)}K+`
+          : `${Number(a.view_count) || 0}`,
         seed: a.cover_image || "",
         top: a.is_featured || false,
         author: author.name as string || undefined,

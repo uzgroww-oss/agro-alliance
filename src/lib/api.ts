@@ -168,18 +168,19 @@ function resolveAdminUrl(path: string, method: string): string {
       }
     }
 
-    // Services: GET /me/services, POST /me/services, PUT/DELETE /me/services/{id}
-    if (resource === "services") {
-      if (segments.length === 2) {
-        const fn = method === "POST" ? "me-services-add" : "me-services-list"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-      }
-      if (segments.length === 3) {
-        const qs = new URLSearchParams(qsRaw)
-        qs.set("id", segments[2])
-        const fn = method === "DELETE" ? "me-services-delete" : "me-services-update"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
-      }
+    /**
+     * Xizmatlar / Hududlar / Yo'nalishlar — hammasi `me-lists` da.
+     *
+     * ILGARI bu uchtasi 8 ta alohida funksiyaga yo'naltirilardi
+     * (me-services-list, me-regions-add, ...), lekin ularning HECH BIRI
+     * serverga deploy qilinmagan edi — natijada uchala bo'lim ham 404
+     * olib, saytda umuman ishlamasdi.
+     */
+    if (resource === "services" || resource === "regions" || resource === "specializations") {
+      const qs = new URLSearchParams(qsRaw)
+      qs.set("kind", resource)
+      if (segments.length === 3) qs.set("id", segments[2])
+      return `${SUPABASE_FUNCTIONS_URL}/me-lists?${qs.toString()}`
     }
 
     // Achievements: GET /me/achievements, POST /me/achievements, PUT/DELETE /me/achievements/{id}
@@ -191,34 +192,9 @@ function resolveAdminUrl(path: string, method: string): string {
       if (segments.length === 3) {
         const qs = new URLSearchParams(qsRaw)
         qs.set("id", segments[2])
-        const fn = method === "DELETE" ? "me-achievements-delete" : "me-achievements-update"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
-      }
-    }
-
-    // Regions: GET /me/regions, POST /me/regions, DELETE /me/regions/{id}
-    if (resource === "regions") {
-      if (segments.length === 2) {
-        const fn = method === "POST" ? "me-regions-add" : "me-regions-list"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-      }
-      if (segments.length === 3) {
-        const qs = new URLSearchParams(qsRaw)
-        qs.set("id", segments[2])
-        return `${SUPABASE_FUNCTIONS_URL}/me-regions-delete?${qs.toString()}`
-      }
-    }
-
-    // Specializations: GET /me/specializations, POST /me/specializations, DELETE /me/specializations/{id}
-    if (resource === "specializations") {
-      if (segments.length === 2) {
-        const fn = method === "POST" ? "me-specializations-add" : "me-specializations-list"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-      }
-      if (segments.length === 3) {
-        const qs = new URLSearchParams(qsRaw)
-        qs.set("id", segments[2])
-        return `${SUPABASE_FUNCTIONS_URL}/me-specializations-delete?${qs.toString()}`
+        // Faqat o'chirish. Tahrirlash marshruti `me-achievements-update` ga
+        // ketardi — u deploy qilinmagan va UI'da tahrirlash tugmasi ham yo'q.
+        return `${SUPABASE_FUNCTIONS_URL}/me-achievements-delete?${qs.toString()}`
       }
     }
 
@@ -227,17 +203,18 @@ function resolveAdminUrl(path: string, method: string): string {
       return `${SUPABASE_FUNCTIONS_URL}/me-youtube-videos${qsRaw ? `?${qsRaw}` : ""}`
     }
 
-    // Images: GET /me/images, POST /me/images, DELETE /me/images/{id}
+    /**
+     * Galereya: GET/POST /me/images, DELETE /me/images/{id}
+     *
+     * Hammasi `me-images-list` da. Ilgari POST `me-images-add` ga,
+     * DELETE `me-images-delete` ga ketardi — ikkalasi ham deploy
+     * qilinmagan edi, ya'ni rasm qo'shish ham, o'chirish ham ishlamasdi.
+     */
     if (resource === "images") {
-      if (segments.length === 2) {
-        const fn = method === "POST" ? "me-images-add" : "me-images-list"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-      }
-      if (segments.length === 3) {
-        const qs = new URLSearchParams(qsRaw)
-        qs.set("id", segments[2])
-        return `${SUPABASE_FUNCTIONS_URL}/me-images-delete?${qs.toString()}`
-      }
+      const qs = new URLSearchParams(qsRaw)
+      if (segments.length === 3) qs.set("id", segments[2])
+      const tail = qs.toString()
+      return `${SUPABASE_FUNCTIONS_URL}/me-images-list${tail ? `?${tail}` : ""}`
     }
 
     // Brands: GET /me/brands, POST /me/brands, DELETE /me/brands/{id}

@@ -1362,6 +1362,26 @@ function AdminSettings() {
   // yuklashdan keyin doim false -> tugma AMALDA hech qachon bloklanmasdi.
   // Ikki marta bosilsa har bir sozlama uchun ketma-ket PATCH ikki marta ketardi.
   const [saving, runSave] = useBusy()
+  /**
+   * Instagram OAuth oynasini ochadi.
+   *
+   * ILGARI: ikkala tugmada ham `disabled` va pending holati yo'q edi —
+   * ikki marta bosilsa IKKITA so'rov va IKKITA popup ochilardi. Xato esa
+   * `alert()` bilan chiqardi, sahifadagi boshqa xatolardan farqli.
+   */
+  const [igStarting, runIgStart] = useBusy()
+  const [igError, setIgError] = useState("")
+  const startIgOauth = () => runIgStart(async () => {
+    setIgError("")
+    try {
+      const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
+      if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
+      else setIgError("Ulanish havolasi olinmadi")
+    } catch (e) {
+      setIgError(e instanceof Error ? e.message : "Xatolik yuz berdi")
+    }
+  })
+
   const save = () => runSave(async () => {
     // TEZLIK: ilgari `for ... await` edi — har sozlama uchun alohida
     // so'rov KETMA-KET. 15 ta sozlama = 15 ta borish-kelish, har biri
@@ -1386,6 +1406,7 @@ function AdminSettings() {
       </div>
 
       {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi!</div>}
+      {igError && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{igError}</div>}
 
       {/* Instagram/Facebook ulash */}
       <div className="mt-5 rounded-2xl border border-pink-200 bg-pink-50/50 p-5">
@@ -1411,27 +1432,13 @@ function AdminSettings() {
             {/* Qayta ulash ULANGAN holatda ham kerak: ruxsatlar ro'yxati
                 o'zgarganda eski token eskiligicha qoladi va faqat yangi
                 rozilik uni almashtiradi. Ilgari bu tugma yo'q edi. */}
-            <button onClick={async () => {
-              try {
-                const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
-                if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
-              } catch (e) {
-                alert(e instanceof Error ? e.message : "Xatolik")
-              }
-            }} className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 hover:bg-pink-50">
-              <Icon d={I.external} className="h-3.5 w-3.5" /> Qayta ulash
+            <button onClick={startIgOauth} disabled={igStarting} className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 hover:bg-pink-50 disabled:opacity-60">
+              <Icon d={I.external} className="h-3.5 w-3.5" /> {igStarting ? "Ochilmoqda…" : "Qayta ulash"}
             </button>
           </div>
         ) : !igChecking && !igConnected ? (
-          <button onClick={async () => {
-            try {
-              const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
-              if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
-            } catch (e) {
-              alert(e instanceof Error ? e.message : "Xatolik")
-            }
-          }} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-pink-500/25 transition-transform hover:scale-105">
-            <Icon d={I.external} className="h-4 w-4" /> Facebook bilan kirish
+          <button onClick={startIgOauth} disabled={igStarting} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-pink-500/25 transition-transform hover:scale-105 disabled:opacity-60">
+            <Icon d={I.external} className="h-4 w-4" /> {igStarting ? "Ochilmoqda…" : "Facebook bilan kirish"}
           </button>
         ) : null}
       </div>
@@ -2053,11 +2060,20 @@ function AdminUsers() {
     load()
   })
 
-  const changeRole = async (userId: string, roleId: string) => {
-    await api("/user-role", { method: "PATCH", body: JSON.stringify({ user_id: userId, role_id: roleId }) })
-    setChangingRole(null)
-    load()
-  }
+  // Ilgari catch ham, pending holati ham yo'q edi: rol tanlansa va so'rov
+  // yiqilsa ekranda hech narsa o'zgarmasdi va sabab aytilmasdi
+  // (unhandled rejection). Endi xato ko'rinadi.
+  const [roleError, setRoleError] = useState("")
+  const changeRole = (userId: string, roleId: string) => runMutation(async () => {
+    setRoleError("")
+    try {
+      await api("/user-role", { method: "PATCH", body: JSON.stringify({ user_id: userId, role_id: roleId }) })
+      setChangingRole(null)
+      load()
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : "Rolni o'zgartirib bo'lmadi")
+    }
+  })
 
   const roleColors: Record<string, string> = {
     super_admin: "bg-green/10 text-green",
@@ -2124,6 +2140,9 @@ function AdminUsers() {
                       ) : (
                         <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${roleColors[u.role] || "bg-slate-100 text-slate-500"}`}>{u.role}</span>
                       )}
+                      {roleError && changingRole === u.id && (
+                        <span className="mt-1 block text-[11px] text-red-600">{roleError}</span>
+                      )}
                     </td>
                     <td className="py-3 pr-3">
                       <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${u.status === "active" ? "bg-green/10 text-green" : "bg-red-100 text-red-500"}`}>
@@ -2179,8 +2198,15 @@ function AdminContacts() {
   const markRead = async (m: ContactMessage) => {
     setSelected(m)
     if (!m.is_read) {
-      await api(`/messages/${m.id}`, { method: "PATCH" })
-      setMessages((prev) => prev.map((msg) => msg.id === m.id ? { ...msg, is_read: true } : msg))
+      // catch yo'q edi: belgilash yiqilsa xabar "Yangi" holida qolardi va
+      // hech kim bilmasdi (unhandled rejection). Modal baribir ochiladi —
+      // o'qish uchun belgilashning muvaffaqiyati shart emas.
+      try {
+        await api(`/messages/${m.id}`, { method: "PATCH" })
+        setMessages((prev) => prev.map((msg) => msg.id === m.id ? { ...msg, is_read: true } : msg))
+      } catch (err) {
+        console.error("markRead:", err)
+      }
     }
   }
 
@@ -2353,13 +2379,20 @@ function AdminCategories() {
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setSaving(true)
     if (!form.key.trim() || !form.name_uz.trim()) { setError("Kalit va nomi majburiy"); setSaving(false); return }
-    const temp = { id: crypto.randomUUID(), ...form, is_active: true }
-    setCats((prev) => [...prev, temp])
-    setForm(blank); setAdding(false)
+    // ILGARI: modal so'rovdan OLDIN yopilardi (setAdding(false)), xato esa
+    // faqat modal ichida chizilardi — ya'ni xato hech qachon ko'rinmasdi.
+    // Optimistik qo'shilgan kategoriya load() dan keyin sababsiz yo'qolardi.
+    // Endi modal faqat MUVAFFAQIYATDAN keyin yopiladi.
     try {
       await api("/categories", { method: "POST", body: JSON.stringify(form) })
-    } catch { setError("Xatolik yuz berdi") }
-    finally { setSaving(false); load() }
+      setForm(blank)
+      setAdding(false)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xatolik yuz berdi")
+    } finally {
+      setSaving(false)
+    }
   }
   const [mutating, runMutation] = useBusy()
   const remove = (id: string) => {
@@ -2530,15 +2563,20 @@ function AdminHomepage() {
     load()
   })
   const startEditSec = (s: HomepageSection) => { setEditSec(s.id); setSecForm({ title: s.title || "", subtitle: s.subtitle || "" }); setEditItem(null) }
+  // Ilgari catch yo'q edi: saqlanmasa tahrir bloki ochiqligicha qolardi va
+  // sabab ko'rsatilmasdi — foydalanuvchi saqlandi deb o'ylardi.
+  const [saveErr, setSaveErr] = useState("")
   const saveSec = async (id: string) => {
-    setSaving(true)
+    setSaving(true); setSaveErr("")
     try { await api(`/homepage/sections/${id}`, { method: "PATCH", body: JSON.stringify(secForm) }); setEditSec(null); load() }
+    catch (err) { setSaveErr(err instanceof Error ? err.message : "Saqlab bo'lmadi") }
     finally { setSaving(false) }
   }
   const startEditItem = (item: HomepageItem) => { setEditItem(item.id); setItemForm({ title: item.title || "", description: item.description || "", icon: item.icon || "", link: item.link || "" }); setEditSec(null) }
   const saveItem = async (id: string) => {
-    setSaving(true)
+    setSaving(true); setSaveErr("")
     try { await api(`/homepage/items/${id}`, { method: "PATCH", body: JSON.stringify(itemForm) }); setEditItem(null); load() }
+    catch (err) { setSaveErr(err instanceof Error ? err.message : "Saqlab bo'lmadi") }
     finally { setSaving(false) }
   }
   const inp = "w-full rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green"
@@ -2554,6 +2592,7 @@ function AdminHomepage() {
           <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
         </button>
       </div>
+      {saveErr && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{saveErr}</div>}
       {loading && <div className="mt-5"><SkeletonTable rows={5} cols={3} /></div>}
       {!loading && failed && <ErrorState onRetry={load} />}
         {!loading && !failed && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}

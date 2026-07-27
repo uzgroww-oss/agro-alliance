@@ -21,14 +21,21 @@ export function minLength(value: string, min: number): boolean {
   return value.length >= min
 }
 
+/** Tekshiruv qoidasi: qiymat va MAYDON NOMINI oladi */
+export type Rule = (value: unknown, field: string) => string | null
+
 export function validate(
   data: Record<string, unknown>,
-  rules: Record<string, ((v: unknown) => string | null)[]>,
+  rules: Record<string, Rule[]>,
 ): string[] {
   const errors: string[] = []
   for (const [field, fieldRules] of Object.entries(rules)) {
     for (const rule of fieldRules) {
-      const error = rule(data[field])
+      // MUHIM: ilgari `rule(data[field])` edi — maydon nomi UZATILMASDI.
+      // Natijada `required` xato matnini "undefined majburiy" qilib
+      // qaytarardi va foydalanuvchi qaysi maydon to'ldirilmaganini
+      // bilmasdi. Bu butun loyihadagi barcha formalarga ta'sir qilardi.
+      const error = rule(data[field], field)
       if (error) {
         errors.push(error)
         break
