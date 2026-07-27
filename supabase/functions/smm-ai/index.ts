@@ -1266,6 +1266,9 @@ Oxirgi savolga javob ber. Qoidalar:
       const text = String(body.text || "").trim()
       const aspect = (String(body.aspect || "16:9")) as GenAspect
       if (!text) return errorResponse("Avval post matnini yozing", 400)
+      // seed — "boshqa rasm" tugmasi har safar boshqa raqam yuboradi,
+      // shunda FLUX bir xil so'rovga ham har xil rasm chizadi.
+      const seed = Number.isFinite(Number(body.seed)) ? Math.floor(Number(body.seed)) : 0
 
       let imgPrompt = ""
       try {
@@ -1277,7 +1280,7 @@ Oxirgi savolga javob ber. Qoidalar:
 
       let img: { data: string; model: string }
       try {
-        img = await nimImage(imgPrompt, aspect)
+        img = await nimImage(imgPrompt, aspect, seed)
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
       }

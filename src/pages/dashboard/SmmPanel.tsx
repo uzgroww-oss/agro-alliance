@@ -429,9 +429,12 @@ export default function SmmPanel({ seed }: {
     try {
       // Tanlangan tarmoqqa qarab nisbat: Instagram tik, qolgani keng
       const aspect = picked.has("instagram") && !picked.has("telegram") ? "4:5" : "16:9"
+      // Har chizishda boshqa seed — "boshqa rasm" tugmasi bosilganda
+      // yangi, farqli rasm chiqsin (bir xil so'rovga ham)
+      const seed = Math.floor(Math.random() * 1_000_000)
       const d = await api<{ image_b64: string; prompt: string }>("/smm/ai?action=image", {
         method: "POST",
-        body: JSON.stringify({ text: text.slice(0, 1500), aspect }),
+        body: JSON.stringify({ text: text.slice(0, 1500), aspect, seed }),
       })
       // Yuklab, doimiy manzil olamiz — base64 ni bazaga saqlab bo'lmaydi
       const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
@@ -1306,6 +1309,18 @@ export default function SmmPanel({ seed }: {
                       <Icon d={I.refresh} className="h-3.5 w-3.5" />
                       {isVideo ? "AI videoni ko'rib matn yozsin" : "Qaytadan yozdirish"}
                     </button>
+
+                    {/* Boshqa AI rasm — joriy rasm yoqmasa, har bosishда
+                        boshqa (farqli) rasm chizadi. Faqat rasm uchun
+                        (video muqovasi alohida tugmadan yasaladi). */}
+                    {!isVideo && (
+                      <button type="button" onClick={drawForPost} disabled={drawing || !form.content.trim()}
+                        title={form.content.trim() ? "" : "Avval post matnini yozing"}
+                        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
+                        <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
+                        {drawing ? "Chizilmoqda…" : "Boshqa rasm chizsin"}
+                      </button>
+                    )}
 
                     {/* ---- Video muqovasi (YouTube prevyusi kabi) ---- */}
                     {isVideo && (
