@@ -1,3 +1,6 @@
+-- ⚠️  BU MIGRATSIYADAGI KALIT OSHKOR BO'LGAN va bekor qilingan.
+-- Yangi tartib: 20240708000390_cron_secret_from_vault.sql — kalit
+-- Vault'dan o'qiladi va git'ga hech qachon tushmaydi.
 -- ============================================================================
 -- Cron funksiyalarga maxfiy kalit (X-Cron-Secret) qo'shish — auth'siz chaqirishni bloklash
 -- ============================================================================
@@ -9,7 +12,7 @@ select cron.unschedule('agro-monthly-views') where exists (select 1 from cron.jo
 select cron.schedule('agro-monthly-views', '0 2 1 * *', $$
   select net.http_post(
     url := 'https://ckdgprxppmtsgrofvkxd.supabase.co/functions/v1/cron-monthly-views',
-    headers := jsonb_build_object('Authorization','Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrZGdwcnhwcG10c2dyb2Z2a3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1Njk5NjQsImV4cCI6MjA5OTE0NTk2NH0.RaM3BmChOWLqsabe_mEP1e1ieDi-SdIrRk5Ssosf81M','Content-Type','application/json','x-cron-secret','f2f776a58817dbc51cb810cb8a8064e5bb6efeb996e20ba0a7ca2df93d165277'),
+    headers := jsonb_build_object('Authorization','Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrZGdwcnhwcG10c2dyb2Z2a3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1Njk5NjQsImV4cCI6MjA5OTE0NTk2NH0.RaM3BmChOWLqsabe_mEP1e1ieDi-SdIrRk5Ssosf81M','Content-Type','application/json','x-cron-secret','OLIB-TASHLANDI-20240708000390-GA-QARANG'),
     body := '{}'::jsonb
   );
 $$);
@@ -19,7 +22,7 @@ select cron.unschedule('agro-ig-token-refresh') where exists (select 1 from cron
 select cron.schedule('agro-ig-token-refresh', '0 3 * * 0', $$
   select net.http_post(
     url := 'https://ckdgprxppmtsgrofvkxd.supabase.co/functions/v1/cron-instagram-token-refresh',
-    headers := jsonb_build_object('Authorization','Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrZGdwcnhwcG10c2dyb2Z2a3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1Njk5NjQsImV4cCI6MjA5OTE0NTk2NH0.RaM3BmChOWLqsabe_mEP1e1ieDi-SdIrRk5Ssosf81M','Content-Type','application/json','x-cron-secret','f2f776a58817dbc51cb810cb8a8064e5bb6efeb996e20ba0a7ca2df93d165277'),
+    headers := jsonb_build_object('Authorization','Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrZGdwcnhwcG10c2dyb2Z2a3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1Njk5NjQsImV4cCI6MjA5OTE0NTk2NH0.RaM3BmChOWLqsabe_mEP1e1ieDi-SdIrRk5Ssosf81M','Content-Type','application/json','x-cron-secret','OLIB-TASHLANDI-20240708000390-GA-QARANG'),
     body := '{}'::jsonb
   );
 $$);
