@@ -7,6 +7,7 @@ import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
 import { cfImage, cfAvailable } from "../_shared/cfImage.ts"
+import { cfChat, cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
@@ -40,6 +41,7 @@ function hasKey(name: string): boolean {
   if (name === "Groq") return Boolean(Deno.env.get("GROQ_API_KEY"))
   if (name === "Gemini") return Boolean(Deno.env.get("GEMINI_API_KEY"))
   if (name === "NVIDIA") return Boolean(Deno.env.get("NVIDIA_API_KEY"))
+  if (name === "Cloudflare") return cfChatAvailable()
   return true
 }
 
@@ -90,31 +92,32 @@ async function genImage(
 const PROVIDER_TIMEOUT: Record<string, number> = {
   Groq: 20_000,
   Gemini: 15_000,
+  Cloudflare: 30_000,
   NVIDIA: 45_000,
 }
 const TIMEOUT_FOR = (name: string) => PROVIDER_TIMEOUT[name] ?? 25_000
 
 /**
- * Matn provayderlari TARTIBI — env orqali sozlanadi.
+ * MATN provayderlari tartibi — env (AI_TEXT_ORDER) orqali sozlanadi.
  *
- * Standart: Groq birinchi (hozir yagona ishonchli — Gemini kvotasi 0).
- * Gemini kvotasi yoqilgach, Supabase secrets'ga
- *   AI_TEXT_ORDER=gemini,groq,nvidia
- * qo'yilsa, sifatliroq Gemini oldinga chiqadi — KOD O'ZGARTIRMASDAN.
+ * Vazifa taqsimoti: matn yozish va rasm ko'rish — CLOUDFLARE, rasm
+ * uchun promt — GEMINI (buildImagePrompt o'zi Gemini'ni birinchi
+ * chaqiradi), rasm chizish — NVIDIA. Shunday qilib Gemini kvotasi
+ * faqat promt uchun sarflanadi va tez tugamaydi.
  */
-const DEFAULT_ORDER = ["Groq", "Gemini", "NVIDIA"]
+const DEFAULT_ORDER = ["Cloudflare", "Gemini", "NVIDIA", "Groq"]
 function providerOrder(): string[] {
   const raw = Deno.env.get("AI_TEXT_ORDER")
   if (!raw) return DEFAULT_ORDER
-  const norm: Record<string, string> = { groq: "Groq", gemini: "Gemini", nvidia: "NVIDIA" }
+  const norm: Record<string, string> = { groq: "Groq", gemini: "Gemini", nvidia: "NVIDIA", cloudflare: "Cloudflare", cf: "Cloudflare" }
   const want = raw.split(",").map((s) => norm[s.trim().toLowerCase()]).filter(Boolean)
   // Ro'yxatga kirmay qolgan provayderlarni oxiriga qo'shamiz (zaxira)
   return [...new Set([...want, ...DEFAULT_ORDER])]
 }
 // deno-lint-ignore no-explicit-any
-const JSON_FN: Record<string, any> = { Groq: groqJson, Gemini: geminiJson, NVIDIA: nimJson }
+const JSON_FN: Record<string, any> = { Groq: groqJson, Gemini: geminiJson, NVIDIA: nimJson, Cloudflare: cfJson }
 // deno-lint-ignore no-explicit-any
-const CHAT_FN: Record<string, any> = { Groq: groqChat, Gemini: geminiChat, NVIDIA: nimChat }
+const CHAT_FN: Record<string, any> = { Groq: groqChat, Gemini: geminiChat, NVIDIA: nimChat, Cloudflare: cfChat }
 
 /**
  * AI so'ralgan obyektni har xil o'rab qaytaradi:
@@ -159,13 +162,19 @@ async function askAi<T>(
    * qaytariladi — bo'sh ekrandan ko'ra biroz nomukammal matn yaxshiroq.
    */
   soft?: (v: unknown) => boolean,
+  /**
+   * Provayder tartibini MAJBURAN belgilash. Masalan rasm promti uchun
+   * Gemini birinchi bo'lishi kerak (u matnni yaxshi tushunadi), matn
+   * yozish uchun esa Cloudflare.
+   */
+  order?: string[],
 ): Promise<T> {
   const errs: string[] = []
   let softHit: unknown = null
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
   // Groq birinchi — uning bepul chegarasi eng keng.
-  for (const name of providerOrder()) {
+  for (const name of (order && order.length ? order : providerOrder())) {
     const fn = JSON_FN[name]
     if (!fn) continue
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
@@ -332,6 +341,11 @@ FAQAT JSON qaytar:
     },
     600,
     ["prompt"],
+    undefined,
+    // GEMINI birinchi: rasm promti — uning ishi. U matnni eng yaxshi
+    // tushunadi va sahnani to'g'ri tasavvur qiladi. Yiqilsa Cloudflare,
+    // keyin NVIDIA zaxira.
+    ["Gemini", "Cloudflare", "NVIDIA"],
   )
 
   // Odam taqiqi OLIB TASHLANDI: sahnaga odam kerakmi-yo'qmi, buni
@@ -1024,6 +1038,9 @@ FAQAT JSON qaytar, boshqa matn yozma:
       // Ko'ruvchi provayderlar. NVIDIA ikki xil formatda sinaladi:
       // ba'zi VLM modellari OpenAI'ning image_url qismini tushunmaydi.
       const attempts = [
+        // CLOUDFLARE birinchi: rasm/kadrni ko'rish uning ishi (Gemini
+        // kvotasi rasm promti uchun tejaladi).
+        { name: "Cloudflare", run: () => cfJson<Generated>(prompt, { maxTokens: 2048, image, timeoutMs: TIMEOUT_FOR("Cloudflare") }) },
         { name: "Gemini", run: () => geminiJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
         { name: "NVIDIA", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
         { name: "NVIDIA(inline)", run: () => nimJson<Generated>(prompt, { retries: 0, maxTokens: 2048, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
@@ -1145,6 +1162,7 @@ Vazifa: shu videoga MOS, chiroyli muqova uchun ma'lumot ber.
 Kadrni umuman ko'rmasang "prompt" ni bo'sh qoldir.
 FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
         for (const a of [
+          { name: "Cloudflare", run: () => cfJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("Cloudflare") }) },
           { name: "Gemini", run: () => geminiJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("Gemini") }) },
           { name: "NVIDIA", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
           { name: "NVIDIA(inline)", run: () => nimJson<{ sarlavha?: string; prompt?: string }>(visionPrompt, { retries: 0, maxTokens: 500, image, imageStyle: "inline" as const, timeoutMs: TIMEOUT_FOR("NVIDIA") }) },
