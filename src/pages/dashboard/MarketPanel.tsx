@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Icon, I, useBusy, SkeletonCard } from "../../lib/ui"
 import { api } from "../../lib/api"
 
@@ -27,6 +27,16 @@ type Plan = {
   reja: PlanItem[]
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
+/** Reja bandining TO'LIQ ijro rejasi — modalda ko'rsatiladi */
+type PlanDetail = {
+  nega?: unknown; auditoriya?: unknown; hook?: unknown; tezislar?: unknown
+  matn_namuna?: unknown; muqova?: unknown; joylash?: unknown
+  hashtaglar?: unknown; kutilgan_natija?: unknown; keyingi_qadam?: unknown
+  // video uchun
+  ssenariy?: unknown; video_mazmuni?: unknown; suratga_olish?: unknown
+  // rasm uchun
+  tasvir_mazmuni?: unknown; kompozitsiya?: unknown
+}
 type WebHit = { title: string; snippet: string; url: string; source?: string; date?: string }
 
 /**
@@ -50,6 +60,38 @@ function txtList(v: unknown): string[] {
   return (Array.isArray(v) ? v : [v]).map(txt).filter(Boolean)
 }
 
+/**
+ * Modaldagi bitta bo'lim. Matn bo'sh bo'lsa UMUMAN chizilmaydi —
+ * video rejasida rasm maydonlari (va aksincha) bo'sh keladi, ular
+ * sarlavhasi bilan osilib turmasin.
+ */
+function Block({ title, body }: { title: string; body: string }) {
+  if (!body.trim()) return null
+  return (
+    <div>
+      <p className="text-xs font-bold text-muted">{title}</p>
+      <p className="mt-0.5 whitespace-pre-wrap text-ink/85">{body}</p>
+    </div>
+  )
+}
+
+function ListBlock({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null
+  return (
+    <div>
+      <p className="text-xs font-bold text-muted">{title}</p>
+      <ul className="mt-1 space-y-1">
+        {items.map((t, i) => (
+          <li key={i} className="flex gap-2 text-ink/85">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 const PLATFORM_LABEL: Record<string, string> = {
   telegram: "Telegram", instagram: "Instagram", facebook: "Facebook",
   linkedin: "LinkedIn", youtube: "YouTube",
@@ -69,6 +111,39 @@ export default function MarketPanel({ onCreatePost }: {
 
   const [analyzing, runAnalyze] = useBusy()
   const [err, setErr] = useState("")
+
+  /* Reja bandining to'liq tafsiloti — modal.
+     Tafsilot TALAB BO'YICHA yoziladi: hamma kunni birdan yozdirish
+     juda uzoq va AI kvotasini yeb qo'yadi. */
+  const [openItem, setOpenItem] = useState<PlanItem | null>(null)
+  const [detail, setDetail] = useState<PlanDetail | null>(null)
+  const [detailErr, setDetailErr] = useState("")
+  const [loadingDetail, runDetail] = useBusy()
+  // Yozilgan tafsilotlar keshlanadi — qayta ochilsa qayta yozilmasin
+  const detailCache = useRef<Record<string, PlanDetail>>({})
+
+  const openPlanItem = (it: PlanItem) => {
+    setOpenItem(it); setDetailErr("")
+    const key = `${it.kun}|${txt(it.mavzu)}`
+    const hit = detailCache.current[key]
+    if (hit) { setDetail(hit); return }
+    setDetail(null)
+    void runDetail(async () => {
+      try {
+        const d = await api<{ detail: PlanDetail }>("/smm/ai?action=plan_item", {
+          method: "POST",
+          body: JSON.stringify({
+            kun: it.kun, mavzu: txt(it.mavzu), format: txt(it.format) || "post",
+            platforma: txt(it.platforma) || "telegram", vaqt: txt(it.vaqt), maqsad: txt(it.maqsad),
+          }),
+        })
+        detailCache.current[key] = d.detail
+        setDetail(d.detail)
+      } catch (e) {
+        setDetailErr(e instanceof Error ? e.message : "Reja yozilmadi")
+      }
+    })
+  }
 
 
   /* Oxirgi saqlangan reja — panel ochilganda darhol ko'rinsin,
@@ -211,8 +286,9 @@ export default function MarketPanel({ onCreatePost }: {
           <div className={`${card} mt-5`}>
             <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
             <p className="mt-0.5 text-sm text-muted">
-              "Post yaratish" — SMM / AI bo'limi ochiladi, AI matn va rasmni o'zi yaratadi.
-              Format <strong>video</strong> bo'lsa qisqa video ham yasaydi.
+              Kun ustiga bosing — <strong>to'liq marketing reja</strong> ochiladi:
+              ssenariy, matn tezislari, rasm mazmuni, joylash vaqti.
+              "Post yaratish" esa SMM / AI bo'limida matn va rasmni o'zi yaratadi.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[700px] text-sm">
@@ -228,17 +304,22 @@ export default function MarketPanel({ onCreatePost }: {
                 </thead>
                 <tbody>
                   {plan.reja.map((it, i) => (
-                    <tr key={i} className="border-b border-green/5 align-top">
+                    <tr key={i} onClick={() => openPlanItem(it)} title="To'liq rejani ochish"
+                      className="cursor-pointer border-b border-green/5 align-top transition-colors hover:bg-green/5">
                       <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
                       <td className="max-w-[300px] py-3 pr-3">
                         <p className="font-semibold">{txt(it.mavzu)}</p>
                         {txt(it.maqsad) ? <p className="mt-0.5 text-xs text-muted">{txt(it.maqsad)}</p> : null}
+                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-green">
+                          <Icon d={I.doc} className="h-3 w-3" /> To'liq reja
+                        </span>
                       </td>
                       <td className="py-3 pr-3 text-xs text-muted">{txt(it.format)}</td>
                       <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
                       <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
                       <td className="py-3 pr-1 text-right">
-                        <button onClick={() => onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post")}
+                        {/* stopPropagation: qator bosilib modal ochilmasin */}
+                        <button onClick={(e) => { e.stopPropagation(); onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post") }}
                           className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
                           Post yaratish
                         </button>
@@ -266,6 +347,110 @@ export default function MarketPanel({ onCreatePost }: {
             </div>
           )}
         </>
+      )}
+
+      {/* ============ TO'LIQ REJA (modal) ============ */}
+      {openItem && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:p-8"
+          onClick={() => setOpenItem(null)}>
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-green">{openItem.kun}-kun · {txt(openItem.format) || "post"} · {PLATFORM_LABEL[txt(openItem.platforma)] || txt(openItem.platforma)}</p>
+                <h3 className="mt-0.5 font-display text-lg font-extrabold">{txt(openItem.mavzu)}</h3>
+              </div>
+              <button onClick={() => setOpenItem(null)} aria-label="Yopish"
+                className="shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-soft hover:text-ink">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
+              </button>
+            </div>
+
+            {loadingDetail && (
+              <div className="mt-5 space-y-2 rounded-xl bg-green/5 p-4 text-sm text-ink/75">
+                <p className="flex items-center gap-2">
+                  <Icon d={I.refresh} className="h-4 w-4 shrink-0 animate-spin text-green" />
+                  To'liq reja yozilmoqda…
+                </p>
+                <p className="text-xs text-muted">Ssenariy, tezislar va joylash rejasi tayyorlanmoqda.</p>
+              </div>
+            )}
+
+            {detailErr && (
+              <div className="mt-5 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{detailErr}</div>
+            )}
+
+            {detail && !loadingDetail && (
+              <div className="mt-5 space-y-4 text-sm">
+                <Block title="Nega aynan shu mavzu" body={txt(detail.nega)} />
+                <Block title="Kimga qaratilgan" body={txt(detail.auditoriya)} />
+
+                {txt(detail.hook) && (
+                  <div className="rounded-xl border border-green/20 bg-green/5 p-3">
+                    <p className="text-xs font-bold text-green">Ochilish jumlasi</p>
+                    <p className="mt-1 font-semibold text-ink">{txt(detail.hook)}</p>
+                  </div>
+                )}
+
+                <ListBlock title="Matnda yoritiladigan fikrlar" items={txtList(detail.tezislar)} />
+
+                {txt(detail.matn_namuna) && (
+                  <div>
+                    <p className="text-xs font-bold text-muted">Tayyor post matni</p>
+                    <p className="mt-1 whitespace-pre-wrap rounded-xl bg-soft p-3 text-ink/85">{txt(detail.matn_namuna)}</p>
+                  </div>
+                )}
+
+                {/* VIDEO uchun — ssenariy va ma'no */}
+                {Array.isArray(detail.ssenariy) && detail.ssenariy.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-muted">Video ssenariysi</p>
+                    <div className="mt-1 space-y-2">
+                      {(detail.ssenariy as unknown[]).map((sc, i) => {
+                        const o = (sc || {}) as Record<string, unknown>
+                        return (
+                          <div key={i} className="rounded-xl border border-green/10 p-3">
+                            <p className="text-[11px] font-bold text-green">{txt(o.vaqt) || `${i + 1}-kadr`}</p>
+                            {txt(o.kadr) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">Kadr:</strong> {txt(o.kadr)}</p>}
+                            {txt(o.gap) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">Gap:</strong> {txt(o.gap)}</p>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                <Block title="Videoning asl ma'nosi" body={txt(detail.video_mazmuni)} />
+                <Block title="Qanday suratga olish" body={txt(detail.suratga_olish)} />
+
+                {/* RASM uchun */}
+                <Block title="Rasm nimani anglatsin" body={txt(detail.tasvir_mazmuni)} />
+                <Block title="Kadr kompozitsiyasi" body={txt(detail.kompozitsiya)} />
+
+                <Block title="Muqova" body={txt(detail.muqova)} />
+                <Block title="Qachon va qayerga joylash" body={txt(detail.joylash)} />
+                <Block title="Kutilgan natija" body={txt(detail.kutilgan_natija)} />
+                <Block title="Chaqiriq (CTA)" body={txt(detail.keyingi_qadam)} />
+
+                {txtList(detail.hashtaglar).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {txtList(detail.hashtaglar).map((h, i) => (
+                      <span key={i} className="rounded-lg bg-soft px-2 py-1 text-xs font-semibold text-muted">{h}</span>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    onCreatePost(txt(openItem.mavzu), txt(openItem.platforma) || "telegram", txt(openItem.format) || "post")
+                    setOpenItem(null)
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90">
+                  <Icon d={I.bolt} className="h-4 w-4" /> Shu reja bo'yicha post yaratish
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

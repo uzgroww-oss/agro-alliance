@@ -1540,6 +1540,129 @@ FAQAT JSON qaytar, boshqa matn yozma:
       return jsonResponse({ last: data || null })
     }
 
+    /* ---------------- REJA BANDINING TO'LIQ TAFSILOTI ---------------- */
+    // Kontent rejasida faqat MAVZU ko'rinardi — nima qilish kerakligi
+    // noaniq edi. Bu amal bitta kun uchun TO'LIQ ijro rejasini beradi:
+    // ssenariy, kadrlar, matn tezislari, rasm mazmuni, joylash vaqti.
+    //
+    // NEGA ALOHIDA AMAL: hamma kunlar uchun birdan yozdirish juda uzun
+    // va sekin. Foydalanuvchi qaysi kunni ochsa — o'shanisi yoziladi.
+    if (action === "plan_item") {
+      const kun = Number(body.kun) || 1
+      const mavzu = String(body.mavzu || "").trim()
+      const format = String(body.format || "post").trim()
+      const platforma = String(body.platforma || "telegram").trim()
+      const vaqt = String(body.vaqt || "").trim()
+      const maqsad = String(body.maqsad || "").trim()
+      if (!mavzu) return errorResponse("Mavzu yo'q", 400)
+
+      const isVideo = /video|reels|stor/i.test(format)
+
+      // Ulangan hisoblarimiz — reja haqiqiy raqamlarga tayansin
+      const nets = await gatherNetworks()
+      const netLine = nets.length
+        ? nets.map((n) => n.error
+          ? `${n.platform}: xato`
+          : `${n.platform} (${n.name}): ${n.followers ?? "?"} obunachi, o'rtacha ${n.avgLikes ?? "?"} layk`).join("\n")
+        : "(tarmoqlar ulanmagan)"
+
+      // Media bo'yicha ko'rsatma va JSON maydonlari ALOHIDA — ilgari
+      // ular aralashib, model izohni ham javobga ko'chirib yuborardi.
+      const mediaRules = isVideo
+        ? `VIDEO uchun qo'shimcha talablar:
+- "ssenariy": kadrma-kadr ro'yxat, 4-6 ta kadr. Har kadr:
+  vaqt (masalan "0-3 s"), kadr (kamerada nima ko'rinadi),
+  gap (nima aytiladi). BIRINCHI 3 SONIYA diqqatni ushlashi shart.
+- "video_mazmuni": bu video ASLIDA nimani anglatadi — tomoshabin nima
+  his qilishi va nimani tushunishi kerak (2-3 jumla).
+- "suratga_olish": joy, vaqt, yorug'lik, kamera holati, ovoz (2-3 jumla).`
+        : `RASM uchun qo'shimcha talablar:
+- "tasvir_mazmuni": rasmda nima ko'rinishi va u NIMANI anglatishi
+  kerak — tomoshabin rasmga qarab nimani tushunsin (2-3 jumla).
+- "kompozitsiya": kadrda nima qayerda tursin, ranglar, kayfiyat (2 jumla).`
+
+      const mediaFields = isVideo
+        ? `  "ssenariy": [{ "vaqt": "0-3 s", "kadr": "…", "gap": "…" }],
+  "video_mazmuni": "…",
+  "suratga_olish": "…",`
+        : `  "tasvir_mazmuni": "…",
+  "kompozitsiya": "…",`
+
+      const prompt = `Sen O'zbekiston agro bozorida ishlaydigan tajribali marketolog va
+kontent prodyusersan. Quyidagi kontent-reja bandi uchun TO'LIQ ijro
+rejasini yoz — ijrochi hech narsa o'ylab topmasdan, shu reja bo'yicha
+ishni bajara olsin.
+
+REJA BANDI:
+- Kun: ${kun}
+- Mavzu: ${mavzu}
+- Format: ${format}
+- Platforma: ${platforma}${vaqt ? `\n- Taklif qilingan vaqt: ${vaqt}` : ""}${maqsad ? `\n- Maqsad: ${maqsad}` : ""}
+
+BIZNING HISOBLARIMIZ:
+${netLine}
+
+Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va agro
+kompaniyalar. Til: o'zbek tili (lotin alifbosi), sodda va aniq.
+
+QOIDALAR:
+- Har maydonga TO'LIQ JUMLA yoz. Bo'sh yoki bir so'zli javob berma.
+- ANIQ bo'l: raqam, muddat, joy, usul nomini yoz. Umumiy shior yozma.
+- Ijrochi savol bermasligi kerak — hamma narsa yozilgan bo'lsin.
+
+Maydonlar mazmuni:
+- "nega": nega aynan shu mavzu hozir dolzarb (2-3 jumla)
+- "auditoriya": kimga qaratilgan va ular nimadan xavotirda (2 jumla)
+- "hook": birinchi jumla — diqqatni ushlaydigan ochilish
+- "tezislar": matnda yoritiladigan asosiy fikrlar, har biri to'liq jumla
+- "matn_namuna": tayyor post matni, 3-5 jumla
+- "muqova": muqova ustida qanday yozuv va nima ko'rinsin (1-2 jumla)
+- "joylash": qachon va qayerga joylash, nega aynan shunday (2 jumla)
+- "kutilgan_natija": nima kutamiz — aniq o'lchov bilan (1-2 jumla)
+- "keyingi_qadam": o'quvchini nimaga chaqiramiz (1 jumla)
+
+${mediaRules}
+
+FAQAT JSON qaytar, izohsiz:
+{
+  "nega": "…",
+  "auditoriya": "…",
+  "hook": "…",
+  "tezislar": ["…"],
+  "matn_namuna": "…",
+${mediaFields}
+  "muqova": "…",
+  "joylash": "…",
+  "hashtaglar": ["#agro", "#fermer"],
+  "kutilgan_natija": "…",
+  "keyingi_qadam": "…"
+}`
+
+      try {
+        const detail = await askAi<Record<string, unknown>>(
+          prompt,
+          (v) => {
+            const o = v as Record<string, unknown>
+            if (!o || typeof o !== "object") return false
+            // Asosiy maydonlar jumla bo'lishi shart
+            return looksLikeSentence(String(o.nega || "")) &&
+              String(o.matn_namuna || "").trim().length >= 60
+          },
+          3000,
+          ["nega", "matn_namuna"],
+          // Yumshoq: matn bo'lsa yetadi (provayderlar bandligida)
+          (v) => String((v as Record<string, unknown>)?.matn_namuna || "").trim().length >= 40,
+        )
+        // Namuna matnni o'qishga qulay formatlaymiz
+        if (typeof detail.matn_namuna === "string") {
+          detail.matn_namuna = prettyFormat(detail.matn_namuna)
+        }
+        return jsonResponse({ detail })
+      } catch (e) {
+        return errorResponse(e instanceof Error ? e.message : "Reja yozilmadi", 500)
+      }
+    }
+
     return errorResponse("Noma'lum amal", 400)
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Xatolik"
