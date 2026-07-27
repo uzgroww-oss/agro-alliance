@@ -128,6 +128,12 @@ export type WebHit = { title: string; snippet: string; url: string; source?: str
  */
 function stripTags(html: string): string {
   return html
+    // CDATA BIRINCHI ochiladi. Ko'p RSS'lar sarlavha va tavsifni
+    // <![CDATA[...]]> ichida beradi (masalan Farm Progress). Uning
+    // ichida ">" yo'q, shuning uchun quyidagi teg tozalagich butun
+    // blokni TEG deb bilib o'chirib yuborardi — sarlavha bo'sh qolar
+    // va manba "yozuv topilmadi" deb rad etilardi.
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
     .replace(/<[^>]*>/g, " ")
