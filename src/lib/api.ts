@@ -308,6 +308,14 @@ function resolveAdminUrl(path: string, method: string): string {
     return `${SUPABASE_FUNCTIONS_URL}/client-statistics${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  /**
+   * Yangiliklar: ro'yxat, bitta yangilik, yaratish, tahrirlash — hammasi
+   * `admin-news-list` da. O'chirish alohida (`admin-news-delete`).
+   *
+   * ILGARI: POST /news ham `admin-news-list` ga ketardi (u faqat GET ni
+   * qabul qilardi), PATCH esa deploy qilinmagan `admin-news-update` ga.
+   * Ya'ni yangilik yaratish ham, tahrirlash ham prinsipial ishlamasdi.
+   */
   if (segments[0] === "news") {
     if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/admin-news-list${qsRaw ? `?${qsRaw}` : ""}`
     if (segments.length === 2 && segments[1] === "jobs") {
@@ -321,7 +329,7 @@ function resolveAdminUrl(path: string, method: string): string {
     if (segments.length === 2) {
       const qs = new URLSearchParams(qsRaw)
       qs.set("id", segments[1])
-      const fn = method === "DELETE" ? "admin-news-delete" : method === "PATCH" || method === "PUT" ? "admin-news-update" : "admin-news-detail"
+      const fn = method === "DELETE" ? "admin-news-delete" : "admin-news-list"
       return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
     }
   }

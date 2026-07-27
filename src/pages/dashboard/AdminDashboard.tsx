@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
-import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy, ErrorState } from "../../lib/ui"
+import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy, ErrorState, useBodyScrollLock } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import SmmPanel from "./SmmPanel"
 import MarketPanel from "./MarketPanel"
@@ -1152,6 +1152,195 @@ function Placeholder({ title }: { title: string }) {
 /* ---------- News Management ---------- */
 type NewsArticle = { id: string; title: string; slug: string; status: string; language: string; is_featured: boolean; published_at: string; view_count: number; category: { name_uz: string; key: string } | null; author: { name: string } | null }
 
+/** Tahrirlash oynasidagi maydonlar */
+type NewsForm = {
+  title: string; excerpt: string; content: string; category_id: string
+  cover_image: string; status: string; language: string
+  is_featured: boolean; is_breaking: boolean
+  source_name: string; source_url: string
+  seo_title: string; seo_description: string
+}
+
+const BLANK_NEWS: NewsForm = {
+  title: "", excerpt: "", content: "", category_id: "",
+  cover_image: "", status: "draft", language: "uz",
+  is_featured: false, is_breaking: false,
+  source_name: "", source_url: "",
+  seo_title: "", seo_description: "",
+}
+
+/**
+ * Yangilik yozish / tahrirlash oynasi.
+ *
+ * NEGA QO'SHILDI: muharrirning asosiy vazifasi yangilik yozish, lekin
+ * admin panelda yaratish tugmasi UMUMAN yo'q edi — faqat ro'yxat va
+ * o'chirish bor edi. Backend funksiyalari yozilgan, ammo deploy ham,
+ * interfeys ham qilinmagan edi.
+ */
+function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () => void; onSaved: () => void }) {
+  const isNew = id === "new"
+  const [form, setForm] = useState<NewsForm>(BLANK_NEWS)
+  const [cats, setCats] = useState<{ id: string; name_uz: string }[]>([])
+  const [loading, setLoading] = useState(!isNew)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [err, setErr] = useState("")
+  const [saving, runSave] = useBusy()
+
+  useBodyScrollLock(true)
+
+  const set = <K extends keyof NewsForm>(k: K, v: NewsForm[K]) => setForm((f) => ({ ...f, [k]: v }))
+
+  useEffect(() => {
+    api<{ categories: { id: string; name_uz: string }[] }>("/categories")
+      .then((d) => setCats(d.categories || []))
+      .catch(() => { /* kategoriyasiz ham saqlash mumkin */ })
+  }, [])
+
+  const load = useCallback(() => {
+    if (isNew || !id) return
+    setLoading(true); setLoadFailed(false)
+    api<{ article: Record<string, unknown> }>(`/news/${id}`)
+      .then((d) => {
+        const a = d.article || {}
+        setForm({
+          title: String(a.title ?? ""), excerpt: String(a.excerpt ?? ""),
+          content: String(a.content ?? ""), category_id: String(a.category_id ?? ""),
+          cover_image: String(a.cover_image ?? ""), status: String(a.status ?? "draft"),
+          language: String(a.language ?? "uz"),
+          is_featured: !!a.is_featured, is_breaking: !!a.is_breaking,
+          source_name: String(a.source_name ?? ""), source_url: String(a.source_url ?? ""),
+          seo_title: String(a.seo_title ?? ""), seo_description: String(a.seo_description ?? ""),
+        })
+      })
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false))
+  }, [id, isNew])
+  useEffect(() => { load() }, [load])
+
+  const save = (status: string) => runSave(async () => {
+    setErr("")
+    if (!form.title.trim()) { setErr("Sarlavha majburiy"); return }
+    if (!form.content.trim()) { setErr("Matn majburiy"); return }
+    const body = { ...form, status, category_id: form.category_id || null }
+    try {
+      if (isNew) await api("/news", { method: "POST", body: JSON.stringify(body) })
+      else await api(`/news/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+      onSaved()
+      onClose()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Saqlab bo'lmadi")
+    }
+  })
+
+  const inp = "w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green"
+  const lbl = "mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted"
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="my-8 w-full max-w-4xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-green/10 px-6 py-4">
+          <h3 className="font-display text-lg font-extrabold">{isNew ? "Yangi yangilik" : "Yangilikni tahrirlash"}</h3>
+          <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-soft">
+            <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-6"><SkeletonTable rows={6} cols={2} /></div>
+        ) : loadFailed ? (
+          <div className="p-6"><ErrorState onRetry={load} message="Yangilikni yuklab bo'lmadi." /></div>
+        ) : (
+          <div className="grid gap-5 p-6 lg:grid-cols-[1fr_300px]">
+            {/* Asosiy matn */}
+            <div className="space-y-4">
+              <div>
+                <label className={lbl}>Sarlavha *</label>
+                <input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Yangilik sarlavhasi" className={inp} />
+              </div>
+              <div>
+                <label className={lbl}>Qisqacha (ro'yxatda ko'rinadi)</label>
+                <textarea value={form.excerpt} onChange={(e) => set("excerpt", e.target.value)} rows={2} placeholder="Bir-ikki jumla" className={`${inp} resize-none`} />
+              </div>
+              <div>
+                <label className={lbl}>Matn *</label>
+                <textarea value={form.content} onChange={(e) => set("content", e.target.value)} rows={16} placeholder="Yangilik matni" className={`${inp} resize-y font-mono text-[13px] leading-relaxed`} />
+                <p className="mt-1 text-xs text-muted">
+                  {form.content.trim().split(/\s+/).filter(Boolean).length} so'z
+                  {" · "}
+                  ~{Math.max(1, Math.round(form.content.trim().split(/\s+/).filter(Boolean).length / 180))} daqiqa o'qish
+                </p>
+              </div>
+            </div>
+
+            {/* Yon ustun */}
+            <div className="space-y-4">
+              <div>
+                <label className={lbl}>Kategoriya</label>
+                <select value={form.category_id} onChange={(e) => set("category_id", e.target.value)} className={inp}>
+                  <option value="">— tanlanmagan —</option>
+                  {cats.map((c) => <option key={c.id} value={c.id}>{c.name_uz}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className={lbl}>Muqova rasmi</label>
+                {form.cover_image ? (
+                  <div className="relative overflow-hidden rounded-lg border border-green/15">
+                    <img loading="lazy" decoding="async" src={form.cover_image} alt="" className="h-32 w-full object-cover" />
+                    <button onClick={() => set("cover_image", "")} className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg bg-white/90 text-red-500 shadow">
+                      <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <MediaUpload variant="box" accept="image/*" onUpload={(r) => set("cover_image", r.signedUrl)} hint="Muqova rasmi" />
+                )}
+              </div>
+
+              <div className="rounded-xl border border-green/10 bg-[#fafdf7] p-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.is_featured} onChange={(e) => set("is_featured", e.target.checked)} className="h-4 w-4 accent-green" />
+                  Tanlangan (bosh sahifada)
+                </label>
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.is_breaking} onChange={(e) => set("is_breaking", e.target.checked)} className="h-4 w-4 accent-green" />
+                  Shoshilinch xabar
+                </label>
+              </div>
+
+              <details className="rounded-xl border border-green/10 p-3">
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-muted">Manba va SEO</summary>
+                <div className="mt-3 space-y-3">
+                  <input value={form.source_name} onChange={(e) => set("source_name", e.target.value)} placeholder="Manba nomi" className={inp} />
+                  <input value={form.source_url} onChange={(e) => set("source_url", e.target.value)} placeholder="Manba havolasi" className={inp} />
+                  <input value={form.seo_title} onChange={(e) => set("seo_title", e.target.value)} placeholder="SEO sarlavha" className={inp} />
+                  <textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} placeholder="SEO tavsif" className={`${inp} resize-none`} />
+                </div>
+              </details>
+            </div>
+          </div>
+        )}
+
+        {!loading && !loadFailed && (
+          <div className="border-t border-green/10 px-6 py-4">
+            {err && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{err}</p>}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button onClick={onClose} disabled={saving} className="rounded-xl border-2 border-green/25 px-5 py-2.5 text-sm font-bold hover:border-green hover:text-green disabled:opacity-50">
+                Bekor qilish
+              </button>
+              <button onClick={() => save("draft")} disabled={saving} className="rounded-xl border-2 border-green/25 px-5 py-2.5 text-sm font-bold hover:border-green hover:text-green disabled:opacity-50">
+                {saving ? "Saqlanmoqda…" : "Qoralama saqlash"}
+              </button>
+              <button onClick={() => save("published")} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
+                <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Chop etish"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminNews() {
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [query, setQuery] = useState("")
@@ -1205,6 +1394,8 @@ function AdminNews() {
   })
 
   const totalPages = Math.ceil(total / 12)
+  /** null — oyna yopiq, "new" — yangi yangilik, aks holda tahrirlanayotgan id */
+  const [editing, setEditing] = useState<string | null>(null)
 
   return (
     <div>
@@ -1213,7 +1404,18 @@ function AdminNews() {
           <h2 className="font-display text-xl font-extrabold tracking-tight">Yangiliklar boshqaruvi</h2>
           <p className="mt-1 text-sm text-muted">Platformadagi barcha yangiliklar.</p>
         </div>
+        <button onClick={() => setEditing("new")} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+          <Icon d={I.plus} className="h-4 w-4" /> Yangi yangilik
+        </button>
       </div>
+
+      {editing && (
+        <NewsEditor
+          id={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => fetchNews(editing === "new" ? 1 : page, query, true)}
+        />
+      )}
 
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <div className="relative mb-4 max-w-sm">
@@ -1277,9 +1479,14 @@ function AdminNews() {
                     <td className="py-3 pr-3 font-semibold">{a.view_count || 0}</td>
                     <td className="py-3 pr-3 text-muted text-xs">{a.published_at ? new Date(a.published_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3">
-                      <button onClick={() => remove(a.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="O'chirish">
-                        <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setEditing(a.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title="Tahrirlash">
+                          <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => remove(a.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="O'chirish">
+                          <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
