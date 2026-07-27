@@ -139,6 +139,27 @@ function Bubble({
 
 export type SmmSeed = { topic: string; platform: string; format: string; at: number }
 
+/**
+ * Qoralamani brauzerda saqlaymiz — boshqa bo'limga o'tib qaytganda
+ * (yoki sahifa yangilanganda) ish yo'qolmasin. Faqat editordan butunlay
+ * chiqqanda (chiqish/tozalash) o'chiriladi.
+ */
+const DRAFT_KEY = "smm_draft_v1"
+type SmmDraft = {
+  form?: { title: string; content: string; hashtags: string; image_url: string; thumb_url: string }
+  aiMade?: boolean
+  editingId?: string | null
+  topic?: string
+}
+function loadDraft(): SmmDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    return raw ? (JSON.parse(raw) as SmmDraft) : null
+  } catch {
+    return null
+  }
+}
+
 export default function SmmPanel({ seed }: {
   /** Marketing rejasidan kelgan mavzu — matn va rasm o'zi yaratiladi */
   seed?: SmmSeed | null
@@ -165,7 +186,7 @@ export default function SmmPanel({ seed }: {
   const [pickMsg, setPickMsg] = useState("")
 
   /* 2-bosqich: AI */
-  const [topic, setTopic] = useState("")
+  const [topic, setTopic] = useState(() => loadDraft()?.topic ?? "")
   const [generating, runGenerate] = useBusy()
   const [analysis, setAnalysis] = useState<SmmAnalysis | null>(null)
   const [networks, setNetworks] = useState<NetworkStat[]>([])
@@ -182,10 +203,12 @@ export default function SmmPanel({ seed }: {
   // thumb_url — video uchun MUQOVA. Video image_url'da qoladi, muqova
   // alohida saqlanadi. Ilgari muqova image_url ni almashtirar va video
   // yo'qolardi.
-  const [form, setForm] = useState({ title: "", content: "", hashtags: "", image_url: "", thumb_url: "" })
+  const [form, setForm] = useState(
+    () => loadDraft()?.form ?? { title: "", content: "", hashtags: "", image_url: "", thumb_url: "" },
+  )
   const [origin, setOrigin] = useState("telegram")
-  const [aiMade, setAiMade] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [aiMade, setAiMade] = useState(() => Boolean(loadDraft()?.aiMade))
+  const [editingId, setEditingId] = useState<string | null>(() => loadDraft()?.editingId ?? null)
   const [saving, runSave] = useBusy()
   const [msg, setMsg] = useState("")
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -260,6 +283,14 @@ export default function SmmPanel({ seed }: {
       .finally(() => { setLoading(false); setConnLoading(false) })
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Qoralamani o'zgargan sayin saqlaymiz — boshqa bo'limga o'tib
+  // qaytganda yoki sahifa yangilanganda ish yo'qolmaydi.
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, aiMade, editingId, topic }))
+    } catch { /* localStorage to'lган/o'chirilgan bo'lsa ham ish davom etsin */ }
+  }, [form, aiMade, editingId, topic])
 
   /* ---------------- 1-bosqich ---------------- */
   const toggle = (p: Platform) => {
