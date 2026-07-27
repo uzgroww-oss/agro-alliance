@@ -140,6 +140,32 @@ function stripTags(html: string): string {
 }
 
 /**
+ * RSS so'rovi — vaqtinchalik rad javobida QAYTA URINADI.
+ *
+ * NEGA: Google News server (ma'lumot markazi) IP'laridan kelgan
+ * so'rovga ba'zan 503 yoki 429 qaytaradi. Bu o'tkinchi holat —
+ * bir-ikki soniyadan keyin ishlaydi. Ilgari birinchi urinishdayoq
+ * taslim bo'lardik va foydalanuvchi "manbani o'qib bo'lmadi" ko'rardi.
+ *
+ * Chegara qisqa (8 s): manba tekshiruvi tez bo'lishi kerak.
+ */
+async function fetchRss(url: string, timeoutMs = 8_000): Promise<Response> {
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1200));
+    const r = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    // Faqat o'tkinchi xatolarda qayta urinamiz. 404 yoki 403 da
+    // qayta urinish behuda vaqt yeydi.
+    if (r.status !== 503 && r.status !== 429) return r;
+    last = r;
+  }
+  return last!;
+}
+
+/**
  * Google News RSS — KALITSIZ ishlaydi va haqiqiy, kunlik yangiliklarni
  * beradi. Shu sababli asosiy manba sifatida tanlandi: foydalanuvchidan
  * hech qanday sozlash so'ramaymiz.
@@ -150,7 +176,7 @@ async function googleNews(query: string, locale: string): Promise<WebHit[]> {
     `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
     `&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split("-")[0]}`;
 
-  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  const r = await fetchRss(url);
   if (!r.ok) return [];
   const xml = await r.text();
 
@@ -233,14 +259,22 @@ export async function globalAgro(): Promise<WebHit[]> {
  * Google formatida bo'ladi) va Atom (<entry>) ham qo'llanadi.
  */
 export async function fetchFeed(url: string, name = ""): Promise<WebHit[]> {
-  const r = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-    signal: AbortSignal.timeout(12_000),
-  });
+  // 503/429 da qayta urinadi — Google server IP'lariga vaqti-vaqti
+  // bilan shunday javob beradi va manba xato deb belgilanardi.
+  const r = await fetchRss(url);
   // XATO SABABINI aytamiz. Ilgari jimgina [] qaytarardi va
   // "yozuv topilmadi" degan chalg'ituvchi xabar chiqardi — aslida
   // sayt 403 yoki 404 bergan bo'lishi mumkin edi.
-  if (!r.ok) throw new Error(`sayt javobi ${r.status}`);
+  if (!r.ok) {
+    // 503/429 — o'tkinchi. Foydalanuvchiga nima qilishni aytamiz,
+    // "sayt javobi 503" o'zi hech narsa tushuntirmaydi.
+    if (r.status === 503 || r.status === 429) {
+      throw new Error("manba hozir band — 10-20 soniyadan keyin qayta urining");
+    }
+    if (r.status === 404) throw new Error("bunday havola yo'q (404)");
+    if (r.status === 403) throw new Error("sayt kirishni rad etdi (403)");
+    throw new Error(`sayt javobi ${r.status}`);
+  }
   const xml = await r.text();
   if (!xml.trim()) throw new Error("sayt bo'sh javob qaytardi");
   // RSS/Atom emasligini aniq aytamiz (masalan HTML sahifa kelgan)

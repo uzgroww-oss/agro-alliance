@@ -220,6 +220,30 @@ export default function MarketPanel({ onCreatePost }: {
     }
   })
 
+  /**
+   * Qolgan namuna manbalarni BIRDAN qo'shish.
+   *
+   * Har birini alohida qo'shish sekin edi — har so'rovda funksiya
+   * qayta uyg'onadi. Bu yerda hammasi bitta so'rovda, serverда
+   * parallel tekshiriladi.
+   */
+  const addAllSamples = () => runSrc(async () => {
+    setSrcErr(""); setSrcMsg("")
+    const items = SAMPLE_SOURCES.filter((s) => !srcList.some((x) => x.url === s.url))
+    if (!items.length) return
+    try {
+      const r = await api<{ results: { name: string; ok: boolean; error?: string; found?: number }[] }>(
+        "/smm/ai?action=sources_add_many", { method: "POST", body: JSON.stringify({ items }) })
+      const ok = r.results.filter((x) => x.ok)
+      const bad = r.results.filter((x) => !x.ok)
+      if (ok.length) setSrcMsg(`✅ ${ok.length} ta manba qo'shildi`)
+      if (bad.length) setSrcErr(bad.map((b) => `${b.name}: ${b.error}`).join(" · "))
+      loadSources()
+    } catch (e) {
+      setSrcErr(e instanceof Error ? e.message : "Qo'shilmadi")
+    }
+  })
+
   /** Tayyor namuna manbani bir bosishda qo'shish */
   const addSample = (s: { name: string; url: string }) => runSrc(async () => {
     setSrcErr(""); setSrcMsg("")
@@ -582,7 +606,14 @@ export default function MarketPanel({ onCreatePost }: {
             Allaqachon qo'shilganlari ro'yxatda ko'rinmaydi. */}
         {SAMPLE_SOURCES.filter((s) => !srcList.some((x) => x.url === s.url)).length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-bold text-muted">Tayyor agro manbalar</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-bold text-muted">Tayyor agro manbalar</p>
+              {/* Hammasi bitta so'rovda — birma-bir qo'shish sekin */}
+              <button onClick={addAllSamples} disabled={srcBusy}
+                className="text-[11px] font-bold text-green hover:underline disabled:opacity-50">
+                Hammasini qo'shish
+              </button>
+            </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {SAMPLE_SOURCES
                 .filter((s) => !srcList.some((x) => x.url === s.url))

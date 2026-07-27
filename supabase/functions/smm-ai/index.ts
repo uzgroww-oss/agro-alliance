@@ -1679,6 +1679,40 @@ FAQAT JSON qaytar, boshqa matn yozma:
       return jsonResponse({ sources: data || [] })
     }
 
+    // BIR NECHTA manbani birdan qo'shish. Har birini alohida so'rov
+    // bilan qo'shish sekin edi: har safar funksiya qayta uyg'onadi.
+    // Bu yerda hammasi PARALLEL tekshiriladi — bitta kutish.
+    if (action === "sources_add_many") {
+      const items = Array.isArray(body.items) ? body.items : []
+      if (!items.length) return errorResponse("Manba ro'yxati bo'sh", 400)
+
+      const results = await Promise.all(items.slice(0, 10).map(async (raw: unknown) => {
+        const o = (raw || {}) as { name?: unknown; url?: unknown }
+        const name = String(o.name || "").trim().slice(0, 160)
+        let url = String(o.url || "").trim().slice(0, 500)
+        if (!url) return { name, ok: false, error: "havola yo'q" }
+        if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+        try {
+          const hits = await fetchFeed(url, name)
+          if (!hits.length) return { name, ok: false, error: "yozuv topilmadi" }
+          const { error } = await supabaseAdmin.from("smm_sources").insert({
+            name: name || hits[0].source || new URL(url).hostname,
+            url,
+            created_by: auth.user.id,
+            last_read_at: new Date().toISOString(),
+          })
+          if (error) {
+            if (/duplicate|unique/i.test(error.message)) return { name, ok: false, error: "allaqachon qo'shilgan" }
+            return { name, ok: false, error: error.message.slice(0, 80) }
+          }
+          return { name, ok: true, found: hits.length }
+        } catch (e) {
+          return { name, ok: false, error: e instanceof Error ? e.message : "o'qib bo'lmadi" }
+        }
+      }))
+      return jsonResponse({ results })
+    }
+
     if (action === "source_add") {
       const name = String(body.name || "").trim().slice(0, 160)
       let url = String(body.url || "").trim().slice(0, 500)
