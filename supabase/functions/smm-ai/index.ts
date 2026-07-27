@@ -1529,10 +1529,39 @@ Oxirgi savolga javob ber. Qoidalar:
         ? ownHits.map((h) => `- [${h.source || "manba"}] ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
         : "(manba qo'shilmagan)"
 
+      // O'Z TAJRIBAMIZ: qaysi postlar chiqdi, qaysi tarmoqda nima
+      // yiqildi. Ilgari reja faqat yangiliklarga tayanardi va
+      // "umumiy maslahat" bo'lib qolardi.
+      const pastLine = await (async () => {
+        try {
+          const { data: posts } = await supabaseAdmin
+            .from("smm_posts")
+            .select("title, content, platforms, status, published_at")
+            .eq("status", "published")
+            .is("deleted_at", null)
+            .order("published_at", { ascending: false })
+            .limit(10)
+          const list = (posts || []) as {
+            title: string | null; content: string; platforms: string[]; published_at: string | null
+          }[]
+          if (!list.length) return "(hali post joylanmagan)"
+          return list.map((p) => {
+            const t = (p.title || p.content || "").replace(/\s+/g, " ").slice(0, 70)
+            const when = p.published_at ? p.published_at.slice(0, 10) : ""
+            return `- "${t}" -> ${(p.platforms || []).join(", ") || "?"}${when ? ` (${when})` : ""}`
+          }).join("\n")
+        } catch {
+          return "(ma'lumot olinmadi)"
+        }
+      })()
+
       const prompt = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
 
 BIZNING IJTIMOIY TARMOQ HISOBLARIMIZ:
 ${ownLine}
+
+OXIRGI JOYLANGAN POSTLARIMIZ:
+${pastLine}
 
 BIZ TANLAGAN MANBALAR (ishonchli, ustuvor):
 ${srcLine}
@@ -1548,6 +1577,8 @@ QAT'IY QOIDALAR:
   qiymat qaytarma — bu maydonlar odam o'qishi uchun
 - "BIZ TANLAGAN MANBALAR" birinchi darajali: ulardagi mavzulardan
   ko'proq foydalan
+- OXIRGI POSTLARIMIZNI hisobga ol: bir xil mavzuni takrorlama,
+  qamrab olinmagan yo'nalishlarni taklif qil
 - Bizning raqamlarimiz kichik bo'lsa buni ochiq ayt, bo'rttirma
 - Ma'lumot yetarli bo'lmagan joyda buni yozib qo'y, o'ylab topma
 - Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va
@@ -1604,6 +1635,54 @@ FAQAT JSON qaytar, boshqa matn yozma:
         .limit(1)
         .maybeSingle()
       return jsonResponse({ last: data || null })
+    }
+
+    /* ---------------- REJANI YANGILASH ---------------- */
+    // Bajarilgan kunlarni belgilash va rejani tahrirlash uchun.
+    // Oxirgi saqlangan reja yangilanadi — yangi yozuv yaratilmaydi,
+    // aks holda "oxirgi reja" har tahrirda o'zgarib ketardi.
+    if (action === "plan_update") {
+      const { data: last } = await supabaseAdmin
+        .from("smm_plans")
+        .select("id, data")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!last) return errorResponse("Saqlangan reja topilmadi", 404)
+
+      const cur = (last.data || {}) as Record<string, unknown>
+      const patch: Record<string, unknown> = { ...cur }
+
+      // Bajarilgan kunlar — takrorlanmaydigan, tartiblangan raqamlar
+      if (Array.isArray(body.done)) {
+        patch.done = [...new Set(
+          (body.done as unknown[]).map((d) => Number(d)).filter((d) => Number.isFinite(d) && d > 0),
+        )].sort((a, b) => a - b)
+      }
+
+      // Tahrirlangan reja. normalizePlan ishlatmaymiz: u sotuv/osish
+      // maydonlarini ham talab qiladi, bu yerda esa faqat "reja" keladi.
+      if (Array.isArray(body.reja)) {
+        patch.reja = (body.reja as unknown[]).map((r, i) => {
+          const it = (r || {}) as Record<string, unknown>
+          const kun = Number(it.kun)
+          return {
+            kun: Number.isFinite(kun) && kun > 0 ? kun : i + 1,
+            mavzu: asText(it.mavzu),
+            format: asText(it.format) || "post",
+            platforma: asText(it.platforma) || "telegram",
+            vaqt: asText(it.vaqt),
+            maqsad: asText(it.maqsad),
+          }
+        }).filter((r) => r.mavzu)
+      }
+
+      const { error } = await supabaseAdmin
+        .from("smm_plans")
+        .update({ data: patch })
+        .eq("id", last.id)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
     }
 
     /* ---------------- REJA BANDINING TO'LIQ TAFSILOTI ---------------- */

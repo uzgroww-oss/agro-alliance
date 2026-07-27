@@ -28,6 +28,8 @@ type Plan = {
   osish?: unknown
   /** Qanday kontent turlari ishlaydi va nega */
   kontent_turlari?: unknown
+  /** Bajarilgan kunlar */
+  done?: unknown
   reja: PlanItem[]
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
@@ -114,6 +116,11 @@ export default function MarketPanel({ onCreatePost }: {
   // "Manbalar" bo'limida kiritilgan saytlardan olingan yozuvlar
   const [sources, setSources] = useState<WebHit[]>([])
   const [planAt, setPlanAt] = useState("")
+  // Bajarilgan kunlar — serverda saqlanadi, brauzerga bog'liq emas
+  const [done, setDone] = useState<number[]>([])
+  // Qaysi kun tahrirlanmoqda (kun raqami) va tahrir qiymatlari
+  const [editKun, setEditKun] = useState<number | null>(null)
+  const [editVal, setEditVal] = useState({ mavzu: "", format: "", platforma: "", vaqt: "" })
 
   const [analyzing, runAnalyze] = useBusy()
   const [err, setErr] = useState("")
@@ -164,6 +171,7 @@ export default function MarketPanel({ onCreatePost }: {
         setNets(d.last.data.networks || [])
         setWeb(d.last.data.web || [])
         setSources(d.last.data.sources || [])
+        setDone(Array.isArray(d.last.data.done) ? (d.last.data.done as number[]) : [])
         setDays(d.last.days || 7)
         setPlanAt(d.last.created_at)
       })
@@ -181,9 +189,61 @@ export default function MarketPanel({ onCreatePost }: {
       setNets(d.networks || [])
       setWeb(d.web || [])
       setSources(d.sources || [])
+      setDone([]) // yangi reja — belgilar nolga qaytadi
       setPlanAt(new Date().toISOString())
     } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
   })
+
+  /**
+   * Rejadagi o'zgarishni serverga saqlash.
+   *
+   * Optimistik: ekran DARHOL yangilanadi, so'rov fonda ketadi. Sabab —
+   * belgilash tez-tez bosiladigan amal va har safar kutib turish
+   * asabiy. Xato bo'lsa qayta yuklab, haqiqiy holatni ko'rsatamiz.
+   */
+  const savePlan = async (patch: { done?: number[]; reja?: PlanItem[] }) => {
+    try {
+      await api("/smm/ai?action=plan_update", { method: "POST", body: JSON.stringify(patch) })
+    } catch {
+      setErr("O'zgarish saqlanmadi — qayta urining")
+      load()
+    }
+  }
+
+  /** Kunni bajarildi / bajarilmadi qilib belgilash */
+  const toggleDone = (kun: number) => {
+    const next = done.includes(kun) ? done.filter((d) => d !== kun) : [...done, kun].sort((a, b) => a - b)
+    setDone(next)
+    void savePlan({ done: next })
+  }
+
+  /** Kunni rejadan o'chirish */
+  const removeDay = (kun: number) => {
+    if (!plan) return
+    if (!window.confirm(`${kun}-kun rejadan o'chirilsinmi?`)) return
+    const reja = plan.reja.filter((r) => r.kun !== kun)
+    setPlan({ ...plan, reja })
+    void savePlan({ reja })
+  }
+
+  /** Tahrirni boshlash — joriy qiymatlar formaga ko'chiriladi */
+  const startEdit = (it: PlanItem) => {
+    setEditKun(it.kun)
+    setEditVal({
+      mavzu: txt(it.mavzu), format: txt(it.format) || "post",
+      platforma: txt(it.platforma) || "telegram", vaqt: txt(it.vaqt),
+    })
+  }
+
+  /** Tahrirni saqlash */
+  const saveEdit = () => {
+    if (!plan || editKun === null) return
+    if (!editVal.mavzu.trim()) { setErr("Mavzu bo'sh bo'lmasin"); return }
+    const reja = plan.reja.map((r) => r.kun === editKun ? { ...r, ...editVal } : r)
+    setPlan({ ...plan, reja })
+    setEditKun(null)
+    void savePlan({ reja })
+  }
 
   const fmtDate = (iso: string) => {
     if (!iso) return ""
@@ -324,16 +384,29 @@ export default function MarketPanel({ onCreatePost }: {
 
           {/* Kunlik reja */}
           <div className={`${card} mt-5`}>
-            <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
-            <p className="mt-0.5 text-sm text-muted">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
+              {plan.reja.length > 0 && (
+                <span className="text-xs font-bold text-muted">{done.length} / {plan.reja.length} bajarildi</span>
+              )}
+            </div>
+            {/* Bajarilish chizig'i — qancha qolganini bir qarashda ko'rsatadi */}
+            {plan.reja.length > 0 && (
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-soft">
+                <div className="h-full rounded-full bg-green transition-all"
+                  style={{ width: `${Math.round((done.length / plan.reja.length) * 100)}%` }} />
+              </div>
+            )}
+            <p className="mt-2 text-sm text-muted">
               Kun ustiga bosing — <strong>to'liq marketing reja</strong> ochiladi:
               ssenariy, matn tezislari, rasm mazmuni, joylash vaqti.
               "Post yaratish" esa SMM / AI bo'limida matn va rasmni o'zi yaratadi.
             </p>
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[700px] text-sm">
+              <table className="w-full min-w-[780px] text-sm">
                 <thead>
                   <tr className="border-b border-green/10 text-left text-xs font-bold text-muted">
+                    <th className="w-8 pb-2 pr-2" />
                     <th className="pb-2 pr-3">Kun</th>
                     <th className="pb-2 pr-3">Mavzu</th>
                     <th className="pb-2 pr-3">Format</th>
@@ -343,29 +416,88 @@ export default function MarketPanel({ onCreatePost }: {
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.reja.map((it, i) => (
-                    <tr key={i} onClick={() => openPlanItem(it)} title="To'liq rejani ochish"
-                      className="cursor-pointer border-b border-green/5 align-top transition-colors hover:bg-green/5">
-                      <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
-                      <td className="max-w-[300px] py-3 pr-3">
-                        <p className="font-semibold">{txt(it.mavzu)}</p>
-                        {txt(it.maqsad) ? <p className="mt-0.5 text-xs text-muted">{txt(it.maqsad)}</p> : null}
-                        <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-green">
-                          <Icon d={I.doc} className="h-3 w-3" /> To'liq reja
-                        </span>
-                      </td>
-                      <td className="py-3 pr-3 text-xs text-muted">{txt(it.format)}</td>
-                      <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
-                      <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
-                      <td className="py-3 pr-1 text-right">
+                  {plan.reja.map((it, i) => {
+                    const isDone = done.includes(it.kun)
+                    if (editKun === it.kun) {
+                      return (
+                        <tr key={i} className="border-b border-green/5 bg-green/5 align-top">
+                          <td className="py-3 pr-2" />
+                          <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
+                          <td className="py-3 pr-3">
+                            <input value={editVal.mavzu} onChange={(e) => setEditVal((v) => ({ ...v, mavzu: e.target.value }))}
+                              placeholder="Mavzu"
+                              className="w-full rounded-lg border border-green/25 px-2 py-1.5 text-sm outline-none focus:border-green" />
+                          </td>
+                          <td className="py-3 pr-3">
+                            <select value={editVal.format} onChange={(e) => setEditVal((v) => ({ ...v, format: e.target.value }))}
+                              className="rounded-lg border border-green/25 px-2 py-1.5 text-xs outline-none focus:border-green">
+                              {["post", "video", "karusel", "storis"].map((f) => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <select value={editVal.platforma} onChange={(e) => setEditVal((v) => ({ ...v, platforma: e.target.value }))}
+                              className="rounded-lg border border-green/25 px-2 py-1.5 text-xs outline-none focus:border-green">
+                              {Object.keys(PLATFORM_LABEL).map((p) => <option key={p} value={p}>{PLATFORM_LABEL[p]}</option>)}
+                            </select>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <input value={editVal.vaqt} onChange={(e) => setEditVal((v) => ({ ...v, vaqt: e.target.value }))}
+                              placeholder="18:00"
+                              className="w-20 rounded-lg border border-green/25 px-2 py-1.5 text-xs outline-none focus:border-green" />
+                          </td>
+                          <td className="py-3 pr-1 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              <button onClick={saveEdit} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white">Saqlash</button>
+                              <button onClick={() => setEditKun(null)} className="rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-muted">Bekor</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    }
+                    return (
+                      <tr key={i} onClick={() => openPlanItem(it)} title="To'liq rejani ochish"
+                        className={`cursor-pointer border-b border-green/5 align-top transition-colors hover:bg-green/5 ${isDone ? "opacity-55" : ""}`}>
                         {/* stopPropagation: qator bosilib modal ochilmasin */}
-                        <button onClick={(e) => { e.stopPropagation(); onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post") }}
-                          className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
-                          Post yaratish
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="py-3 pr-2" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => toggleDone(it.kun)}
+                            title={isDone ? "Bajarilmadi deb belgilash" : "Bajarildi deb belgilash"}
+                            className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
+                              isDone ? "border-green bg-green text-white" : "border-green/30 hover:border-green"
+                            }`}>
+                            {isDone && <Icon d={I.check} className="h-3 w-3" />}
+                          </button>
+                        </td>
+                        <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
+                        <td className="max-w-[300px] py-3 pr-3">
+                          <p className={`font-semibold ${isDone ? "line-through" : ""}`}>{txt(it.mavzu)}</p>
+                          {txt(it.maqsad) ? <p className="mt-0.5 text-xs text-muted">{txt(it.maqsad)}</p> : null}
+                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-green">
+                            <Icon d={I.doc} className="h-3 w-3" /> To'liq reja
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3 text-xs text-muted">{txt(it.format)}</td>
+                        <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
+                        <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
+                        <td className="py-3 pr-1 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Post yaratilsa kun avtomatik bajarildi bo'ladi */}
+                            <button onClick={() => { onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post"); if (!isDone) toggleDone(it.kun) }}
+                              className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
+                              Post yaratish
+                            </button>
+                            <button onClick={() => startEdit(it)} title="Tahrirlash"
+                              className="rounded-lg border border-green/20 p-1.5 text-muted transition-colors hover:border-green/50 hover:text-green">
+                              <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => removeDay(it.kun)} title="O'chirish"
+                              className="rounded-lg border border-red-200 p-1.5 text-red-500 transition-colors hover:bg-red-50">
+                              <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
