@@ -342,7 +342,7 @@ function BloggersBrowse() {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {bloggers.map((b) => (
             <a key={b.slug} href={`/blogerlar/${b.slug}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-green/10 bg-[#fafdf7] p-3 transition-colors hover:border-green/30">
-              {b.avatar ? <img src={b.avatar} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-green/10 text-green font-bold">{b.name[0]}</span>}
+              {b.avatar ? <img loading="lazy" decoding="async" src={b.avatar} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-green/10 text-green font-bold">{b.name[0]}</span>}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold">{b.name}</div>
                 <div className="truncate text-[11px] text-muted">{b.cat} • {b.region}</div>

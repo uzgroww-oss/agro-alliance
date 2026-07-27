@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../lib/ui"
-import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { api } from "../lib/api"
 import { useSeo, bloggerSeo } from "../lib/seo"
 
@@ -11,6 +10,9 @@ const platIconMap: Record<string, string> = {
   LinkedIn: I.briefcase,
 }
 const fullUrl = (l: string) => (/^https?:\/\//i.test(l) ? l : "https://" + l)
+
+/** Doiracha (donut) aylanasi uzunligi: 2πr, r = 57 */
+const DONUT_C = 2 * Math.PI * 57
 
 type LiveBlogger = {
   ageDistribution: Record<string, number>; // e.g. {"18-24": 22}
@@ -242,7 +244,6 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
   const ageEntries = Object.entries(b.ageDistribution || {});
   const regionEntries = Object.entries(b.regionDistribution || {});
 
-  const genderData = [{ name: 'Erkak', value: male }, { name: 'Ayol', value: female }];
 
   // Umuman hech qanday analitika yo'q bo'lsa — kartani chizmaymiz.
   if (!hasGender && ageEntries.length === 0 && regionEntries.length === 0) return null;
@@ -256,21 +257,18 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
         {hasGender && (
         <div className="mt-5 flex items-center justify-center gap-8">
           <div className="relative shrink-0">
-            <ResponsiveContainer width={160} height={160}>
-              <PieChart>
-                <Pie
-                  data={genderData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={44}
-                  outerRadius={70}
-                  strokeWidth={0}
-                >
-                  <Cell fill={maleColor} />
-                  <Cell fill={femaleColor} />
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+            {/* TEZLIK: bu bitta doiracha uchun ilgari butun `recharts`
+                kutubxonasi yuklanardi — 250 KB dan ortiq, OMMAVIY sahifada.
+                Endi oddiy SVG: ikkita aylana yoyi stroke-dasharray bilan.
+                Ko'rinishi bir xil, hajmi nolga teng. */}
+            <svg width={160} height={160} viewBox="0 0 160 160" role="img" aria-label={`Erkaklar ${male}%, ayollar ${female}%`}>
+              <circle cx="80" cy="80" r="57" fill="none" stroke={femaleColor} strokeWidth="26" />
+              <circle
+                cx="80" cy="80" r="57" fill="none" stroke={maleColor} strokeWidth="26"
+                strokeDasharray={`${(male / 100) * DONUT_C} ${DONUT_C}`}
+                transform="rotate(-90 80 80)"
+              />
+            </svg>
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="font-display text-3xl font-extrabold leading-none" style={{ color: maleColor }}>{male}%</span>
@@ -569,7 +567,7 @@ function Content({ b }: { b: LiveBlogger }) {
                   <button key={v.id} onClick={() => setViewer({ url: v.link, name: cleanTitle(v.name), caption: v.views ? `${v.views} ko'rish` : undefined })} className="group text-left">
                     <div className="relative aspect-video overflow-hidden rounded-xl bg-soft">
                       {v.thumbnail ? (
-                        <img src={v.thumbnail} alt={cleanTitle(v.name)} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        <img loading="lazy" decoding="async" src={v.thumbnail} alt={cleanTitle(v.name)} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-green"><Icon d={I.media} className="h-8 w-8" /></div>
                       )}
@@ -592,7 +590,7 @@ function Content({ b }: { b: LiveBlogger }) {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {b.images.map((img) => (
                   <button key={img.id} onClick={() => setViewer({ url: img.url, name: img.caption || "Rasm", caption: img.caption })} className="group text-left overflow-hidden rounded-xl">
-                    <img src={img.url} alt={img.caption || ""} className="h-40 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img loading="lazy" decoding="async" src={img.url} alt={img.caption || ""} className="h-40 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     {img.caption && <p className="mt-1 truncate text-xs text-muted">{img.caption}</p>}
                   </button>
                 ))}
@@ -631,7 +629,7 @@ function Content({ b }: { b: LiveBlogger }) {
             <div className="grid grid-cols-3 gap-3">
               {b.brands.map((br) => (
                 <div key={br.id} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-green/10 bg-soft p-3 text-center">
-                  {br.logoUrl ? <img src={br.logoUrl} alt={br.name} className="h-8 w-auto object-contain" /> : null}
+                  {br.logoUrl ? <img loading="lazy" decoding="async" src={br.logoUrl} alt={br.name} className="h-8 w-auto object-contain" /> : null}
                   <span className="font-display text-xs font-bold text-ink/70">{br.name}</span>
                 </div>
               ))}
@@ -765,7 +763,7 @@ function Brands({ b }: { b: LiveBlogger }) {
       <div className="mt-4 grid grid-cols-3 gap-3">
         {b.brands.map((br) => (
           <div key={br.id} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-green/10 bg-soft p-3 text-center">
-            {br.logoUrl ? <img src={br.logoUrl} alt={br.name} className="h-8 w-auto object-contain" /> : null}
+            {br.logoUrl ? <img loading="lazy" decoding="async" src={br.logoUrl} alt={br.name} className="h-8 w-auto object-contain" /> : null}
             <span className="font-display text-xs font-bold text-ink/70">{br.name}</span>
           </div>
         ))}

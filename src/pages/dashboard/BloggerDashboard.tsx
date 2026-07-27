@@ -108,10 +108,20 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
   const [form, setForm] = useState({ name: me.name, age: String(p.age ?? ""), gender: String(p.gender ?? ""), region: String(p.region ?? ""), language: String(p.language ?? ""), niche: String(p.niche ?? ""), bio: String(p.bio ?? ""), about: String(p.about ?? "") })
   const initials = me.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
 
+  // MUHIM: ilgari catch yo'q edi — saqlanmasa hech qanday xabar chiqmasdi,
+  // forma tahrir rejimida qolardi va foydalanuvchi saqlandi deb o'ylardi.
+  const [saveError, setSaveError] = useState("")
   const save = async () => {
     setSaving(true)
-    try { await api("/me/profile", { method: "PUT", body: JSON.stringify(form) }); setEdit(false) }
-    finally { setSaving(false) }
+    setSaveError("")
+    try {
+      await api("/me/profile", { method: "PUT", body: JSON.stringify(form) })
+      setEdit(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Saqlab bo'lmadi")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const syncYoutube = async () => {
@@ -371,6 +381,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
           {refreshing ? "Yangilanmoqda…" : "Yangilash"} <Icon d={I.refresh} className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
+      {saveError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{saveError}</p>}
     </div>
   )
 }
@@ -478,11 +489,20 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
+    // MUHIM: try/catch bo'lmasa, so'rov yiqilganda `deleting` abadiy true
+    // qolardi — modal "O'chirilmoqda…" da qotib, ikkala tugma ham o'chib,
+    // fonni bosib ham yopib bo'lmasdi. Yagona chora sahifani yangilash edi.
     setDeleting(true)
-    await api(`/me/videos/${id}`, { method: "DELETE" })
-    setVideos((prev) => prev.filter((v) => v.id !== id))
-    setDeleting(false)
-    setDeleteTarget(null)
+    setLinkError("")
+    try {
+      await api(`/me/videos/${id}`, { method: "DELETE" })
+      setVideos((prev) => prev.filter((v) => v.id !== id))
+      setDeleteTarget(null)
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "O'chirib bo'lmadi")
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // YouTube kanal videolarini olish
@@ -707,7 +727,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                   >
                     <div className="relative overflow-hidden rounded">
                       {v.thumbnail ? (
-                        <img src={v.thumbnail} alt={v.title} className="aspect-[2/3] w-full object-cover" />
+                        <img loading="lazy" decoding="async" src={v.thumbnail} alt={v.title} className="aspect-[2/3] w-full object-cover" />
                       ) : (
                         <div className="flex aspect-[2/3] w-full items-center justify-center bg-soft text-green"><Icon d={I.play} className="h-3.5 w-3.5" /></div>
                       )}
@@ -854,7 +874,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
             {videos.map((v) => (
               <div key={v.id} className="flex items-center gap-2 rounded-lg border border-green/8 bg-[#fafdf7] px-2.5 py-2">
                 {v.thumbnail ? (
-                  <img src={v.thumbnail} alt="" className="h-8 w-12 shrink-0 rounded object-cover" />
+                  <img loading="lazy" decoding="async" src={v.thumbnail} alt="" className="h-8 w-12 shrink-0 rounded object-cover" />
                 ) : (
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-green/10 text-green"><Icon d={I.play} className="h-3 w-3" /></span>
                 )}
@@ -885,6 +905,9 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               )}
               <h3 className="mt-4 font-display text-lg font-extrabold">{deleting ? "O'chirilmoqda..." : "Videoni o'chirish"}</h3>
               <p className="mt-2 text-sm text-muted">{deleting ? "Iltimos kuting..." : "Bu videoni o'chirishni xohlaysizmi?"}</p>
+              {!deleting && linkError && (
+                <p className="mt-3 w-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{linkError}</p>
+              )}
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green disabled:opacity-50">
@@ -1011,14 +1034,19 @@ function ServicesTab() {
   const [desc, setDesc] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ services: { id: string; title: string; description: string }[] }>("/me/services")
       .then((d) => setItems(d.services || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1051,7 +1079,7 @@ function ServicesTab() {
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
-              {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali xizmat qo'shilmagan.</p>}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali xizmat qo'shilmagan.</p>)}
               {items.map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.check} className="h-4 w-4 shrink-0 text-green" />
@@ -1086,14 +1114,17 @@ function TasksTab() {
   const [tasks, setTasks] = useState<MeTask[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  // Xato "topshiriq yo'q" degani EMAS
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ tasks: MeTask[] }>("/me/tasks")
       .then((d) => setTasks(d.tasks || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1119,6 +1150,8 @@ function TasksTab() {
 
       {loading ? (
         <div className="mt-5"><SkeletonTable rows={3} cols={1} /></div>
+      ) : failed ? (
+        <div className="mt-5"><ErrorState onRetry={() => load()} message="Topshiriqlarni yuklab bo'lmadi." /></div>
       ) : tasks.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center">
           <Icon d={I.task} className="mx-auto h-10 w-10 text-green/30" />
@@ -1169,14 +1202,19 @@ function RegionsTab() {
   const [region, setRegion] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ regions: { id: string; region: string }[] }>("/me/regions")
       .then((d) => setItems(d.regions || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1211,7 +1249,7 @@ function RegionsTab() {
               <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
-              {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>)}
               {items.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.pin} className="h-4 w-4 shrink-0 text-green" />
@@ -1235,14 +1273,19 @@ function SpecializationsTab() {
   const [key, setKey] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ specializations: { id: string; specialization_key: string }[] }>("/me/specializations")
       .then((d) => setItems(d.specializations || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1274,7 +1317,7 @@ function SpecializationsTab() {
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
-              {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali yo'nalish qo'shilmagan.</p>}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yo'nalish qo'shilmagan.</p>)}
               {items.map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.sprout} className="h-4 w-4 shrink-0 text-green" />
@@ -1299,14 +1342,19 @@ function AchievementsTab() {
   const [subtitle, setSubtitle] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ achievements: { id: string; title: string; subtitle: string }[] }>("/me/achievements")
       .then((d) => setItems(d.achievements || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1339,7 +1387,7 @@ function AchievementsTab() {
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
-              {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali yutuq qo'shilmagan.</p>}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yutuq qo'shilmagan.</p>)}
               {items.map((a) => (
                 <div key={a.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.trophy} className="h-4 w-4 shrink-0 text-gold" />
@@ -1363,14 +1411,19 @@ function ImagesTab() {
   const [items, setItems] = useState<{ id: string; url: string; caption?: string }[]>([])
   const [caption, setCaption] = useState("")
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ images: { id: string; url: string; caption?: string }[] }>("/me/images")
       .then((d) => setItems(d.images || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1416,10 +1469,10 @@ function ImagesTab() {
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {items.length === 0 && <p className="col-span-full py-8 text-center text-sm text-muted">Hali rasm qo'shilmagan.</p>}
+            {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="col-span-full py-8 text-center text-sm text-muted">Hali rasm qo'shilmagan.</p>)}
             {items.map((img) => (
               <div key={img.id} className="group relative overflow-hidden rounded-xl border border-green/10">
-                <img src={img.url} alt={img.caption || ""} className="h-36 w-full object-cover" />
+                <img loading="lazy" decoding="async" src={img.url} alt={img.caption || ""} className="h-36 w-full object-cover" />
                 {img.caption && <p className="truncate px-2 py-1 text-xs text-muted">{img.caption}</p>}
                 {/* Touch qurilmada doim ko'rinadi (hover yo'q), sichqonchada — hover'da */}
                 <button onClick={() => remove(img.id)} disabled={deleting.has(img.id)} className="absolute right-1 top-1 grid h-9 w-9 place-items-center rounded-lg bg-black/50 text-white opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 disabled:opacity-100">
@@ -1439,14 +1492,19 @@ function BrandsTab() {
   const [name, setName] = useState("")
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Xato "ma'lumot yo'q" degani EMAS: ilgari tarmoq uzilsa ham
+  // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
+  // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
+  const [failed, setFailed] = useState(false)
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
   const load = (silent = false) => {
     if (!silent) setLoading(true)
+    setFailed(false)
     api<{ brands: { id: string; name: string }[] }>("/me/brands")
       .then((d) => setItems(d.brands || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1478,7 +1536,7 @@ function BrandsTab() {
               <button onClick={add} disabled={busy} className="shrink-0 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
             <div className="mt-4 space-y-2">
-              {items.length === 0 && <p className="py-4 text-center text-sm text-muted">Hali brend qo'shilmagan.</p>}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali brend qo'shilmagan.</p>)}
               {items.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.building} className="h-4 w-4" /></span>

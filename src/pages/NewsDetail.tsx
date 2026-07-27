@@ -29,7 +29,12 @@ export default function NewsDetail() {
     if (!slug) return
     let alive = true
     setRelatedLoading(true)
-    loadRelatedNews(slug).then((list) => { if (alive) setRelated(list) }).finally(() => { if (alive) setRelatedLoading(false) })
+    // catch YO'Q edi — so'rov yiqilsa "unhandled promise rejection" chiqib,
+    // ekranda esa "O'xshash yangiliklar topilmadi" yozilardi.
+    loadRelatedNews(slug)
+      .then((list) => { if (alive) setRelated(list) })
+      .catch(() => { if (alive) setRelated([]) })
+      .finally(() => { if (alive) setRelatedLoading(false) })
     return () => { alive = false }
   }, [slug])
 
@@ -164,7 +169,7 @@ export default function NewsDetail() {
               <Reveal key={n.slug} delay={(i % 3) * 80}>
                 <Link to={`/yangiliklar/${n.slug}`} className="group block overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
                   <div className="h-40 overflow-hidden">
-                    <img src={newsImg(n.seed || n.slug, 400, 260)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img loading="lazy" decoding="async" src={newsImg(n.seed || n.slug, 400, 260)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
                   <div className="p-5">
                     <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(n.cat)}</span>

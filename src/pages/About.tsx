@@ -184,7 +184,7 @@ function Team() {
             <div className="group rounded-2xl border border-green/10 bg-white p-6 text-center shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:border-green/30 hover:shadow-[0_14px_40px_rgba(91,180,32,0.14)]">
               <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-soft">
                 {m.image_url ? (
-                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="grid h-full w-full place-items-center bg-green/10 text-green">
                     <Icon d={I.user} className="h-8 w-8" />

@@ -1851,7 +1851,7 @@ export default function SmmPanel({ seed }: {
                         <td className="py-3 pl-1 pr-3">
                           <div className="flex items-center gap-2.5">
                             {p.image_url
-                              ? <img src={p.image_url} alt="" className="h-10 w-12 shrink-0 rounded-lg object-cover" />
+                              ? <img loading="lazy" decoding="async" src={p.image_url} alt="" className="h-10 w-12 shrink-0 rounded-lg object-cover" />
                               : <span className="grid h-10 w-12 shrink-0 place-items-center rounded-lg bg-soft"><Icon d={I.doc} className="h-4 w-4 text-muted" /></span>}
                             <span className="font-mono text-xs font-bold text-muted">#{p.seq ?? "—"}</span>
                           </div>

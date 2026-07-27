@@ -30,20 +30,50 @@ Deno.serve(async (req) => {
     const { data: { user: authData }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !authData) return errorResponse("Token notog'ri", 401)
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, name, avatar, phone, language, timezone, bio, status, metadata")
-      .eq("id", authData.id)
-      .maybeSingle()
+    // TEZLIK: bu 5 ta so'rov ilgari KETMA-KET bajarilardi — 5 ta alohida
+    // borish-kelish. Hammasi faqat authData.id ga bog'liq, ya'ni bir-birini
+    // kutishi shart emas. Bu funksiya har sahifa yuklanishida chaqiriladi,
+    // shuning uchun tejaladigan vaqt sezilarli.
+    const uid = authData.id
+    const [
+      { data: profile, error: profileError },
+      { data: userRoles },
+      { data: bloggerData },
+      { data: socialAccounts },
+      { data: partner },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id, email, name, avatar, phone, language, timezone, bio, status, metadata")
+        .eq("id", uid)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("user_roles")
+        .select("role:roles(name, priority)")
+        .eq("profile_id", uid),
+      supabaseAdmin
+        .from("bloggers")
+        .select("cover")
+        .eq("id", uid)
+        .is("deleted_at", null)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("social_accounts")
+        .select("id, account_name, profile_url, avatar_url, platform:social_platforms!inner(key, name)")
+        .is("deleted_at", null)
+        .eq("blogger_id", uid)
+        .eq("is_active", true),
+      supabaseAdmin
+        .from("partners")
+        .select("id")
+        .eq("client_profile_id", uid)
+        .is("deleted_at", null)
+        .maybeSingle(),
+    ])
 
     if (profileError) return errorResponse("DB error: " + profileError.message, 500)
     if (!profile) return errorResponse("Profil topilmadi", 404)
     if (profile.status !== "active") return errorResponse("Hisobingiz faollashtirilmagan", 403)
-
-    const { data: userRoles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role:roles(name, priority)")
-      .eq("profile_id", authData.id)
 
     const sorted = (userRoles ?? [])
       .map((ur: any) => ur.role)
@@ -74,48 +104,37 @@ Deno.serve(async (req) => {
     const ageDistribution = meta.ageDistribution as Record<string, number> || { "18-24": 18, "25-34": 42, "35-44": 25, "45+": 15 }
     const regionDistribution = meta.regionDistribution as Record<string, number> || { "Toshkent": 38, "Toshkent viloyati": 22, "Farg'ona viloyati": 12, "Namangan viloyati": 8, "Boshqalar": 20 }
 
-    let banner = ""
-    const { data: bloggerData } = await supabaseAdmin
-      .from("bloggers")
-      .select("cover")
-      .eq("id", profile.id)
-      .is("deleted_at", null)
-      .maybeSingle()
-    if (bloggerData?.cover) banner = bloggerData.cover
-    profileFields.banner = banner
-
-    const { data: socialAccounts } = await supabaseAdmin
-      .from("social_accounts")
-      .select("id, account_name, profile_url, avatar_url, platform:social_platforms!inner(key, name)")
-      .is("deleted_at", null)
-      .eq("blogger_id", profile.id)
-      .eq("is_active", true)
+    profileFields.banner = bloggerData?.cover || ""
 
     const accountIds = (socialAccounts || []).map((s: any) => s.id)
     const subsMap: Record<string, number> = {}
     const viewsMap: Record<string, number> = {}
     if (accountIds.length > 0) {
-      const { data: allStats } = await supabaseAdmin
-        .from("social_statistics")
-        .select("account_id, subscribers_count, views_count, snapshot_date")
-        .in("account_id", accountIds)
-        .is("deleted_at", null)
-        .order("snapshot_date", { ascending: false })
+      // TEZLIK: ilgari BUTUN statistika tarixi tortilardi (kunlik snapshot
+      // bo'lsa har akkaunt uchun yuzlab qator), keyin JS'da faqat eng
+      // oxirgisi olinib qolgani tashlab yuborilardi. Endi har akkaunt
+      // uchun aynan 1 ta qator — akkauntlar soni kam (odatda 2-5 ta),
+      // shuning uchun parallel so'rov arzon.
+      const rows = await Promise.all(
+        accountIds.map((id: string) =>
+          supabaseAdmin
+            .from("social_statistics")
+            .select("account_id, subscribers_count, views_count")
+            .eq("account_id", id)
+            .is("deleted_at", null)
+            .order("snapshot_date", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        )
+      )
 
-      for (const stat of allStats || []) {
-        if (!(stat.account_id in subsMap)) {
+      for (const { data: stat } of rows) {
+        if (stat) {
           subsMap[stat.account_id] = stat.subscribers_count
           viewsMap[stat.account_id] = stat.views_count || 0
         }
       }
     }
-
-    const { data: partner } = await supabaseAdmin
-      .from("partners")
-      .select("id")
-      .eq("client_profile_id", profile.id)
-      .is("deleted_at", null)
-      .maybeSingle()
 
     const rawVideos = (meta.videos as unknown[]) || []
 

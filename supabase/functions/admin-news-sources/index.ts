@@ -1,13 +1,38 @@
 import { handleCors } from "../_shared/cors.ts"
 import { jsonResponse, successResponse, errorResponse } from "../_shared/response.ts"
-import { verifyAuth } from "../_shared/auth.ts"
+import { requireRole } from "../_shared/auth.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+
+/**
+ * Manba URL'ini tekshiradi.
+ *
+ * NEGA KERAK: bu yerga qo'shilgan manzilni keyinchalik SERVER o'zi
+ * yuklaydi (worker-web-crawler, worker-rss-ingest). Tekshiruvsiz bu
+ * SSRF bo'ladi — ichki tarmoq, bulut metadata xizmati (169.254.169.254)
+ * yoki localhost'dagi xizmatlarga so'rov yuborish mumkin edi.
+ */
+function badSourceUrl(raw: string): string | null {
+  let u: URL
+  try { u = new URL(raw) } catch { return "URL noto'g'ri" }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return "Faqat http/https manzil qabul qilinadi"
+  const h = u.hostname.toLowerCase()
+  if (
+    h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") ||
+    /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
+    /^169\.254\./.test(h) || /^0\./.test(h) ||
+    h === "[::1]" || h === "::1"
+  ) return "Ichki tarmoq manzillari qabul qilinmaydi"
+  return null
+}
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  const auth = await verifyAuth(req)
+  // ILGARI faqat verifyAuth bor edi — ya'ni ISTALGAN faol foydalanuvchi
+  // (oddiy user, blogger) manba qo'sha va o'chira olardi.
+  const auth = await requireRole(req, "super_admin", "admin", "editor")
   if (auth.response) return auth.response
 
   const url = new URL(req.url)
@@ -28,6 +53,8 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const { name, type, url } = await req.json()
       if (!name || !type || !url) return errorResponse("name, type va url majburiy", 400)
+      const urlErr = badSourceUrl(String(url))
+      if (urlErr) return errorResponse(urlErr, 400)
 
       const { data, error } = await supabaseAdmin
         .from("news_sources")

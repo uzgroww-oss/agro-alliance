@@ -6,13 +6,28 @@
  */
 import { supabaseAdmin } from "./supabase.ts"
 
+/**
+ * Mijoz IP'si.
+ *
+ * MUHIM: X-Forwarded-For ning ENG CHAPDAGI qiymati — mijoz o'zi yozgan
+ * qiymat, uni istalgancha soxtalashtirish mumkin edi. Har so'rovda yangi
+ * soxta IP yuborib chegarani cheksiz aylanib o'tish mumkin edi.
+ * ENG O'NGDAGI qiymatni platformaning o'zi qo'shadi — faqat shunga
+ * ishonish mumkin.
+ */
 function clientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for") || ""
-  const ip = xff.split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown"
-  return ip
+  const parts = xff.split(",").map((s) => s.trim()).filter(Boolean)
+  return parts[parts.length - 1] || req.headers.get("x-real-ip") || "unknown"
 }
 
-/** true qaytarsa — chegara oshgan (bloklash kerak). Xato bo'lsa false (ochiq, ilova buzilmasin). */
+/**
+ * true qaytarsa — chegara oshgan (bloklash kerak).
+ *
+ * XATO BO'LSA HAM BLOKLAYDI (fail-closed). Ilgari xatoda `false`
+ * qaytarardi — ya'ni DB tiqilib qolsa himoya butunlay ochilib ketardi,
+ * aynan spam hujumi paytida. Endi teskari: shubhali holatda to'siladi.
+ */
 export async function rateLimited(req: Request, action: string, max: number, windowSeconds: number): Promise<boolean> {
   try {
     const key = `${action}:${clientIp(req)}`
@@ -21,10 +36,10 @@ export async function rateLimited(req: Request, action: string, max: number, win
       p_max: max,
       p_window_seconds: windowSeconds,
     })
-    if (error) { console.error("rate_limit rpc:", error.message); return false }
+    if (error) { console.error("rate_limit rpc:", error.message); return true }
     return data === false // funksiya true=ruxsat, false=oshgan
   } catch (e) {
     console.error("rate_limit:", e instanceof Error ? e.message : e)
-    return false
+    return true
   }
 }

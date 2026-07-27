@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, useDebounced } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
@@ -97,6 +97,8 @@ export default function News() {
   useStaticSeo("/yangiliklar")
   // UI state
   const [query, setQuery] = useState("")
+  // Har harfda emas — yozish to'xtagach so'rov ketadi
+  const search = useDebounced(query)
   const [cat, setCat] = useState("all")
   const [theme, setTheme] = useState("Barchasi")
   const [date, setDate] = useState("Barchasi")
@@ -124,7 +126,7 @@ export default function News() {
     setError("")
     loadNews({
       category: cat !== "all" ? cat : undefined,
-      search: query.trim() || undefined,
+      search: search.trim() || undefined,
       theme: theme !== "Barchasi" ? theme : undefined,
       date: date !== "Barchasi" ? date : undefined,
       page,
@@ -133,7 +135,7 @@ export default function News() {
       .then((res) => setData(res))
       .catch((e) => setError(e?.message || "Xatolik"))
       .finally(() => setLoading(false))
-  }, [cat, theme, date, query, page])
+  }, [cat, theme, date, search, page])
 
   const newsList = useMemo(() => {
     if (!data) return []
@@ -211,7 +213,7 @@ const side = page === 1 && newsList.slice(1, 3)
                   <li key={p.title}>
                     <Link to={`/yangiliklar/${p.slug}`} className="group flex gap-3">
                       <span className="relative shrink-0">
-                        <img src={newsImg(p.seed, 120, 120)} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                        <img loading="lazy" decoding="async" src={newsImg(p.seed, 120, 120)} alt="" className="h-12 w-12 rounded-lg object-cover" />
                         <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-green text-[11px] font-bold text-white">{i + 1}</span>
                       </span>
                       <div className="min-w-0">
@@ -251,7 +253,7 @@ const side = page === 1 && newsList.slice(1, 3)
                     <Reveal>
                       <Link to={`/yangiliklar/${featured.slug}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_6px_28px_rgba(91,180,32,0.08)]">
                         <div className="relative h-60 overflow-hidden">
-                          <img src={newsImg(featured.seed, 800, 500)} alt={featured.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <img loading="lazy" decoding="async" src={newsImg(featured.seed, 800, 500)} alt={featured.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-lg bg-orange-500 px-2.5 py-1 text-xs font-bold text-white shadow"><Icon d={I.trophy} className="h-3.5 w-3.5" /> TOP</span>
                         </div>
                         <div className="flex flex-1 flex-col p-5">
@@ -268,7 +270,7 @@ const side = page === 1 && newsList.slice(1, 3)
                         <Reveal key={n.title} delay={80}>
                           <Link to={`/yangiliklar/${n.slug}`} className="group flex overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
                             <div className="h-auto w-2/5 shrink-0 overflow-hidden">
-                              <img src={newsImg(n.seed, 400, 400)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              <img loading="lazy" decoding="async" src={newsImg(n.seed, 400, 400)} alt={n.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                             </div>
                             <div className="p-4">
                               <CatTag k={n.cat} />

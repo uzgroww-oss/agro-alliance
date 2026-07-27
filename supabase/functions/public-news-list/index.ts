@@ -74,26 +74,32 @@ Deno.serve(async (req) => {
       .is("deleted_at", null)
       .order("sort_order", { ascending: true })
 
-    // Count articles per category
+    // TEZLIK: ilgari bu yerda HAR KATEGORIYA uchun alohida `count: exact`
+    // so'rovi KETMA-KET yuborilardi (10 kategoriya = 10 ta borish-kelish,
+    // har biri to'liq skan). Endi bitta so'rov bilan barcha chop etilgan
+    // maqolalarning category_id lari olinadi va sanoq JS'da qilinadi.
+    const { data: idRows } = await supabaseAdmin
+      .from("news_articles")
+      .select("category_id")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .lte("published_at", new Date().toISOString())
+
+    const perCat = new Map<string, number>()
+    for (const row of idRows || []) {
+      const k = (row as { category_id: string | null }).category_id
+      if (k) perCat.set(k, (perCat.get(k) || 0) + 1)
+    }
+
     const cats = [
       { key: "all", label: "Barcha yangiliklar", icon: "grid", count: count || 0 },
-    ]
-
-    for (const cat of (categories || [])) {
-      const { count: catCount } = await supabaseAdmin
-        .from("news_articles")
-        .select("id", { count: "exact", head: true })
-        .eq("category_id", cat.id)
-        .eq("status", "published")
-        .is("deleted_at", null)
-        .lte("published_at", new Date().toISOString())
-      cats.push({
+      ...(categories || []).map((cat) => ({
         key: cat.key,
         label: cat.name_uz || cat.key,
         icon: cat.icon || "grid",
-        count: catCount || 0,
-      })
-    }
+        count: perCat.get(cat.id) || 0,
+      })),
+    ]
 
     return noCacheJsonResponse({
       news,

@@ -5,15 +5,36 @@ import { validate, required } from "../_shared/validation.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { now } from "../_shared/time.ts"
 
+/**
+ * Havoladan platformani aniqlaydi.
+ *
+ * MUHIM: ilgari `url.includes("instagram.com")` — BUTUN satr bo'yicha
+ * qidirilardi. Ya'ni `http://169.254.169.254/meta-data/?instagram.com`
+ * ham tekshiruvdan o'tardi, keyin server o'sha manzilni yuklardi (SSRF).
+ * Endi faqat HOST nomi solishtiriladi va u aniq ro'yxatga mos kelishi shart.
+ */
+const PLATFORM_HOSTS: [string[], { key: string; name: string }][] = [
+  [["youtube.com", "youtu.be"], { key: "youtube", name: "YouTube" }],
+  [["instagram.com"], { key: "instagram", name: "Instagram" }],
+  [["tiktok.com"], { key: "tiktok", name: "TikTok" }],
+  [["t.me", "telegram.org", "telegram.me"], { key: "telegram", name: "Telegram" }],
+  [["facebook.com", "fb.com"], { key: "facebook", name: "Facebook" }],
+  [["x.com", "twitter.com"], { key: "x", name: "X" }],
+  [["linkedin.com"], { key: "linkedin", name: "LinkedIn" }],
+]
+
 function detectPlatform(url: string): { key: string; name: string } | null {
-  const u = url.toLowerCase()
-  if (u.includes("youtube.com") || u.includes("youtu.be")) return { key: "youtube", name: "YouTube" }
-  if (u.includes("instagram.com")) return { key: "instagram", name: "Instagram" }
-  if (u.includes("tiktok.com")) return { key: "tiktok", name: "TikTok" }
-  if (u.includes("t.me") || u.includes("telegram.org")) return { key: "telegram", name: "Telegram" }
-  if (u.includes("facebook.com") || u.includes("fb.com")) return { key: "facebook", name: "Facebook" }
-  if (u.includes("x.com") || u.includes("twitter.com")) return { key: "x", name: "X" }
-  if (u.includes("linkedin.com")) return { key: "linkedin", name: "LinkedIn" }
+  let host: string
+  try {
+    const u = new URL(url)
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null
+    host = u.hostname.toLowerCase().replace(/^www\./, "")
+  } catch {
+    return null
+  }
+  for (const [domains, plat] of PLATFORM_HOSTS) {
+    if (domains.some((d) => host === d || host.endsWith("." + d))) return plat
+  }
   return null
 }
 

@@ -92,12 +92,16 @@ export async function geminiChat(
 ): Promise<{ text: string; tokens: number }> {
   const apiKey = getApiKey();
   const model = opts?.model ?? "gemini-2.0-flash";
-  const maxRetries = opts?.retries ?? 3;
+  const maxRetries = opts?.retries ?? 2;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
-      // Short backoff: 5s, 10s (must stay under 50s Edge Function timeout)
-      const delay = 5000 * Math.pow(2, attempt - 1);
+      // Kutish: 2s, 4s — jami 6 sekund.
+      // ILGARI: 5s, 10s, 20s = 35 sekund SOF KUTISH, ustiga 4 ta so'rov.
+      // Izohda "50s chegarasidan oshmasin" deyilgan edi, lekin hisob
+      // noto'g'ri edi — retries=3 uchinchi kechikishni ham qo'shardi.
+      // Foydalanuvchi provayder band bo'lganda deyarli bir daqiqa kutardi.
+      const delay = 2000 * Math.pow(2, attempt - 1);
       await sleep(delay);
     }
 

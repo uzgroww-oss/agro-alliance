@@ -94,6 +94,23 @@ export function useBodyScrollLock(active: boolean) {
   }, [active])
 }
 
+/**
+ * Qiymatni kechiktirib qaytaradi.
+ *
+ * NEGA: qidiruv maydonida `query` to'g'ridan-to'g'ri useEffect bog'liqligida
+ * turardi — HAR BIR HARF bosilganda yangi so'rov ketardi. "fermer" so'zi =
+ * 6 ta so'rov, har biri serverda bir nechta DB so'roviga aylanadi.
+ * Endi yozish to'xtagandan 350ms keyin bitta so'rov ketadi.
+ */
+export function useDebounced<T>(value: T, ms = 350): T {
+  const [v, setV] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms)
+    return () => clearTimeout(t)
+  }, [value, ms])
+  return v
+}
+
 export function ErrorState({ onRetry, message = "Ma'lumotni yuklab bo'lmadi." }: { onRetry?: () => void; message?: string }) {
   return (
     <div className="rounded-3xl border border-red-200 bg-red-50/60 px-6 py-10 text-center">

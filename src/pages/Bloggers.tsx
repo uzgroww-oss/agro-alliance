@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
-import { api } from "../lib/api"
+import { Reveal, Icon, I, Skeleton, ErrorState, useDebounced } from "../lib/ui"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
 import { useStaticSeo } from "../lib/seo"
 
@@ -42,27 +41,19 @@ function Socials() {
   )
 }
 
-function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoading: boolean }) {
+function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger | null; topLoading: boolean; totalBloggers: number | null }) {
+  // TEZLIK: bu yerda ilgari `/public/bloggers?per_page=1` alohida
+  // chaqirilardi — FAQAT `pagination.total` uchun. Aynan shu raqam
+  // sahifaning asosiy ro'yxat so'rovi javobida ham bor edi, ya'ni
+  // qimmat so'rov (blogger_social_summary view) bekorga takrorlanardi.
+  // Endi raqam yuqoridan uzatiladi.
   // "0+" o'rniga "…" — nol real raqamdek ko'rinib qolmasin.
-  const [heroStats, setHeroStats] = useState<HeroStat[]>([
-    { icon: I.users, v: "…", l: "Faol blogerlar" },
+  const heroStats: HeroStat[] = [
+    { icon: I.users, v: totalBloggers === null ? "…" : `${totalBloggers}+`, l: "Faol blogerlar" },
     { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
     { icon: I.building, v: "5M+", l: "Jami auditoriya" },
     { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
-  ])
-
-  useEffect(() => {
-    api<{ pagination: { total: number } }>("/public/bloggers?per_page=1&page=1")
-      .then((res) => {
-        const total = res?.pagination?.total ?? 0
-        setHeroStats((prev) =>
-          prev.map((s) =>
-            s.l === "Faol blogerlar" ? { ...s, v: `${total}+` } : s
-          )
-        )
-      })
-      .catch(() => {})
-  }, [])
+  ]
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -132,7 +123,7 @@ function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoadi
                     <Skeleton className="h-20 w-20 rounded-full" />
                   ) : topBlogger ? (
                     <>
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={topBlogger.avatar || cover(topBlogger.seed)}
                         alt=""
                         className="h-20 w-20 rounded-full object-cover ring-4 ring-soft"
@@ -182,6 +173,8 @@ function Hero({ topBlogger, topLoading }: { topBlogger: Blogger | null; topLoadi
 export default function Bloggers() {
   useStaticSeo("/blogerlar")
   const [query, setQuery] = useState("")
+  // Har harfda emas — yozish to'xtagach so'rov ketadi
+  const search = useDebounced(query)
   const [cat, setCat] = useState("all")
   const [region, setRegion] = useState("Barchasi")
   const [platform, setPlatform] = useState("Barchasi")
@@ -193,10 +186,16 @@ export default function Bloggers() {
   const [failed, setFailed] = useState(false)
   const [topBlogger, setTopBlogger] = useState<Blogger | null>(null)
   const [topLoading, setTopLoading] = useState(true)
+  /** Hero uchun filtrsiz umumiy son */
+  const [totalAll, setTotalAll] = useState<number | null>(null)
 
   useEffect(() => {
     loadTopBlogger().then(setTopBlogger).catch(() => {}).finally(() => setTopLoading(false))
   }, [])
+
+  const hasFilters =
+    cat !== "all" || region !== "Barchasi" || platform !== "Barchasi" ||
+    sort !== "Barchasi" || search.trim() !== ""
 
   const load = useCallback((p: number) => {
     // MUHIM: har qayta yuklashda (filtr/sahifa o'zgarganda ham) loading yoqiladi.
@@ -207,16 +206,22 @@ export default function Bloggers() {
     loadBloggers({
       category: cat !== "all" ? cat : undefined,
       region: region !== "Barchasi" ? region : undefined,
-      search: query.trim() || undefined,
+      search: search.trim() || undefined,
       sort: sort !== "Barchasi" ? sort : undefined,
       platform: platform !== "Barchasi" ? platform : undefined,
       page: p,
       per_page: 12,
     })
-      .then((res) => { setBloggersList(res.bloggers); setPagination(res.pagination) })
+      .then((res) => {
+        setBloggersList(res.bloggers)
+        setPagination(res.pagination)
+        // Hero'dagi "Faol blogerlar" — FILTRSIZ umumiy son. Filtr yoqilgan
+        // yuklashning jami soni bu raqamni buzmasligi kerak.
+        if (!hasFilters) setTotalAll(res.pagination.total)
+      })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false))
-  }, [cat, region, query, sort, platform])
+  }, [cat, region, search, sort, platform, hasFilters])
 
   useEffect(() => {
     load(page)
@@ -228,7 +233,7 @@ export default function Bloggers() {
 
   return (
     <>
-      <Hero topBlogger={topBlogger} topLoading={topLoading} />
+      <Hero topBlogger={topBlogger} topLoading={topLoading} totalBloggers={totalAll} />
 
       <section className="mx-auto max-w-[1320px] px-5 lg:px-8">
         <div className="rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
@@ -302,7 +307,7 @@ export default function Bloggers() {
                 <div className="group overflow-hidden rounded-2xl border border-green/10 bg-white shadow-[0_4px_24px_rgba(91,180,32,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_16px_44px_rgba(91,180,32,0.14)]">
                   <div className="relative h-44 overflow-hidden">
                     {b.cover ? (
-                      <img src={b.cover} alt={b.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img loading="lazy" decoding="async" src={b.cover} alt={b.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-green/20 to-green/5">
                         <span className="font-display text-4xl font-extrabold text-green/40">{b.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</span>

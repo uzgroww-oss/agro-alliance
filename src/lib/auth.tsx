@@ -15,15 +15,19 @@ const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx)
 
 async function fetchProfile(userId: string): Promise<User | null> {
   try {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single()
+    // TEZLIK: bu ikki so'rov ilgari ketma-ket edi — bir-birini kutishi
+    // shart emas. Ustiga select("*") butun qatorni tortardi; endi faqat
+    // dbProfileToUser ishlatadigan ustunlar.
+    const [{ data: profile }, { data: roleName }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, name, avatar, phone, bio, status, metadata")
+        .eq("id", userId)
+        .single(),
+      supabase.rpc("auth_role"),
+    ])
 
     if (!profile) return null
-
-    const { data: roleName } = await supabase.rpc("auth_role")
 
     return dbProfileToUser(profile as DbProfile, roleName ?? "user")
   } catch {
@@ -60,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const cancelled = useRef(false)
+  // TEZLIK: onAuthStateChange (INITIAL_SESSION) va getSession() ikkalasi
+  // ham mount paytida ishga tushib, AYNAN BIR XIL sessiya uchun profil +
+  // auth_role so'rovlarini IKKI MARTA yuborardi. Bu ref allaqachon hal
+  // qilingan tokenni eslab qoladi va takrorini o'tkazib yuboradi.
+  const resolvedToken = useRef<string | null>(null)
 
   useEffect(() => {
     cancelled.current = false
@@ -67,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (cancelled.current) return
+        const tok = session?.access_token ?? null
+        if (tok && tok === resolvedToken.current) return // shu token allaqachon hal qilingan
+        resolvedToken.current = tok
         const resolved = await resolveSession(session)
         if (cancelled.current) return
         setUser(resolved)
@@ -79,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled.current) return
 
       if (session) {
+        if (session.access_token === resolvedToken.current) return // listener ulgurgan
+        resolvedToken.current = session.access_token
         const resolved = await resolveSession(session)
         if (!cancelled.current) {
           setUser(resolved)

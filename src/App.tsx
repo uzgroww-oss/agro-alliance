@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { lazy, Suspense, useEffect, useRef, type ReactNode } from "react"
 import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation, useNavigate } from "react-router-dom"
 import { App as CapApp } from "@capacitor/app"
 import { isNative } from "./lib/platform"
@@ -7,23 +7,47 @@ import { ErrorBoundary } from "./lib/error-boundary"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
 import Home from "./pages/Home"
-import About from "./pages/About"
-import Bloggers from "./pages/Bloggers"
-import BloggerProfile from "./pages/BloggerProfile"
-import Platform from "./pages/Platform"
-import News from "./pages/News"
-import NewsDetail from "./pages/NewsDetail"
-import Partners from "./pages/Partners"
-import Contact from "./pages/Contact"
-import Login from "./pages/Login"
-import ResetPassword from "./pages/ResetPassword"
-import Terms from "./pages/Terms"
-import Privacy from "./pages/Privacy"
-import NotFound from "./pages/NotFound"
-import BloggerDashboard from "./pages/dashboard/BloggerDashboard"
-import AdminDashboard from "./pages/dashboard/AdminDashboard"
-import PartnerDashboard from "./pages/dashboard/PartnerDashboard"
 import { roleHome } from "./lib/roles"
+
+/**
+ * SAHIFALAR TALAB BO'YICHA YUKLANADI.
+ *
+ * NEGA: ilgari hamma sahifa bitta faylga yig'ilardi — 1.25 MB
+ * (gzip 325 KB). Bosh sahifaga kirgan oddiy mehmon ham butun admin
+ * panelini (3000 qator), bloger va hamkor panellarini yuklab olardi.
+ * Endi har sahifa alohida bo'lak: kerak bo'lgandagina yuklanadi.
+ *
+ * Home KECHIKTIRILMAYDI — u birinchi ochiladigan sahifa, uni
+ * bo'lakka ajratish faqat qo'shimcha kutish qo'shadi.
+ */
+const About = lazy(() => import("./pages/About"))
+const Bloggers = lazy(() => import("./pages/Bloggers"))
+const BloggerProfile = lazy(() => import("./pages/BloggerProfile"))
+const Platform = lazy(() => import("./pages/Platform"))
+const News = lazy(() => import("./pages/News"))
+const NewsDetail = lazy(() => import("./pages/NewsDetail"))
+const Partners = lazy(() => import("./pages/Partners"))
+const Contact = lazy(() => import("./pages/Contact"))
+const Login = lazy(() => import("./pages/Login"))
+const ResetPassword = lazy(() => import("./pages/ResetPassword"))
+const Terms = lazy(() => import("./pages/Terms"))
+const Privacy = lazy(() => import("./pages/Privacy"))
+const NotFound = lazy(() => import("./pages/NotFound"))
+const BloggerDashboard = lazy(() => import("./pages/dashboard/BloggerDashboard"))
+const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"))
+const PartnerDashboard = lazy(() => import("./pages/dashboard/PartnerDashboard"))
+
+/** Sahifa bo'lagi yuklanayotganda ko'rinadi — bo'sh oq ekran bo'lmasin */
+function PageLoading() {
+  return (
+    <div className="grid min-h-[60vh] place-items-center">
+      <div className="flex items-center gap-3 text-sm text-muted">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-green/30 border-t-green" />
+        Yuklanmoqda…
+      </div>
+    </div>
+  )
+}
 
 // Native ilovada HashRouter ishonchli (WebView'da server-side route yo'q), web'da BrowserRouter
 const Router = isNative ? HashRouter : BrowserRouter
@@ -86,6 +110,8 @@ export default function App() {
         <ScrollToTop />
         <AndroidBackButton />
         <ErrorBoundary>
+        {/* Suspense — kechiktirilgan sahifa yuklanguncha spinner */}
+        <Suspense fallback={<PageLoading />}>
         <Routes>
           <Route element={<MainLayout />}>
             {/* Native ilovada bosh sahifa emas — login ekraniga yo'naltiramiz */}
@@ -108,6 +134,7 @@ export default function App() {
           <Route path="/hamkor" element={<RequireRole role="partner"><PartnerDashboard /></RequireRole>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         </ErrorBoundary>
       </Router>
     </AuthProvider>

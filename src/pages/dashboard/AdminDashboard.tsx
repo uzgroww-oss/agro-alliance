@@ -676,7 +676,7 @@ function AdminPartners() {
                 <div className="flex items-center gap-3">
                   <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="h-5 w-5 shrink-0 rounded border-green/30 text-green accent-green" />
                   {p.logo
-                    ? <img src={p.logo} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-green/10 bg-white object-contain p-1" />
+                    ? <img loading="lazy" decoding="async" src={p.logo} alt="" className="h-12 w-12 shrink-0 rounded-xl border border-green/10 bg-white object-contain p-1" />
                     : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={I.building} className="h-6 w-6" /></span>}
                   <div>
                     <div className="flex items-center gap-2">
@@ -854,10 +854,12 @@ function Overview() {
   useEffect(() => {
     api<{ bloggers: unknown[] }>("/bloggers").then((d) => setBloggerCount(d.bloggers.length)).catch(() => {})
     api<{ partners: unknown[] }>("/partners").then((d) => setPartnerCount(d.partners.length)).catch(() => {})
-    api<{ pagination: { total: number } }>("/news?per_page=1").then((d) => setNewsCount(d.pagination?.total || 0)).catch(() => {})
     api<{ subscribers: unknown[] }>("/subscribers").then((d) => setSubscribers(d.subscribers.length)).catch(() => {})
-    api<{ news: { title: string; created_at: string }[] }>("/news?per_page=4")
-      .then((d) => setRecentNews(d.news || []))
+    // TEZLIK: ilgari `/news?per_page=1` alohida chaqirilardi — FAQAT
+    // pagination.total uchun. U raqam bu javobda ham bor, shuning uchun
+    // bitta so'rov yetarli.
+    api<{ news: { title: string; created_at: string }[]; pagination: { total: number } }>("/news?per_page=4")
+      .then((d) => { setRecentNews(d.news || []); setNewsCount(d.pagination?.total || 0) })
       .catch(() => {})
       .finally(() => setNewsLoading(false))
   }, [])
@@ -1108,7 +1110,7 @@ function AdminTeam() {
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-soft">
                 {m.image_url ? (
-                  <img src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={m.image_url} alt={m.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="grid h-full w-full place-items-center bg-green/10 text-green"><Icon d={I.user} className="h-6 w-6" /></span>
                 )}
@@ -1315,10 +1317,14 @@ function AdminSettings() {
   const [igUsername, setIgUsername] = useState<string | null>(null)
   const [igChecking, setIgChecking] = useState(true)
 
+  // Xato "sozlama yo'q" degani EMAS: ilgari so'rov yiqilsa "Sozlamalar
+  // topilmadi" chiqib, admin sozlamalar o'chib ketgan deb o'ylardi.
+  const [failed, setFailed] = useState(false)
   const load = () => {
+    setFailed(false)
     api<{ settings: Setting[] }>("/settings")
       .then((d) => setSettings(d.settings || []))
-      .catch(() => {})
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
 
@@ -1357,9 +1363,12 @@ function AdminSettings() {
   // Ikki marta bosilsa har bir sozlama uchun ketma-ket PATCH ikki marta ketardi.
   const [saving, runSave] = useBusy()
   const save = () => runSave(async () => {
-    for (const s of settings) {
-      await api(`/settings/${s.id}`, { method: "PATCH", body: JSON.stringify({ value: s.value }) })
-    }
+    // TEZLIK: ilgari `for ... await` edi — har sozlama uchun alohida
+    // so'rov KETMA-KET. 15 ta sozlama = 15 ta borish-kelish, har biri
+    // ~250ms, jami ~4 sekund. Endi hammasi bir vaqtda ketadi.
+    await Promise.all(
+      settings.map((s) => api(`/settings/${s.id}`, { method: "PATCH", body: JSON.stringify({ value: s.value }) }))
+    )
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   })
@@ -1429,7 +1438,9 @@ function AdminSettings() {
 
       {loading && <SkeletonStatGrid />}
 
-      {!loading && settings.length === 0 && (
+      {!loading && failed && <ErrorState onRetry={load} message="Sozlamalarni yuklab bo'lmadi." />}
+
+      {!loading && !failed && settings.length === 0 && (
         <div className="py-8 text-center text-muted">Sozlamalar topilmadi.</div>
       )}
 
@@ -1477,11 +1488,15 @@ function AdminTasks() {
   /** Qaysi TZ uchun bloger ro'yxati ochilgan */
   const [openTask, setOpenTask] = useState<string | null>(null)
 
+  // Xato "topshiriq yo'q" degani EMAS. Ustiga blogerlar ro'yxati bo'sh
+  // qolsa, admin TZ ni umuman hech kimga yubora olmasdi — sababini bilmay.
+  const [failed, setFailed] = useState(false)
   const load = () => {
     setLoading(true)
+    setFailed(false)
     Promise.all([
-      api<{ tasks: AdminTask[] }>("/tasks").then((d) => setTasks(d.tasks || [])).catch(() => {}),
-      api<{ bloggers: { id: string; name: string }[] }>("/bloggers").then((d) => setBloggers(d.bloggers || [])).catch(() => {}),
+      api<{ tasks: AdminTask[] }>("/tasks").then((d) => setTasks(d.tasks || [])).catch(() => setFailed(true)),
+      api<{ bloggers: { id: string; name: string }[] }>("/bloggers").then((d) => setBloggers(d.bloggers || [])).catch(() => setFailed(true)),
     ]).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1582,6 +1597,8 @@ function AdminTasks() {
         <h3 className="font-display font-bold">Yuborilgan topshiriqlar</h3>
         {loading ? (
           <div className="mt-3"><SkeletonCard /></div>
+        ) : failed ? (
+          <div className="mt-3"><ErrorState onRetry={load} message="Topshiriqlarni yuklab bo'lmadi." /></div>
         ) : tasks.length === 0 ? (
           <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">Hali topshiriq yuborilmagan.</p>
         ) : (
@@ -2653,12 +2670,21 @@ function AdminRoles() {
   // ochsangiz — B uchun A ning belgilangan ruxsatlari ko'rinib turardi va
   // keyin jimgina almashardi (noto'g'ri ruxsat saqlab yuborish xavfi).
   const [permsLoading, setPermsLoading] = useState(false)
+  // XAVFLI HOLAT EDI: so'rov yiqilsa hech qanday xato ko'rsatilmasdi va
+  // barcha katakchalar bo'sh chiqardi — "bu rolda ruxsat yo'q" degandek.
+  // Shu holatda "Saqlash" bosilsa permission_ids: [] yuborilib, rolning
+  // haqiqiy ruxsatlari o'chib ketardi. Endi xato aniq ko'rsatiladi va
+  // saqlash bloklanadi.
+  const [permsError, setPermsError] = useState("")
   const loadRolePerms = async (roleId: string) => {
     setPermsLoading(true)
+    setPermsError("")
     setRolePermIds(new Set())
     try {
       const d = await api<{ permission_ids: string[] }>(`/role-permissions?role_id=${roleId}`)
       setRolePermIds(new Set(d.permission_ids || []))
+    } catch (err) {
+      setPermsError(err instanceof Error ? err.message : "Ruxsatlarni yuklab bo'lmadi")
     } finally {
       setPermsLoading(false)
     }
@@ -2870,10 +2896,20 @@ function AdminRoles() {
                           <div className="rounded-xl border border-green/10 bg-white p-4">
                             <div className="mb-3 flex items-center justify-between">
                               <h4 className="font-display text-sm font-bold">Ruxsatlar: <span className="text-green">{r.name}</span></h4>
-                              <button onClick={savePerms} disabled={savingPerms} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-green-deep disabled:opacity-60">
+                              {/* permsError bo'lsa saqlash TO'SILADI: bo'sh ro'yxatni
+                                  saqlash rolning haqiqiy ruxsatlarini o'chirib yuboradi. */}
+                              <button onClick={savePerms} disabled={savingPerms || permsLoading || !!permsError} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-green-deep disabled:opacity-60">
                                 {savingPerms ? "Saqlanmoqda..." : "Ruxsatlarni saqlash"}
                               </button>
                             </div>
+                            {permsError && (
+                              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+                                <span>{permsError}</span>
+                                <button onClick={() => loadRolePerms(r.id)} className="shrink-0 rounded-md border border-red-200 px-2 py-1 text-xs font-bold hover:bg-white">
+                                  Qayta urinish
+                                </button>
+                              </div>
+                            )}
                             {/* Ilgari bu shart yuklanish VA xato holatini birga
                                 ifodalardi: so'rov muvaffaqiyatsiz bo'lsa matn abadiy turardi. */}
                             {permsLoading && <div className="py-4"><SkeletonTable rows={4} cols={3} /></div>}

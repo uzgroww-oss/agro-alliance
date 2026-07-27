@@ -286,7 +286,7 @@ function PartnerLogos() {
         {!loading && list.map((p, i) => (
           <Reveal key={p.name} delay={(i % 5) * 50}>
             <div className="grid h-24 place-items-center rounded-2xl border border-green/10 bg-white px-4 text-center font-display text-base font-extrabold tracking-tight text-ink/75 shadow-[0_4px_20px_rgba(91,180,32,0.05)] transition-all hover:-translate-y-1 hover:text-green hover:shadow-[0_12px_32px_rgba(91,180,32,0.12)]">
-              {p.logo ? <img src={p.logo} alt={p.name} className="max-h-12 max-w-full object-contain" /> : p.name}
+              {p.logo ? <img loading="lazy" decoding="async" src={p.logo} alt={p.name} className="max-h-12 max-w-full object-contain" /> : p.name}
             </div>
           </Reveal>
         ))}
