@@ -43,8 +43,12 @@ function hasKey(name: string): boolean {
   return true
 }
 
-/** Rasmda BO'LMASLIGI kerak narsalar — negative_prompt uchun */
-const NEGATIVE = "people, person, human, face, portrait, crowd, text, watermark, logo, letters, blurry, distorted, deformed"
+/**
+ * Rasmda BO'LMASLIGI kerak narsalar — negative_prompt uchun.
+ * Odam TAQIQLANMAYDI: post odamlar haqida bo'lsa ular chiqishi kerak.
+ * Faqat sifat nuqsonlari va yozuv/logotip to'siladi.
+ */
+const NEGATIVE = "text, watermark, logo, letters, caption, signature, blurry, low quality, distorted, deformed hands, extra fingers"
 
 /**
  * Rasm chizish — yagona kirish nuqtasi.
@@ -257,27 +261,29 @@ async function buildImagePrompt(text: string): Promise<string> {
   // qo'shsa, birinchi qator o'sha kirish bo'lib qolardi — natijada
   // rasm mavzuga umuman aloqasiz chiqardi.
   const res = await askAi<{ prompt?: string; subject?: string }>(
-    `Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
+    `Sen professional art-direktorsan. Quyidagi o'zbekcha postni O'QIB,
+MA'NOSINI TUSHUN va shu postga eng mos keladigan rasm uchun
+professional so'rov (image prompt) yoz.
 
 POST:
 ${text.slice(0, 800)}
 
 Ikki bosqich:
-1) "subject" — POSTDAGI asosiy MODDIY narsani ingliz tilida 2-4 so'z
-   bilan yoz. Postda nima haqida gap ketsa — o'sha.
-   Mavhum tushuncha YOZMA: "convenience", "efficiency", "partnership".
-2) "prompt" — shu subject asosida to'liq rasm so'rovi.
+1) "subject" — post NIMA HAQIDA ekanini tushunib, rasmda ko'rsatilishi
+   kerak bo'lgan asosiy sahnani ingliz tilida 2-5 so'z bilan yoz.
+   Mavhum tushunchani ("convenience", "efficiency") KO'RSATADIGAN aniq
+   sahnaga aylantir.
+2) "prompt" — shu sahnaning to'liq, jonli tasviri.
 
-"prompt" QAT'IY QOIDALARI:
-- SUBJECT SO'ROVNING BOSHIDA turishi shart va kadrni EGALLASHI kerak.
-  Odamni birinchi qo'ysang, u kadrni egallab, asosiy narsa
-  ko'rinmay qoladi.
-- Subject odam bo'lmasa, so'rovni "close-up" yoki "detailed view"
-  bilan boshla va odam qo'shma
-- INGLIZ tilida
-- photorealistic, natural light, sharp focus
+"prompt" QOIDALARI:
+- Asosiy sahna so'rov BOSHIDA tursin.
+- Odam kerak bo'lsa QO'SHAVER — fermer, ishchi, mutaxassis. Post odamlar
+  haqida bo'lsa, ular tabiiy va ishonarli ko'rinsin.
+- Muhitni tasvirla: joy, vaqt, yorug'lik, kayfiyat.
+- INGLIZ tilida.
+- photorealistic, natural light, sharp focus, high detail
 - O'zbekiston/Markaziy Osiyo qishloq xo'jaligi muhiti
-- Matn, yozuv, logotip bo'lmasin
+- Rasmda YOZUV, matn, logotip bo'lmasin
 - 40 so'zdan oshmasin
 
 FAQAT JSON qaytar:
@@ -296,22 +302,9 @@ FAQAT JSON qaytar:
     ["prompt"],
   )
 
-  let prompt = String(res.prompt || "").trim().slice(0, 400)
-  const subject = String(res.subject || "").toLowerCase()
-
-  /**
-   * Model qoidani unutib, so'rovga odam qo'shib yuboradi va o'shanda
-   * odam kadrni egallab, asosiy narsa ko'rinmay qoladi.
-   *
-   * Subject odam haqida bo'lmasa — buni SO'ROV ICHIDA taqiqlaymiz.
-   * negative_prompt ishlatib bo'lmaydi: FLUX uni qabul qilmaydi.
-   */
-  const aboutPeople = /farmer|people|person|worker|man|woman|child|hand/.test(subject)
-  if (!aboutPeople && !/no people/i.test(prompt)) {
-    prompt = `${prompt}, no people in frame`
-  }
-
-  return prompt.slice(0, 400)
+  // Odam taqiqi OLIB TASHLANDI: sahnaga odam kerakmi-yo'qmi, buni
+  // matnni tushungan model o'zi hal qiladi. Biz aralashmaymiz.
+  return String(res.prompt || "").trim().slice(0, 400)
 }
 
 /* ================= TARMOQLARDAN HAQIQIY MA'LUMOT ================= */
@@ -1076,7 +1069,8 @@ ${transcript.slice(0, 4000)}
      EMAS — QISHLOQ XO'JALIGI issiqxonasi.
    - "modern interior", "room", "kitchen" kabi UMUMIY ichki makon
      so'zlarini YOZMA — aks holda oddiy xona chiqadi.
-   - Odam/ishchi/fermer BO'LMASIN.
+   - Odam kerak bo'lsa qo'shaver (fermer, mutaxassis) — video mazmuniga
+     qarab o'zing hal qil.
    - Realistik foto, tabiiy yorug'lik, yozuvsiz. Faqat ingliz tilida,
      40 so'zdan oshmasin.
 
@@ -1144,17 +1138,11 @@ FAQAT JSON: { "sarlavha": "…", "prompt": "…" }`
         return jsonResponse({ vision_failed: true, error: visErrs.join(" | ") })
       }
 
-      // Muqova rasmda odam/portret/diniy tasvir chiqib ketmasin —
-      // avvalgi natijada issiqxona o'rniga odam portreti chiqqan edi.
-      // FLUX negative_prompt qabul qilmaydi, shuning uchun so'rov ICHIDA
-      // taqiqlaymiz.
-      // MUHIM: mavzu (masalan "greenhouse") KUCHLI qolishi kerak.
-      // "empty"/"architectural" kabi so'zlar FLUX'ni bo'sh xona/oshxona
-      // chizishga burardi. Endi ularni ISHLATMAYMIZ — faqat odam
-      // so'zlarini olib tashlaymiz va yengil "no people" qo'shamiz.
-      // Sahna turi (issiqxona) o'zgarmaydi.
-      imgPrompt = `${imgPrompt.replace(/\b(empty|deserted|unoccupied|farmer|person|people|man|woman|worker|human)s?\b/gi, "")}, no people, photorealistic, no text`
-        .replace(/\s{2,}/g, " ").replace(/,\s*,/g, ",").replace(/^\s*,/, "").slice(0, 400)
+      // Odam taqiqi OLIB TASHLANDI — sahnaga kim/nima kerakligini
+      // matnni tushungan model o'zi hal qiladi. Faqat sifat qo'shимчаси.
+      if (!/photorealistic/i.test(imgPrompt)) {
+        imgPrompt = `${imgPrompt}, photorealistic, natural light`.slice(0, 400)
+      }
 
       // TOZA sarlavha: buzuq transcript so'zlari (masalan "isteihanalar")
       // yoki inglizcha so'z ("Greenhouse") qolmasin. Inglizcha rasm
