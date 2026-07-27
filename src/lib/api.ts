@@ -570,9 +570,25 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   if (!res.ok) {
     const errMsg = (data as { error?: string })?.error || (data as { message?: string })?.message || "Xatolik yuz berdi"
     console.error("API error:", res.status, url, data)
-    throw new Error(errMsg)
+    throw new ApiError(errMsg, res.status)
   }
   return data as T
+}
+
+/**
+ * HTTP holat kodini saqlab qoladigan xato.
+ *
+ * NEGA KERAK: oddiy Error bilan chaqiruvchi 404 (haqiqatan yo'q) ni
+ * 500 yoki tarmoq uzilishidan ajrata olmasdi. Natijada server yiqilsa
+ * ham foydalanuvchi "topilmadi" degan YOLG'ON xabarni ko'rardi.
+ */
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+  }
 }
 
 export type User = {

@@ -62,7 +62,25 @@ export default function NewsDetail() {
     )
   }
 
-  if (error || !article) {
+  // Yuklash XATOSI "maqola yo'q" degani EMAS. Ilgari ikkalasi ham bir xil
+  // "Yangilik topilmadi" ko'rsatardi: server yiqilganda o'quvchi maqola
+  // o'chirilgan deb o'ylab, boshqa qaytib kelmasdi.
+  if (error) {
+    return (
+      <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center">
+        <div>
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-red-50 text-red-500"><Icon d={I.doc} className="h-8 w-8" /></span>
+          <h1 className="mt-4 font-display text-2xl font-extrabold">Yangilikni yuklab bo'lmadi</h1>
+          <p className="mt-2 text-muted">{error}</p>
+          <button onClick={() => window.location.reload()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 font-bold text-white shadow-lg shadow-green/30">
+            <Icon d={I.refresh} className="h-4 w-4" /> Qayta urinish
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!article) {
     return (
       <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center">
         <div>

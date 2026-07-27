@@ -26,8 +26,15 @@ Deno.serve(async (req) => {
       .lte("published_at", new Date().toISOString())
       .maybeSingle()
 
-    if (error) return errorResponse(error.message, 500)
-    if (!article) return noCacheJsonResponse({ article: null })
+    if (error) {
+      console.error("public-news-detail:", error.message)
+      return errorResponse("Yangilikni yuklab bo'lmadi", 500)
+    }
+    // MUHIM: ilgari bu yerda 200 + {article: null} qaytardi. Ya'ni
+    // o'chirilgan yoki umuman mavjud bo'lmagan maqola manzili "hammasi
+    // joyida" degan javob berardi — qidiruv tizimlari uni yaroqli sahifa
+    // deb indekslashda davom etardi.
+    if (!article) return errorResponse("Yangilik topilmadi", 404, "NOT_FOUND")
 
     // Ko'rish sonini +1 qilish
     const newViewCount = (article.view_count || 0) + 1
@@ -36,8 +43,10 @@ Deno.serve(async (req) => {
       .update({ view_count: newViewCount })
       .eq("id", article.id)
 
-    const cat = article.category as Record<string, unknown> || {}
-    const author = article.author as Record<string, unknown> || {}
+    // PostgREST bog'langan jadvalni massiv deb tiplaydi, amalda esa
+    // bitta obyekt keladi — shuning uchun `unknown` orqali o'giramiz.
+    const cat = (article.category as unknown as Record<string, unknown>) || {}
+    const author = (article.author as unknown as Record<string, unknown>) || {}
     const publishedAt = article.published_at as string || ""
     const result = {
       slug: article.slug,

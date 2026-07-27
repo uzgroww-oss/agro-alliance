@@ -35,7 +35,7 @@ export const newsImg = (seed: string, w = 640, h = 400) => {
 }
 
 /* Live API loaders — empty fallbacks when API is unavailable */
-import { api } from "./api"
+import { api, ApiError } from "./api"
 
 export type NewsListResponse = {
   news: News[]
@@ -70,12 +70,21 @@ export async function loadNews(params?: {
   }
 }
 
+/**
+ * Maqolani yuklaydi.
+ *
+ * `null` — maqola HAQIQATAN yo'q (404). Boshqa har qanday xato
+ * (tarmoq uzilishi, server xatosi) yuqoriga OTILADI: ilgari hammasi
+ * `null` ga aylanib, foydalanuvchi "Yangilik topilmadi" degan yolg'on
+ * xabarni ko'rardi va maqola o'chib ketgan deb o'ylardi.
+ */
 export async function loadNewsDetail(slug: string): Promise<News | null> {
   try {
     const d = await api<{ article: News }>(`/public/news/${slug}`)
     return d.article
-  } catch {
-    return null
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
   }
 }
 
