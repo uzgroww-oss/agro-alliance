@@ -285,6 +285,15 @@ export default function MarketPanel({ onCreatePost }: {
     void savePlan({ done: next })
   }
 
+  /** HAMMASINI belgilash / belgini olib tashlash */
+  const allDone = Boolean(plan?.reja.length) && done.length >= (plan?.reja.length || 0)
+  const toggleAll = () => {
+    if (!plan) return
+    const next = allDone ? [] : plan.reja.map((r) => r.kun)
+    setDone(next)
+    void savePlan({ done: next })
+  }
+
   /** Kunni rejadan o'chirish */
   const removeDay = (kun: number) => {
     if (!plan) return
@@ -527,7 +536,16 @@ export default function MarketPanel({ onCreatePost }: {
               <table className="w-full min-w-[780px] text-sm">
                 <thead>
                   <tr className="border-b border-green/10 text-left text-xs font-bold text-muted">
-                    <th className="w-8 pb-2 pr-2" />
+                    {/* Hammasini belgilash */}
+                    <th className="w-8 pb-2 pr-2">
+                      <button onClick={toggleAll}
+                        title={allDone ? "Hamma belgini olib tashlash" : "Hammasini bajarildi deb belgilash"}
+                        className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
+                          allDone ? "border-green bg-green text-white" : "border-green/30 hover:border-green"
+                        }`}>
+                        {allDone && <Icon d={I.check} className="h-3 w-3" />}
+                      </button>
+                    </th>
                     <th className="pb-2 pr-3">Kun</th>
                     <th className="pb-2 pr-3">Mavzu</th>
                     <th className="pb-2 pr-3">Format</th>
