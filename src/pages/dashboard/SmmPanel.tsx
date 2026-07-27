@@ -160,6 +160,15 @@ function loadDraft(): SmmDraft | null {
   }
 }
 
+/**
+ * Marketing rejasidan kelgan seed BIR MARTA ishga tushishi kerak.
+ * Ilgari bu belgi useRef edi — panel boshqa bo'limдан qaytганда qayta
+ * yuklanib, ref nolga qaytar va o'sha seed QAYTA ishlab, matn/rasmни
+ * qaytadan yaratardi. Modul darajasidagi o'zgaruvchi panel qayta
+ * yuklansa ham saqlanadi, shuning uchun seed faqat bir marta bajariladi.
+ */
+let processedSeedAt = 0
+
 export default function SmmPanel({ seed }: {
   /** Marketing rejasidan kelgan mavzu — matn va rasm o'zi yaratiladi */
   seed?: SmmSeed | null
@@ -450,7 +459,6 @@ export default function SmmPanel({ seed }: {
    */
   const [seedBusy, setSeedBusy] = useState(false)
   const [seedMsg, setSeedMsg] = useState("")
-  const seedDone = useRef<number | null>(null)
 
   const runSeed = useCallback(async (sd: SmmSeed) => {
     setSeedBusy(true)
@@ -519,10 +527,13 @@ export default function SmmPanel({ seed }: {
   }, [])
 
   useEffect(() => {
-    // at — bir xil mavzu qayta yuborilsa ham ishga tushsin,
-    // lekin har renderda takrorlanmasin
-    if (!seed || seedDone.current === seed.at) return
-    seedDone.current = seed.at
+    // Seed FAQAT bir marta ishga tushadi. processedSeedAt modul
+    // darajasida — panel boshqa bo'limдан qaytib qayta yuklansa ham
+    // saqlanadi, shuning uchun eski seed qayta ishlanmaydi (matn/rasm
+    // qaytadan yaratilmaydi). Yangi "Post yaratish" bosilsa — at kattaroq
+    // bo'ladi va ishga tushadi.
+    if (!seed || seed.at <= processedSeedAt) return
+    processedSeedAt = seed.at
     void runSeed(seed)
   }, [seed, runSeed])
 
