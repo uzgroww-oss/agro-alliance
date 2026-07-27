@@ -222,22 +222,28 @@ async function googleNews(query: string, locale: string): Promise<WebHit[]> {
  * umumiy tendensiya, texnologiya, narxlar, issiqxona, iqlim.
  */
 export async function globalAgro(): Promise<WebHit[]> {
-  const queries: [string, string][] = [
-    ["global agriculture trends", "en-US|US"],
-    ["agtech smart farming technology", "en-US|US"],
-    ["world food prices FAO index", "en-US|US"],
-    ["greenhouse farming technology", "en-US|US"],
-    ["мировые цены на продовольствие", "ru|RU"],
+  // ASOSIY manba — soha saytlarining O'Z RSS'lari. Google News
+  // ma'lumot markazi IP'laridan kelgan so'rovga tez-tez 503 beradi va
+  // global tahlil bo'sh qolardi. Bu saytlar bunday cheklov qo'ymaydi.
+  // Har biri haqiqiy so'rov bilan tekshirilgan (yozuvlar soni):
+  //   agfundernews 50, freshplaza 90, farmprogress 50,
+  //   hortidaily 28, modernfarmer 10
+  const feeds: [string, string][] = [
+    ["AgFunder News", "https://agfundernews.com/feed"],
+    ["FreshPlaza", "https://www.freshplaza.com/rss.xml"],
+    ["Farm Progress", "https://www.farmprogress.com/rss.xml"],
+    ["HortiDaily", "https://www.hortidaily.com/rss.xml"],
+    ["Modern Farmer", "https://modernfarmer.com/feed/"],
   ];
 
-  const results = await Promise.all(
-    queries.map(([q, loc]) => googleNews(q, loc).catch(() => [] as WebHit[])),
+  const direct = await Promise.all(
+    feeds.map(([name, url]) => fetchFeed(url, name).catch(() => [] as WebHit[])),
   );
 
-  // Har mavzudan 3 tadan — bittasi butun ro'yxatni bosib ketmasin
   const out: WebHit[] = [];
   const seen = new Set<string>();
-  for (const list of results) {
+  // Har manbadan 3 tadan — bittasi butun ro'yxatni bosib ketmasin
+  for (const list of direct) {
     for (const h of list.slice(0, 3)) {
       const key = h.title.toLowerCase().slice(0, 60);
       if (seen.has(key)) continue;
@@ -245,6 +251,17 @@ export async function globalAgro(): Promise<WebHit[]> {
       out.push(h);
     }
   }
+
+  // Google — QO'SHIMCHA manba. Ishlasa yaxshi, ishlamasa yuqoridagilar
+  // yetadi. Shu sababli global tahlil endi Google'ga bog'liq emas.
+  if (out.length < 12) {
+    const extra = await googleNews("global agriculture trends", "en-US|US").catch(() => [] as WebHit[]);
+    for (const h of extra.slice(0, 5)) {
+      const key = h.title.toLowerCase().slice(0, 60);
+      if (!seen.has(key)) { seen.add(key); out.push(h); }
+    }
+  }
+
   return out.slice(0, 15);
 }
 

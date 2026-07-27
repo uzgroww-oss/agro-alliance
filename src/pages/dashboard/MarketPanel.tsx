@@ -122,27 +122,23 @@ const PLATFORM_ICON: Record<string, string> = {
 }
 
 /**
- * Sinash uchun tayyor agro manbalar.
+ * Tayyor agro manbalar — bir bosishда qo'shiladi.
  *
- * Birinchi uchtasi — Google News RSS qidiruvi. Ular ISHLASHIGA
- * ishonch bor, chunki market.ts allaqachon shu manzildan foydalanadi
- * va uch tilda agro yangiliklarni beradi.
+ * FAQAT saytlarning O'Z RSS'lari. Google News qidiruvi ro'yxatdan
+ * OLIB TASHLANDI: u server IP'laridan kelgan so'rovga tez-tez 503
+ * qaytarardi va manba qo'shib bo'lmasdi.
  *
- * Qolganlari — O'zbekiston yangilik saytlari. Ularning RSS manzili
- * o'zgargan bo'lishi mumkin, lekin manba qo'shishда server AVVAL
- * o'qib ko'radi: ishlamasa saqlanmaydi va aniq xato chiqadi.
+ * Har biri haqiqiy so'rov bilan tekshirilgan (yozuvlar soni):
+ *   freshplaza 90, agfundernews 50, farmprogress 50,
+ *   hortidaily 28, gazeta.uz 20, kun.uz 15, modernfarmer 10
  */
-const gnews = (q: string, hl: string, gl: string) =>
-  `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split("-")[0]}`
-
 const SAMPLE_SOURCES: { name: string; url: string }[] = [
-  // O'zbekcha so'rov QISQA: ko'p so'z qo'shilsa Google hech narsa
-  // topmaydi (sinovda "…fermer hosil" 0 ta, "qishloq xo'jaligi" 46 ta).
-  { name: "Agro yangiliklar (uz)", url: gnews("qishloq xo'jaligi", "uz", "UZ") },
-  { name: "Агро новости (ru)", url: gnews("Узбекистан сельское хозяйство урожай экспорт", "ru", "RU") },
-  { name: "Agri news (en)", url: gnews("Uzbekistan agriculture farming export", "en-US", "US") },
-  { name: "Kun.uz", url: "https://kun.uz/uz/news/rss" },
   { name: "Gazeta.uz", url: "https://www.gazeta.uz/uz/rss/" },
+  { name: "Kun.uz", url: "https://kun.uz/uz/news/rss" },
+  { name: "FreshPlaza (jahon savdosi)", url: "https://www.freshplaza.com/rss.xml" },
+  { name: "HortiDaily (issiqxona)", url: "https://www.hortidaily.com/rss.xml" },
+  { name: "AgFunder (agrotexnologiya)", url: "https://agfundernews.com/feed" },
+  { name: "Farm Progress", url: "https://www.farmprogress.com/rss.xml" },
 ]
 
 const MONTHS = [
@@ -209,11 +205,14 @@ export default function MarketPanel({ onCreatePost }: {
     setSrcErr(""); setSrcMsg("")
     if (!newSrc.url.trim()) { setSrcErr("Havolani kiriting"); return }
     try {
-      const r = await api<{ found: number }>("/smm/ai?action=source_add", {
+      const r = await api<{ found: number; warning?: string }>("/smm/ai?action=source_add", {
         method: "POST", body: JSON.stringify(newSrc),
       })
       setNewSrc({ name: "", url: "" })
-      setSrcMsg(`✅ Qo'shildi — ${r.found} ta yozuv topildi`)
+      // Vaqtinchalik nosozlikda ham saqlanadi — buni ochiq aytamiz
+      setSrcMsg(r.warning
+        ? `✅ Qo'shildi, lekin hozir o'qib bo'lmadi (${r.warning}). Tahlil paytida qayta o'qiladi.`
+        : `✅ Qo'shildi — ${r.found} ta yozuv topildi`)
       loadSources()
     } catch (e) {
       setSrcErr(e instanceof Error ? e.message : "Manba qo'shilmadi")

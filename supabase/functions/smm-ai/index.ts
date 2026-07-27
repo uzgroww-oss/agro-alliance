@@ -1726,23 +1726,31 @@ FAQAT JSON qaytar, boshqa matn yozma:
         return errorResponse("Havola noto'g'ri", 400)
       }
 
-      // O'qib ko'ramiz: ishlamaydigan manbani saqlash foydasiz —
-      // foydalanuvchi keyinchalik "nega hech narsa chiqmadi" deb
-      // hayron bo'lardi.
+      // O'qib ko'ramiz, lekin VAQTINCHALIK nosozlik qo'shishga
+      // to'sqinlik qilmasin: ba'zi saytlar (ayniqsa Google) server
+      // IP'laridan kelgan so'rovga vaqti-vaqti bilan 503 beradi.
+      // Bunday holatda manba SAQLANADI va ogohlantirish beriladi —
+      // tahlil paytida qayta o'qiladi.
       let hits: WebHit[] = []
+      let warn = ""
       try {
         hits = await fetchFeed(url, name)
       } catch (e) {
-        return errorResponse(`Manbani o'qib bo'lmadi: ${e instanceof Error ? e.message : "xatolik"}`, 400)
-      }
-      if (!hits.length) {
-        return errorResponse("Bu havoladan yozuv topilmadi — RSS havolasi ekaniga ishonch hosil qiling", 400)
+        const why = e instanceof Error ? e.message : "xatolik"
+        const transient = /band|vaqt tugadi|timeout|503|429/i.test(why)
+        if (!transient) {
+          return errorResponse(`Manbani o'qib bo'lmadi: ${why}`, 400)
+        }
+        warn = why
       }
 
       const { error } = await supabaseAdmin.from("smm_sources").insert({
-        name: name || hits[0].source || new URL(url).hostname,
+        // hits bo'sh bo'lishi mumkin (vaqtinchalik nosozlik) —
+        // shuning uchun ?. bilan olamiz
+        name: name || hits[0]?.source || new URL(url).hostname,
         url,
         created_by: auth.user.id,
+        last_error: warn || null,
         last_read_at: new Date().toISOString(),
       })
       if (error) {
@@ -1752,7 +1760,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         }
         return errorResponse(error.message, 500)
       }
-      return jsonResponse({ success: true, found: hits.length })
+      return jsonResponse({ success: true, found: hits.length, warning: warn || undefined })
     }
 
     if (action === "source_delete") {
