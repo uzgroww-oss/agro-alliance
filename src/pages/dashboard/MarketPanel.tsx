@@ -110,6 +110,39 @@ const PLATFORM_LABEL: Record<string, string> = {
   linkedin: "LinkedIn", youtube: "YouTube",
 }
 
+/** Kalendar ikonkasi — ui.tsx da yo'q, shuning uchun shu yerda */
+const CALENDAR = "M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M3 10h18 M8 2v4 M16 2v4"
+
+/** Tarmoq ikonkasi — jadval va hisoblar kartasida ishlatiladi */
+const PLATFORM_ICON: Record<string, string> = {
+  telegram: I.telegram, instagram: I.instagram, facebook: I.facebook,
+  youtube: I.youtube,
+  // LinkedIn ui.tsx da yo'q
+  linkedin: "M4 4h4v16H4z M10 9h4v11h-4z M14 9a4 4 0 0 1 6 3.5V20h-4v-6a2 2 0 0 0-4 0",
+}
+
+const MONTHS = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+]
+
+/** Yuqoridagi raqamli plitka (topilgan yangilik, rejalashtirilgan post…) */
+function Stat({ icon, tone, value, label }: {
+  icon: string; tone: string; value: number; label: string
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
+        <Icon d={icon} className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-display text-xl font-extrabold leading-none">{value}</p>
+        <p className="mt-1 truncate text-xs text-muted">{label}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function MarketPanel({ onCreatePost }: {
   /** Reja bandidan post yaratish — SMM/AI bo'limiga o'tkazadi */
   onCreatePost: (topic: string, platform: string, format: string) => void
@@ -350,22 +383,69 @@ export default function MarketPanel({ onCreatePost }: {
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
   }
 
+  /* ---------------- Reja jadvali: sana, filtr, sahifalash ---------------- */
+
+  /**
+   * Reja "1-kun, 2-kun" ko'rinishida keladi. Foydalanuvchiga esa
+   * HAQIQIY sana kerak — reja qachon tuzilganidan hisoblaymiz.
+   */
+  const planStart = planAt ? new Date(planAt) : new Date()
+  const dayDate = (kun: number) => {
+    const d = new Date(planStart)
+    d.setDate(d.getDate() + (kun - 1))
+    return d
+  }
+  const dayShort = (kun: number) => {
+    const d = dayDate(kun)
+    return `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  }
+  const dayFull = (kun: number) => {
+    const d = dayDate(kun)
+    const p = (n: number) => String(n).padStart(2, "0")
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
+  }
+
+  // Kun bo'yicha filtr (0 — hammasi) va sahifalash
+  const [dayFilter, setDayFilter] = useState(0)
+  const [page, setPage] = useState(1)
+  const PER_PAGE = 8
+
+  const visible = plan ? (dayFilter ? plan.reja.filter((r) => r.kun === dayFilter) : plan.reja) : []
+  const pageCount = Math.max(1, Math.ceil(visible.length / PER_PAGE))
+  // Filtr o'zgarganda sahifa chegaradan chiqib ketmasin
+  const curPage = Math.min(page, pageCount)
+  const rows = visible.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE)
+
   return (
     <div>
-      <div>
-        <h2 className="font-display text-xl font-extrabold tracking-tight">Marketing tahlili</h2>
-        <p className="mt-1 text-sm text-muted">
-          AI internetdagi yangiliklarni o'qib, qanday kontent kerakligini aytadi
-        </p>
+      {/* ============ SARLAVHA ============ */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-display text-xl font-extrabold tracking-tight">Marketing tahlili</h2>
+          <p className="mt-1 text-sm text-muted">
+            AI internetdagi yangiliklarni tahlil qilib, kerakli kontentlarni topadi va reja tuzadi
+          </p>
+        </div>
+        {plan && (
+          <button onClick={analyze} disabled={analyzing}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
+            <Icon d={I.refresh} className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
+            Tahlilni yangilash
+          </button>
+        )}
       </div>
 
-      {/* ============ BITTA TUGMA ============ */}
-      <div className={`${card} mt-5`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
+      {/* ============ TAHLIL + STATISTIKA ============ */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <div className={card}>
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green/10 text-green">
+            <Icon d={CALENDAR} className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
             <h3 className="font-display font-bold">Tahlil va kontent reja</h3>
             <p className="mt-0.5 text-sm text-muted">
-              {planAt ? `Oxirgi tahlil: ${fmtDate(planAt)}` : "Hali tahlil qilinmagan"}
+              {planAt ? `Oxirgi yangilanish: ${fmtDate(planAt)}` : "Hali tahlil qilinmagan"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -378,7 +458,7 @@ export default function MarketPanel({ onCreatePost }: {
               </button>
             ))}
             <button onClick={analyze} disabled={analyzing}
-              className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100">
+              className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100">
               <Icon d={analyzing ? I.refresh : I.brain} className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
               {analyzing ? "Tahlil qilinmoqda…" : "Tahlil qilish"}
             </button>
@@ -400,21 +480,37 @@ export default function MarketPanel({ onCreatePost }: {
         {loading && !plan && <div className="mt-4"><SkeletonCard /></div>}
 
         {!loading && !plan && !analyzing && (
-          <p className="mt-4 rounded-xl border border-green/10 py-10 text-center text-sm text-muted">
+          <p className="mt-4 rounded-xl border border-green/10 py-8 text-center text-sm text-muted">
             "Tahlil qilish" ni bosing — qolganini AI o'zi qiladi.
           </p>
         )}
       </div>
 
-      {/* ============ MANBALAR ============ */}
-      {/* Tahlildan OLDIN turadi: manba qo'shish tahlil sifatini
-          oshiradi, shuning uchun ko'zga birinchi tashlansin. */}
-      <div className={`${card} mt-5`}>
+      {/* Reja statistikasi — HAQIQIY raqamlar: qancha manba o'qildi,
+          nechta post rejalashtirildi, nechtasi bajarildi */}
+      <div className={card}>
+        <h3 className="font-display font-bold">Reja statistikasi</h3>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat icon={I.globe} tone="bg-purple-100 text-purple-600"
+            value={web.length + sources.length} label="Topilgan yangilik" />
+          <Stat icon={I.doc} tone="bg-blue-100 text-blue-600"
+            value={plan?.reja.length || 0} label="Rejalashtirilgan post" />
+          <Stat icon={I.check} tone="bg-green/15 text-green"
+            value={done.length} label="Bajarilgan" />
+          <Stat icon={I.clock} tone="bg-orange-100 text-orange-500"
+            value={Math.max(0, (plan?.reja.length || 0) - done.length)} label="Kutilayotgan" />
+        </div>
+      </div>
+      </div>
+
+      {/* ============ MANBALAR + HISOBLAR + MASLAHATLAR ============ */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+      {/* Manbalar — tahlil sifatini shu belgilaydi, shuning uchun
+          birinchi ustunda */}
+      <div className={card}>
         <h3 className="font-display font-bold">Manbalar</h3>
         <p className="mt-0.5 text-sm text-muted">
-          Ishonadigan saytlaringiz RSS havolasini qo'shing — AI tahlilni
-          birinchi navbatda shulardan qiladi va qanday post yaratish
-          kerakligini shu asosda aytadi.
+          AI tahlilni birinchi navbatda manbalardan oladi va post yaratish rejasini tuzadi.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -453,53 +549,75 @@ export default function MarketPanel({ onCreatePost }: {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 rounded-xl border border-green/10 py-6 text-center text-sm text-muted">
+          <p className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-soft py-6 text-center text-sm text-muted">
+            <Icon d={I.bolt} className="h-4 w-4 shrink-0 text-green" />
             Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.
           </p>
         )}
       </div>
 
+      {/* Bizning hisoblar — AI xulosasi shu raqamlarga asoslangan */}
+      <div className={card}>
+        <h3 className="font-display font-bold">Bizning hisoblar</h3>
+        <p className="mt-0.5 text-sm text-muted">Hisoblaringizdan ko'rsatkichlar avtomatik olinadi</p>
+        {nets.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            {nets.map((n) => (
+              <div key={n.platform} className="rounded-xl border border-green/10 p-3 text-center">
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-green/10 text-green">
+                  <Icon d={PLATFORM_ICON[n.platform] || I.globe} className="h-5 w-5" />
+                </span>
+                <p className="mt-2 text-xs font-bold">{PLATFORM_LABEL[n.platform] || n.platform}</p>
+                <p className="truncate text-[11px] text-muted" title={n.name}>{n.name}</p>
+                {n.error ? (
+                  <p className="mt-1 text-[11px] font-semibold text-red-600">{n.error}</p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted">
+                    {n.followers !== null
+                      ? <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</>
+                      : n.avgLikes !== null
+                        ? <><strong className="text-ink">{n.avgLikes}</strong> layk</>
+                        : "ma'lumot yo'q"}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
+            Tarmoq ulanmagan — SMM / AI bo'limidan ulang.
+          </p>
+        )}
+      </div>
+
+      {/* Sotuv maslahatlari — uchinchi ustun */}
+      <div className={card}>
+        <h3 className="font-display font-bold">Sotuvni oshirish bo'yicha maslahatlar</h3>
+        {txtList(plan?.sotuv).length > 0 ? (
+          <ul className="mt-3 space-y-2.5">
+            {txtList(plan?.sotuv).map((r, i) => (
+              <li key={i} className="flex gap-2.5 text-sm text-ink/80">
+                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green text-white">
+                  <Icon d={I.check} className="h-2.5 w-2.5" />
+                </span>
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
+            Tahlil qilinganda maslahatlar shu yerda chiqadi.
+          </p>
+        )}
+      </div>
+      </div>
+
       {/* ============ NATIJA ============ */}
       {plan && (
         <>
-          {/* Raqamlar — AI xulosasi shularga asoslangan. Ko'rsatamiz,
-              aks holda xulosani tekshirib bo'lmaydi. */}
-          {nets.length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Bizning hisoblar</h3>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {nets.map((n) => (
-                  <div key={n.platform} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-soft px-3 py-2 text-xs">
-                    <span className="font-semibold">{PLATFORM_LABEL[n.platform] || n.platform}</span>
-                    <span className="truncate text-muted">{n.name}</span>
-                    {n.error ? <span className="text-red-600">{n.error}</span> : (
-                      <span className="text-muted">
-                        {n.followers !== null && <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi </>}
-                        {n.avgLikes !== null && <><strong className="text-ink">{n.avgLikes}</strong> layk</>}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Umumiy "Xulosa" bandi olib tashlandi: AI u yerga ko'pincha
-              raqam qaytarardi va foydali ma'lumot bermasdi. Aniq
-              tavsiyalar qoldi. */}
-          {txtList(plan.sotuv).length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Sotuvni oshirish</h3>
-              <ul className="mt-3 space-y-2">
-                {txtList(plan.sotuv).map((r, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Sotuv maslahatlari yuqoridagi uchinchi ustunga ko'chdi —
+              bu yerda takrorlanmaydi. */}
 
           {/* Tarmoqni o'stirish — obunachi va qamrovni oshirish */}
           {txtList(plan.osish).length > 0 && (
@@ -560,9 +678,38 @@ export default function MarketPanel({ onCreatePost }: {
             )}
             <p className="mt-2 text-sm text-muted">
               Kun ustiga bosing — <strong>to'liq marketing reja</strong> ochiladi:
-              ssenariy, matn tezislari, rasm mazmuni, joylash vaqti.
-              "Post yaratish" esa SMM / AI bo'limida matn va rasmni o'zi yaratadi.
+              ssenariy, matn, rasmlar, format, joylash va vaqt.
             </p>
+
+            {/* Kun tasmasi — kerakli kunga tez o'tish uchun filtr.
+                Bosilgan kun qayta bosilsa filtr olib tashlanadi. */}
+            {plan.reja.length > 1 && (
+              <div className="mt-4 flex items-center gap-2">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={curPage <= 1}
+                  aria-label="Oldingi" className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                  <Icon d="M15 18l-6-6 6-6" className="h-4 w-4" />
+                </button>
+                <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+                  {plan.reja.map((r) => {
+                    const active = dayFilter === r.kun
+                    return (
+                      <button key={r.kun} onClick={() => { setDayFilter(active ? 0 : r.kun); setPage(1) }}
+                        className={`shrink-0 rounded-xl border px-4 py-2 text-center transition-colors ${
+                          active ? "border-green bg-green/5" : "border-green/12 hover:border-green/40"
+                        }`}>
+                        <span className="block text-sm font-bold">{dayShort(r.kun)}</span>
+                        <span className="block text-[11px] text-muted">{r.kun}-kun</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <button onClick={() => setPage((p) => Math.min(pageCount, p + 1))} disabled={curPage >= pageCount}
+                  aria-label="Keyingi" className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                  <Icon d="M9 18l6-6-6-6" className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[780px] text-sm">
                 <thead>
@@ -577,16 +724,16 @@ export default function MarketPanel({ onCreatePost }: {
                         {allDone && <Icon d={I.check} className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="pb-2 pr-3">Kun</th>
+                    <th className="pb-2 pr-3">Kun / Vaqt</th>
                     <th className="pb-2 pr-3">Mavzu</th>
                     <th className="pb-2 pr-3">Format</th>
                     <th className="pb-2 pr-3">Tarmoq</th>
-                    <th className="pb-2 pr-3">Vaqt</th>
-                    <th className="pb-2 pr-1 text-right">Amal</th>
+                    <th className="pb-2 pr-3">Holat</th>
+                    <th className="pb-2 pr-1 text-right">Amallar</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {plan.reja.map((it, i) => {
+                  {rows.map((it, i) => {
                     const isDone = done.includes(it.kun)
                     if (editKun === it.kun) {
                       return (
@@ -637,24 +784,52 @@ export default function MarketPanel({ onCreatePost }: {
                             {isDone && <Icon d={I.check} className="h-3 w-3" />}
                           </button>
                         </td>
-                        <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
-                        <td className="max-w-[300px] py-3 pr-3">
+                        {/* Kun / vaqt — kalendar ikonkasi bilan */}
+                        <td className="whitespace-nowrap py-3 pr-3">
+                          <div className="flex items-center gap-2">
+                            <Icon d={CALENDAR} className="h-4 w-4 shrink-0 text-muted" />
+                            <span>
+                              <span className="block text-xs font-semibold">{dayFull(it.kun)}</span>
+                              <span className="block text-[11px] text-muted">{txt(it.vaqt) || "—"}</span>
+                            </span>
+                          </div>
+                        </td>
+                        <td className="max-w-[320px] py-3 pr-3">
                           <p className={`font-semibold ${isDone ? "line-through" : ""}`}>{txt(it.mavzu)}</p>
                           {txt(it.maqsad) ? <p className="mt-0.5 text-xs text-muted">{txt(it.maqsad)}</p> : null}
-                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-green">
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-green/10 px-1.5 py-0.5 text-[11px] font-bold text-green">
                             <Icon d={I.doc} className="h-3 w-3" /> To'liq reja
                           </span>
                         </td>
-                        <td className="py-3 pr-3 text-xs text-muted">{txt(it.format)}</td>
-                        <td className="py-3 pr-3 text-xs text-muted">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</td>
-                        <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{txt(it.vaqt) || "—"}</td>
+                        {/* Format — belgi (chip) */}
+                        <td className="py-3 pr-3">
+                          <span className="rounded-md bg-soft px-2 py-1 text-[11px] font-semibold capitalize text-muted">
+                            {txt(it.format) || "post"}
+                          </span>
+                        </td>
+                        {/* Tarmoq — ikonka + nom */}
+                        <td className="py-3 pr-3">
+                          <div className="flex items-center gap-2">
+                            <Icon d={PLATFORM_ICON[txt(it.platforma)] || I.globe} className="h-4 w-4 shrink-0 text-green" />
+                            <span className="text-xs">{PLATFORM_LABEL[txt(it.platforma)] || txt(it.platforma)}</span>
+                          </div>
+                        </td>
+                        {/* Holat: bajarilgan bo'lsa belgi, aks holda tugma */}
+                        <td className="py-3 pr-3" onClick={(e) => e.stopPropagation()}>
+                          {isDone ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-green/10 px-2.5 py-1.5 text-[11px] font-bold text-green">
+                              <Icon d={I.check} className="h-3 w-3" /> Bajarildi
+                            </span>
+                          ) : (
+                            /* Post yaratilsa kun avtomatik bajarildi bo'ladi */
+                            <button onClick={() => { onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post"); toggleDone(it.kun) }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-2.5 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green hover:text-white">
+                              <Icon d={I.bolt} className="h-3 w-3" /> Post yaratish
+                            </button>
+                          )}
+                        </td>
                         <td className="py-3 pr-1 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Post yaratilsa kun avtomatik bajarildi bo'ladi */}
-                            <button onClick={() => { onCreatePost(txt(it.mavzu), txt(it.platforma) || "telegram", txt(it.format) || "post"); if (!isDone) toggleDone(it.kun) }}
-                              className="rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
-                              Post yaratish
-                            </button>
                             <button onClick={() => startEdit(it)} title="Tahrirlash"
                               className="rounded-lg border border-green/20 p-1.5 text-muted transition-colors hover:border-green/50 hover:text-green">
                               <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
@@ -671,6 +846,45 @@ export default function MarketPanel({ onCreatePost }: {
                 </tbody>
               </table>
             </div>
+
+            {/* Sahifalash — 30 kunlik rejada hamma qatorni birdan
+                ko'rsatish jadvalni cho'zib yuboradi */}
+            {pageCount > 1 && (
+              <div className="mt-4 flex items-center justify-center gap-1.5">
+                <button onClick={() => setPage(curPage - 1)} disabled={curPage <= 1} aria-label="Oldingi"
+                  className="rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                  <Icon d="M15 18l-6-6 6-6" className="h-3.5 w-3.5" />
+                </button>
+                {Array.from({ length: pageCount }, (_, i) => i + 1)
+                  // Uzun ro'yxatда faqat atrofdagi sahifalar ko'rsatiladi
+                  .filter((n) => n === 1 || n === pageCount || Math.abs(n - curPage) <= 1)
+                  .map((n, idx, arr) => (
+                    <span key={n} className="flex items-center gap-1.5">
+                      {idx > 0 && arr[idx - 1] !== n - 1 && <span className="text-xs text-muted">…</span>}
+                      <button onClick={() => setPage(n)}
+                        className={`h-8 min-w-8 rounded-lg px-2 text-xs font-bold transition-colors ${
+                          n === curPage ? "bg-green text-white" : "border border-green/15 text-muted hover:border-green/50"
+                        }`}>
+                        {n}
+                      </button>
+                    </span>
+                  ))}
+                <button onClick={() => setPage(curPage + 1)} disabled={curPage >= pageCount} aria-label="Keyingi"
+                  className="rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                  <Icon d="M9 18l6-6-6-6" className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Filtr yoqilgan bo'lsa — bekor qilish */}
+            {dayFilter > 0 && (
+              <p className="mt-3 text-center text-xs text-muted">
+                {dayShort(dayFilter)} ko'rsatilmoqda ·{" "}
+                <button onClick={() => setDayFilter(0)} className="font-bold text-green hover:underline">
+                  hammasini ko'rsatish
+                </button>
+              </p>
+            )}
           </div>
 
           {/* SIZ qo'shgan manbalar — alohida va birinchi, chunki AI
