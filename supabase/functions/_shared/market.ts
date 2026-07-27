@@ -241,8 +241,18 @@ export async function fetchFeed(url: string, name = ""): Promise<WebHit[]> {
 export async function webTrends(_query: string): Promise<WebHit[]> {
   // Uch tilda qidiramiz: o'zbek manbalari kam, rus va ingliz tilida
   // O'zbekiston haqidagi agro yangiliklar ancha ko'p.
+  // O'zbekcha so'rov QISQA bo'lishi shart. Haqiqiy so'rov bilan
+  // o'lchandi (natijalar soni):
+  //   "O'zbekiston qishloq xo'jaligi fermer" -> 5
+  //   "qishloq xo'jaligi"                    -> 46
+  //   "agro"                                 -> 100
+  //   "hosildorlik" / "bug'doy"              -> 0 va 2
+  // Ko'p so'z qo'shilsa Google o'zbek tilida deyarli hech narsa
+  // topmaydi va bu manba amalda bo'sh qolardi. Rus va ingliz tilida
+  // uzunroq so'rov ham yaxshi ishlaydi (76 va 74 ta natija).
   const queries: [string, string][] = [
-    ["O'zbekiston qishloq xo'jaligi fermer", "uz|UZ"],
+    ["qishloq xo'jaligi", "uz|UZ"],
+    ["agro", "uz|UZ"],
     ["Узбекистан сельское хозяйство урожай экспорт", "ru|RU"],
     ["Uzbekistan agriculture farming export", "en-US|US"],
   ];

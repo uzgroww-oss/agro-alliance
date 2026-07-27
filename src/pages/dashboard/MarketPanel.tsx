@@ -121,6 +121,30 @@ const PLATFORM_ICON: Record<string, string> = {
   linkedin: "M4 4h4v16H4z M10 9h4v11h-4z M14 9a4 4 0 0 1 6 3.5V20h-4v-6a2 2 0 0 0-4 0",
 }
 
+/**
+ * Sinash uchun tayyor agro manbalar.
+ *
+ * Birinchi uchtasi — Google News RSS qidiruvi. Ular ISHLASHIGA
+ * ishonch bor, chunki market.ts allaqachon shu manzildan foydalanadi
+ * va uch tilda agro yangiliklarni beradi.
+ *
+ * Qolganlari — O'zbekiston yangilik saytlari. Ularning RSS manzili
+ * o'zgargan bo'lishi mumkin, lekin manba qo'shishда server AVVAL
+ * o'qib ko'radi: ishlamasa saqlanmaydi va aniq xato chiqadi.
+ */
+const gnews = (q: string, hl: string, gl: string) =>
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split("-")[0]}`
+
+const SAMPLE_SOURCES: { name: string; url: string }[] = [
+  // O'zbekcha so'rov QISQA: ko'p so'z qo'shilsa Google hech narsa
+  // topmaydi (sinovda "…fermer hosil" 0 ta, "qishloq xo'jaligi" 46 ta).
+  { name: "Agro yangiliklar (uz)", url: gnews("qishloq xo'jaligi", "uz", "UZ") },
+  { name: "Агро новости (ru)", url: gnews("Узбекистан сельское хозяйство урожай экспорт", "ru", "RU") },
+  { name: "Agri news (en)", url: gnews("Uzbekistan agriculture farming export", "en-US", "US") },
+  { name: "Kun.uz", url: "https://kun.uz/uz/news/rss" },
+  { name: "Gazeta.uz", url: "https://www.gazeta.uz/uz/rss/" },
+]
+
 const MONTHS = [
   "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
   "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
@@ -191,6 +215,20 @@ export default function MarketPanel({ onCreatePost }: {
       loadSources()
     } catch (e) {
       setSrcErr(e instanceof Error ? e.message : "Manba qo'shilmadi")
+    }
+  })
+
+  /** Tayyor namuna manbani bir bosishda qo'shish */
+  const addSample = (s: { name: string; url: string }) => runSrc(async () => {
+    setSrcErr(""); setSrcMsg("")
+    try {
+      const r = await api<{ found: number }>("/smm/ai?action=source_add", {
+        method: "POST", body: JSON.stringify(s),
+      })
+      setSrcMsg(`✅ "${s.name}" qo'shildi — ${r.found} ta yozuv topildi`)
+      loadSources()
+    } catch (e) {
+      setSrcErr(`${s.name}: ${e instanceof Error ? e.message : "qo'shilmadi"}`)
     }
   })
 
@@ -536,6 +574,26 @@ export default function MarketPanel({ onCreatePost }: {
         {srcErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{srcErr}</div>}
         {srcMsg && <div className="mt-3 rounded-xl bg-green/10 px-4 py-2.5 text-sm font-semibold text-green">{srcMsg}</div>}
 
+        {/* Tayyor agro manbalar — sinash uchun bir bosishda qo'shiladi.
+            Allaqachon qo'shilganlari ro'yxatda ko'rinmaydi. */}
+        {SAMPLE_SOURCES.filter((s) => !srcList.some((x) => x.url === s.url)).length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-bold text-muted">Tayyor agro manbalar</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {SAMPLE_SOURCES
+                .filter((s) => !srcList.some((x) => x.url === s.url))
+                .map((s) => (
+                  <button key={s.url} onClick={() => addSample(s)} disabled={srcBusy}
+                    title={s.url}
+                    className="inline-flex items-center gap-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-50">
+                    <Icon d="M12 5v14 M5 12h14" className="h-3 w-3" />
+                    {s.name}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
         {srcList.length > 0 ? (
           <ul className="mt-3 space-y-2">
             {srcList.map((s) => (
@@ -554,10 +612,15 @@ export default function MarketPanel({ onCreatePost }: {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-soft py-6 text-center text-sm text-muted">
-            <Icon d={I.bolt} className="h-4 w-4 shrink-0 text-green" />
-            Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.
-          </p>
+          /* Ikonka va matn BIRGA markazlashsin: flex bo'lganda matn
+             alohida element bo'lib qolar va ikonka chetda osilib
+             turardi. Inline-flex + span buni to'g'irlaydi. */
+          <div className="mt-3 rounded-xl bg-soft px-4 py-6 text-center">
+            <p className="inline-flex items-center gap-2 text-sm text-muted">
+              <Icon d={I.bolt} className="h-4 w-4 shrink-0 text-green" />
+              <span>Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.</span>
+            </p>
+          </div>
         )}
       </div>
 
