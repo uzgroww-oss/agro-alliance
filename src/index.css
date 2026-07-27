@@ -79,9 +79,22 @@
   .marquee-left, .marquee-right { animation: none; }
 }
 
-::-webkit-scrollbar { width: 11px; }
-::-webkit-scrollbar-track { background: var(--color-soft); }
-::-webkit-scrollbar-thumb { background: var(--color-green); border-radius: 10px; }
+/* Skroll ishlaydi, lekin PANJARA KO'RINMAYDI.
+   Ilgari 11px enli yashil panjara bor edi: modal ichida ham, sahifada
+   ham chiqib, ikki panjara yonma-yon turardi va ko'zga urilardi. */
+::-webkit-scrollbar { width: 0; height: 0; }
+* { scrollbar-width: none; }
+
+/* Modal ochilganda sahifa orqada skroll bo'lmasin — aks holda ikki
+   qavat skroll hosil bo'ladi va sichqoncha g'ildiragi qayerni
+   suryapti noaniq bo'lib qoladi. */
+body.modal-open { overflow: hidden; }
+
+/* Modal ichida skroll tugaganda sahifa ORQADA surilib ketmasin.
+   Bitta qoida barcha modallarga (ular hammasi "fixed inset-0"
+   qoplama ustida qurilgan) — har birini alohida tahrirlash shart
+   emas. */
+.fixed.inset-0 { overscroll-behavior: contain; }
 
 /* Skeleton shimmer */
 @keyframes shimmer {

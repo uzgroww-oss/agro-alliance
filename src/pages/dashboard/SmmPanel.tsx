@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Icon, I, useBusy, ErrorState, SkeletonTable } from "../../lib/ui"
+import { Icon, I, useBusy, ErrorState, SkeletonTable, useBodyScrollLock } from "../../lib/ui"
 import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
 import { uploadFile } from "../../lib/upload"
@@ -287,6 +287,12 @@ export default function SmmPanel({ seed }: {
   const [showAll, setShowAll] = useState(false)
   const [preview, setPreview] = useState<SmmPost | null>(null)
   const [acting, runAct] = useBusy()
+
+  /* Modal yoki chat paneli ochiq bo'lsa sahifa orqada skroll
+     bo'lmasin — ikki qavat skroll hosil bo'lmaydi. Chat kichik
+     ekranда butun ekranni egallaydi, shuning uchun u ham hisobga
+     olinadi. */
+  useBodyScrollLock(Boolean(preview) || Boolean(zoomImg))
 
   /**
    * Postlar va ulanishlar BITTA so'rovda keladi.

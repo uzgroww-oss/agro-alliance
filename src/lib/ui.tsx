@@ -70,6 +70,30 @@ export function useBusy(): [boolean, (fn: () => unknown | Promise<unknown>) => P
  * Yuklash xatosi uchun umumiy blok. MUHIM: xato "ma'lumot yo'q" degani EMAS —
  * shuning uchun uni bo'sh-holat (empty state) o'rniga alohida ko'rsatamiz.
  */
+/**
+ * Modal ochiq turganda sahifa orqada skroll bo'lmasin.
+ *
+ * NEGA: modalning o'z skrolli bor. Sahifa ham skroll bo'lsa IKKI
+ * QAVAT skroll hosil bo'ladi — g'ildirak qayerni surayotgani noaniq
+ * va ekranda ikkita panjara chiqadi.
+ *
+ * Hisoblagich ishlatiladi: bir vaqtda bir nechta modal ochilsa
+ * (masalan reja modali ustidan rasm kattalashtirilsa), oxirgisi
+ * yopilgandagina skroll qaytariladi.
+ */
+let lockCount = 0
+export function useBodyScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return
+    lockCount++
+    document.body.classList.add("modal-open")
+    return () => {
+      lockCount = Math.max(0, lockCount - 1)
+      if (lockCount === 0) document.body.classList.remove("modal-open")
+    }
+  }, [active])
+}
+
 export function ErrorState({ onRetry, message = "Ma'lumotni yuklab bo'lmadi." }: { onRetry?: () => void; message?: string }) {
   return (
     <div className="rounded-3xl border border-red-200 bg-red-50/60 px-6 py-10 text-center">

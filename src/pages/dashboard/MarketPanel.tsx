@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Icon, I, useBusy, SkeletonCard } from "../../lib/ui"
+import { Icon, I, useBusy, SkeletonCard, useBodyScrollLock } from "../../lib/ui"
 import { api } from "../../lib/api"
 
 /**
@@ -284,6 +284,9 @@ export default function MarketPanel({ onCreatePost }: {
    * @param force  true bo'lsa saqlangan tafsilot e'tiborga olinmaydi
    *   va AI qaytadan yozadi ("qaytadan yozdirish" tugmasi).
    */
+  // Modal ochiq — sahifa orqada skroll bo'lmasin
+  useBodyScrollLock(Boolean(openItem))
+
   const openPlanItem = (it: PlanItem, force = false) => {
     setOpenItem(it); setDetailErr("")
     const key = `${it.kun}|${txt(it.mavzu)}`
