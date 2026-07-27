@@ -23,16 +23,18 @@ export function cfAvailable(): boolean {
 }
 
 /**
- * Sinaladigan modellar. SDXL birinchi — negative_prompt ni u qabul
- * qiladi va aynan shu bizga kerak. FLUX zaxira (tezroq, lekin taqiqsiz).
+ * Sinaladigan modellar. FLUX birinchi — SIFATI eng yuqori.
+ * Ilgari SDXL birinchi edi (negative_prompt uchun), lekin rasm sifati
+ * sezilarli tushib ketdi. Odam taqiqi endi kerak emas, shuning uchun
+ * negative_prompt afzalligi ustunlikni bermaydi — sifat muhimroq.
  */
 function models(): string[] {
   const custom = Deno.env.get("CF_IMAGE_MODELS");
   if (custom) return custom.split(",").map((s) => s.trim()).filter(Boolean);
   return [
+    "@cf/black-forest-labs/flux-1-schnell",
     "@cf/stabilityai/stable-diffusion-xl-base-1.0",
     "@cf/bytedance/stable-diffusion-xl-lightning",
-    "@cf/black-forest-labs/flux-1-schnell",
   ];
 }
 
@@ -81,16 +83,18 @@ export async function cfImage(
   const errs: string[] = [];
   for (const model of list) {
     try {
-      const body: Record<string, unknown> = { prompt, width, height };
-      // FLUX negative_prompt/steps ni qabul qilmaydi — faqat SDXL'ga
-      // yuboramiz. seed ham hamma modelda yo'q, shuning uchun ehtiyot.
+      // So'rov shakli modelga qarab FARQ QILADI:
+      //  FLUX  — faqat {prompt, steps}. width/height va negative_prompt
+      //          qabul qilinmaydi (yuborilsa xato). steps 8 = eng yuqori
+      //          sifat (schnell uchun chegara).
+      //  SDXL  — {prompt, width, height, negative_prompt, num_steps}.
       const isFlux = model.includes("flux");
+      const body: Record<string, unknown> = isFlux
+        ? { prompt, steps: 8 }
+        : { prompt, width, height, num_steps: 20 };
       if (!isFlux) {
         if (negative) body.negative_prompt = negative;
         if (seed) body.seed = seed;
-        body.num_steps = 20;
-      } else if (seed) {
-        body.seed = seed;
       }
 
       const r = await fetch(`${BASE}/${acc}/ai/run/${model}`, {

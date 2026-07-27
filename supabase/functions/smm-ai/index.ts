@@ -55,31 +55,36 @@ const NEGATIVE = "text, watermark, logo, letters, caption, signature, blurry, lo
 /**
  * Rasm chizish — yagona kirish nuqtasi.
  *
- * Cloudflare Workers AI sozlangan bo'lsa AVVAL o'sha ishlatiladi:
- * uning Stable Diffusion XL modeli `negative_prompt` ni QABUL QILADI,
- * ya'ni "odam bo'lmasin" qat'iy taqiq bo'ladi. NVIDIA'даги FLUX buni
- * qabul qilmaydi va odamni so'rov ichida iltimos qilib to'sish
- * ishonchsiz edi — muqovaga odam chiqib qolardi.
+ * NVIDIA (FLUX) BIRINCHI: sifati sezilarli yuqori. Cloudflare'ни
+ * birinchi qo'yganda rasm sifati tushib ketgan edi — uning SDXL-base
+ * modeli eskiroq va detallari past.
  *
- * Cloudflare yiqilsa yoki sozlanmagan bo'lsa — NVIDIA zaxira.
+ * Cloudflare — zaxira: NVIDIA limitga urilsa (503/429) rasm baribir
+ * chiqadi. Cloudflare'да ham FLUX bor va u birinchi sinaladi.
+ *
+ * Sifat qo'shimchasi har ikkalasiga qo'shiladi.
  */
+const QUALITY = "highly detailed, sharp focus, professional photography, 8k, natural lighting"
+
 async function genImage(
   prompt: string,
   aspect: GenAspect,
   seed = 0,
 ): Promise<{ data: string; model: string }> {
   const errs: string[] = []
+  // Sifat qo'shimchasi — takrorlanmasin
+  const full = /highly detailed|8k/i.test(prompt) ? prompt : `${prompt}, ${QUALITY}`.slice(0, 480)
+  try {
+    return await nimImage(full, aspect, seed)
+  } catch (e) {
+    errs.push(`NVIDIA: ${e instanceof Error ? e.message : "xatolik"}`)
+  }
   if (cfAvailable()) {
     try {
-      return await cfImage(prompt, aspect, seed, NEGATIVE)
+      return await cfImage(full, aspect, seed, NEGATIVE)
     } catch (e) {
       errs.push(`Cloudflare: ${e instanceof Error ? e.message : "xatolik"}`)
     }
-  }
-  try {
-    return await nimImage(prompt, aspect, seed)
-  } catch (e) {
-    errs.push(`NVIDIA: ${e instanceof Error ? e.message : "xatolik"}`)
   }
   throw new Error(errs.join(" | ") || "Rasm chizilmadi")
 }
