@@ -255,6 +255,38 @@ async function fetchInlineImage(url: string): Promise<InlineImage> {
  * natija beradi. Nega alohida funksiya: rasm ham, video ham shu
  * so'rovdan boshlanadi (video rasmdan yasaladi).
  */
+/**
+ * AI'siz zaxira rasm so'rovi.
+ *
+ * NEGA KERAK: uchala matn provayderi bir vaqtda tugab qolishi mumkin
+ * (Gemini kunlik kvota, Groq rate limit, NVIDIA 503). O'shanda rasm
+ * UMUMAN chizilmasdi — foydalanuvchi qip-qizil xato ko'rardi.
+ * Endi matndagi kalit so'zlarga qarab oddiy inglizcha so'rov yasaymiz:
+ * mukammal emas, lekin mavzuga yaqin va rasm HAR DOIM chiqadi.
+ */
+function fallbackImagePrompt(text: string): string {
+  const t = (text || "").toLowerCase()
+  // Kalit so'z -> inglizcha sahna. Birinchi mos kelgani olinadi.
+  const map: [RegExp, string][] = [
+    [/issiqxona|teplitsa/, "modern agricultural greenhouse with long rows of green plants, glass roof, sunlight"],
+    [/tomchilat|sug'or|sugor|suv/, "drip irrigation lines watering young crops in a field, water droplets, close-up"],
+    [/traktor|texnika|kombayn/, "modern tractor working in a large agricultural field at golden hour"],
+    [/chorva|mol|sigir|qoramol|sut/, "healthy dairy cows in a clean modern barn, straw bedding"],
+    [/parranda|tovuq|broyler/, "modern poultry farm interior with healthy chickens"],
+    [/asalari|asal/, "beehives in a blooming field, beekeeping, sunny day"],
+    [/bug'doy|bugdoy|don|hosil/, "golden wheat field ready for harvest, wide landscape"],
+    [/paxta/, "cotton field with open white bolls, sunny day"],
+    [/meva|olma|uzum|bog'|bog/, "orchard with ripe fruit on trees, green leaves, sunlight"],
+    [/sabzavot|pomidor|bodring|kartoshka/, "fresh vegetables growing in rows on a farm, tomatoes and cucumbers"],
+    [/urug'|urug|ko'chat|kochat/, "young seedlings in nursery trays, fresh green sprouts, close-up"],
+    [/o'g'it|ogit|mineral/, "farmer hands holding fertile dark soil with granular fertilizer, close-up"],
+    [/eksport|bozor|savdo|sotuv/, "crates of fresh farm produce prepared for export at a warehouse"],
+  ]
+  const hit = map.find(([re]) => re.test(t))
+  const scene = hit ? hit[1] : "Uzbek farmland landscape with green crops and clear sky"
+  return `${scene}, Central Asia agriculture, photorealistic, natural light, sharp focus, high detail`
+}
+
 async function buildImagePrompt(text: string): Promise<string> {
   // JSON so'raymiz, erkin matn emas. Ilgari askText ishlatilardi va
   // model javob oldiga "Here is the image prompt:" kabi kirish so'zi
@@ -1294,13 +1326,17 @@ Oxirgi savolga javob ber. Qoidalar:
       // shunda FLUX bir xil so'rovga ham har xil rasm chizadi.
       const seed = Number.isFinite(Number(body.seed)) ? Math.floor(Number(body.seed)) : 0
 
+      // Matn provayderlari tugagan bo'lsa ham rasm chiqishi kerak —
+      // zaxira so'rov kalit so'zlardan yasaladi (AI chaqirilmaydi).
       let imgPrompt = ""
+      let usedFallback = false
       try {
         imgPrompt = await buildImagePrompt(text)
-      } catch (e) {
-        return errorResponse(`Rasm so'rovi tayyorlanmadi — ${e instanceof Error ? e.message : "xatolik"}`, 500)
+      } catch {
+        imgPrompt = fallbackImagePrompt(text)
+        usedFallback = true
       }
-      if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
+      if (!imgPrompt) { imgPrompt = fallbackImagePrompt(text); usedFallback = true }
 
       let img: { data: string; model: string }
       try {
@@ -1308,7 +1344,7 @@ Oxirgi savolga javob ber. Qoidalar:
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
       }
-      return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
+      return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model, fallback: usedFallback })
     }
 
     /* ---------------- SUHBAT ---------------- */
@@ -1362,60 +1398,6 @@ Oxirgi savolga javob ber. Qoidalar:
       return jsonResponse({ answer })
     }
 
-    /* ---------------- RASM YARATISH ---------------- */
-    // Post matni asosida rasm chizadi.
-    //
-    // Ikki bosqich: avval matn modeli o'zbekcha matndan INGLIZCHA
-    // tasvir so'rovi yasaydi, keyin rasm modeli chizadi. Rasm modellari
-    // ingliz tilida ancha yaxshi ishlaydi — o'zbekcha so'rovda natija
-    // tasodifiy chiqadi.
-    if (action === "image") {
-      const text = String(body.text || "").trim()
-      const aspect = (String(body.aspect || "16:9")) as GenAspect
-      if (!text) return errorResponse("Avval post matnini yozing", 400)
-
-      let imgPrompt = ""
-      try {
-        imgPrompt = await askText(`Quyidagi o'zbekcha post uchun rasm so'rovi (image prompt) yoz.
-
-POST:
-${text.slice(0, 800)}
-
-VAZIFA: postda gap ketayotgan ANIQ NARSANI rasmga sol.
-
-Qoidalar:
-- Avval postdagi asosiy MODDIY narsani top: qaysi o'simlik, qaysi
-  texnika, qaysi jarayon, qaysi joy haqida gap ketyapti
-- Rasm so'rovi aynan shu narsani ko'rsatsin
-- Mavhum tushunchani rasmga solma. "Qulaylik", "hamkorlik",
-  "samaradorlik" — bularni chizib bo'lmaydi. Ular haqida bo'lsa,
-  ularni KO'RSATADIGAN aniq sahnani tanla
-- INGLIZ tilida yoz
-- Faqat so'rovning o'zini yoz, boshqa hech narsa yozma
-- Fotosurat uslubida: real, tabiiy yorug'lik, aniq detallar
-- O'zbekiston qishloq xo'jaligi muhiti
-- Matn, yozuv, logotip BO'LMASIN
-- 40 so'zdan oshmasin
-
-Misol:
-Post tomchilatib sug'orish haqida -> "close-up of drip irrigation
-lines watering tomato seedlings in a greenhouse, morning light,
-Central Asia, photorealistic"`)
-      } catch (e) {
-        return errorResponse(`Rasm so'rovi tayyorlanmadi — ${e instanceof Error ? e.message : "xatolik"}`, 500)
-      }
-
-      // Model ba'zan izoh qo'shib yuboradi — birinchi qatorni olamiz
-      imgPrompt = imgPrompt.split("\n")[0].replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 400)
-      if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
-
-      try {
-        const img = await genImage(imgPrompt, aspect)
-        return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
-      } catch (e) {
-        return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
-      }
-    }
 
     /* ---------------- MARKETING TAHLILI ---------------- */
     // O'z hisoblarimiz + raqobatchilar + (kalit bo'lsa) veb tendensiyalari
