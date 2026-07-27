@@ -185,6 +185,44 @@ async function googleNews(query: string, locale: string): Promise<WebHit[]> {
 }
 
 /**
+ * BUTUN DUNYO agro sohasi — global tendensiyalar.
+ *
+ * NEGA KERAK: webTrends faqat O'zbekiston haqidagi yangiliklarni
+ * beradi. Reja esa jahon bozorida nima bo'layotganiga ham tayanishi
+ * kerak: narxlar, texnologiya, iqlim, eksport. Bu foydalanuvchidan
+ * hech narsa so'ramaydi — backendда doim ishlaydi.
+ *
+ * So'rovlar haqiqiy natija berishi tekshirilgan (har biri 70-100 ta):
+ * umumiy tendensiya, texnologiya, narxlar, issiqxona, iqlim.
+ */
+export async function globalAgro(): Promise<WebHit[]> {
+  const queries: [string, string][] = [
+    ["global agriculture trends", "en-US|US"],
+    ["agtech smart farming technology", "en-US|US"],
+    ["world food prices FAO index", "en-US|US"],
+    ["greenhouse farming technology", "en-US|US"],
+    ["мировые цены на продовольствие", "ru|RU"],
+  ];
+
+  const results = await Promise.all(
+    queries.map(([q, loc]) => googleNews(q, loc).catch(() => [] as WebHit[])),
+  );
+
+  // Har mavzudan 3 tadan — bittasi butun ro'yxatni bosib ketmasin
+  const out: WebHit[] = [];
+  const seen = new Set<string>();
+  for (const list of results) {
+    for (const h of list.slice(0, 3)) {
+      const key = h.title.toLowerCase().slice(0, 60);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(h);
+    }
+  }
+  return out.slice(0, 15);
+}
+
+/**
  * FOYDALANUVCHI QO'SHGAN manbadan (RSS/Atom) o'qish.
  *
  * "Manbalar" bo'limida kiritilgan saytlar shu yerda o'qiladi va

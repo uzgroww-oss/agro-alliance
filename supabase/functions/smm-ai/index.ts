@@ -9,7 +9,7 @@ import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
 import { cfImage, cfAvailable } from "../_shared/cfImage.ts"
 import { cfChat, cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
-import { webTrends, fetchFeed, type WebHit } from "../_shared/market.ts"
+import { webTrends, globalAgro, fetchFeed, type WebHit } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
 /**
@@ -1513,9 +1513,12 @@ Oxirgi savolga javob ber. Qoidalar:
       // Uch manba parallel: hisoblarimiz, Google News va FOYDALANUVCHI
       // qo'shgan manbalar ("Manbalar" bo'limi). Oxirgisi muhim — AI
       // aynan siz ishonadigan saytlardan o'rganadi.
-      const [nets, hits, ownHits] = await Promise.all([
+      const [nets, hits, worldHits, ownHits] = await Promise.all([
         gatherNetworks(),
         webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
+        // BUTUN DUNYO agro sohasi — backendда doim ishlaydi,
+        // foydalanuvchidan hech narsa so'ralmaydi
+        globalAgro(),
         ownSources(),
       ])
 
@@ -1537,6 +1540,11 @@ Oxirgi savolga javob ber. Qoidalar:
 
       // Foydalanuvchi kiritgan manbalar ALOHIDA bo'lim: AI ular
       // ishonchliroq ekanini bilsin va ko'proq tayansin.
+      // Jahon bozori — tahlil global kontekstga ham tayansin
+      const worldLine = worldHits.length
+        ? worldHits.map((h) => `- ${h.title}: ${h.snippet.slice(0, 130)}`).join("\n")
+        : "(global ma'lumot olinmadi)"
+
       const srcNames = [...new Set(ownHits.map((h) => h.source).filter(Boolean))]
       const srcLine = ownHits.length
         ? ownHits.map((h) => `- [${h.source || "manba"}] ${h.title}: ${h.snippet.slice(0, 130)}`).join("\n")
@@ -1579,8 +1587,11 @@ ${pastLine}
 BIZ TANLAGAN MANBALAR (ishonchli, ustuvor) — ${srcNames.length} ta manba:
 ${srcLine}
 
-INTERNETDAGI SO'NGGI YANGILIKLAR:
+O'ZBEKISTONDAGI SO'NGGI YANGILIKLAR:
 ${webLine}
+
+JAHON AGRO SOHASI (global tendensiyalar, narxlar, texnologiya):
+${worldLine}
 
 Vazifa: manbalarni o'qib, ${days} kunlik kontent reja tuz va
 tarmoqlarni O'STIRISH bo'yicha aniq yo'l ko'rsat.
@@ -1592,6 +1603,9 @@ QAT'IY QOIDALAR:
   ko'proq foydalan
 - BIR NECHTA manbadan foydalan, bittasiga tayanma. Turli manbalardagi
   mavzularni aralashtir — reja bir xil bo'lib qolmasin
+- JAHON tendensiyalarini O'ZBEKISTON sharoitiga BOG'LA: global narx
+  yoki texnologiya bizning fermerga nima beradi, u nima qilishi kerak.
+  Global xabarni shunchaki qayta aytib chiqma
 - OXIRGI POSTLARIMIZNI hisobga ol: bir xil mavzuni takrorlama,
   qamrab olinmagan yo'nalishlarni taklif qil
 - Bizning raqamlarimiz kichik bo'lsa buni ochiq ayt, bo'rttirma
@@ -1634,12 +1648,12 @@ FAQAT JSON qaytar, boshqa matn yozma:
 
       // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin
       await supabaseAdmin.from("smm_plans").insert({
-        data: { ...result, networks: nets, web: hits, sources: ownHits },
+        data: { ...result, networks: nets, web: hits, world: worldHits, sources: ownHits },
         days,
         created_by: auth.user.id,
       })
 
-      return jsonResponse({ plan: result, networks: nets, web: hits, sources: ownHits })
+      return jsonResponse({ plan: result, networks: nets, web: hits, world: worldHits, sources: ownHits })
     }
 
     if (action === "last_plan") {
