@@ -507,23 +507,34 @@ async function gatherFacebook(): Promise<NetworkStat | null> {
 async function ownSources(): Promise<WebHit[]> {
   try {
     const { data } = await supabaseAdmin
-      .from("news_sources")
-      .select("name, url, type")
+      .from("smm_sources")
+      .select("id, name, url")
       .eq("is_active", true)
-      .is("deleted_at", null)
-      .limit(10)
-    const list = (data || []) as { name: string; url: string; type: string }[]
-    // Faqat RSS o'qiy olamiz; sayt/telegram turini tashlab ketamiz
-    const feeds = list.filter((s) => s.type === "rss" && s.url)
+      .limit(12)
+    const feeds = (data || []) as { id: string; name: string; url: string }[]
     if (!feeds.length) return []
 
-    const results = await Promise.all(
-      feeds.map((s) => fetchFeed(s.url, s.name).catch(() => [] as WebHit[])),
-    )
+    // Har manba alohida: bittasi yiqilsa qolganlari baribir keladi.
+    // Xato bazaga yoziladi — panelда qaysi manba ishlamayotgani ko'rinadi.
+    const results = await Promise.all(feeds.map(async (s) => {
+      try {
+        const hits = await fetchFeed(s.url, s.name)
+        await supabaseAdmin.from("smm_sources")
+          .update({ last_error: hits.length ? null : "Yozuv topilmadi", last_read_at: new Date().toISOString() })
+          .eq("id", s.id)
+        return hits
+      } catch (e) {
+        await supabaseAdmin.from("smm_sources")
+          .update({ last_error: e instanceof Error ? e.message.slice(0, 200) : "O'qib bo'lmadi", last_read_at: new Date().toISOString() })
+          .eq("id", s.id)
+        return [] as WebHit[]
+      }
+    }))
+
     // Har manbadan 3 tadan — bittasi hammasini bosib ketmasin
     const out: WebHit[] = []
     for (const r of results) out.push(...r.slice(0, 3))
-    return out.slice(0, 15)
+    return out.slice(0, 18)
   } catch {
     return []
   }
@@ -1635,6 +1646,69 @@ FAQAT JSON qaytar, boshqa matn yozma:
         .limit(1)
         .maybeSingle()
       return jsonResponse({ last: data || null })
+    }
+
+    /* ---------------- MARKETING MANBALARI ---------------- */
+    // Foydalanuvchi o'zi ishonadigan saytlarni kiritadi va tahlil
+    // aynan shulardan o'rganadi. Yangiliklar bo'limidagi manbalardan
+    // ALOHIDA: bular saytda e'lon qilinmaydi, faqat tahlil uchun.
+    if (action === "sources") {
+      const { data, error } = await supabaseAdmin
+        .from("smm_sources")
+        .select("id, name, url, is_active, last_error, last_read_at")
+        .order("created_at", { ascending: false })
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ sources: data || [] })
+    }
+
+    if (action === "source_add") {
+      const name = String(body.name || "").trim().slice(0, 160)
+      let url = String(body.url || "").trim().slice(0, 500)
+      if (!url) return errorResponse("Manba havolasini kiriting", 400)
+      // Protokol yozilmasa qo'shamiz — foydalanuvchi ko'pincha
+      // "example.com/feed" deb yozadi
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+      try {
+        new URL(url)
+      } catch {
+        return errorResponse("Havola noto'g'ri", 400)
+      }
+
+      // O'qib ko'ramiz: ishlamaydigan manbani saqlash foydasiz —
+      // foydalanuvchi keyinchalik "nega hech narsa chiqmadi" deb
+      // hayron bo'lardi.
+      let hits: WebHit[] = []
+      try {
+        hits = await fetchFeed(url, name)
+      } catch (e) {
+        return errorResponse(`Manbani o'qib bo'lmadi: ${e instanceof Error ? e.message : "xatolik"}`, 400)
+      }
+      if (!hits.length) {
+        return errorResponse("Bu havoladan yozuv topilmadi — RSS havolasi ekaniga ishonch hosil qiling", 400)
+      }
+
+      const { error } = await supabaseAdmin.from("smm_sources").insert({
+        name: name || hits[0].source || new URL(url).hostname,
+        url,
+        created_by: auth.user.id,
+        last_read_at: new Date().toISOString(),
+      })
+      if (error) {
+        // UNIQUE(url) buzilsa tushunarli xabar
+        if (/duplicate|unique/i.test(error.message)) {
+          return errorResponse("Bu manba allaqachon qo'shilgan", 409)
+        }
+        return errorResponse(error.message, 500)
+      }
+      return jsonResponse({ success: true, found: hits.length })
+    }
+
+    if (action === "source_delete") {
+      const id = String(body.id || "").trim()
+      if (!id) return errorResponse("id kerak", 400)
+      const { error } = await supabaseAdmin.from("smm_sources").delete().eq("id", id)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
     }
 
     /* ---------------- REJANI YANGILASH ---------------- */

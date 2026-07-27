@@ -46,6 +46,11 @@ type PlanDetail = {
   tasvir_mazmuni?: unknown; kompozitsiya?: unknown
 }
 type WebHit = { title: string; snippet: string; url: string; source?: string; date?: string }
+/** Foydalanuvchi kiritgan marketing manbasi */
+type Source = {
+  id: string; name: string; url: string; is_active: boolean
+  last_error?: string | null; last_read_at?: string | null
+}
 
 /**
  * AI ba'zan matn o'rniga obyekt qaytaradi. React obyektni chiza
@@ -127,6 +132,46 @@ export default function MarketPanel({ onCreatePost }: {
   const [analyzing, runAnalyze] = useBusy()
   const [err, setErr] = useState("")
 
+  /* Marketing manbalari — foydalanuvchi shu yerda kiritadi va tahlil
+     aynan shulardan o'rganadi. */
+  const [srcList, setSrcList] = useState<Source[]>([])
+  const [newSrc, setNewSrc] = useState({ name: "", url: "" })
+  const [srcErr, setSrcErr] = useState("")
+  const [srcMsg, setSrcMsg] = useState("")
+  const [srcBusy, runSrc] = useBusy()
+
+  const loadSources = useCallback(() => {
+    api<{ sources: Source[] }>("/smm/ai?action=sources", { method: "POST", body: "{}" })
+      .then((d) => setSrcList(d.sources || []))
+      .catch(() => { /* manba yo'q — normal holat */ })
+  }, [])
+
+  const addSource = () => runSrc(async () => {
+    setSrcErr(""); setSrcMsg("")
+    if (!newSrc.url.trim()) { setSrcErr("Havolani kiriting"); return }
+    try {
+      const r = await api<{ found: number }>("/smm/ai?action=source_add", {
+        method: "POST", body: JSON.stringify(newSrc),
+      })
+      setNewSrc({ name: "", url: "" })
+      setSrcMsg(`✅ Qo'shildi — ${r.found} ta yozuv topildi`)
+      loadSources()
+    } catch (e) {
+      setSrcErr(e instanceof Error ? e.message : "Manba qo'shilmadi")
+    }
+  })
+
+  const removeSource = (s: Source) => runSrc(async () => {
+    if (!window.confirm(`"${s.name}" manbasi o'chirilsinmi?`)) return
+    setSrcErr(""); setSrcMsg("")
+    try {
+      await api("/smm/ai?action=source_delete", { method: "POST", body: JSON.stringify({ id: s.id }) })
+      loadSources()
+    } catch (e) {
+      setSrcErr(e instanceof Error ? e.message : "O'chirilmadi")
+    }
+  })
+
   /* Reja bandining to'liq tafsiloti — modal.
      Tafsilot TALAB BO'YICHA yoziladi: hamma kunni birdan yozdirish
      juda uzoq va AI kvotasini yeb qo'yadi. */
@@ -200,7 +245,7 @@ export default function MarketPanel({ onCreatePost }: {
       .catch(() => { /* reja yo'q — normal holat */ })
       .finally(() => setLoading(false))
   }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); loadSources() }, [load, loadSources])
 
   const analyze = () => runAnalyze(async () => {
     setErr("")
@@ -327,6 +372,59 @@ export default function MarketPanel({ onCreatePost }: {
         {!loading && !plan && !analyzing && (
           <p className="mt-4 rounded-xl border border-green/10 py-10 text-center text-sm text-muted">
             "Tahlil qilish" ni bosing — qolganini AI o'zi qiladi.
+          </p>
+        )}
+      </div>
+
+      {/* ============ MANBALAR ============ */}
+      {/* Tahlildan OLDIN turadi: manba qo'shish tahlil sifatini
+          oshiradi, shuning uchun ko'zga birinchi tashlansin. */}
+      <div className={`${card} mt-5`}>
+        <h3 className="font-display font-bold">Manbalar</h3>
+        <p className="mt-0.5 text-sm text-muted">
+          Ishonadigan saytlaringiz RSS havolasini qo'shing — AI tahlilni
+          birinchi navbatda shulardan qiladi va qanday post yaratish
+          kerakligini shu asosda aytadi.
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input value={newSrc.name} onChange={(e) => setNewSrc((v) => ({ ...v, name: e.target.value }))}
+            placeholder="Nomi (ixtiyoriy)"
+            className="w-40 rounded-xl border border-green/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <input value={newSrc.url} onChange={(e) => setNewSrc((v) => ({ ...v, url: e.target.value }))}
+            onKeyDown={(e) => { if (e.key === "Enter") addSource() }}
+            placeholder="https://sayt.uz/rss"
+            className="min-w-[220px] flex-1 rounded-xl border border-green/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <button onClick={addSource} disabled={srcBusy}
+            className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
+            <Icon d={srcBusy ? I.refresh : I.globe} className={`h-4 w-4 ${srcBusy ? "animate-spin" : ""}`} />
+            {srcBusy ? "Tekshirilmoqda…" : "Qo'shish"}
+          </button>
+        </div>
+
+        {srcErr && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{srcErr}</div>}
+        {srcMsg && <div className="mt-3 rounded-xl bg-green/10 px-4 py-2.5 text-sm font-semibold text-green">{srcMsg}</div>}
+
+        {srcList.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {srcList.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-soft px-3 py-2">
+                <span className="font-semibold text-sm">{s.name}</span>
+                <a href={s.url} target="_blank" rel="noreferrer"
+                  className="min-w-0 flex-1 truncate text-xs text-muted hover:text-green hover:underline">{s.url}</a>
+                {s.last_error && (
+                  <span className="text-xs font-semibold text-orange-600" title={s.last_error}>o'qilmadi</span>
+                )}
+                <button onClick={() => removeSource(s)} disabled={srcBusy} title="O'chirish"
+                  className="rounded-lg border border-red-200 p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">
+                  <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 rounded-xl border border-green/10 py-6 text-center text-sm text-muted">
+            Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.
           </p>
         )}
       </div>
