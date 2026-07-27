@@ -52,6 +52,17 @@ Deno.serve(async (req) => {
         .from("social_platforms").select("id").eq("key", platform.key).single()
       if (!platformRow) return errorResponse("Platforma topilmadi", 404)
 
+      // social_accounts.blogger_id ham `bloggers` ga bog'langan. Qator
+      // bo'lmasa insert FK cheklovini buzib, xom DB xatosini qaytarardi.
+      const { data: blogger } = await supabaseAdmin
+        .from("bloggers").select("id").eq("id", auth.user.id).is("deleted_at", null).maybeSingle()
+      if (!blogger) {
+        return errorResponse(
+          "Hisobingiz hali bloger sifatida ro'yxatdan o'tkazilmagan. Administrator bilan bog'laning.",
+          404,
+        )
+      }
+
       const { data: existing } = await supabaseAdmin
         .from("social_accounts").select("id")
         .eq("blogger_id", auth.user.id).eq("platform_id", platformRow.id).is("deleted_at", null).maybeSingle()
@@ -63,7 +74,10 @@ Deno.serve(async (req) => {
           blogger_id: auth.user.id, platform_id: platformRow.id,
           account_name: accountName, profile_url: body.link, is_active: true, connected_at: now(),
         })
-      if (insertError) return errorResponse(insertError.message, 500)
+      if (insertError) {
+        console.error("me-socials insert:", insertError.message)
+        return errorResponse("Tarmoqni qo'shib bo'lmadi", 500)
+      }
       return jsonResponse({ success: true })
     }
 

@@ -1038,6 +1038,10 @@ function ServicesTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1055,12 +1059,14 @@ function ServicesTab() {
   const add = async () => {
     if (!title.trim()) return
     setBusy(true)
-    try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load(true) }
+    try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/services/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/services/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1078,6 +1084,7 @@ function ServicesTab() {
               <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Tavsif (ixtiyoriy)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
+            {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
               {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali xizmat qo'shilmagan.</p>)}
               {items.map((s) => (
@@ -1206,6 +1213,10 @@ function RegionsTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1223,12 +1234,14 @@ function RegionsTab() {
   const add = async () => {
     if (!region.trim()) return
     setBusy(true)
-    try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load(true) }
+    try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/regions/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/regions/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1248,6 +1261,7 @@ function RegionsTab() {
               </select>
               <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
+            {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
               {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>)}
               {items.map((r) => (
@@ -1277,6 +1291,10 @@ function SpecializationsTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1294,12 +1312,14 @@ function SpecializationsTab() {
   const add = async () => {
     if (!key.trim()) return
     setBusy(true)
-    try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load(true) }
+    try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/specializations/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/specializations/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1316,6 +1336,7 @@ function SpecializationsTab() {
               <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Yo'nalish kalit so'zi (masalan: fermerlik)" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
+            {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
               {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yo'nalish qo'shilmagan.</p>)}
               {items.map((s) => (
@@ -1346,6 +1367,10 @@ function AchievementsTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1363,12 +1388,14 @@ function AchievementsTab() {
   const add = async () => {
     if (!title.trim()) return
     setBusy(true)
-    try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load(true) }
+    try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/achievements/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/achievements/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1386,6 +1413,7 @@ function AchievementsTab() {
               <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Qo'shimcha ma'lumot" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
+            {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
               {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yutuq qo'shilmagan.</p>)}
               {items.map((a) => (
@@ -1415,6 +1443,10 @@ function ImagesTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1434,18 +1466,25 @@ function ImagesTab() {
   const [uploading, setUploading] = useState(false)
   const onUpload = async (result: { storageKey: string; signedUrl: string }) => {
     setUploading(true)
+    setActionErr("")
     try {
+      // MUHIM: ilgari `catch { /* ignore */ }` edi — rasm yuklangan, lekin
+      // galereyaga qo'shilmagan bo'lsa foydalanuvchi buni BILMASDI: xabar
+      // ham chiqmasdi, rasm ham ko'rinmasdi.
       await api("/me/images", { method: "POST", body: JSON.stringify({ url: result.signedUrl, caption }) })
       setCaption("")
-      await api<{ images: { id: string; url: string; caption?: string }[] }>("/me/images")
-        .then((d) => setItems(d.images || []))
-        .catch(() => {})
-    } catch { /* ignore */ } finally { setUploading(false) }
+      load(true)
+    } catch (err) {
+      setActionErr(err instanceof Error ? err.message : "Rasmni saqlab bo'lmadi")
+    } finally {
+      setUploading(false)
+    }
   }
 
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/images/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/images/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1461,6 +1500,7 @@ function ImagesTab() {
             Galereyaga qo'shilmoqda…
           </p>
         )}
+        {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
         {loading ? (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -1496,6 +1536,10 @@ function BrandsTab() {
   // "Hali ... qo'shilmagan" yozuvi chiqib, foydalanuvchi ma'lumot
   // yo'qolgan deb o'ylardi. Endi xato aniq ko'rsatiladi.
   const [failed, setFailed] = useState(false)
+  // Qo'shish/o'chirish xatosi. Ilgari catch YO'Q edi: tugma bosilib
+  // so'rov yiqilsa ekranda MUTLAQO hech narsa o'zgarmasdi va
+  // foydalanuvchi "tugma ishlamadi" deb o'ylardi.
+  const [actionErr, setActionErr] = useState("")
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
@@ -1513,12 +1557,14 @@ function BrandsTab() {
   const add = async () => {
     if (!name.trim()) return
     setBusy(true)
-    try { await api("/me/brands", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); load(true) }
+    try { await api("/me/brands", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
-    try { await api(`/me/brands/${id}`, { method: "DELETE" }); load(true) }
+    try { await api(`/me/brands/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1535,6 +1581,7 @@ function BrandsTab() {
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Brend nomi" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="shrink-0 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
             </div>
+            {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
               {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali brend qo'shilmagan.</p>)}
               {items.map((b) => (

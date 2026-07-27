@@ -87,6 +87,24 @@ Deno.serve(async (req) => {
         return errorResponse(`${requiredField} majburiy`, 400)
       }
 
+      // MUHIM: bu jadvallar blogger_id orqali `bloggers` ga bog'langan.
+      // Foydalanuvchining roli "blogger" bo'lsa ham, `bloggers` jadvalida
+      // qatori bo'lmasligi mumkin (masalan admin uni hali qo'shmagan).
+      // Bunday holda insert FK cheklovini buzib, foydalanuvchiga
+      // tushunarsiz 500 qaytarardi. Endi sabab aniq aytiladi.
+      const { data: blogger } = await supabaseAdmin
+        .from("bloggers")
+        .select("id")
+        .eq("id", uid)
+        .is("deleted_at", null)
+        .maybeSingle()
+      if (!blogger) {
+        return errorResponse(
+          "Hisobingiz hali bloger sifatida ro'yxatdan o'tkazilmagan. Administrator bilan bog'laning.",
+          404,
+        )
+      }
+
       const { data, error } = await supabaseAdmin
         .from(table)
         .insert({ blogger_id: uid, ...pickWritable(kind, body), created_by: uid })
