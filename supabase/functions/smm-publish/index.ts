@@ -452,6 +452,30 @@ Deno.serve(async (req) => {
           resultsByPost[r.post_id].push({ platform: r.platform, success: r.success, error: r.error || undefined })
         }
       }
+
+      // O'Z-O'ZINI TUZATISH: post tarmoqqa joylangan (muvaffaqiyatli
+      // natijasi bor), lekin holati hali "saqlangan" bo'lib turgan
+      // bo'lsa — to'g'irlaymiz.
+      //
+      // NEGA BUNDAY BO'LADI: joylash paytida foydalanuvchi sahifani
+      // yangilasa so'rov uziladi. Postlar tarmoqlarga chiqib bo'lgan
+      // va natijalar yozilgan bo'ladi, lekin holatni yangilash
+      // bosqichiga yetmaydi — panelда "Saqlangan" bo'lib qolardi.
+      const stale = (data || []).filter((p: Record<string, unknown>) => {
+        const st = String(p.status)
+        if (st === "published" || st === "removed") return false
+        return (resultsByPost[p.id as string] || []).some((r) => r.success)
+      })
+      if (stale.length) {
+        const now = new Date().toISOString()
+        await supabaseAdmin
+          .from("smm_posts")
+          .update({ status: "published", published_at: now, updated_at: now })
+          .in("id", stale.map((p: Record<string, unknown>) => p.id as string))
+        // Ro'yxatda ham darhol to'g'ri ko'rinsin
+        for (const p of stale) { p.status = "published"; p.published_at = now }
+      }
+
       return (data || []).map((p: Record<string, unknown>) => ({
         ...p, results: resultsByPost[p.id as string] || [],
       }))
