@@ -9,7 +9,7 @@ import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
 import { cfImage, cfAvailable } from "../_shared/cfImage.ts"
 import { cfChat, cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
-import { webTrends } from "../_shared/market.ts"
+import { webTrends, fetchFeed, type WebHit } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
 
 /**
@@ -494,6 +494,41 @@ async function gatherFacebook(): Promise<NetworkStat | null> {
   }
 }
 
+/**
+ * "Manbalar" bo'limida kiritilgan saytlardan so'nggi yozuvlar.
+ *
+ * NEGA: AI faqat Google News'га tayanmasin. Foydalanuvchi o'zi
+ * ishonadigan manbalarni kiritadi (rasmiy portallar, soha saytlari) —
+ * tahlil aynan shulardan o'rganadi.
+ *
+ * Har manba alohida try ichida: bittasi ishlamasa (sayt yiqilgan,
+ * RSS emas) qolganlari baribir keladi.
+ */
+async function ownSources(): Promise<WebHit[]> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("news_sources")
+      .select("name, url, type")
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .limit(10)
+    const list = (data || []) as { name: string; url: string; type: string }[]
+    // Faqat RSS o'qiy olamiz; sayt/telegram turini tashlab ketamiz
+    const feeds = list.filter((s) => s.type === "rss" && s.url)
+    if (!feeds.length) return []
+
+    const results = await Promise.all(
+      feeds.map((s) => fetchFeed(s.url, s.name).catch(() => [] as WebHit[])),
+    )
+    // Har manbadan 3 tadan — bittasi hammasini bosib ketmasin
+    const out: WebHit[] = []
+    for (const r of results) out.push(...r.slice(0, 3))
+    return out.slice(0, 15)
+  } catch {
+    return []
+  }
+}
+
 async function gatherNetworks(): Promise<NetworkStat[]> {
   const all = await Promise.all([gatherInstagram(), gatherTelegram(), gatherFacebook()])
   return all.filter((x): x is NetworkStat => x !== null)
@@ -650,6 +685,8 @@ function normalizePlan(raw: unknown): MarketPlan {
   const reja = Array.isArray(o.reja) ? o.reja : []
   return {
     sotuv: asTextList(o.sotuv),
+    osish: asTextList(o.osish),
+    kontent_turlari: asTextList(o.kontent_turlari),
     reja: reja.map((r, i) => {
       const it = (r || {}) as Record<string, unknown>
       const kun = Number(it.kun)
@@ -694,6 +731,10 @@ function isRepetitive(text: string): boolean {
 
 type MarketPlan = {
   sotuv: string[]
+  /** Tarmoqni o'stirish yo'llari — aniq amallar */
+  osish: string[]
+  /** Qanday kontent turlari ishlaydi va nega */
+  kontent_turlari: string[]
   reja: { kun: number; mavzu: string; format: string; platforma: string; vaqt?: string; maqsad?: string }[]
 }
 
@@ -1457,9 +1498,13 @@ Oxirgi savolga javob ber. Qoidalar:
       // Ikki manba parallel: o'z hisoblarimiz va internet yangiliklari.
       // Raqobatchilarni qidirish olib tashlandi — u sekin edi va
       // Instagram business_discovery ko'p hisoblarni ko'ra olmasdi.
-      const [nets, hits] = await Promise.all([
+      // Uch manba parallel: hisoblarimiz, Google News va FOYDALANUVCHI
+      // qo'shgan manbalar ("Manbalar" bo'limi). Oxirgisi muhim — AI
+      // aynan siz ishonadigan saytlardan o'rganadi.
+      const [nets, hits, ownHits] = await Promise.all([
         gatherNetworks(),
         webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
+        ownSources(),
       ])
 
       const ownLine = nets.length
@@ -1478,30 +1523,51 @@ Oxirgi savolga javob ber. Qoidalar:
         ? hits.map((h) => `- ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
         : "(veb qidiruv sozlanmagan)"
 
+      // Foydalanuvchi kiritgan manbalar ALOHIDA bo'lim: AI ular
+      // ishonchliroq ekanini bilsin va ko'proq tayansin.
+      const srcLine = ownHits.length
+        ? ownHits.map((h) => `- [${h.source || "manba"}] ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
+        : "(manba qo'shilmagan)"
+
       const prompt = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
 
 BIZNING IJTIMOIY TARMOQ HISOBLARIMIZ:
 ${ownLine}
 
+BIZ TANLAGAN MANBALAR (ishonchli, ustuvor):
+${srcLine}
+
 INTERNETDAGI SO'NGGI YANGILIKLAR:
 ${webLine}
 
-Vazifa: yangiliklarni o'qib, ${days} kunlik kontent reja tuz.
+Vazifa: manbalarni o'qib, ${days} kunlik kontent reja tuz va
+tarmoqlarni O'STIRISH bo'yicha aniq yo'l ko'rsat.
 
 QAT'IY QOIDALAR:
 - Har bir maydonga TO'LIQ JUMLA yoz. Raqam, ro'yxat yoki bo'sh
   qiymat qaytarma — bu maydonlar odam o'qishi uchun
-- Yangiliklardagi mavzulardan foydalan: nima dolzarb, nima haqida
-  gapirilyapti
+- "BIZ TANLAGAN MANBALAR" birinchi darajali: ulardagi mavzulardan
+  ko'proq foydalan
 - Bizning raqamlarimiz kichik bo'lsa buni ochiq ayt, bo'rttirma
 - Ma'lumot yetarli bo'lmagan joyda buni yozib qo'y, o'ylab topma
 - Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va
   agro kompaniyalar
 - Til: o'zbek tili (lotin alifbosi), sodda
 
+Maydonlar mazmuni:
+- "sotuv": sotuvni oshirish uchun aniq qadamlar
+- "osish": obunachi va qamrovni oshirish yo'llari — HAR BIRI aniq amal
+  bo'lsin (nima qilish, qayerda, qanchalik tez-tez). "Sifatli kontent
+  joylang" kabi bo'sh maslahat YOZMA
+- "kontent_turlari": bizning holatimizda qanday kontent turlari
+  ishlaydi va NEGA (masalan "fermer tajribasi videolari — ishonch
+  hosil qiladi va ulashiladi")
+
 FAQAT JSON qaytar, boshqa matn yozma:
 {
   "sotuv": ["sotuvni oshirish uchun aniq qadam — to'liq jumla bilan"],
+  "osish": ["tarmoqni o'stirish uchun aniq amal"],
+  "kontent_turlari": ["qanday kontent ishlaydi va nega"],
   "reja": [
     { "kun": 1, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
   ]
@@ -1522,12 +1588,12 @@ FAQAT JSON qaytar, boshqa matn yozma:
 
       // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin
       await supabaseAdmin.from("smm_plans").insert({
-        data: { ...result, networks: nets, web: hits },
+        data: { ...result, networks: nets, web: hits, sources: ownHits },
         days,
         created_by: auth.user.id,
       })
 
-      return jsonResponse({ plan: result, networks: nets, web: hits })
+      return jsonResponse({ plan: result, networks: nets, web: hits, sources: ownHits })
     }
 
     if (action === "last_plan") {

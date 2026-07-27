@@ -185,6 +185,53 @@ async function googleNews(query: string, locale: string): Promise<WebHit[]> {
 }
 
 /**
+ * FOYDALANUVCHI QO'SHGAN manbadan (RSS/Atom) o'qish.
+ *
+ * "Manbalar" bo'limida kiritilgan saytlar shu yerda o'qiladi va
+ * marketing tahliliga qo'shiladi — AI aynan siz ishonadigan
+ * manbalardan o'rganadi, faqat Google News'дан emas.
+ *
+ * Google'nikidan farqi: sarlavhadan " - Manba" ajratilmaydi (u faqat
+ * Google formatida bo'ladi) va Atom (<entry>) ham qo'llanadi.
+ */
+export async function fetchFeed(url: string, name = ""): Promise<WebHit[]> {
+  const r = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!r.ok) return [];
+  const xml = await r.text();
+
+  // RSS <item> yoki Atom <entry>
+  const isAtom = !xml.includes("<item") && xml.includes("<entry");
+  const parts = xml.split(isAtom ? "<entry" : "<item").slice(1);
+
+  const out: WebHit[] = [];
+  for (const it of parts.slice(0, 8)) {
+    const pick = (tag: string) => {
+      const m = it.match(new RegExp("<" + tag + "[^>]*>(.*?)</" + tag + ">", "s"));
+      return m ? stripTags(m[1]) : "";
+    };
+    const title = pick("title");
+    if (!title) continue;
+    // Atom'да havola atributда bo'ladi: <link href="…"/>
+    let link = pick("link");
+    if (!link) {
+      const m = it.match(/<link[^>]*href="([^"]+)"/);
+      link = m ? m[1] : "";
+    }
+    out.push({
+      title,
+      snippet: (pick("description") || pick("summary") || pick("content")).slice(0, 220),
+      url: link,
+      source: name,
+      date: (pick("pubDate") || pick("updated") || pick("published")).slice(0, 16),
+    });
+  }
+  return out;
+}
+
+/**
  * Veb tendensiyalari.
  *
  * Standart holatda Google News RSS ishlatiladi — kalit KERAK EMAS.

@@ -24,6 +24,10 @@ type PlanItem = {
 }
 type Plan = {
   sotuv: unknown
+  /** Tarmoqni o'stirish yo'llari */
+  osish?: unknown
+  /** Qanday kontent turlari ishlaydi va nega */
+  kontent_turlari?: unknown
   reja: PlanItem[]
 }
 type NetStat = { platform: string; name: string; followers: number | null; avgLikes: number | null; error?: string }
@@ -107,6 +111,8 @@ export default function MarketPanel({ onCreatePost }: {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [nets, setNets] = useState<NetStat[]>([])
   const [web, setWeb] = useState<WebHit[]>([])
+  // "Manbalar" bo'limida kiritilgan saytlardan olingan yozuvlar
+  const [sources, setSources] = useState<WebHit[]>([])
   const [planAt, setPlanAt] = useState("")
 
   const [analyzing, runAnalyze] = useBusy()
@@ -150,13 +156,14 @@ export default function MarketPanel({ onCreatePost }: {
      har safar qaytadan tahlil qilish shart bo'lmasin. */
   const load = useCallback(() => {
     setLoading(true)
-    api<{ last: { data: Plan & { networks?: NetStat[]; web?: WebHit[] }; days: number; created_at: string } | null }>(
+    api<{ last: { data: Plan & { networks?: NetStat[]; web?: WebHit[]; sources?: WebHit[] }; days: number; created_at: string } | null }>(
       "/smm/ai?action=last_plan", { method: "POST", body: "{}" })
       .then((d) => {
         if (!d.last) return
         setPlan(d.last.data)
         setNets(d.last.data.networks || [])
         setWeb(d.last.data.web || [])
+        setSources(d.last.data.sources || [])
         setDays(d.last.days || 7)
         setPlanAt(d.last.created_at)
       })
@@ -168,11 +175,12 @@ export default function MarketPanel({ onCreatePost }: {
   const analyze = () => runAnalyze(async () => {
     setErr("")
     try {
-      const d = await api<{ plan: Plan; networks: NetStat[]; web: WebHit[] }>(
+      const d = await api<{ plan: Plan; networks: NetStat[]; web: WebHit[]; sources?: WebHit[] }>(
         "/smm/ai?action=market", { method: "POST", body: JSON.stringify({ days }) })
       setPlan(d.plan)
       setNets(d.networks || [])
       setWeb(d.web || [])
+      setSources(d.sources || [])
       setPlanAt(new Date().toISOString())
     } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
   })
@@ -282,6 +290,38 @@ export default function MarketPanel({ onCreatePost }: {
             </div>
           )}
 
+          {/* Tarmoqni o'stirish — obunachi va qamrovni oshirish */}
+          {txtList(plan.osish).length > 0 && (
+            <div className={`${card} mt-5`}>
+              <h3 className="font-display font-bold">Tarmoqni o'stirish</h3>
+              <p className="mt-0.5 text-sm text-muted">Obunachi va qamrovni oshirish uchun aniq amallar</p>
+              <ul className="mt-3 space-y-2">
+                {txtList(plan.osish).map((r, i) => (
+                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Qanday kontent ishlaydi */}
+          {txtList(plan.kontent_turlari).length > 0 && (
+            <div className={`${card} mt-5`}>
+              <h3 className="font-display font-bold">Qanday kontent ishlaydi</h3>
+              <p className="mt-0.5 text-sm text-muted">Sizning holatingizda samarali kontent turlari va nega</p>
+              <ul className="mt-3 space-y-2">
+                {txtList(plan.kontent_turlari).map((r, i) => (
+                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Kunlik reja */}
           <div className={`${card} mt-5`}>
             <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
@@ -330,6 +370,25 @@ export default function MarketPanel({ onCreatePost }: {
               </table>
             </div>
           </div>
+
+          {/* SIZ qo'shgan manbalar — alohida va birinchi, chunki AI
+              ularga ustuvor tayanadi */}
+          {sources.length > 0 && (
+            <div className={`${card} mt-5`}>
+              <h3 className="font-display font-bold">Sizning manbalaringiz</h3>
+              <p className="mt-0.5 text-sm text-muted">
+                "Manbalar" bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi
+              </p>
+              <ul className="mt-3 space-y-2">
+                {sources.map((h, i) => (
+                  <li key={i}>
+                    <a href={h.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-green hover:underline">{txt(h.title)}</a>
+                    <span className="block text-xs text-muted">{[txt(h.source), txt(h.date)].filter(Boolean).join(" · ")}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Manbalar — xulosa nimaga asoslanganini ko'rish uchun */}
           {web.length > 0 && (
