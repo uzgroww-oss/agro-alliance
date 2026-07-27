@@ -239,13 +239,23 @@ export default function SmmPanel({ seed }: {
   // Rasmni to'liq ekranda ko'rish — kichik ko'rinishda detallar bilinmaydi
   const [zoomImg, setZoomImg] = useState("")
 
-  /* Video muqovasi (YouTube prevyusi kabi) */
-  const [thumbSize, setThumbSize] = useState<ThumbSize>(THUMB_SIZES[0])
-  const [thumbs, setThumbs] = useState<string[]>([])
-  // Nechta muqova AI chizgan (boshidagi) — qolganlari videodan kadr
-  const [aiThumbs, setAiThumbs] = useState(0)
+  /* Video muqovasi — HAR O'LCHAM UCHUN ALOHIDA.
+     YouTube, Instagram va kvadrat bir vaqtda yasaladi. Biri yoqmasa
+     faqat o'shanisini qayta yaratish mumkin, tanlanganlari saqlanadi. */
+  // O'lcham -> variantlar ro'yxati
+  const [thumbsBySize, setThumbsBySize] = useState<Record<string, string[]>>({})
+  // O'lcham -> nechtasi AI chizgan (boshidagilar)
+  const [aiCountBySize, setAiCountBySize] = useState<Record<string, number>>({})
+  // O'lcham -> TANLANGAN muqova (saqlangan)
+  const [coverBySize, setCoverBySize] = useState<Record<string, string>>({})
+  // Hozir qaysi o'lcham yasalmoqda ("" — hech biri, "all" — hammasi)
+  const [busySize, setBusySize] = useState("")
+  // Tanlangan muqovani yuklash jarayoni
   const [makingThumb, runThumb] = useBusy()
   const [thumbErr, setThumbErr] = useState("")
+  // AI bir marta yozgan promt/sarlavha — qolgan o'lchamlar qayta
+  // ishlatadi (AI kvotasi tejaladi)
+  const coverPlan = useRef<{ prompt: string; title: string; benefits: string[] } | null>(null)
   // Video ovozidan olingan matn (transcript) — bir marta olinadi va
   // ham post yozishда, ham muqovada ishlatiladi. URL bilan birga
   // saqlanadi: boshqa video yuklansa qaytadan olinadi.
@@ -718,85 +728,131 @@ export default function SmmPanel({ seed }: {
   })
   const describe = () => describeUrl(form.image_url)
 
+  /** THUMB_SIZES kalitidan rasm nisbati */
+  const aspectOf = (key: string) => (key === "youtube" ? "16:9" : key === "instagram" ? "4:5" : "1:1")
+
   /**
-   * Videodan muqova variantlarini yasash.
+   * BITTA o'lcham uchun muqova variantlarini yasash.
    *
-   * AI rasm CHIZMAYDI — muqova videoning haqiqiy kadridan yasaladi.
-   * O'ylab topilgan rasm chiroyli bo'lsa ham videoga aloqasi bo'lmaydi
-   * va odam bosganda aldangandek his qiladi.
+   * plan berilsa (boshqa o'lcham allaqachon AI'дан promt olgan bo'lsa)
+   * AI bosqichi o'tkazib yuboriladi — tez va kvota tejaladi.
+   * Qaytaradi: shu o'lcham uchun ishlatilgan plan (keyingilariga beriladi).
    */
-  const makeThumbs = (size: ThumbSize) => runThumb(async () => {
-    setThumbErr(""); setThumbs([])
-    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
-    const aspect = size.key === "youtube" ? "16:9" : size.key === "instagram" ? "4:5" : "1:1"
-    let title = (form.title || seenTopic || "").trim()
+  const buildForSize = async (
+    size: ThumbSize,
+    frameData: { data: string; mimeType: string },
+    spoken: string,
+    plan: { prompt: string; title: string; benefits: string[] } | null,
+  ): Promise<{ plan: { prompt: string; title: string; benefits: string[] } | null; err: string }> => {
+    const aspect = aspectOf(size.key)
+    let title = plan?.title || (form.title || seenTopic || "").trim()
+    let benefits = plan?.benefits || []
+    let newPlan = plan
     const out: string[] = []
+    let aiCount = 0
+    let aiErr = ""
+
     try {
-      // 1) Videodan bitta kadr olamiz — AI ko'ra olishi uchun zaxira
-      const frame = await extractVideoFrame(form.image_url)
+      const payload: Record<string, unknown> = plan
+        // Promt tayyor — AI chaqirilmaydi, faqat rasm chiziladi
+        ? { prompt: plan.prompt, title: plan.title, benefits: plan.benefits, aspect, seed: Math.floor(Math.random() * 900) + 10 }
+        : { image_b64: frameData.data, mime: frameData.mimeType, aspect, transcript: spoken }
+      const c = await api<{ images?: string[]; image_b64?: string; title?: string; benefits?: string[]; prompt?: string; error?: string }>(
+        "/smm/ai?action=cover", { method: "POST", body: JSON.stringify(payload) },
+      )
+      const imgs = c.images && c.images.length ? c.images : (c.image_b64 ? [c.image_b64] : [])
+      if (c.title) title = c.title
+      if (Array.isArray(c.benefits) && c.benefits.length) benefits = c.benefits
+      // Birinchi o'lcham promtni yozdi — qolganlari shuni ishlatadi
+      if (!newPlan && c.prompt) newPlan = { prompt: c.prompt, title, benefits }
+      for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, { title, benefits }, size))
+      aiCount = imgs.length
+      if (!aiCount) aiErr = c.error || "AI muqova chizmadi"
+    } catch (e) {
+      aiErr = e instanceof Error ? e.message : "AI muqova chizmadi"
+    }
 
-      // 2) Videoning ovozini matnga aylantiramiz — muqova videoда
-      //    NIMA GAPIRILGANIga mos bo'lsin (bitta kadr buni bermaydi).
-      const spoken = await ensureTranscript(form.image_url)
-
-      // 3) AI shu mazmunga MOS 4 ta muqova rasmini chizadi va toza
-      //    o'zbekcha sarlavha beradi. Xom kadr emas — videoga mos
-      //    generatsiya.
-      let aiCount = 0
-      let aiErr = ""
-      let benefits: string[] = []
+    // AI yetarli bermasa — videoning HAQIQIY kadrlaridan to'ldiramiz
+    if (aiCount < 4) {
       try {
-        const c = await api<{ images?: string[]; image_b64?: string; title?: string; benefits?: string[]; vision_failed?: boolean; error?: string }>(
-          "/smm/ai?action=cover",
-          { method: "POST", body: JSON.stringify({ image_b64: frame.data, mime: frame.mimeType, aspect, transcript: spoken }) },
-        )
-        const imgs = c.images && c.images.length ? c.images : (c.image_b64 ? [c.image_b64] : [])
-        if (c.title) title = c.title
-        if (Array.isArray(c.benefits)) benefits = c.benefits
-        for (const b of imgs) out.push(await composeThumbnail(`data:image/jpeg;base64,${b}`, { title, benefits }, size))
-        aiCount = imgs.length
-        // AI rasm bermagan bo'lsa — SABABINI ko'rsatamiz (ilgari jimgina
-        // yutilardi va nega faqat kadr chiqqani noma'lum edi).
-        if (!aiCount) aiErr = c.error || "AI muqova chizmadi"
-      } catch (e) {
-        aiErr = e instanceof Error ? e.message : "AI muqova chizmadi"
-      }
+        const frames = await extractFrames(form.image_url, 4 - aiCount)
+        for (const f of frames) out.push(await composeThumbnail(f, { title, benefits }, size))
+      } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
+    }
 
-      // AI to'liq 4 ta bermasa — videoning HAQIQIY kadrlaridan
-      // to'ldiramiz (4 taga yetkazamiz).
-      if (aiCount < 4) {
-        try {
-          const frames = await extractFrames(form.image_url, 4 - aiCount)
-          for (const f of frames) out.push(await composeThumbnail(f, { title, benefits }, size))
-        } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
-      }
+    setThumbsBySize((m) => ({ ...m, [size.key]: out }))
+    setAiCountBySize((m) => ({ ...m, [size.key]: aiCount }))
+    return { plan: newPlan, err: !aiCount && aiErr ? `${size.label}: ${aiErr}` : "" }
+  }
 
-      if (!out.length) { setThumbErr("Muqova yasab bo'lmadi — videoni tekshiring"); return }
-      setAiThumbs(aiCount)
-      setThumbs(out)
-      // AI chizmagan bo'lsa sababini aytamiz — kadrlar zaxira sifatida qoladi
-      if (!aiCount && aiErr) setThumbErr(`AI muqova chizmadi: ${aiErr}. Pastda videodan kadrlar.`)
+  /** Video kadri + ovoz matni — barcha o'lchamlar uchun bir marta */
+  const coverInputs = async () => {
+    const frame = await extractVideoFrame(form.image_url)
+    const spoken = await ensureTranscript(form.image_url)
+    return { frame, spoken }
+  }
+
+  /**
+   * HAMMA o'lcham uchun birdan muqova yasash.
+   * Promt bir marta yoziladi va qolgan o'lchamlarga qayta ishlatiladi.
+   */
+  const makeAllThumbs = async () => {
+    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
+    setThumbErr(""); setBusySize("all")
+    coverPlan.current = null
+    try {
+      const { frame, spoken } = await coverInputs()
+      const errs: string[] = []
+      for (const sz of THUMB_SIZES) {
+        const r = await buildForSize(sz, frame, spoken, coverPlan.current)
+        if (r.plan) coverPlan.current = r.plan
+        if (r.err) errs.push(r.err)
+      }
+      if (errs.length) setThumbErr(errs.join(" | "))
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
+    } finally {
+      setBusySize("")
     }
-  })
+  }
+
+  /** FAQAT bitta o'lchamni qaytadan yasash — qolganlari saqlanadi */
+  const remakeSize = async (size: ThumbSize) => {
+    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
+    setThumbErr(""); setBusySize(size.key)
+    try {
+      const { frame, spoken } = await coverInputs()
+      const r = await buildForSize(size, frame, spoken, coverPlan.current)
+      if (r.plan) coverPlan.current = r.plan
+      if (r.err) setThumbErr(r.err)
+    } catch (e) {
+      setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
+    } finally {
+      setBusySize("")
+    }
+  }
 
   /**
-   * Tanlangan muqovani yuklab, VIDEO MUQOVASI qilib qo'yish.
+   * Tanlangan muqovani yuklab, SHU O'LCHAM uchun saqlash.
    *
-   * MUHIM: image_url (video) DAHLSIZ qoladi — muqova thumb_url ga
-   * yoziladi. Ilgari muqova image_url ni almashtirar, video yo'qolib
-   * o'rniga rasm joylanardi. Endi video + muqova birga joylanadi:
-   * Instagram REELS uchun cover, YouTube uchun thumbnail.
+   * MUHIM: image_url (video) DAHLSIZ qoladi. Instagram muqovasi
+   * postga biriktiriladi (REELS cover), qolgan o'lchamlar saqlanadi
+   * va kerak bo'lganda ishlatiladi.
    */
-  const applyThumb = (dataUrl: string) => runThumb(async () => {
+  const applyThumb = (size: ThumbSize, dataUrl: string) => runThumb(async () => {
     setThumbErr("")
     try {
-      const file = dataUrlToFile(dataUrl, `muqova-${thumbSize.key}.jpg`)
+      const file = dataUrlToFile(dataUrl, `muqova-${size.key}.jpg`)
       const r = await uploadFile(file)
-      setForm((f) => ({ ...f, thumb_url: r.signedUrl }))
-      setThumbs([])
-      setMsg("✅ Muqova tayyor — video shu muqova bilan joylanadi")
+      setCoverBySize((m) => ({ ...m, [size.key]: r.signedUrl }))
+      // Postga biriktiriladigan muqova: Instagram birinchi navbatda
+      setForm((f) => ({
+        ...f,
+        thumb_url: size.key === "instagram" || !f.thumb_url ? r.signedUrl : f.thumb_url,
+      }))
+      // Shu o'lchamning variantlari yopiladi, qolganlari ochiq qoladi
+      setThumbsBySize((m) => ({ ...m, [size.key]: [] }))
+      setMsg(`✅ ${size.label} muqovasi saqlandi`)
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqovani yuklab bo'lmadi")
     }
@@ -1336,77 +1392,92 @@ export default function SmmPanel({ seed }: {
                       </>
                     )}
 
-                    {/* ---- Video muqovasi (YouTube prevyusi kabi) ---- */}
+                    {/* ---- Video muqovasi: HAR O'LCHAM UCHUN ALOHIDA ---- */}
                     {isVideo && (
                       <div className="mt-3 rounded-xl border border-green/15 bg-white p-3">
                         <p className="text-xs font-bold text-ink">Muqova (video ustidagi rasm)</p>
                         <p className="mt-0.5 text-[11px] text-muted">
-                          AI videoni ko'rib, mazmuniga MOS muqova chizadi.
-                          Instagramga shu muqova bilan chiqadi.
+                          AI videoni ko'rib, mazmuniga MOS muqova chizadi —
+                          YouTube, Instagram va kvadrat uchun birdan. Biri
+                          yoqmasa faqat o'shanisini qaytadan yasang.
                         </p>
 
-                        {/* Tanlangan muqova — bosib kattalashtirish mumkin */}
-                        {form.thumb_url && (
-                          <div className="mt-2">
-                            <img src={form.thumb_url} alt="Tanlangan muqova" title="Kattalashtirish uchun bosing"
-                              onClick={() => setZoomImg(form.thumb_url)}
-                              className="w-full cursor-zoom-in rounded-lg border-2 border-green object-contain transition-opacity hover:opacity-90" />
-                            <p className="mt-1 text-[11px] font-semibold text-green">✅ Shu muqova ishlatiladi — kattalashtirish uchun bosing</p>
-                          </div>
-                        )}
-
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {THUMB_SIZES.map((sz) => (
-                            <button key={sz.key} type="button"
-                              onClick={() => { setThumbSize(sz); makeThumbs(sz) }}
-                              disabled={makingThumb}
-                              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors disabled:opacity-50 ${
-                                thumbSize.key === sz.key ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/50"
-                              }`}>
-                              {sz.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <button type="button" onClick={() => makeThumbs(thumbSize)} disabled={makingThumb}
+                        <button type="button" onClick={makeAllThumbs} disabled={Boolean(busySize) || makingThumb}
                           className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-                          <Icon d={makingThumb ? I.refresh : I.media} className={`h-3.5 w-3.5 ${makingThumb ? "animate-spin" : ""}`} />
-                          {makingThumb ? "Muqova yasalmoqda…" : form.thumb_url ? "Boshqa muqova tayyorlash" : "Muqova tayyorlash"}
+                          <Icon d={busySize === "all" ? I.refresh : I.media} className={`h-3.5 w-3.5 ${busySize === "all" ? "animate-spin" : ""}`} />
+                          {busySize === "all" ? "Hamma o'lcham yasalmoqda…" : "Hamma o'lchamga muqova tayyorlash"}
                         </button>
 
                         {thumbErr && (
-                          <p className="mt-2 rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">{thumbErr}</p>
+                          <p className="mt-2 max-h-20 overflow-y-auto rounded-lg bg-orange-50 px-2.5 py-1.5 text-[11px] font-semibold text-orange-700">{thumbErr}</p>
                         )}
 
-                        {thumbs.length > 0 && (
-                          <>
-                            <p className="mt-2 text-[11px] text-muted">
-                              Birini tanlang. "AI" belgililari — AI chizgan muqova, qolganlari videodan kadr.
-                            </p>
-                            <div className="mt-1.5 grid grid-cols-2 gap-2">
-                              {thumbs.map((t, i) => (
-                                <div key={i} className="group relative overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green">
-                                  <button type="button" onClick={() => applyThumb(t)} disabled={makingThumb}
-                                    className="block w-full disabled:opacity-50">
-                                    <img src={t} alt={`Muqova ${i + 1}`} className="block w-full" />
-                                  </button>
-                                  {i < aiThumbs && (
-                                    <span className="absolute left-1 top-1 rounded bg-green px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
-                                  )}
-                                  {/* Kattalashtirish — tanlashga xalaqit bermasin */}
-                                  <button type="button" onClick={() => setZoomImg(t)} title="Kattalashtirish"
-                                    className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100">
-                                    <Icon d={I.search} className="h-3.5 w-3.5" />
-                                  </button>
+                        {/* Har o'lcham — o'z bo'limi: tanlangani, variantlari,
+                            va faqat shu o'lchamni qayta yasash tugmasi */}
+                        {THUMB_SIZES.map((sz) => {
+                          const variants = thumbsBySize[sz.key] || []
+                          const chosen = coverBySize[sz.key]
+                          const aiN = aiCountBySize[sz.key] || 0
+                          const busy = busySize === sz.key || busySize === "all"
+                          if (!variants.length && !chosen && !busySize) return null
+                          return (
+                            <div key={sz.key} className="mt-3 rounded-lg border border-green/10 bg-soft p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-ink">{sz.label}</span>
+                                <button type="button" onClick={() => remakeSize(sz)} disabled={Boolean(busySize) || makingThumb}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-green/25 px-2 py-1 text-[10px] font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-50">
+                                  <Icon d={I.refresh} className={`h-3 w-3 ${busySize === sz.key ? "animate-spin" : ""}`} />
+                                  {busySize === sz.key ? "yasalmoqda…" : "qaytadan"}
+                                </button>
+                              </div>
+
+                              {/* Shu o'lcham uchun TANLANGAN muqova */}
+                              {chosen && (
+                                <div className="mt-1.5">
+                                  <img src={chosen} alt={`${sz.label} muqovasi`} title="Kattalashtirish uchun bosing"
+                                    onClick={() => setZoomImg(chosen)}
+                                    className="w-full cursor-zoom-in rounded-lg border-2 border-green object-contain transition-opacity hover:opacity-90" />
+                                  <p className="mt-1 text-[10px] font-semibold text-green">
+                                    ✅ Saqlandi{form.thumb_url === chosen ? " — post shu muqova bilan chiqadi" : ""}
+                                  </p>
                                 </div>
-                              ))}
+                              )}
+
+                              {busy && !variants.length && (
+                                <p className="mt-1.5 text-[10px] text-muted">yasalmoqda…</p>
+                              )}
+
+                              {variants.length > 0 && (
+                                <>
+                                  <p className="mt-1.5 text-[10px] text-muted">
+                                    Birini tanlang. "AI" — AI chizgan, qolgani videodan kadr.
+                                  </p>
+                                  <div className="mt-1.5 grid grid-cols-2 gap-2">
+                                    {variants.map((t, i) => (
+                                      <div key={i} className="group relative overflow-hidden rounded-lg border-2 border-transparent transition-colors hover:border-green">
+                                        <button type="button" onClick={() => applyThumb(sz, t)} disabled={makingThumb || Boolean(busySize)}
+                                          className="block w-full disabled:opacity-50">
+                                          <img src={t} alt={`${sz.label} ${i + 1}`} className="block w-full" />
+                                        </button>
+                                        {i < aiN && (
+                                          <span className="absolute left-1 top-1 rounded bg-green px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
+                                        )}
+                                        <button type="button" onClick={() => setZoomImg(t)} title="Kattalashtirish"
+                                          className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100">
+                                          <Icon d={I.search} className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
                             </div>
-                          </>
-                        )}
+                          )
+                        })}
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbs([]); setThumbErr(""); setTranscript(null) }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbsBySize({}); setCoverBySize({}); setAiCountBySize({}); setThumbErr(""); setTranscript(null); coverPlan.current = null }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.

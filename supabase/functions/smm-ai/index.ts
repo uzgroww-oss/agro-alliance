@@ -1094,6 +1094,32 @@ FAQAT JSON qaytar, boshqa matn yozma:
       let imgPrompt = ""
       const visErrs: string[] = []
 
+      // TAYYOR promt berilgan bo'lsa AI bosqichini butunlay o'tkazib
+      // yuboramiz. Bu bir necha o'lchamga (YouTube, Instagram, kvadrat)
+      // muqova yasaganda muhim: promt bir marta yoziladi, qolgan
+      // o'lchamlar shuni qayta ishlatadi — AI kvotasi tejaladi va tez
+      // bo'ladi. "Faqat shu o'lchamni qayta yarat" ham shu yo'l bilan.
+      const givenPrompt = String(body.prompt || "").trim()
+      const givenTitle = String(body.title || "").trim()
+      const givenBenefits = Array.isArray(body.benefits)
+        ? body.benefits.map((b: unknown) => String(b).slice(0, 24)).filter(Boolean).slice(0, 3)
+        : []
+      if (givenPrompt) {
+        const seedsQ = [Number(body.seed) || 11, (Number(body.seed) || 11) + 16]
+        const imgsQ: string[] = []
+        let errQ = ""
+        for (const s of seedsQ) {
+          try {
+            const im = await genImage(givenPrompt, aspect, s)
+            imgsQ.push(im.data)
+          } catch (e) {
+            if (!errQ) errQ = e instanceof Error ? e.message : "Rasm chizilmadi"
+          }
+        }
+        if (!imgsQ.length) return jsonResponse({ vision_failed: true, error: errQ || "Rasm chizilmadi" })
+        return jsonResponse({ images: imgsQ, title: givenTitle, benefits: givenBenefits, prompt: givenPrompt })
+      }
+
       // ENG YAXSHI YO'L: videoning ovozidan olingan matn (transcript).
       // Videoда NIMA GAPIRILGANI muqova mavzusini belgilaydi — bitta
       // kadrdagi tasvirdan ancha aniq. Matn modeli ishonchli (Groq).
