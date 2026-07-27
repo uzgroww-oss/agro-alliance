@@ -897,9 +897,22 @@ export default function SmmPanel({ seed }: {
     }
   })
 
+  /**
+   * Muharrirni TO'LIQ tozalash — yangi postdan boshlash uchun.
+   *
+   * MUHIM: faqat matn emas, media bilan bog'liq HAMMA narsa tozalanadi
+   * (video/rasm, muqovalar, ovoz matni, AI ko'rgani). Ilgari faqat form
+   * tozalanardi va joylangandan keyin video hamda muqova variantlari
+   * osilib qolardi.
+   */
   const clearForm = () => {
     setForm({ title: "", content: "", hashtags: "", image_url: "", thumb_url: "" })
     setEditingId(null); setAiMade(false); setMsg("")
+    setThumbsBySize({}); setCoverBySize({}); setThumbErr("")
+    setTranscript(null); setSeenDesc(""); setSeenTopic("")
+    setDraft(null); setGenImg(""); setDrawErr(""); setDrawModel("")
+    setSeedMsg(""); setFitErr("")
+    coverPlan.current = null
   }
 
   /* ---------------- 4-bosqich ---------------- */
@@ -915,10 +928,15 @@ export default function SmmPanel({ seed }: {
         `/smm/posts/${id}?action=publish`,
         { method: "POST", body: JSON.stringify(overridePlatforms ? { platforms: overridePlatforms } : {}) })
       const bad = r.results.filter((x) => !x.success)
-      setMsg(r.success
+      const note = r.success
         ? (bad.length ? `⚠️ Qisman joylandi — ${bad.map((b) => `${b.platform}: ${b.error}`).join("; ")}` : "✅ Joylandi")
-        : `❌ ${bad.map((b) => `${b.platform}: ${b.error}`).join("; ")}`)
-      if (r.success && !bad.length) clearForm()
+        : `❌ ${bad.map((b) => `${b.platform}: ${b.error}`).join("; ")}`
+      // Kamida bitta tarmoqqa chiqsa muharrir tozalanadi — post
+      // ro'yxatda saqlangan, u yerdan qayta joylash mumkin. Ilgari
+      // faqat HAMMASI muvaffaqiyatli bo'lgandagina tozalanardi va
+      // bitta tarmoq yiqilsa matn, video, muqova osilib qolardi.
+      if (r.success) clearForm()
+      setMsg(note) // clearForm msg'ni tozalaydi — undan KEYIN yozamiz
       load()
     } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
   })
