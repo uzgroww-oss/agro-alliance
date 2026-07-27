@@ -202,7 +202,10 @@ export default function SmmPanel({ seed }: {
   const [analyzing, runAnalyze] = useBusy()
   const [aiErr, setAiErr] = useState("")
 
-  /* AI maslahatchi — suhbat */
+  /* AI maslahatchi — suzuvchi panel (ekranga mahkamlangan).
+     Ilgari u uchinchi ustun edi va joyni egallardi; endi dumaloq
+     tugmadan ochiladi va har qanday joylashuvda qo'l ostida turadi. */
+  const [chatOpen, setChatOpen] = useState(false)
   const [chat, setChat] = useState<ChatMsg[]>([])
   const [question, setQuestion] = useState("")
   const [asking, runAsk] = useBusy()
@@ -1145,7 +1148,8 @@ export default function SmmPanel({ seed }: {
       </div>
 
       {/* ============ 2 + 3 + AI (uch ustun) ============ */}
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1.5fr_1.1fr]">
+      {/* Chat endi alohida SUZUVCHI panelda — grid ikki ustun */}
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1.5fr]">
         {/* ---- 2. KONTENT YARATISH ---- */}
         <div className={card}>
           <h3 className="font-display font-bold">2. Kontent yaratish</h3>
@@ -1225,7 +1229,11 @@ export default function SmmPanel({ seed }: {
               <Icon d={I.robot} className="mt-0.5 h-5 w-5 shrink-0 text-green" />
               <p className="text-sm text-ink/75">
                 Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi.
-                Nima yozishni bilmasangiz o'ngdagi <strong>AI maslahatchi</strong> bilan gaplashing.
+                Nima yozishni bilmasangiz pastdagi yashil tugmani bosib{" "}
+                <button onClick={() => setChatOpen(true)} className="font-bold text-green hover:underline">
+                  AI maslahatchi
+                </button>{" "}
+                bilan gaplashing.
               </p>
             </div>
           )}
@@ -1567,10 +1575,27 @@ export default function SmmPanel({ seed }: {
             <div className={`mt-4 rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : msg.startsWith("⚠️") ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-600"}`}>{msg}</div>
           )}
         </div>
-        {/* ============ AI MASLAHATCHI (chat) ============ */}
-        {/* Alohida karta: tahlil kontent yozishdan boshqa ish. Ilgari u
-            2-karta ichida edi va ikkalasi aralashib ketardi. */}
-        <div className={`${card} flex flex-col p-0`}>
+      </div>
+
+      {/* ============ AI MASLAHATCHI — SUZUVCHI TUGMA ============ */}
+      {/* Ekranga mahkamlangan dumaloq tugma: qaysi bo'limда bo'lsangiz
+          ham qo'l ostida turadi va joy egallamaydi. */}
+      {!chatOpen && (
+        <button onClick={() => setChatOpen(true)} title="AI maslahatchi"
+          className="fixed bottom-6 right-6 z-40 grid h-14 w-14 place-items-center rounded-full bg-green text-white shadow-2xl shadow-green/40 transition-transform hover:scale-110">
+          <Icon d={I.robot} className="h-6 w-6" />
+          {/* Yashil nuqta — bot tayyor */}
+          <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-400" />
+        </button>
+      )}
+
+      {/* ============ AI MASLAHATCHI (chat paneli) ============ */}
+      {chatOpen && (
+        <>
+          {/* Orqa fon — bosilsa yopiladi (mobil uchun muhim) */}
+          <div className="fixed inset-0 z-40 bg-black/30 lg:bg-transparent lg:pointer-events-none"
+            onClick={() => setChatOpen(false)} />
+          <div className="fixed bottom-0 right-0 z-50 flex h-[100dvh] w-full flex-col bg-white shadow-2xl sm:bottom-6 sm:right-6 sm:h-[min(78vh,640px)] sm:w-[400px] sm:rounded-2xl sm:border sm:border-green/15">
           {/* ---- Chat sarlavhasi: bot avatari + holat ---- */}
           <div className="flex items-center gap-3 border-b border-green/10 px-5 py-4">
             <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green text-white">
@@ -1589,11 +1614,16 @@ export default function SmmPanel({ seed }: {
                 <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6" className="h-4 w-4" />
               </button>
             )}
+            <button onClick={() => setChatOpen(false)} title="Yopish"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
+              <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+            </button>
           </div>
 
           {/* ---- Xabarlar oqimi ---- */}
-          <div ref={chatRef} className="min-h-[300px] flex-1 space-y-4 overflow-y-auto bg-soft px-4 py-4"
-            style={{ maxHeight: "min(60vh, 520px)" }}>
+          {/* Balandlik panelga bo'ysunadi: flex-1 bilan qolgan joyni
+              egallaydi, maxHeight kerak emas — panelning o'zi cheklangan */}
+          <div ref={chatRef} className="flex-1 space-y-4 overflow-y-auto bg-soft px-4 py-4">
 
             {/* Bot birinchi bo'lib salomlashadi — bo'sh ekran chatga
                 o'xshamaydi. */}
@@ -1725,8 +1755,9 @@ export default function SmmPanel({ seed }: {
               {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil qilish" : "Tarmoqlarni tahlil qilish"}
             </button>
           </div>
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* ============ 4. NASHR ============ */}
       <div className={`${card} mt-5`}>
