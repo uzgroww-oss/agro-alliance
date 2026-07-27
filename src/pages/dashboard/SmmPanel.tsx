@@ -937,24 +937,23 @@ export default function SmmPanel({ seed }: {
    */
   const remove = (p: SmmPost) => runAct(async () => {
     const wasPublished = p.status === "published" || p.status === "removed"
-    let scope = ""
-    if (wasPublished) {
-      const alsoRemote = window.confirm(
-        "Tarmoqlardan ham o'chirilsinmi?\n\nOK — tarmoqlardan ham o'chadi\nBekor qilish — faqat shu ro'yxatdan o'chadi",
-      )
-      if (alsoRemote) scope = "?scope=all"
-    } else if (!window.confirm("Post o'chirilsinmi?")) {
-      return
-    }
+    // Nashr etilgan post TARMOQLARDAN HAM o'chadi — foydalanuvchi
+    // shuni kutadi. Ilgari bu "OK/Bekor qilish" bilan so'ralardi va
+    // chalkash edi: Bekor qilish "o'chirmaslik" emas, "faqat paneldan
+    // o'chirish" degani bo'lib, post tarmoqda qolib ketardi.
+    const scope = wasPublished ? "?scope=all" : ""
+    if (!window.confirm(
+      wasPublished
+        ? "Post o'chirilsinmi?\n\nRo'yxatdan va tarmoqlardan (Telegram, Facebook) o'chadi.\nInstagram o'chirishni qo'llamaydi — undan qo'lda o'chirasiz."
+        : "Post o'chirilsinmi?",
+    )) return
 
     try {
       const r = await api<{ remote?: { platform: string; success: boolean; error?: string }[] }>(
         `/smm/posts/${p.id}${scope}`, { method: "DELETE" })
-      // Instagram backend'da o'tkazib yuboriladi — bu yerda faqat
-      // haqiqiy natijalar keladi.
-      const realBad = (r.remote || []).filter((x) => !x.success)
-      if (realBad.length) {
-        setMsg(`⚠️ Post o'chirildi, lekin: ${realBad.map((b) => `${b.platform} — ${b.error}`).join("; ")}`)
+      const bad = (r.remote || []).filter((x) => !x.success)
+      if (bad.length) {
+        setMsg(`⚠️ Ro'yxatdan o'chirildi. ${bad.map((b) => `${b.platform}: ${b.error}`).join(" · ")}`)
       } else if (scope) {
         setMsg("✅ Ro'yxatdan va tarmoqlardan o'chirildi")
       } else {

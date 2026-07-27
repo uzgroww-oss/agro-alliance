@@ -645,10 +645,19 @@ Deno.serve(async (req) => {
           .eq("post_id", id)
           .eq("success", true)
         for (const r of (res || []) as { platform: string; external_id: string | null }[]) {
-          // Instagram o'tkazib yuboriladi: Graph API media o'chirishni
-          // qo'llamaydi. Urinib xato qaytargandan ko'ra umuman
-          // tegmaymiz — Instagram'dan post joyida qoladi.
-          if (r.platform === "instagram") continue
+          // Instagram: Graph API media o'chirishni QO'LLAMAYDI (Meta
+          // cheklovi, bizning nuqson emas). Ilgari jimgina o'tkazib
+          // yuborilardi va panel "tarmoqlardan o'chirildi" deb YOLG'ON
+          // aytardi — post esa Instagram'да qolib ketardi. Endi buni
+          // ochiq aytamiz, foydalanuvchi qo'lda o'chiradi.
+          if (r.platform === "instagram") {
+            remote.push({
+              platform: "instagram",
+              success: false,
+              error: "Instagram API postni o'chirishga ruxsat bermaydi — ilovadan qo'lda o'chiring",
+            })
+            continue
+          }
           remote.push(await removeRemote(r.platform, r.external_id || ""))
         }
       }
