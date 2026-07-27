@@ -299,8 +299,29 @@ export default function MarketPanel({ onCreatePost }: {
     if (!plan) return
     if (!window.confirm(`${kun}-kun rejadan o'chirilsinmi?`)) return
     const reja = plan.reja.filter((r) => r.kun !== kun)
-    setPlan({ ...plan, reja })
-    void savePlan({ reja })
+    const nextDone = done.filter((d) => d !== kun)
+    setPlan({ ...plan, reja }); setDone(nextDone)
+    void savePlan({ reja, done: nextDone })
+  }
+
+  /**
+   * Ko'p kunni birdan o'chirish.
+   *
+   * Belgilangan kunlar bo'lsa — FAQAT o'shalar o'chadi (bajarilganlarni
+   * tozalash uchun qulay). Hech biri belgilanmagan bo'lsa — butun reja.
+   */
+  const removeMany = () => {
+    if (!plan || !plan.reja.length) return
+    const onlyDone = done.length > 0 && done.length < plan.reja.length
+    const msg = onlyDone
+      ? `Belgilangan ${done.length} ta kun rejadan o'chirilsinmi?`
+      : `Butun reja (${plan.reja.length} kun) o'chirilsinmi?`
+    if (!window.confirm(msg)) return
+    const reja = onlyDone ? plan.reja.filter((r) => !done.includes(r.kun)) : []
+    // Ikkala holatda ham belgilangan kunlar qolmaydi: yo ular o'chdi,
+    // yo butun reja o'chdi.
+    setPlan({ ...plan, reja }); setDone([])
+    void savePlan({ reja, done: [] })
   }
 
   /** Tahrirni boshlash — joriy qiymatlar formaga ko'chiriladi */
@@ -517,7 +538,17 @@ export default function MarketPanel({ onCreatePost }: {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="font-display font-bold">{days} kunlik kontent reja</h3>
               {plan.reja.length > 0 && (
-                <span className="text-xs font-bold text-muted">{done.length} / {plan.reja.length} bajarildi</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-muted">{done.length} / {plan.reja.length} bajarildi</span>
+                  {/* Belgilanganlar bo'lsa faqat o'shalar, aks holda butun reja */}
+                  <button onClick={removeMany}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-50">
+                    <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3 w-3" />
+                    {done.length > 0 && done.length < plan.reja.length
+                      ? `Belgilanganni o'chirish (${done.length})`
+                      : "Hammasini o'chirish"}
+                  </button>
+                </div>
               )}
             </div>
             {/* Bajarilish chizig'i — qancha qolganini bir qarashda ko'rsatadi */}
