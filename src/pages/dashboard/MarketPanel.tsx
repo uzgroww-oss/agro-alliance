@@ -407,6 +407,11 @@ export default function MarketPanel({ onCreatePost }: {
 
   // Kun bo'yicha filtr (0 — hammasi) va sahifalash
   const [dayFilter, setDayFilter] = useState(0)
+  // Kun tasmasi — yon strelkalar shuni suradi (sahifani emas)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const scrollStrip = (dir: -1 | 1) => {
+    stripRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" })
+  }
   const [page, setPage] = useState(1)
   const PER_PAGE = 8
 
@@ -685,26 +690,38 @@ export default function MarketPanel({ onCreatePost }: {
                 Bosilgan kun qayta bosilsa filtr olib tashlanadi. */}
             {plan.reja.length > 1 && (
               <div className="mt-4 flex items-center gap-2">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={curPage <= 1}
-                  aria-label="Oldingi" className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                <button onClick={() => scrollStrip(-1)} aria-label="Chapga"
+                  className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50">
                   <Icon d="M15 18l-6-6 6-6" className="h-4 w-4" />
                 </button>
-                <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+                <div ref={stripRef} className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+                  {/* "Hammasi" — tanlangan kundan qaytish uchun. Tasmaning
+                      BOSHIDA turadi: jadval ostidagi havolani hech kim
+                      ko'rmasdi. */}
+                  <button onClick={() => { setDayFilter(0); setPage(1) }}
+                    className={`shrink-0 rounded-xl border px-4 py-2 text-center transition-colors ${
+                      dayFilter === 0 ? "border-green bg-green text-white" : "border-green/12 hover:border-green/40"
+                    }`}>
+                    <span className="block text-sm font-bold">Hammasi</span>
+                    <span className={`block text-[11px] ${dayFilter === 0 ? "text-white/80" : "text-muted"}`}>
+                      {plan.reja.length} kun
+                    </span>
+                  </button>
                   {plan.reja.map((r) => {
                     const active = dayFilter === r.kun
                     return (
                       <button key={r.kun} onClick={() => { setDayFilter(active ? 0 : r.kun); setPage(1) }}
                         className={`shrink-0 rounded-xl border px-4 py-2 text-center transition-colors ${
-                          active ? "border-green bg-green/5" : "border-green/12 hover:border-green/40"
+                          active ? "border-green bg-green/10" : "border-green/12 hover:border-green/40"
                         }`}>
-                        <span className="block text-sm font-bold">{dayShort(r.kun)}</span>
+                        <span className={`block text-sm font-bold ${active ? "text-green" : ""}`}>{dayShort(r.kun)}</span>
                         <span className="block text-[11px] text-muted">{r.kun}-kun</span>
                       </button>
                     )
                   })}
                 </div>
-                <button onClick={() => setPage((p) => Math.min(pageCount, p + 1))} disabled={curPage >= pageCount}
-                  aria-label="Keyingi" className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50 disabled:opacity-40">
+                <button onClick={() => scrollStrip(1)} aria-label="O'ngga"
+                  className="shrink-0 rounded-lg border border-green/15 p-2 text-muted transition-colors hover:border-green/50">
                   <Icon d="M9 18l6-6-6-6" className="h-4 w-4" />
                 </button>
               </div>
@@ -876,11 +893,12 @@ export default function MarketPanel({ onCreatePost }: {
               </div>
             )}
 
-            {/* Filtr yoqilgan bo'lsa — bekor qilish */}
+            {/* Filtr yoqilganda nima ko'rsatilayotgani aniq bo'lsin.
+                Qaytish tugmasi tasmaning boshida ("Hammasi"). */}
             {dayFilter > 0 && (
               <p className="mt-3 text-center text-xs text-muted">
-                {dayShort(dayFilter)} ko'rsatilmoqda ·{" "}
-                <button onClick={() => setDayFilter(0)} className="font-bold text-green hover:underline">
+                Faqat <strong className="text-ink">{dayShort(dayFilter)}</strong> ko'rsatilmoqda ·{" "}
+                <button onClick={() => { setDayFilter(0); setPage(1) }} className="font-bold text-green hover:underline">
                   hammasini ko'rsatish
                 </button>
               </p>
