@@ -259,6 +259,8 @@ export default function SmmPanel({ seed }: {
   const [genImg, setGenImg] = useState("")
   const [drawing, runDraw] = useBusy()
   const [drawErr, setDrawErr] = useState("")
+  // Rasmni qaysi model chizdi (Cloudflare SDXL / NVIDIA FLUX)
+  const [drawModel, setDrawModel] = useState("")
   // Bir rasmni ikki marta to'g'irlamaslik uchun: qayta yuklangan rasm
   // yana onLoad chaqiradi va cheksiz halqa hosil bo'lishi mumkin.
   const fitDone = useRef<Set<string>>(new Set())
@@ -432,10 +434,13 @@ export default function SmmPanel({ seed }: {
       // Har chizishda boshqa seed — "boshqa rasm" tugmasi bosilganda
       // yangi, farqli rasm chiqsin (bir xil so'rovga ham)
       const seed = Math.floor(Math.random() * 1_000_000)
-      const d = await api<{ image_b64: string; prompt: string }>("/smm/ai?action=image", {
+      const d = await api<{ image_b64: string; prompt: string; model?: string }>("/smm/ai?action=image", {
         method: "POST",
         body: JSON.stringify({ text: text.slice(0, 1500), aspect, seed }),
       })
+      // Qaysi model chizganini eslab qolamiz — provayder almashganini
+      // (Cloudflare/NVIDIA) ko'rish uchun
+      setDrawModel(d.model || "")
       // Yuklab, doimiy manzil olamiz — base64 ni bazaga saqlab bo'lmaydi
       const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
       const r = await uploadFile(file)
@@ -1314,12 +1319,21 @@ export default function SmmPanel({ seed }: {
                         boshqa (farqli) rasm chizadi. Faqat rasm uchun
                         (video muqovasi alohida tugmadan yasaladi). */}
                     {!isVideo && (
-                      <button type="button" onClick={drawForPost} disabled={drawing || !form.content.trim()}
-                        title={form.content.trim() ? "" : "Avval post matnini yozing"}
-                        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
-                        <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
-                        {drawing ? "Chizilmoqda…" : "Boshqa rasm chizsin"}
-                      </button>
+                      <>
+                        <button type="button" onClick={drawForPost} disabled={drawing || !form.content.trim()}
+                          title={form.content.trim() ? "" : "Avval post matnini yozing"}
+                          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
+                          <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
+                          {drawing ? "Chizilmoqda…" : "Boshqa rasm chizsin"}
+                        </button>
+                        {/* Qaysi model chizgani — provayder almashganini
+                            tekshirish uchun */}
+                        {drawModel && (
+                          <p className="mt-1 text-center text-[10px] text-muted">
+                            Chizdi: <span className="font-mono">{drawModel.split("/").pop()}</span>
+                          </p>
+                        )}
+                      </>
                     )}
 
                     {/* ---- Video muqovasi (YouTube prevyusi kabi) ---- */}

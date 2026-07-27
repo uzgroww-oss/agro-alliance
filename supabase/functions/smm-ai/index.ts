@@ -6,6 +6,7 @@ import { geminiJson, geminiChat, type InlineImage } from "../_shared/gemini.ts"
 import { groqJson, groqChat } from "../_shared/groq.ts"
 import { nimJson, nimChat } from "../_shared/nim.ts"
 import { nimImage, type GenAspect } from "../_shared/nimImage.ts"
+import { cfImage, cfAvailable } from "../_shared/cfImage.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
 import { webTrends } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
@@ -40,6 +41,41 @@ function hasKey(name: string): boolean {
   if (name === "Gemini") return Boolean(Deno.env.get("GEMINI_API_KEY"))
   if (name === "NVIDIA") return Boolean(Deno.env.get("NVIDIA_API_KEY"))
   return true
+}
+
+/** Rasmda BO'LMASLIGI kerak narsalar — negative_prompt uchun */
+const NEGATIVE = "people, person, human, face, portrait, crowd, text, watermark, logo, letters, blurry, distorted, deformed"
+
+/**
+ * Rasm chizish — yagona kirish nuqtasi.
+ *
+ * Cloudflare Workers AI sozlangan bo'lsa AVVAL o'sha ishlatiladi:
+ * uning Stable Diffusion XL modeli `negative_prompt` ni QABUL QILADI,
+ * ya'ni "odam bo'lmasin" qat'iy taqiq bo'ladi. NVIDIA'даги FLUX buni
+ * qabul qilmaydi va odamni so'rov ichida iltimos qilib to'sish
+ * ishonchsiz edi — muqovaga odam chiqib qolardi.
+ *
+ * Cloudflare yiqilsa yoki sozlanmagan bo'lsa — NVIDIA zaxira.
+ */
+async function genImage(
+  prompt: string,
+  aspect: GenAspect,
+  seed = 0,
+): Promise<{ data: string; model: string }> {
+  const errs: string[] = []
+  if (cfAvailable()) {
+    try {
+      return await cfImage(prompt, aspect, seed, NEGATIVE)
+    } catch (e) {
+      errs.push(`Cloudflare: ${e instanceof Error ? e.message : "xatolik"}`)
+    }
+  }
+  try {
+    return await nimImage(prompt, aspect, seed)
+  } catch (e) {
+    errs.push(`NVIDIA: ${e instanceof Error ? e.message : "xatolik"}`)
+  }
+  throw new Error(errs.join(" | ") || "Rasm chizilmadi")
 }
 
 /**
@@ -1175,7 +1211,7 @@ FAQAT JSON: { "sarlavha": "…", "afzalliklar": ["…","…","…"] }`,
       let firstErr = ""
       for (const s of seeds) {
         try {
-          const img = await nimImage(imgPrompt, aspect, s)
+          const img = await genImage(imgPrompt, aspect, s)
           images.push(img.data)
         } catch (e) {
           if (!firstErr) firstErr = e instanceof Error ? e.message : "Rasm chizilmadi"
@@ -1280,7 +1316,7 @@ Oxirgi savolga javob ber. Qoidalar:
 
       let img: { data: string; model: string }
       try {
-        img = await nimImage(imgPrompt, aspect, seed)
+        img = await genImage(imgPrompt, aspect, seed)
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
       }
@@ -1386,7 +1422,7 @@ Central Asia, photorealistic"`)
       if (!imgPrompt) return errorResponse("Rasm so'rovi bo'sh chiqdi", 500)
 
       try {
-        const img = await nimImage(imgPrompt, aspect)
+        const img = await genImage(imgPrompt, aspect)
         return jsonResponse({ image_b64: img.data, prompt: imgPrompt, model: img.model })
       } catch (e) {
         return errorResponse(e instanceof Error ? e.message : "Rasm yaratilmadi", 500)
