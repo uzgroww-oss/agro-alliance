@@ -4,7 +4,7 @@ import MediaUpload from "../../components/MediaUpload"
 import { fitForInstagram, isIgRatioOk, refitUploadedImage } from "../../lib/imageFit"
 import { uploadFile } from "../../lib/upload"
 import { extractVideoFrame } from "../../lib/videoFrame"
-import { extractFrames, composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "../../lib/thumbnail"
+import { composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "../../lib/thumbnail"
 import { api } from "../../lib/api"
 
 /**
@@ -244,8 +244,6 @@ export default function SmmPanel({ seed }: {
      faqat o'shanisini qayta yaratish mumkin, tanlanganlari saqlanadi. */
   // O'lcham -> variantlar ro'yxati
   const [thumbsBySize, setThumbsBySize] = useState<Record<string, string[]>>({})
-  // O'lcham -> nechtasi AI chizgan (boshidagilar)
-  const [aiCountBySize, setAiCountBySize] = useState<Record<string, number>>({})
   // O'lcham -> TANLANGAN muqova (saqlangan)
   const [coverBySize, setCoverBySize] = useState<Record<string, string>>({})
   // Hozir qaysi o'lcham yasalmoqda ("" — hech biri, "all" — hammasi)
@@ -772,16 +770,10 @@ export default function SmmPanel({ seed }: {
       aiErr = e instanceof Error ? e.message : "AI muqova chizmadi"
     }
 
-    // AI yetarli bermasa — videoning HAQIQIY kadrlaridan to'ldiramiz
-    if (aiCount < 4) {
-      try {
-        const frames = await extractFrames(form.image_url, 4 - aiCount)
-        for (const f of frames) out.push(await composeThumbnail(f, { title, benefits }, size))
-      } catch { /* kadr olinmasa AI muqova bo'lsa yetadi */ }
-    }
-
+    // Videodan KADR OLINMAYDI — muqova faqat AI chizgan rasmdan.
+    // (Ilgari AI yetarli bermasa xom kadrlar bilan to'ldirilardi, lekin
+    // ular muqova sifatida sifatsiz chiqardi.)
     setThumbsBySize((m) => ({ ...m, [size.key]: out }))
-    setAiCountBySize((m) => ({ ...m, [size.key]: aiCount }))
     return { plan: newPlan, err: !aiCount && aiErr ? `${size.label}: ${aiErr}` : "" }
   }
 
@@ -1416,7 +1408,6 @@ export default function SmmPanel({ seed }: {
                         {THUMB_SIZES.map((sz) => {
                           const variants = thumbsBySize[sz.key] || []
                           const chosen = coverBySize[sz.key]
-                          const aiN = aiCountBySize[sz.key] || 0
                           const busy = busySize === sz.key || busySize === "all"
                           if (!variants.length && !chosen && !busySize) return null
                           return (
@@ -1449,7 +1440,7 @@ export default function SmmPanel({ seed }: {
                               {variants.length > 0 && (
                                 <>
                                   <p className="mt-1.5 text-[10px] text-muted">
-                                    Birini tanlang. "AI" — AI chizgan, qolgani videodan kadr.
+                                    Birini tanlang.
                                   </p>
                                   <div className="mt-1.5 grid grid-cols-2 gap-2">
                                     {variants.map((t, i) => (
@@ -1458,9 +1449,6 @@ export default function SmmPanel({ seed }: {
                                           className="block w-full disabled:opacity-50">
                                           <img src={t} alt={`${sz.label} ${i + 1}`} className="block w-full" />
                                         </button>
-                                        {i < aiN && (
-                                          <span className="absolute left-1 top-1 rounded bg-green px-1.5 py-0.5 text-[9px] font-bold text-white">AI</span>
-                                        )}
                                         <button type="button" onClick={() => setZoomImg(t)} title="Kattalashtirish"
                                           className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100">
                                           <Icon d={I.search} className="h-3.5 w-3.5" />
@@ -1476,7 +1464,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbsBySize({}); setCoverBySize({}); setAiCountBySize({}); setThumbErr(""); setTranscript(null); coverPlan.current = null }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbsBySize({}); setCoverBySize({}); setThumbErr(""); setTranscript(null); coverPlan.current = null }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
