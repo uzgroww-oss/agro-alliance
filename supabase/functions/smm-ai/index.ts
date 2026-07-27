@@ -491,6 +491,30 @@ function looksLikeSentence(t: string): boolean {
 }
 
 /**
+ * Matnni O'QISHGA QULAY formatlaydi.
+ *
+ * AI raqamli ro'yxatni bitta uzun paragrafga tiqib yozadi
+ * ("...usullar: 1-jamoa 2-yer 3-qarz..."). Odam o'qishga qiynaladi.
+ * Bu funksiya raqamli ro'yxat bandlarini ALOHIDA QATORGA ajratadi va
+ * biroz otступ qo'yadi — go'yo qo'lda chiroyli terilgandek.
+ *
+ * Faqat HAQIQIY ro'yxat (kamida "1" va "2" bandlari) formatlanadi —
+ * "5 ta usul" yoki "40%" kabi oddiy raqamlar tegilmaydi.
+ */
+function prettyFormat(text: string): string {
+  let t = (text || "").replace(/\r/g, "").trim()
+  if (!t) return t
+  const hasList = /(^|\s)1\s*[-.)]\s*\S/.test(t) && /(^|\s)2\s*[-.)]\s*\S/.test(t)
+  if (hasList) {
+    // "1-", "2.", "3)" oldiga yangi qator + otступ (tiredan keyin
+    // bo'shliq bo'lmasligi ham mumkin: "1-jamoa")
+    t = t.replace(/\s*(\d{1,2})([-.)])\s*/g, (_m, n, sep) => `\n   ${n}${sep} `)
+    t = t.replace(/\n{2,}/g, "\n").replace(/^\n+/, "").trim()
+  }
+  return t
+}
+
+/**
  * Javobga so'rovning O'ZI sizib chiqqanmi?
  *
  * NEGA: kichik modellar ko'rsatmadagi namunani mavzu haqida o'ylash
@@ -732,7 +756,8 @@ MATN QOIDALARI — qat'iy:
 - Bu ko'rsatmalarning o'zini javobga ko'chirma. Javobda faqat
   o'quvchiga qaratilgan tayyor post bo'lsin.
 - TO'LIQ JUMLALAR yoz. Faqat sarlavhalardan iborat ro'yxat YOZMA.
-- Ro'yxat ishlatsang, HAR BAND kamida bitta to'liq jumla bo'lsin
+- Ro'yxat ishlatsang, HAR BANDNI YANGI QATORDAN boshla (\n bilan),
+  hammasini bitta qatorga tiqma. Har band kamida bitta to'liq jumla bo'lsin
 - Aniq gapir: raqam, muddat, usul nomi, narsalarning nomi
 - Kamida 3 ta mazmunli jumla bo'lsin
 - "Qulaylik yaratish", "samaradorlikni oshirish" kabi bo'sh iboralarni
@@ -768,7 +793,7 @@ FAQAT JSON qaytar, boshqa matn yozma:
         ["matn", "sarlavha"],
         usable,
       )
-      return jsonResponse({ generated: result })
+      return jsonResponse({ generated: { ...result, matn: prettyFormat(result.matn) } })
     }
 
     /* ---------------- RASMDAN KONTENT ---------------- */
@@ -839,7 +864,7 @@ FAQAT JSON:
         // ortiqcha provayder chaqirilmaydi, NVIDIA charchamaydi.
         try {
           const res = await askAi<Generated>(tPrompt, usableT, 2048, ["matn", "sarlavha"], softT)
-          return jsonResponse({ generated: { ...res, tasvir: "", mazmun: (res as Generated).mazmun || "" } })
+          return jsonResponse({ generated: { ...res, matn: prettyFormat(res.matn), tasvir: "", mazmun: (res as Generated).mazmun || "" } })
         } catch {
           // JSON yo'li ishlamasa (bo'sh matn, rate-limit) — ODDIY MATN
           // so'raymiz. Bu JSON muammosini chetlab o'tadi va Groq odatda
@@ -853,7 +878,7 @@ Faqat post matnini qaytar.
 MATN: ${transcript.slice(0, 2000)}`)
             const m = plain.trim().slice(0, 600)
             if (m.length >= 20 && !describesMedia(m)) {
-              return jsonResponse({ generated: { matn: m, sarlavha: "", hashtaglar: [], tasvir: "", mazmun: "" } })
+              return jsonResponse({ generated: { matn: prettyFormat(m), sarlavha: "", hashtaglar: [], tasvir: "", mazmun: "" } })
             }
           } catch { /* pastda umumiy xato */ }
           return errorResponse("Matn yozib bo'lmadi — biroz kuting va qayta urining", 500)
@@ -963,12 +988,12 @@ FAQAT JSON qaytar, boshqa matn yozma:
             errs.push(`${a.name}: media'ni tasvirlab yozdi`)
             continue
           }
-          return jsonResponse({ generated: result })
+          return jsonResponse({ generated: { ...result, matn: prettyFormat(result.matn) } })
         } catch (e) {
           errs.push(`${a.name}: ${e instanceof Error ? e.message : "xatolik"}`)
         }
       }
-      if (soft) return jsonResponse({ generated: soft })
+      if (soft) return jsonResponse({ generated: { ...soft, matn: prettyFormat(soft.matn) } })
       return errorResponse(errs.join(" | "), 500)
     }
 
