@@ -199,15 +199,25 @@ export async function fetchFeed(url: string, name = ""): Promise<WebHit[]> {
     headers: { "User-Agent": "Mozilla/5.0" },
     signal: AbortSignal.timeout(12_000),
   });
-  if (!r.ok) return [];
+  // XATO SABABINI aytamiz. Ilgari jimgina [] qaytarardi va
+  // "yozuv topilmadi" degan chalg'ituvchi xabar chiqardi — aslida
+  // sayt 403 yoki 404 bergan bo'lishi mumkin edi.
+  if (!r.ok) throw new Error(`sayt javobi ${r.status}`);
   const xml = await r.text();
+  if (!xml.trim()) throw new Error("sayt bo'sh javob qaytardi");
+  // RSS/Atom emasligini aniq aytamiz (masalan HTML sahifa kelgan)
+  if (!/<item|<entry/i.test(xml)) {
+    const isHtml = /^\s*<!doctype html|<html/i.test(xml);
+    throw new Error(isHtml ? "bu RSS emas, oddiy sahifa" : "RSS yozuvlari topilmadi");
+  }
 
   // RSS <item> yoki Atom <entry>
   const isAtom = !xml.includes("<item") && xml.includes("<entry");
   const parts = xml.split(isAtom ? "<entry" : "<item").slice(1);
 
   const out: WebHit[] = [];
-  for (const it of parts.slice(0, 8)) {
+  // 12 ta yozuv: tahlil bir necha manbadan yetarli material olsin
+  for (const it of parts.slice(0, 12)) {
     const pick = (tag: string) => {
       const m = it.match(new RegExp("<" + tag + "[^>]*>(.*?)</" + tag + ">", "s"));
       return m ? stripTags(m[1]) : "";

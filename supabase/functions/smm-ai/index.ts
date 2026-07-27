@@ -531,10 +531,11 @@ async function ownSources(): Promise<WebHit[]> {
       }
     }))
 
-    // Har manbadan 3 tadan — bittasi hammasini bosib ketmasin
+    // Har manbadan 5 tadan — bittasi hammasini bosib ketmasin, lekin
+    // tahlil BIR NECHTA manbadan yetarli material olsin.
     const out: WebHit[] = []
-    for (const r of results) out.push(...r.slice(0, 3))
-    return out.slice(0, 18)
+    for (const r of results) out.push(...r.slice(0, 5))
+    return out.slice(0, 30)
   } catch {
     return []
   }
@@ -1536,8 +1537,9 @@ Oxirgi savolga javob ber. Qoidalar:
 
       // Foydalanuvchi kiritgan manbalar ALOHIDA bo'lim: AI ular
       // ishonchliroq ekanini bilsin va ko'proq tayansin.
+      const srcNames = [...new Set(ownHits.map((h) => h.source).filter(Boolean))]
       const srcLine = ownHits.length
-        ? ownHits.map((h) => `- [${h.source || "manba"}] ${h.title}: ${h.snippet.slice(0, 160)}`).join("\n")
+        ? ownHits.map((h) => `- [${h.source || "manba"}] ${h.title}: ${h.snippet.slice(0, 130)}`).join("\n")
         : "(manba qo'shilmagan)"
 
       // O'Z TAJRIBAMIZ: qaysi postlar chiqdi, qaysi tarmoqda nima
@@ -1574,7 +1576,7 @@ ${ownLine}
 OXIRGI JOYLANGAN POSTLARIMIZ:
 ${pastLine}
 
-BIZ TANLAGAN MANBALAR (ishonchli, ustuvor):
+BIZ TANLAGAN MANBALAR (ishonchli, ustuvor) — ${srcNames.length} ta manba:
 ${srcLine}
 
 INTERNETDAGI SO'NGGI YANGILIKLAR:
@@ -1588,6 +1590,8 @@ QAT'IY QOIDALAR:
   qiymat qaytarma — bu maydonlar odam o'qishi uchun
 - "BIZ TANLAGAN MANBALAR" birinchi darajali: ulardagi mavzulardan
   ko'proq foydalan
+- BIR NECHTA manbadan foydalan, bittasiga tayanma. Turli manbalardagi
+  mavzularni aralashtir — reja bir xil bo'lib qolmasin
 - OXIRGI POSTLARIMIZNI hisobga ol: bir xil mavzuni takrorlama,
   qamrab olinmagan yo'nalishlarni taklif qil
 - Bizning raqamlarimiz kichik bo'lsa buni ochiq ayt, bo'rttirma
