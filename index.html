@@ -7,9 +7,36 @@
     <!-- viewport-fit=cover — notch/safe-area uchun (native ilova); maximum-scale — inputga bosganda zoom bo'lmasin -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
     <meta name="description" content="AGRO ALLIANCE — agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma." />
+    <!--
+      Supabase'ga ULANISHNI OLDINDAN boshlaymiz.
+      Sayt ma'lumotining hammasi shu domendan keladi, lekin brauzer u haqda
+      faqat JS yuklanib bo'lgach biladi. Foydalanuvchilar O'zbekistonda,
+      server esa Frankfurtda — DNS + TLS qo'l siqishi 300ms dan oshadi.
+      Preconnect uni HTML o'qilayotgan paytda, ya'ni bekorga ketayotgan
+      vaqtda boshlab qo'yadi.
+    -->
+    <link rel="preconnect" href="https://ckdgprxppmtsgrofvkxd.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://ckdgprxppmtsgrofvkxd.supabase.co" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!--
+      Shrift RENDERNI BLOKLAMASIN.
+      Oddiy <link rel="stylesheet"> brauzerni to'xtatadi: Google'ning ikkita
+      domeniga ulanib, CSS ni yuklab bo'lmaguncha sahifa CHIZILMAYDI.
+      media="print" bilan u past ustuvorlikda, bloklamasdan yuklanadi;
+      yuklangach onload uni haqiqiy uslubga aylantiradi.
+      Matn shu orada tizim shriftida ko'rinadi (display=swap allaqachon shuni qiladi).
+    -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    </noscript>
     <title>AGRO ALLIANCE — Agro Media Platforma</title>
   </head>
   <body>

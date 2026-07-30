@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "//": "Hashli fayllar (index-De0oDcMi.js) mazmuni o'zgarsa NOMI ham o'zgaradi, ya'ni ularni abadiy keshlash xavfsiz. Ilgari 'max-age=0, must-revalidate' turardi: brauzer HAR sahifa ochilishida serverdan so'rab, 304 olardi. O'lchandi: bekorga 0.48s (Toshkentdan ko'proq), har fayl uchun alohida.",
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "//": "Rasm va shriftlar ham uzoq keshlansin. Bular nom bo'yicha o'zgarmaydi, shuning uchun immutable emas — bir kunlik kesh + fon yangilash.",
+      "source": "/(.*)\\.(webp|png|jpg|jpeg|svg|ico|woff2)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "//": "index.html HECH QACHON keshlanmasin — aks holda yangi deploydan keyin foydalanuvchi eski asset nomlariga ishora qiluvchi HTML oladi va sayt buziladi.",
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
+}
