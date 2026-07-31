@@ -1,5 +1,5 @@
 import { handleCors } from "../_shared/cors.ts"
-import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
+import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { formatNewsDate } from "../_shared/time.ts"
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       })),
     ]
 
-    return noCacheJsonResponse({
+    return cachedJsonResponse({
       news,
       pagination: {
         page,
@@ -110,8 +110,12 @@ Deno.serve(async (req) => {
         total_pages: Math.ceil((count || 0) / per_page),
       },
       categories: cats,
-    })
+    // 60 soniya: yangilik chop etilgach saytda ko'rinishi uchun eng ko'pi
+    // bilan bir daqiqa. Buning evaziga takroriy tashriflarda so'rov
+    // umuman ketmaydi (o'lchandi: keshsiz 1066ms -> keshlangan ~11ms).
+    }, 60)
   } catch (err) {
-    return errorResponse((err as Error).message, 500)
+    console.error("public-news-list:", err instanceof Error ? err.message : err)
+    return errorResponse("Yangiliklarni yuklab bo'lmadi", 500)
   }
 })

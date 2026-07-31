@@ -1,5 +1,5 @@
 import { handleCors } from "../_shared/cors.ts"
-import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
+import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { getDynamicStats } from "../_shared/stats.ts"
 
 Deno.serve(async (req) => {
@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
 
   try {
     const stats = await getDynamicStats()
-    return noCacheJsonResponse({ stats })
+    return cachedJsonResponse({ stats }, 300)
   } catch (err) {
     return errorResponse((err as Error).message, 500)
   }

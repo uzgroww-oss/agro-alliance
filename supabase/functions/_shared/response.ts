@@ -11,9 +11,17 @@ export function jsonResponse(data: unknown, status = 200, extraHeaders: Record<s
   })
 }
 
+/**
+ * Keshlanadigan javob.
+ *
+ * `stale-while-revalidate` qo'shildi: TTL tugagach brauzer ESKI javobni
+ * DARHOL ishlatadi va yangisini fonda oladi. Ya'ni foydalanuvchi kesh
+ * yangilanishini kutib turmaydi. O'zbekistondan Frankfurtgacha har so'rov
+ * ~1 sekund bo'lgani uchun bu sezilarli farq.
+ */
 export function cachedJsonResponse(data: unknown, ttlSeconds: number, status = 200): Response {
   return jsonResponse(data, status, {
-    "Cache-Control": `public, s-maxage=${ttlSeconds}, max-age=${ttlSeconds}`,
+    "Cache-Control": `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}, stale-while-revalidate=${ttlSeconds * 4}`,
   })
 }
 
