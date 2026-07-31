@@ -112,11 +112,23 @@ export async function nimImage(
   prompt: string,
   aspect: GenAspect = "16:9",
   seed = 0,
+  /**
+   * Butun urinishlar uchun umumiy muddat (absolyut vaqt, Date.now()).
+   *
+   * MUAMMO EDI: 4 ta model x 20s = 80 soniya, ustiga 429/503 da yana
+   * 3s kutib qayta urinish. Rasm chizish yolg'iz o'zi 90 soniyaga
+   * cho'zilib, mijoz chegarasidan oshib ketardi.
+   */
+  deadline?: number,
 ): Promise<{ data: string; model: string }> {
   const apiKey = getApiKey();
   const errs: string[] = [];
 
   for (const model of models()) {
+    if (deadline && deadline - Date.now() < 5_000) {
+      errs.push("vaqt tugadi — qolgan modellar sinalmadi");
+      break;
+    }
     const params = MODEL_PARAMS[model] || DEFAULT_PARAMS;
     try {
       // MUHIM: har so'rovga vaqt chegarasi. Ilgari chegara yo'q edi va
@@ -133,7 +145,9 @@ export async function nimImage(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(20_000),
+          signal: AbortSignal.timeout(
+            deadline ? Math.min(20_000, Math.max(5_000, deadline - Date.now())) : 20_000,
+          ),
         });
 
       const full: Record<string, unknown> = {
@@ -164,7 +178,9 @@ export async function nimImage(
       // tarifining "16 so'rov" chegarasi ketma-ket rasmda tez uriladi.
       // Darhol keyingi modelga o'tish o'rniga bir marta KUTIB, SHU
       // modelni qayta uramiz — ko'pincha 2-3 soniyada bo'shaydi.
-      if (resp.status === 429 || resp.status === 503) {
+      // Vaqt qolmagan bo'lsa kutib o'tirmaymiz
+      if ((resp.status === 429 || resp.status === 503) &&
+          (!deadline || deadline - Date.now() > 10_000)) {
         await new Promise((r) => setTimeout(r, 3000));
         resp = await send(full);
       }

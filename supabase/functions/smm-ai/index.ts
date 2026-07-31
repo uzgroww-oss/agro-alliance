@@ -72,14 +72,18 @@ async function genImage(
   seed = 0,
 ): Promise<{ data: string; model: string }> {
   const errs: string[] = []
+  // Rasm chizish ham umumiy muddatga bo'ysunadi: NVIDIA 4 model x 20s
+  // ustiga Cloudflare zaxirasi — jami 140 soniyagacha cho'zilardi.
+  const deadline = Date.now() + IMAGE_BUDGET_MS
   // Sifat qo'shimchasi — takrorlanmasin
   const full = /highly detailed|8k/i.test(prompt) ? prompt : `${prompt}, ${QUALITY}`.slice(0, 480)
   try {
-    return await nimImage(full, aspect, seed)
+    return await nimImage(full, aspect, seed, deadline)
   } catch (e) {
     errs.push(`NVIDIA: ${e instanceof Error ? e.message : "xatolik"}`)
   }
-  if (cfAvailable()) {
+  // Zaxiraga vaqt qolmagan bo'lsa urinib o'tirmaymiz
+  if (cfAvailable() && deadline - Date.now() > 10_000) {
     try {
       return await cfImage(full, aspect, seed, NEGATIVE)
     } catch (e) {
@@ -101,6 +105,26 @@ const PROVIDER_TIMEOUT: Record<string, number> = {
   NVIDIA: 45_000,
 }
 const TIMEOUT_FOR = (name: string) => PROVIDER_TIMEOUT[name] ?? 25_000
+
+/**
+ * BUTUN ZANJIR uchun umumiy vaqt chegarasi.
+ *
+ * NEGA KERAK: alohida chegaralar QO'SHILIB ketardi. Eng yomon holat:
+ *   Cloudflare 3 model x 30s = 90s + Gemini 15s + NVIDIA 45s + Groq 20s
+ *   = 170 SONIYA.
+ * Supabase funksiyani 150 soniyada uzadi, brauzer esa 110 soniyada
+ * (api.ts SLOW_TIMEOUT). Ya'ni foydalanuvchi ikki daqiqa kutib HECH
+ * NARSA olmasdi va sababini ham bilmasdi.
+ *
+ * Endi zanjir 70 soniyadan oshmaydi: vaqt tugayotgan bo'lsa qolgan
+ * provayderlar sinalmaydi va foydalanuvchi TEZROQ aniq xato oladi.
+ * Bu brauzerning 110 soniyasidan xavfsiz masofada.
+ */
+const CHAIN_BUDGET_MS = 70_000
+/** Provayderni sinashga arzimaydigan qoldiq vaqt */
+const MIN_SLICE_MS = 6_000
+/** Bitta rasm chizish uchun umumiy chegara (NVIDIA modellari + Cloudflare zaxirasi) */
+const IMAGE_BUDGET_MS = 60_000
 
 /**
  * MATN provayderlari tartibi — env (AI_TEXT_ORDER) orqali sozlanadi.
@@ -176,6 +200,7 @@ async function askAi<T>(
 ): Promise<T> {
   const errs: string[] = []
   let softHit: unknown = null
+  const deadline = Date.now() + CHAIN_BUDGET_MS
 
   // Uchta provayder: biri kvotasi tugasa keyingisi ishlaydi.
   // Groq birinchi — uning bepul chegarasi eng keng.
@@ -183,11 +208,24 @@ async function askAi<T>(
     const fn = JSON_FN[name]
     if (!fn) continue
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
+
+    // Umumiy byudjet tugadi — qolganini sinamaymiz
+    const qolgan = deadline - Date.now()
+    if (qolgan < MIN_SLICE_MS) { errs.push(`${name}: umumiy vaqt tugadi`); break }
+
     try {
       // retries: 0 — bir provayderni qayta sinash o'rniga darhol
       // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
       // va uch provayder x ikki urinish 90 soniyadan oshib ketardi.
-      const raw = unwrap(await fn(prompt, { retries: 0, maxTokens, timeoutMs: TIMEOUT_FOR(name) }), keys)
+      const raw = unwrap(
+        await fn(prompt, {
+          retries: 0,
+          maxTokens,
+          timeoutMs: Math.min(TIMEOUT_FOR(name), qolgan),
+          deadline,
+        }),
+        keys,
+      )
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
@@ -212,12 +250,22 @@ async function askAi<T>(
  */
 async function askText(prompt: string): Promise<string> {
   const errs: string[] = []
+  const deadline = Date.now() + CHAIN_BUDGET_MS
   for (const name of providerOrder()) {
     const fn = CHAT_FN[name]
     if (!fn) continue
     if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
+
+    const qolgan = deadline - Date.now()
+    if (qolgan < MIN_SLICE_MS) { errs.push(`${name}: umumiy vaqt tugadi`); break }
+
     try {
-      const { text } = await fn(prompt, { retries: 0, maxTokens: 1500, timeoutMs: TIMEOUT_FOR(name) })
+      const { text } = await fn(prompt, {
+        retries: 0,
+        maxTokens: 1500,
+        timeoutMs: Math.min(TIMEOUT_FOR(name), qolgan),
+        deadline,
+      })
       if (text && text.trim()) return text.trim()
       errs.push(`${name}: bo'sh javob`)
     } catch (e) {

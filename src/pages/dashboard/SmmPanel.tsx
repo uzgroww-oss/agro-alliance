@@ -804,11 +804,28 @@ export default function SmmPanel({ seed }: {
     try {
       const { frame, spoken } = await coverInputs()
       const errs: string[] = []
-      for (const sz of THUMB_SIZES) {
-        const r = await buildForSize(sz, frame, spoken, coverPlan.current)
-        if (r.plan) coverPlan.current = r.plan
+
+      /**
+       * TEZLIK: ilgari uchala o'lcham KETMA-KET yasalardi va har biri
+       * alohida AI chaqiruvi edi — jami uch barobar kutish.
+       *
+       * Birinchisi ketma-ket qolishi SHART: aynan u AI'dan promt va
+       * sarlavhani oladi (coverPlan). Qolgan ikkitasi shu tayyor
+       * rejadan foydalanadi, ya'ni bir-birini kutishi shart emas —
+       * ular endi BIR VAQTDA chiziladi.
+       */
+      const [birinchi, ...qolgan] = THUMB_SIZES
+      const r0 = await buildForSize(birinchi, frame, spoken, coverPlan.current)
+      if (r0.plan) coverPlan.current = r0.plan
+      if (r0.err) errs.push(r0.err)
+
+      const natijalar = await Promise.all(
+        qolgan.map((sz) => buildForSize(sz, frame, spoken, coverPlan.current)),
+      )
+      for (const r of natijalar) {
         if (r.err) errs.push(r.err)
       }
+
       if (errs.length) setThumbErr(errs.join(" | "))
     } catch (e) {
       setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")

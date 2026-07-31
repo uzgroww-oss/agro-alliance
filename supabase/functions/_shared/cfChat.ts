@@ -66,7 +66,7 @@ export type CfImage = { mimeType: string; data: string };
  */
 export async function cfChat(
   prompt: string,
-  opts?: { image?: CfImage; maxTokens?: number; timeoutMs?: number },
+  opts?: { image?: CfImage; maxTokens?: number; timeoutMs?: number; deadline?: number },
 ): Promise<{ text: string; tokens: number }> {
   const acc = Deno.env.get("CF_ACCOUNT_ID");
   const token = Deno.env.get("CF_API_TOKEN");
@@ -81,6 +81,26 @@ export async function cfChat(
 
   const errs: string[] = [];
   for (const model of list) {
+    /**
+     * UMUMIY MUDDAT.
+     *
+     * MUAMMO EDI: bu tsikl 3 ta matn modelini KETMA-KET sinardi va har
+     * biriga to'liq 30 soniya berardi — faqat Cloudflare 90 soniya
+     * yeyishi mumkin edi. Undan keyin zanjirda yana Gemini, NVIDIA va
+     * Groq turardi: jami 170 soniya. Supabase funksiyani 150 soniyada
+     * uzadi, brauzer esa 110 soniyada — ya'ni foydalanuvchi uzoq kutib
+     * HECH NARSA olmasdi.
+     *
+     * Endi chaqiruvchi umumiy muddat berishi mumkin. Vaqt tugayotgan
+     * bo'lsa qolgan modellar sinalmaydi.
+     */
+    if (opts?.deadline) {
+      const qolgan = opts.deadline - Date.now();
+      if (qolgan < 3_000) {
+        errs.push("vaqt tugadi — qolgan modellar sinalmadi");
+        break;
+      }
+    }
     try {
       // Vision modellari {image: number[], prompt} kutadi,
       // matn modellari esa {messages: [...]}.
@@ -88,11 +108,16 @@ export async function cfChat(
         ? { image: b64ToNumbers(opts!.image!.data), prompt, max_tokens: maxTokens }
         : { messages: [{ role: "user", content: prompt }], max_tokens: maxTokens };
 
+      // Bitta modelga umumiy muddatdan ortiq vaqt bermaymiz
+      const perModel = opts?.deadline
+        ? Math.min(timeoutMs, Math.max(3_000, opts.deadline - Date.now()))
+        : timeoutMs;
+
       const r = await fetch(`${BASE}/${acc}/ai/run/${model}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(perModel),
       });
 
       const name = model.split("/").pop();
@@ -132,7 +157,7 @@ export async function cfChat(
  */
 export async function cfJson<T = unknown>(
   prompt: string,
-  opts?: { image?: CfImage; maxTokens?: number; timeoutMs?: number },
+  opts?: { image?: CfImage; maxTokens?: number; timeoutMs?: number; deadline?: number },
 ): Promise<T> {
   const { text } = await cfChat(prompt, opts);
   return parseJson<T>(text);
