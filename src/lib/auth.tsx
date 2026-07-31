@@ -128,9 +128,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
 
+    /**
+     * TEZLIK: profil ILGARI IKKI MARTA yuklanardi.
+     * signInWithPassword `onAuthStateChange` ni uyg'otadi va u
+     * resolveSession -> fetchProfile ni chaqiradi; shu bilan birga
+     * login o'zi ham fetchProfile qilardi. Har biri 2 ta so'rov
+     * (profiles + auth_role), ya'ni jami 4 ta borish-kelish.
+     *
+     * Endi login tokenni O'ZI belgilaydi va `resolvedToken` ga yozib
+     * qo'yadi — listener uni ko'rib takrorlamaydi. Profil bir marta
+     * yuklanadi va holat shu yerda o'rnatiladi.
+     */
+    const tok = data.session?.access_token
+    if (tok) {
+      setToken(tok)
+      resolvedToken.current = tok
+    }
+
     const profile = await fetchProfile(data.user.id)
     if (!profile) throw new Error("Profil topilmadi")
 
+    setUser(profile)
+    setLoading(false)
     return profile
   }, [])
 

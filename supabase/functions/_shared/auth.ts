@@ -27,11 +27,28 @@ export async function verifyAuth(req: Request): Promise<
     return { user: null, response: errorResponse("Token notog'ri", 401, "INVALID_TOKEN") }
   }
 
-  const { data: profile, error: profileErr } = await supabaseAdmin
-    .from("profiles")
-    .select("*")
-    .eq("id", authData.id)
-    .maybeSingle()
+  /**
+   * TEZLIK: bu ikki so'rov KETMA-KET edi va ikkalasi ham faqat
+   * authData.id ga bog'liq — bir-birini kutishi shart emas.
+   *
+   * Bu funksiya HAR BIR himoyalangan so'rovda ishlaydi, ya'ni tejalgan
+   * bitta borish-kelish butun saytga ta'sir qiladi.
+   *
+   * Ustiga select("*") butun qatorni tortardi — `metadata` JSONB
+   * ustunida rasmlar va videolar massivi saqlanadi. Endi faqat
+   * kerakli ustunlar.
+   */
+  const [{ data: profile, error: profileErr }, { data: userRoles }] = await Promise.all([
+    supabaseAdmin
+      .from("profiles")
+      .select("id, email, name, status")
+      .eq("id", authData.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("user_roles")
+      .select("role:roles(name, priority)")
+      .eq("profile_id", authData.id),
+  ])
 
   if (profileErr || !profile) {
     return { user: null, response: errorResponse(profileErr?.message || "Profil topilmadi", 404, "NOT_FOUND") }
@@ -43,11 +60,6 @@ export async function verifyAuth(req: Request): Promise<
       response: errorResponse("Hisobingiz faollashtirilmagan", 403, "ACCOUNT_INACTIVE"),
     }
   }
-
-  const { data: userRoles } = await supabaseAdmin
-    .from("user_roles")
-    .select("role:roles(name, priority)")
-    .eq("profile_id", authData.id)
 
   const sorted = (userRoles ?? [])
     .map((ur: Record<string, unknown>) => (ur as { role: { name: string; priority: number } }).role)

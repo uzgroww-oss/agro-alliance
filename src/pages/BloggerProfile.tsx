@@ -780,8 +780,11 @@ export default function BloggerProfile() {
   useEffect(() => {
     if (!slug) return
     setLoading(true)
-    const cacheBust = Date.now()
-    api<{ blogger: LiveBlogger }>(`/public/bloggers/${slug}?t=${cacheBust}`)
+    // Ilgari bu yerda `?t=${Date.now()}` turardi. U har so'rovni noyob
+    // qilib, serverning 120 soniyalik keshini ham, brauzer keshini ham
+    // BUTUNLAY bekor qilardi — profil har ochilganda to'liq narxda
+    // qaytadan yuklanardi. Ma'lumot yangilanishi uchun 120s TTL yetarli.
+    api<{ blogger: LiveBlogger }>(`/public/bloggers/${slug}`)
       .then((d) => { setB(d.blogger ?? null); setFailed(false) })
       // Tarmoq/server xatosi "bunday bloger yo'q" degani EMAS — alohida holat.
       .catch(() => setFailed(true))

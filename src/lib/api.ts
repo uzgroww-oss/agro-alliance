@@ -10,6 +10,9 @@ export const getToken = (): string | null => {
   return sessionStorage.getItem(TOKEN_KEY)
 }
 export const setToken = (t: string) => {
+  // Foydalanuvchi almashdi — oldingi hisobning keshlangan javoblari
+  // ko'rinib qolmasin
+  if (getToken() !== t) clearApiCache()
   if (getRememberPref()) {
     localStorage.setItem(TOKEN_KEY, t)
     sessionStorage.removeItem(TOKEN_KEY)
@@ -21,6 +24,7 @@ export const setToken = (t: string) => {
 export const clearToken = () => {
   localStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(TOKEN_KEY)
+  clearApiCache()
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
@@ -526,6 +530,37 @@ async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUES
 // Login talab qilmaydigan, lekin /public/ prefiksisiz Edge Function'lar
 const PUBLIC_FUNCTIONS = ["/contact-submit", "/newsletter-subscribe", "/blogger-reviews"]
 
+/* ==========================================================================
+   GET SO'ROVLARI KESHI
+   ==========================================================================
+   MUAMMO: loyihada kesh qatlami umuman yo'q edi (react-query/SWR ham yo'q).
+   Natijada:
+     - profil ma'lumoti sahifa ochilishida IKKI MARTA yuklanardi
+     - admin panelida /bloggers AYNAN bir xil URL bilan ikki marta
+     - panel ichida tab almashtirilganda hamma so'rov qaytadan ketardi
+   Har bir so'rov Frankfurtga borib keladi (~1 sekund), shuning uchun
+   takroriylar to'g'ridan-to'g'ri kutish vaqtiga aylanadi.
+
+   Ikki qatlam:
+     1) UCHUVDAGI so'rovlar — bir xil URL bir vaqtda ikki marta so'ralsa,
+        BITTA tarmoq so'rovi ketadi va ikkalasi shu javobni oladi.
+     2) QISQA KESH — TTL ichida takroriy GET umuman tarmoqqa chiqmaydi.
+
+   Har qanday yozish amali (POST/PUT/PATCH/DELETE) keshni butunlay
+   tozalaydi: eskirgan ma'lumot ko'rsatilmasin.
+   ========================================================================== */
+
+const CACHE_TTL_MS = 30_000
+type CacheYozuv = { vaqt: number; data: unknown }
+const getCache = new Map<string, CacheYozuv>()
+const uchuvda = new Map<string, Promise<unknown>>()
+
+/** Yozish amalidan keyin va login/logout paytida chaqiriladi */
+export function clearApiCache(): void {
+  getCache.clear()
+  uchuvda.clear()
+}
+
 export async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken()
   const publicFn = PUBLIC_FUNCTIONS.some((p) => path === p || path.startsWith(p + "?"))
@@ -545,34 +580,68 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
     ? `${SUPABASE_FUNCTIONS_URL}${path}`
     : isPublic ? resolvePublicUrl(path) : resolveAdminUrl(path, method)
 
+  // Yozish amali — kesh eskirdi
+  if (method !== "GET") clearApiCache()
+
+  // Kesh kaliti tokenni ham hisobga oladi: boshqa foydalanuvchining
+  // javobi ko'rinib qolmasin.
+  const kalit = `${token ? "a" : "p"}:${url}`
+
+  if (method === "GET") {
+    const bor = getCache.get(kalit)
+    if (bor && Date.now() - bor.vaqt < CACHE_TTL_MS) return bor.data as T
+    const kutilmoqda = uchuvda.get(kalit)
+    if (kutilmoqda) return kutilmoqda as Promise<T>
+  }
+
   const h = new Headers(opts.headers)
   h.set("Content-Type", "application/json")
   if (token) h.set("Authorization", `Bearer ${token}`)
   h.set("apikey", SUPABASE_ANON_KEY)
 
   const slow = SLOW_PATHS.some((p) => path.startsWith(p))
-  let res: Response
-  try {
-    res = await fetchWithTimeout(
-      url,
-      { ...opts, headers: h },
-      slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
-    )
-  } catch (e) {
-    // AbortError xom holda "signal is aborted without reason" deb chiqadi —
-    // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.
-    if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error("So'rov vaqti tugadi — qayta urining", { cause: e })
+
+  const yubor = async (): Promise<T> => {
+    let res: Response
+    try {
+      res = await fetchWithTimeout(
+        url,
+        { ...opts, headers: h },
+        slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
+      )
+    } catch (e) {
+      // AbortError xom holda "signal is aborted without reason" deb chiqadi —
+      // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.
+      if (e instanceof DOMException && e.name === "AbortError") {
+        throw new Error("So'rov vaqti tugadi — qayta urining", { cause: e })
+      }
+      throw e
     }
-    throw e
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const errMsg = (data as { error?: string })?.error || (data as { message?: string })?.message || "Xatolik yuz berdi"
+      console.error("API error:", res.status, url, data)
+      throw new ApiError(errMsg, res.status)
+    }
+    return data as T
   }
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const errMsg = (data as { error?: string })?.error || (data as { message?: string })?.message || "Xatolik yuz berdi"
-    console.error("API error:", res.status, url, data)
-    throw new ApiError(errMsg, res.status)
-  }
-  return data as T
+
+  if (method !== "GET") return yubor()
+
+  // XATO KESHLANMAYDI: faqat muvaffaqiyatli javob saqlanadi, aks holda
+  // bir marta yiqilgan so'rov 30 soniya davomida qayta urinishga
+  // imkon bermasdi.
+  const p = yubor()
+    .then((data) => {
+      getCache.set(kalit, { vaqt: Date.now(), data })
+      return data
+    })
+    .finally(() => {
+      uchuvda.delete(kalit)
+    })
+
+  uchuvda.set(kalit, p)
+  return p
 }
 
 /**
