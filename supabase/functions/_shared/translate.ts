@@ -41,7 +41,7 @@ const MAX_FIELD = 6_000;
  * va uni qayta yozishning boshqa yo'li yo'q — kod tarjimasi bor
  * yozuvni o'tkazib yuborardi.
  */
-const TR_VERSION = 2;
+const TR_VERSION = 5;
 
 /**
  * Bu matnni tarjima qilish KERAKMI?
@@ -63,6 +63,115 @@ function tozala(s: string): string {
   return s.replace(/^\s*<p>\s*/i, "").replace(/\s*<\/p>\s*$/i, "").trim();
 }
 
+/* ==========================================================================
+   HIMOYALANGAN NOMLAR — HECH QACHON TARJIMA QILINMAYDI
+   ==========================================================================
+   MUAMMO: modelga "brend nomlarini tarjima qilma" deb aytish YETARLI
+   EMAS edi. "Agro Alliance" ruschada "Агро Альянс", xitoychada esa
+   ma'nosiz belgilarga aylanardi. Odamlar ismi va hamkor kompaniyalar
+   nomi ham xuddi shunday buzilardi.
+
+   YECHIM: nomlarni AI ga umuman ko'rsatmaymiz. Yuborishdan oldin ular
+   `__BR0__` kabi belgilarga almashtiriladi, javob kelgach asl holiga
+   qaytariladi. Model ularni o'zgartira olmaydi, chunki ko'rmaydi ham.
+   ========================================================================== */
+
+/**
+ * Har doim himoyalanadigan nomlar.
+ *
+ * DIQQAT: bu yerga faqat HAQIQIY nomlar kiritiladi.
+ * Yolg'iz "AGRO" va "ALLIANCE" ATAYLAB YO'Q — ular oddiy so'z sifatida
+ * ham ishlatiladi ("agro blogerlar", "agro soha"). Ularni himoyalaganda
+ * ruschada "Agroблогеры", xitoychada "Agro博客家人" kabi aralash so'zlar
+ * chiqardi. Brend — bu TO'LIQ "Agro Alliance" iborasi.
+ */
+const BREND = [
+  "AGRO ALLIANCE",
+  "Agro Alliance",
+  "Instagram",
+  "Telegram",
+  "YouTube",
+  "Facebook",
+  "TikTok",
+  "LinkedIn",
+];
+
+/** Bazadan olinadigan nomlar (hamkorlar, jamoa, blogerlar) — izolyat ichida keshlanadi */
+let nomKesh: string[] | null = null;
+let nomKeshVaqti = 0;
+const NOM_KESH_TTL = 10 * 60 * 1000;
+
+async function himoyalangnNomlar(): Promise<string[]> {
+  if (nomKesh && Date.now() - nomKeshVaqti < NOM_KESH_TTL) return nomKesh;
+  const nomlar = new Set<string>(BREND);
+  try {
+    const [p, t, b] = await Promise.all([
+      supabaseAdmin.from("partners").select("name").is("deleted_at", null).limit(300),
+      supabaseAdmin.from("team_members").select("name").is("deleted_at", null).limit(300),
+      supabaseAdmin.from("profiles").select("name").is("deleted_at", null).limit(500),
+    ]);
+    for (const r of [...(p.data || []), ...(t.data || []), ...(b.data || [])]) {
+      const n = (r as { name?: string }).name?.trim();
+      // Juda qisqa nomlar oddiy so'zlarga to'g'ri kelib qolishi mumkin
+      if (n && n.length >= 3) nomlar.add(n);
+    }
+  } catch (e) {
+    console.error("himoyalangnNomlar:", e instanceof Error ? e.message : e);
+  }
+  // Uzunidan qisqasiga — "Agro Alliance" "AGRO" dan oldin almashsin
+  nomKesh = [...nomlar].sort((a, b) => b.length - a.length);
+  nomKeshVaqti = Date.now();
+  return nomKesh;
+}
+
+function qochirish(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Nomlarni belgilarga almashtiradi va qaytarish jadvalini beradi */
+function nomlarniYashir(
+  fields: Record<string, string>,
+  nomlar: string[],
+): { yashirilgan: Record<string, string>; jadval: Map<string, string> } {
+  const jadval = new Map<string, string>();
+  const yashirilgan: Record<string, string> = {};
+  let n = 0;
+
+  for (const [k, v] of Object.entries(fields)) {
+    let matn = v;
+    for (const nom of nomlar) {
+      /**
+       * SO'Z CHEGARASI SHART.
+       *
+       * Ilgari oddiy qidiruv edi va "AGRO" so'zi "agrotexnologiyalar"
+       * ichida ham topilib, himoyalanib qolardi. Natijada ruscha
+       * tarjimada "agroтехнологии" kabi aralash so'z chiqardi.
+       * Endi faqat ALOHIDA so'z sifatida turgan nom almashtiriladi.
+       */
+      const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${qochirish(nom)})(?![\\p{L}\\p{N}])`, "giu");
+      matn = matn.replace(re, (_m, oldin: string, topilgan: string) => {
+        // Har xil yozilishi uchun alohida belgi — asl holat saqlanadi
+        for (const [belgi, asl] of jadval) if (asl === topilgan) return oldin + belgi;
+        const belgi = `__BR${n++}__`;
+        jadval.set(belgi, topilgan);
+        return oldin + belgi;
+      });
+    }
+    yashirilgan[k] = matn;
+  }
+  return { yashirilgan, jadval };
+}
+
+/** Belgilarni asl nomlarga qaytaradi */
+function nomlarniQaytar(s: string, jadval: Map<string, string>): string {
+  let out = s;
+  for (const [belgi, asl] of jadval) {
+    // Model belgini biroz o'zgartirishi mumkin (bo'shliq, registr)
+    out = out.replace(new RegExp(qochirish(belgi).replace(/_/g, "_\\s*"), "gi"), asl);
+  }
+  return out;
+}
+
 function buildPrompt(fields: Record<string, string>, lang: TargetLang): string {
   const target = LANG_NAME[lang];
   const payload = JSON.stringify(fields, null, 1);
@@ -74,6 +183,7 @@ function buildPrompt(fields: Record<string, string>, lang: TargetLang): string {
     `- Translate the VALUES into ${target}. Do not translate the keys.`,
     "- Keep the meaning and tone. This is agriculture / agro-media content.",
     "- Do NOT translate brand names, people's names, or URLs — keep them as they are.",
+    "- Tokens like __BR0__, __BR1__ are placeholders for names. Copy them EXACTLY, unchanged.",
     "- Keep any HTML tags, markdown and line breaks exactly as they appear.",
     "- Do not add commentary, notes or code fences.",
     "",
@@ -159,14 +269,26 @@ export async function translateFields(
   }
   if (Object.keys(toza).length === 0) return {};
 
+  /**
+   * Brend nomlari, odamlar ismi va hamkor kompaniyalar AI ga
+   * KO'RSATILMAYDI — belgiga almashtiriladi. Model ularni o'zgartira
+   * olmaydi, javob kelgach asl holiga qaytariladi.
+   */
+  const nomlar = await himoyalangnNomlar();
+  const { yashirilgan, jadval } = nomlarniYashir(toza, nomlar);
+
   const deadline = tashqiDeadline ?? Date.now() + BUDGET_MS;
   const juftlar = await Promise.all(
-    langs.map(async (l) => [l, await translateTo(toza, l, deadline)] as const),
+    langs.map(async (l) => [l, await translateTo(yashirilgan, l, deadline)] as const),
   );
 
   const out: Translations = {};
   for (const [l, natija] of juftlar) {
-    if (natija && Object.keys(natija).length) out[l] = natija;
+    if (!natija || Object.keys(natija).length === 0) continue;
+    // Belgilarni asl nomlarga qaytaramiz
+    const tiklangan: Record<string, string> = {};
+    for (const [k, v] of Object.entries(natija)) tiklangan[k] = nomlarniQaytar(v, jadval);
+    out[l] = tiklangan;
   }
   // Versiya belgisi — eski, sifatsiz tarjimalarni keyin ajratish uchun
   if (Object.keys(out).length) (out as Record<string, unknown>)._v = TR_VERSION;
