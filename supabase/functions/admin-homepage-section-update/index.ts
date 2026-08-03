@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { tarjimaYoz } from "../_shared/translate.ts"
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -38,6 +39,8 @@ Deno.serve(async (req) => {
       .single()
 
     if (error) return errorResponse(error.message, 500)
+
+    await tarjimaYoz("homepage_sections", data.id, { title: data.title, subtitle: data.subtitle })
 
     return jsonResponse({ success: true, section: data })
   } catch (err) {

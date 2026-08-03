@@ -1,6 +1,7 @@
 import { geminiJson } from "./gemini.ts";
 import { groqJson } from "./groq.ts";
 import { cfJson, cfChatAvailable } from "./cfChat.ts";
+import { supabaseAdmin } from "./supabase.ts";
 
 /**
  * KONTENT TARJIMASI: o'zbekcha -> ru / en / zh
@@ -126,6 +127,31 @@ export async function translateFields(
     if (natija && Object.keys(natija).length) out[l] = natija;
   }
   return out;
+}
+
+/**
+ * Yozuvni tarjima qilib, `translations` ustuniga saqlaydi.
+ *
+ * ADMIN saqlash amallaridan keyin chaqiriladi — foydalanuvchi qo'lda
+ * hech narsa qilmaydi.
+ *
+ * MUHIM: HECH QACHON XATO OTMAYDI. Tarjima ixtiyoriy qulaylik, saqlash
+ * amalining o'zi undan muhimroq: AI yiqilsa ham yozuv saqlangan qoladi
+ * va sayt o'zbekcha ko'rsatadi.
+ */
+export async function tarjimaYoz(
+  table: string,
+  id: string,
+  fields: Record<string, string | null | undefined>,
+): Promise<void> {
+  try {
+    const tr = await translateFields(fields)
+    if (Object.keys(tr).length === 0) return
+    const { error } = await supabaseAdmin.from(table).update({ translations: tr }).eq("id", id)
+    if (error) console.error(`tarjimaYoz ${table}:`, error.message)
+  } catch (e) {
+    console.error(`tarjimaYoz ${table}:`, e instanceof Error ? e.message : e)
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { applyLang, langOf } from "../_shared/translate.ts"
 
 const CACHE_TTL = 600
 
@@ -9,22 +10,28 @@ Deno.serve(async (req) => {
   if (cors) return cors
 
   try {
+    const lang = langOf(new URL(req.url))
+
     const { data: partners, error } = await supabaseAdmin
       .from("partners")
-      .select("id, name, slug, sphere, logo, direction, sort_order")
+      .select("id, name, slug, sphere, logo, direction, sort_order, translations")
       .eq("status", "active")
       .is("deleted_at", null)
       .order("sort_order", { ascending: true })
 
     if (error) return errorResponse(error.message, 500)
 
-    const list = (partners || []).map((p: Record<string, unknown>) => ({
+    const list = (partners || []).map((raw: Record<string, unknown>) => {
+      // Kompaniya NOMI tarjima qilinmaydi — u brend
+      const p = applyLang(raw, lang, ["sphere", "direction"])
+      return {
       name: p.name,
       slug: p.slug,
       sphere: p.sphere || "",
       logo: p.logo || null,
       direction: p.direction || "",
-    }))
+      }
+    })
 
     const stats = {
       total: list.length,

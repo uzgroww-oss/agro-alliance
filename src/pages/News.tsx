@@ -4,6 +4,7 @@ import { Reveal, Icon, I, Skeleton, useDebounced } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 const iconMap: Record<string, string> = {
   grid: I.grid, cpu: I.cpu, sprout: I.sprout, chart: I.chart, doc: I.doc,
@@ -16,7 +17,8 @@ const mascot = "/mascot-news.webp"
 
 /* ---------- Small components ---------- */
 function CatTag({ k }: { k: string }) {
-  return <span className="text-xs font-bold uppercase tracking-wide text-green">{catLabel(k)}</span>
+  const t = useT()
+  return <span className="text-xs font-bold uppercase tracking-wide text-green">{t(catLabel(k))}</span>
 }
 function Meta({ date, views }: { date: string; views: string }) {
   return (
@@ -43,12 +45,15 @@ function NewsCard({ n }: { n: News }) {
 }
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  // Ko'rinadigan matn tarjima qilinadi, QIYMAT o'zbekcha qoladi —
+  // aks holda filtr mantiqi buzilardi.
+  const t = useT()
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-muted">{t(label)}</span>
       <div className="relative">
         <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full appearance-none rounded-xl border border-green/15 bg-white px-4 py-3 pr-9 text-sm font-medium outline-none transition-colors hover:border-green/40 focus:border-green">
-          {options.map((o) => <option key={o} value={o}>{o}</option>) }
+          {options.map((o) => <option key={o} value={o}>{t(o)}</option>) }
         </select>
         <Icon d={I.chevDown} className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
       </div>
@@ -58,6 +63,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 /* ---------- Hero ---------- */
 function Hero() {
+  const t = useT()
   const heroSec = useHomeSection("news_hero", { title: "YANGILIKLAR", subtitle: "Qishloq xo'jaligi, agro texnologiyalar va sohadagi so'nggi yangiliklar bilan tanishing." })
   return (
     <section className="relative overflow-hidden">
@@ -69,9 +75,9 @@ function Hero() {
         <Reveal>
           <nav className="flex items-center gap-2 text-sm text-muted">
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
-              <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" /> Bosh sahifa
+              <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" /> {t("Bosh sahifa")}
             </Link>
-            <span>/</span><span className="font-semibold text-green">Yangiliklar</span>
+            <span>/</span><span className="font-semibold text-green">{t("Yangiliklar")}</span>
           </nav>
         </Reveal>
         <div className="grid items-center gap-6 py-6 lg:grid-cols-[1fr_auto]">
@@ -95,6 +101,7 @@ function Hero() {
 /* ---------- Page ---------- */
 export default function News() {
   useStaticSeo("/yangiliklar")
+  const t = useT()
   // UI state
   const [query, setQuery] = useState("")
   // Har harfda emas — yozish to'xtagach so'rov ketadi
@@ -160,15 +167,15 @@ const side = page === 1 && newsList.slice(1, 3)
         <div className="rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
           <div className="grid gap-4 lg:grid-cols-[1.6fr_repeat(3,1fr)_auto] lg:items-end">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-muted">Qidiruv</span>
+              <span className="mb-1.5 block text-xs font-medium text-muted">{t("Qidiruv")}</span>
               <div className="relative">
                 <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-                <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Yangiliklar ichida qidirish..." className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
+                <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder={t("Yangiliklar ichida qidirish...")} className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none hover:border-green/40 focus:border-green" />
               </div>
             </label>
-            <Select label="Kategoriya" value={catLabel(cat)} onChange={(v) => { setCat(apiCategories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={apiCategories.map((c) => c.label)} />
-            <Select label="Mavzu" value={theme} onChange={(v) => { setTheme(v); setPage(1) }} options={themes} />
-            <Select label="Sana" value={date} onChange={(v) => { setDate(v); setPage(1) }} options={dates} />
+            <Select label={t("Kategoriya")} value={catLabel(cat)} onChange={(v) => { setCat(apiCategories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={apiCategories.map((c) => c.label)} />
+            <Select label={t("Mavzu")} value={theme} onChange={(v) => { setTheme(v); setPage(1) }} options={themes} />
+            <Select label={t("Sana")} value={date} onChange={(v) => { setDate(v); setPage(1) }} options={dates} />
             <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green/30 bg-white px-5 py-3 text-sm font-bold transition-colors hover:border-green hover:text-green">
               FILTRNI TOZALASH
               <Icon d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5" className="h-4 w-4" />
