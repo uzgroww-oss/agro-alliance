@@ -3,6 +3,29 @@ import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { formatNewsDate } from "../_shared/time.ts"
+import { applyLang, langOf } from "../_shared/translate.ts"
+
+/**
+ * Kategoriya nomi tanlangan tilda.
+ * name_ru / name_en ustunlari jadvalda ALLAQACHON bor edi — ular
+ * ishlatiladi; xitoycha esa translations JSONB dan olinadi.
+ */
+function katNomi(c: Record<string, unknown>, lang: string | null): string {
+  const uz = (c.name_uz as string) || (c.key as string)
+  if (!lang || lang === "uz") return uz
+  if (lang === "ru" && c.name_ru) return c.name_ru as string
+  if (lang === "en" && c.name_en) return c.name_en as string
+  const tr = (c.translations as Record<string, Record<string, string>> | undefined)?.[lang]
+  return tr?.name_uz || tr?.name || uz
+}
+
+/** "Barcha yangiliklar" chipi — bu kategoriya emas, shuning uchun qo'lda */
+const KAT_HAMMASI: Record<string, string> = {
+  uz: "Barcha yangiliklar",
+  ru: "Все новости",
+  en: "All news",
+  zh: "所有新闻",
+}
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -11,6 +34,7 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url)
     const { page, per_page } = parsePaginationParams(url)
+    const lang = langOf(url)
     const category = url.searchParams.get("category") || ""
     const search = url.searchParams.get("search") || ""
 
@@ -18,7 +42,7 @@ Deno.serve(async (req) => {
       .from("news_articles")
       .select(`
         id, title, slug, excerpt, cover_image, view_count,
-        published_at, is_featured, reading_time,
+        published_at, is_featured, reading_time, translations,
         category:news_categories!category_id(key, name_uz, icon),
         author:profiles!author_id(name, avatar)
       `, { count: "exact" })
@@ -46,7 +70,9 @@ Deno.serve(async (req) => {
 
     if (error) return errorResponse(error.message, 500)
 
-    const news = (data || []).map((a: Record<string, unknown>) => {
+    const news = (data || []).map((row: Record<string, unknown>) => {
+      // Tanlangan tilda: tarjima bo'lsa u, bo'lmasa o'zbekcha
+      const a = applyLang(row, lang, ["title", "excerpt"])
       const cat = a.category as Record<string, unknown> || {}
       const author = a.author as Record<string, unknown> || {}
       const publishedAt = a.published_at as string || ""
@@ -69,7 +95,7 @@ Deno.serve(async (req) => {
     // Fetch categories
     const { data: categories } = await supabaseAdmin
       .from("news_categories")
-      .select("id, key, name_uz, icon")
+      .select("id, key, name_uz, name_ru, name_en, icon, translations")
       .eq("is_active", true)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true })
@@ -92,10 +118,10 @@ Deno.serve(async (req) => {
     }
 
     const cats = [
-      { key: "all", label: "Barcha yangiliklar", icon: "grid", count: count || 0 },
+      { key: "all", label: KAT_HAMMASI[lang ?? "uz"], icon: "grid", count: count || 0 },
       ...(categories || []).map((cat) => ({
         key: cat.key,
-        label: cat.name_uz || cat.key,
+        label: katNomi(cat, lang),
         icon: cat.icon || "grid",
         count: perCat.get(cat.id) || 0,
       })),

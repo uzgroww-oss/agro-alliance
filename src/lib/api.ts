@@ -1,3 +1,4 @@
+import { currentLang } from "./lang"
 const TOKEN_KEY = "aa_token"
 const REMEMBER_KEY = "aa_remember"
 
@@ -576,9 +577,25 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
     throw new Error("Sessiya tugadi — qayta kiring")
   }
 
-  const url = publicFn
+  let url = publicFn
     ? `${SUPABASE_FUNCTIONS_URL}${path}`
     : isPublic ? resolvePublicUrl(path) : resolveAdminUrl(path, method)
+
+  /**
+   * TIL — bir joyda qo'shiladi.
+   *
+   * Har bir yuklovchi funksiyaga (loadNews, loadBloggers, ...) qo'lda
+   * `lang` parametri qo'shish o'rniga shu yerda qo'shamiz: yangi
+   * endpoint qo'shilganda uni unutib qolish mumkin emas.
+   *
+   * Faqat OMMAVIY so'rovlarga: admin panel doim o'zbekcha manba
+   * matn bilan ishlaydi, aks holda muharrir tarjimani tahrirlab
+   * asl matnni buzib qo'yardi.
+   */
+  if (isPublic) {
+    const l = currentLang()
+    if (l !== "uz") url += (url.includes("?") ? "&" : "?") + `lang=${l}`
+  }
 
   // Yozish amali — kesh eskirdi
   if (method !== "GET") clearApiCache()

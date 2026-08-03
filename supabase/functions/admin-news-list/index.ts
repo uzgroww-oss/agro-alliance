@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { slugify } from "../_shared/helpers.ts"
 import { now } from "../_shared/time.ts"
+import { translateFields } from "../_shared/translate.ts"
 
 /**
  * Yangiliklar boshqaruvi: ro'yxat, bitta yangilik, yaratish va tahrirlash.
@@ -98,6 +99,44 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url)
     const id = url.searchParams.get("id")
+
+    /* ---------- Tarjima ----------
+     * ALOHIDA chaqiruv: saqlash TEZ qolishi kerak. Muharrir "Chop etish"
+     * bosganda AI tarjimasini kutib o'tirmaydi — maqola darhol saqlanadi,
+     * frontend esa shu amalni ORQADAN chaqiradi.
+     * Tarjima yiqilsa hech narsa buzilmaydi: kontent o'zbekcha qoladi.
+     */
+    if (req.method === "POST" && url.searchParams.get("action") === "translate") {
+      if (!id) return errorResponse("ID kerak", 400)
+
+      const { data: art } = await supabaseAdmin
+        .from("news_articles")
+        .select("id, title, excerpt, content")
+        .eq("id", id)
+        .is("deleted_at", null)
+        .maybeSingle()
+      if (!art) return errorResponse("Yangilik topilmadi", 404)
+
+      const translations = await translateFields({
+        title: art.title,
+        excerpt: art.excerpt,
+        content: art.content,
+      })
+
+      if (Object.keys(translations).length === 0) {
+        return jsonResponse({ success: false, tillar: [], izoh: "Tarjima olinmadi" })
+      }
+
+      const { error } = await supabaseAdmin
+        .from("news_articles")
+        .update({ translations })
+        .eq("id", id)
+      if (error) {
+        console.error("admin-news translate saqlash:", error.message)
+        return errorResponse("Tarjimani saqlab bo'lmadi", 500)
+      }
+      return jsonResponse({ success: true, tillar: Object.keys(translations) })
+    }
 
     /* ---------- Bitta yangilik (tahrirlash oynasi uchun) ---------- */
     if (req.method === "GET" && id) {
@@ -247,6 +286,13 @@ Deno.serve(async (req) => {
         updates.published_at = now()
       } else if (updates.status === "draft") {
         updates.published_at = null
+      }
+
+      // Tarjima qilinadigan maydon o'zgargan bo'lsa, ESKI TARJIMA
+      // ESKIRDI — uni tozalaymiz, aks holda sayt yangi o'zbekcha matnni
+      // eski ruscha tarjima bilan ko'rsatib turadi.
+      if (["title", "excerpt", "content"].some((f) => updates[f] !== undefined)) {
+        updates.translations = {}
       }
 
       updates.editor_id = auth.user.id

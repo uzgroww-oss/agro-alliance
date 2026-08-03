@@ -1223,8 +1223,24 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
     if (!form.content.trim()) { setErr("Matn majburiy"); return }
     const body = { ...form, status, category_id: form.category_id || null }
     try {
-      if (isNew) await api("/news", { method: "POST", body: JSON.stringify(body) })
-      else await api(`/news/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+      const saqlangan = isNew
+        ? await api<{ article: { id: string } }>("/news", { method: "POST", body: JSON.stringify(body) })
+        : await api<{ article: { id: string } }>(`/news/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+
+      /**
+       * TARJIMA — SAQLASHDAN KEYIN, KUTMASDAN.
+       *
+       * Maqola ru / en / zh tillariga AI orqali tarjima qilinadi.
+       * Muharrir buni kutib o'tirmaydi: oyna darhol yopiladi, tarjima
+       * orqada bajariladi. Yiqilsa ham hech narsa buzilmaydi —
+       * sayt o'sha tilda o'zbekcha matnni ko'rsatadi.
+       */
+      const yangiId = saqlangan?.article?.id || id
+      if (yangiId && yangiId !== "new") {
+        api(`/news/${yangiId}?action=translate`, { method: "POST", body: "{}" })
+          .catch((e) => console.error("tarjima:", e))
+      }
+
       onSaved()
       onClose()
     } catch (e) {

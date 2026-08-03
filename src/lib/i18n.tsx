@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import ru from "../locales/ru.json"
 import en from "../locales/en.json"
 import zh from "../locales/zh.json"
+import { LANGS, LANG_STORAGE_KEY, currentLang, type Lang } from "./lang"
+import { clearApiCache } from "./api"
 
 /**
  * KO'P TILLILIK
@@ -21,8 +23,8 @@ import zh from "../locales/zh.json"
  * ekran o'quvchilar uchun).
  */
 
-export const LANGS = ["uz", "ru", "en", "zh"] as const
-export type Lang = (typeof LANGS)[number]
+export { LANGS }
+export type { Lang }
 
 /** Tanlash menyusida ko'rinadigan nomlar — har biri O'Z tilida */
 export const LANG_LABEL: Record<Lang, string> = {
@@ -44,12 +46,12 @@ const DICTS: Record<Lang, Dict> = {
   zh: zh as Dict,
 }
 
-const STORAGE_KEY = "aa_lang"
+const STORAGE_KEY = LANG_STORAGE_KEY
 
 function boshlangichTil(): Lang {
   try {
-    const saqlangan = localStorage.getItem(STORAGE_KEY)
-    if (saqlangan && (LANGS as readonly string[]).includes(saqlangan)) return saqlangan as Lang
+    const saqlangan = currentLang()
+    if (localStorage.getItem(STORAGE_KEY)) return saqlangan
     // Brauzer tili — faqat BIRINCHI tashrifda
     const brauzer = navigator.language.slice(0, 2).toLowerCase()
     if (brauzer === "ru") return "ru"
@@ -78,6 +80,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const setLang = useCallback((l: Lang) => {
     setLangState(l)
     try { localStorage.setItem(STORAGE_KEY, l) } catch { /* ahamiyatsiz */ }
+    // MUHIM: keshlangan javoblar ESKI tilda. Tozalamasak, til
+    // almashtirilgach yangiliklar 30 soniya davomida eski tilda turadi.
+    clearApiCache()
   }, [])
 
   const t = useCallback(

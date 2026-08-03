@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { noCacheJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { formatNewsDate } from "../_shared/time.ts"
+import { applyLang, langOf } from "../_shared/translate.ts"
 
 
 Deno.serve(async (req) => {
@@ -9,14 +10,16 @@ Deno.serve(async (req) => {
   if (cors) return cors
 
   try {
-    const slug = new URL(req.url).searchParams.get("slug")
+    const url = new URL(req.url)
+    const lang = langOf(url)
+    const slug = url.searchParams.get("slug")
     if (!slug) return errorResponse("Slug query parameter is required", 400)
 
     const { data: article, error } = await supabaseAdmin
       .from("news_articles")
       .select(`
         id, title, slug, excerpt, content, cover_image,
-        view_count, published_at, is_featured, reading_time,
+        view_count, published_at, is_featured, reading_time, translations,
         category:news_categories!category_id(key, name_uz, icon),
         author:profiles!author_id(name, avatar)
       `)
@@ -43,16 +46,23 @@ Deno.serve(async (req) => {
       .update({ view_count: newViewCount })
       .eq("id", article.id)
 
+    // Tanlangan tilda: tarjima bo'lsa u, bo'lmasa o'zbekcha matn
+    const a = applyLang(
+      article as unknown as Record<string, unknown>,
+      lang,
+      ["title", "excerpt", "content"],
+    )
+
     // PostgREST bog'langan jadvalni massiv deb tiplaydi, amalda esa
     // bitta obyekt keladi — shuning uchun `unknown` orqali o'giramiz.
-    const cat = (article.category as unknown as Record<string, unknown>) || {}
-    const author = (article.author as unknown as Record<string, unknown>) || {}
+    const cat = (a.category as unknown as Record<string, unknown>) || {}
+    const author = (a.author as unknown as Record<string, unknown>) || {}
     const publishedAt = article.published_at as string || ""
     const result = {
       slug: article.slug,
-      title: article.title,
+      title: a.title,
       cat: cat.key || "",
-      desc: article.excerpt || "",
+      desc: a.excerpt || "",
       date: formatNewsDate(publishedAt),
       views: newViewCount > 1000
         ? `${Math.floor(newViewCount / 1000)}K+`
@@ -60,11 +70,12 @@ Deno.serve(async (req) => {
       seed: article.cover_image || "",
       top: article.is_featured || false,
       author: author.name as string || undefined,
-      body: [article.content || ""],
+      body: [(a.content as string) || ""],
     }
 
     return noCacheJsonResponse({ article: result })
   } catch (err) {
-    return errorResponse((err as Error).message, 500)
+    console.error("public-news-detail:", err instanceof Error ? err.message : err)
+    return errorResponse("Yangilikni yuklab bo'lmadi", 500)
   }
 })
