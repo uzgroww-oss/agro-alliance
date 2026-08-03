@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { api } from "./api"
+import { keshTozalovchiQosh } from "./lang"
 
 type Section = { section_key: string; title?: string; subtitle?: string; items?: unknown[] }
 
@@ -11,6 +12,9 @@ type Section = { section_key: string; title?: string; subtitle?: string; items?:
  */
 let cache: Section[] | null = null
 let inFlight: Promise<Section[]> | null = null
+
+// Til almashganda kesh eskiradi — ma'lumot boshqa tilda keladi
+keshTozalovchiQosh(() => { cache = null; inFlight = null })
 
 function loadSections(): Promise<Section[]> {
   if (cache) return Promise.resolve(cache)

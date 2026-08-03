@@ -100,7 +100,10 @@ export async function loadRelatedNews(slug: string): Promise<News[]> {
 export async function loadPopularNews(): Promise<{ title: string; date: string; views: string; seed: string; slug: string }[]> {
   try {
     // Kesh-buster: server 5 daqiqalik Cache-Control yuboradi, o'chirilgan yangiliklar eski keshdan ko'rinib qolmasligi uchun
-    const d = await api<{ popular: { title: string; date: string; views: string; seed: string; slug: string }[] }>(`/public/news/popular?t=${Date.now()}`)
+    // `?t=${Date.now()}` olib tashlandi: u har so'rovni noyob qilib,
+    // serverning 300 soniyalik keshini ham, brauzer keshini ham bekor
+    // qilardi — mashhur yangiliklar har sahifada qaytadan yuklanardi.
+    const d = await api<{ popular: { title: string; date: string; views: string; seed: string; slug: string }[] }>("/public/news/popular")
     return d.popular
   } catch {
     return []

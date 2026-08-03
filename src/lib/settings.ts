@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react"
 import { api } from "./api"
 import { useHomeSections } from "./sections"
+import { keshTozalovchiQosh } from "./lang"
 
 export type PublicSettings = Record<string, string>
 
 let cachedSettings: PublicSettings | null = null
 let cacheTime = 0
+
+// Til almashganda kesh eskiradi
+keshTozalovchiQosh(() => { cachedSettings = null; cacheTime = 0 })
 const CACHE_TTL = 5 * 60 * 1000
 
 export async function getPublicSettings(): Promise<PublicSettings> {

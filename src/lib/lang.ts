@@ -20,3 +20,31 @@ export function currentLang(): Lang {
   } catch { /* localStorage yopiq bo'lishi mumkin */ }
   return "uz"
 }
+
+/* ==========================================================================
+   TIL O'ZGARGANDA KESHLARNI TOZALASH
+   ==========================================================================
+   MUAMMO EDI: ba'zi modullar (sections.ts, settings.ts) o'z modul
+   darajasidagi keshini saqlaydi. Ular til haqida bilmasdi, shuning uchun
+   til almashtirilganda ESKI TILDAGI ma'lumotni qaytaraverardi —
+   foydalanuvchi sahifani qo'lda yangilashga majbur bo'lardi.
+
+   Endi har bir kesh o'zini shu yerga ro'yxatdan o'tkazadi va til
+   almashganda hammasi birdan tozalanadi. Yangi kesh qo'shilganda uni
+   ham shu yerga ulash kifoya — bitta joyni eslab qolish yetarli.
+   ========================================================================== */
+
+type Tozalovchi = () => void
+const tozalovchilar = new Set<Tozalovchi>()
+
+/** Modul o'z keshini tozalash funksiyasini ro'yxatdan o'tkazadi */
+export function keshTozalovchiQosh(fn: Tozalovchi): void {
+  tozalovchilar.add(fn)
+}
+
+/** Til almashganda chaqiriladi */
+export function barchaKeshniTozala(): void {
+  for (const fn of tozalovchilar) {
+    try { fn() } catch { /* bittasi yiqilsa qolganlari tozalansin */ }
+  }
+}

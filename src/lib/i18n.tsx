@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import ru from "../locales/ru.json"
 import en from "../locales/en.json"
 import zh from "../locales/zh.json"
-import { LANGS, LANG_STORAGE_KEY, currentLang, type Lang } from "./lang"
+import { LANGS, LANG_STORAGE_KEY, currentLang, barchaKeshniTozala, type Lang } from "./lang"
 import { clearApiCache } from "./api"
 
 /**
@@ -83,6 +83,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     // MUHIM: keshlangan javoblar ESKI tilda. Tozalamasak, til
     // almashtirilgach yangiliklar 30 soniya davomida eski tilda turadi.
     clearApiCache()
+    // Modullarning O'Z keshlari ham (sections, settings) — ular til
+    // haqida bilmaydi va tozalanmasa eski tilni qaytaraverardi.
+    // Aynan shu sabab foydalanuvchi sahifani qo'lda yangilashga
+    // majbur bo'lardi.
+    barchaKeshniTozala()
   }, [])
 
   const t = useCallback(
