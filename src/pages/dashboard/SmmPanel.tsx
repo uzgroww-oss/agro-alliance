@@ -6,6 +6,7 @@ import { uploadFile } from "../../lib/upload"
 import { extractVideoFrame } from "../../lib/videoFrame"
 import { composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "../../lib/thumbnail"
 import { api } from "../../lib/api"
+import { tr } from "../../lib/i18n"
 
 /**
  * SMM / AI paneli.
@@ -1048,16 +1049,16 @@ export default function SmmPanel({ seed }: {
   return (
     <div>
       <div>
-        <h2 className="font-display text-xl font-extrabold tracking-tight">SMM / AI</h2>
-        <p className="mt-1 text-sm text-muted">AI yordamida kontent yarating va ijtimoiy tarmoqlarga chiqaring</p>
+        <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("SMM / AI")}</h2>
+        <p className="mt-1 text-sm text-muted">{tr("AI yordamida kontent yarating va ijtimoiy tarmoqlarga chiqaring")}</p>
       </div>
 
       {/* ============ 1. TARMOQ TANLASH ============ */}
       <div className={`${card} mt-5`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-display font-bold">1. Ijtimoiy tarmoqlarni tanlang</h3>
-            <p className="mt-0.5 text-sm text-muted">Post qaysi tarmoqlarga chiqishini belgilang</p>
+            <h3 className="font-display font-bold">{tr("1. Ijtimoiy tarmoqlarni tanlang")}</h3>
+            <p className="mt-0.5 text-sm text-muted">{tr("Post qaysi tarmoqlarga chiqishini belgilang")}</p>
           </div>
           <button onClick={savePick} disabled={connLoading}
             className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
@@ -1113,13 +1114,13 @@ export default function SmmPanel({ seed }: {
                     lekin funksiya kerak, shuning uchun yashirin turadi. */}
                 {on && !connLoading && (
                   <span className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                    <span role="button" tabIndex={0} title="Qayta ulash"
+                    <span role="button" tabIndex={0} title={tr("Qayta ulash")}
                       onClick={(e) => { e.stopPropagation(); reconnect(p) }}
                       className={`grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-muted shadow-sm transition-colors hover:text-green ${connBusy ? "pointer-events-none opacity-50" : ""}`}>
                       <Icon d={I.refresh} className={`h-3 w-3 ${connBusy ? "animate-spin" : ""}`} />
                     </span>
                     {p.key !== "instagram" && (
-                      <span role="button" tabIndex={0} title="Uzish"
+                      <span role="button" tabIndex={0} title={tr("Uzish")}
                         onClick={(e) => { e.stopPropagation(); disconnect(p.key) }}
                         className="grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-red-400 shadow-sm transition-colors hover:text-red-500">
                         <Icon d="M18 6L6 18 M6 6l12 12" className="h-3 w-3" />
@@ -1134,9 +1135,9 @@ export default function SmmPanel({ seed }: {
 
         {connOpen === "telegram" && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
-            <p className="text-xs text-muted">Botni kanalga <strong>admin</strong> qilib qo'shing, keyin kanal @nomini yoki ID sini kiriting.</p>
+            <p className="text-xs text-muted">{tr("Botni kanalga")}<strong>admin</strong>{tr("qilib qo'shing, keyin kanal @nomini yoki ID sini kiriting.")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <input value={connForm.chat_id} onChange={(e) => setConnForm((f) => ({ ...f, chat_id: e.target.value }))} placeholder="@kanal_nomi yoki -1001234567890" className="min-w-[220px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+              <input value={connForm.chat_id} onChange={(e) => setConnForm((f) => ({ ...f, chat_id: e.target.value }))} placeholder={tr("@kanal_nomi yoki -1001234567890")} className="min-w-[220px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
               <button onClick={() => connect("telegram")} disabled={connBusy} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
                 {connBusy ? "Tekshirilmoqda…" : "Ulash"}
               </button>
@@ -1146,10 +1147,10 @@ export default function SmmPanel({ seed }: {
 
         {connOpen === "facebook" && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
-            <p className="text-xs text-muted">Facebook sahifangizning ID va Page Access Token'ini kiriting.</p>
+            <p className="text-xs text-muted">{tr("Facebook sahifangizning ID va Page Access Token'ini kiriting.")}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <input value={connForm.page_id} onChange={(e) => setConnForm((f) => ({ ...f, page_id: e.target.value }))} placeholder="Page ID" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-              <input value={connForm.page_token} onChange={(e) => setConnForm((f) => ({ ...f, page_token: e.target.value }))} placeholder="Page Access Token" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+              <input value={connForm.page_id} onChange={(e) => setConnForm((f) => ({ ...f, page_id: e.target.value }))} placeholder={tr("Page ID")} className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+              <input value={connForm.page_token} onChange={(e) => setConnForm((f) => ({ ...f, page_token: e.target.value }))} placeholder={tr("Page Access Token")} type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
             </div>
             <button onClick={() => connect("facebook")} disabled={connBusy} className="mt-2 rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
               {connBusy ? "Tekshirilmoqda…" : "Ulash"}
@@ -1160,8 +1161,8 @@ export default function SmmPanel({ seed }: {
         {connOpen === "instagram" && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
             <p className="text-xs text-muted">
-              Instagram Facebook orqali ulanadi. Akkaunt <strong>Business</strong> yoki
-              <strong> Creator</strong> bo'lishi va Facebook sahifasiga biriktirilgan bo'lishi shart.
+              Instagram Facebook orqali ulanadi. Akkaunt <strong>{tr("Business")}</strong> yoki
+              <strong>{tr("Creator")}</strong> bo'lishi va Facebook sahifasiga biriktirilgan bo'lishi shart.
             </p>
             <button onClick={igConnect} disabled={connBusy} className="mt-2 inline-flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
               <Brand k="instagram" className="h-4 w-4" color="#fff" /> Facebook bilan ulash
@@ -1175,15 +1176,15 @@ export default function SmmPanel({ seed }: {
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1.5fr]">
         {/* ---- 2. KONTENT YARATISH ---- */}
         <div className={card}>
-          <h3 className="font-display font-bold">2. Kontent yaratish</h3>
-          <p className="mt-0.5 text-sm text-muted">Mavzu yozing — AI tayyor post qaytaradi</p>
+          <h3 className="font-display font-bold">{tr("2. Kontent yaratish")}</h3>
+          <p className="mt-0.5 text-sm text-muted">{tr("Mavzu yozing — AI tayyor post qaytaradi")}</p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="relative min-w-[200px] flex-1">
               <Icon d={I.paperclip} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <input value={topic} onChange={(e) => setTopic(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") generate() }}
-                placeholder="Mavzu yoki havola kiriting…"
+                placeholder={tr("Mavzu yoki havola kiriting…")}
                 className="w-full rounded-xl border border-green/15 bg-white py-2.5 pl-9 pr-4 text-sm outline-none focus:border-green" />
             </span>
             <button onClick={() => generate()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
@@ -1200,7 +1201,7 @@ export default function SmmPanel({ seed }: {
             <div className="mt-4 rounded-xl border border-green/20 bg-green/5 p-4">
               <div className="flex items-center gap-2">
                 <Icon d={I.robot} className="h-4 w-4 shrink-0 text-green" />
-                <span className="text-xs font-bold text-green">AI yozdi</span>
+                <span className="text-xs font-bold text-green">{tr("AI yozdi")}</span>
               </div>
 
               {draft.sarlavha && <p className="mt-2 font-display font-bold">{draft.sarlavha}</p>}
@@ -1212,7 +1213,7 @@ export default function SmmPanel({ seed }: {
               {/* Matn asosida rasm chizish */}
               {genImg ? (
                 <div className="mt-3">
-                  <img src={genImg} alt="" title="Kattalashtirish uchun bosing"
+                  <img src={genImg} alt="" title={tr("Kattalashtirish uchun bosing")}
                     onClick={() => setZoomImg(genImg)}
                     className="w-full cursor-zoom-in rounded-lg transition-opacity hover:opacity-90" />
                   <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
@@ -1266,8 +1267,8 @@ export default function SmmPanel({ seed }: {
         <div className={card}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="font-display font-bold">3. Tahrirlash va saqlash</h3>
-              <p className="mt-0.5 text-sm text-muted">Matnni tahrirlang, rasm yuklang va saqlang</p>
+              <h3 className="font-display font-bold">{tr("3. Tahrirlash va saqlash")}</h3>
+              <p className="mt-0.5 text-sm text-muted">{tr("Matnni tahrirlang, rasm yuklang va saqlang")}</p>
             </div>
             <div className="flex gap-2">
               {editingId && (
@@ -1301,27 +1302,27 @@ export default function SmmPanel({ seed }: {
             {/* Matn */}
             <div className="min-w-0">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted">Post matni</span>
+                <span className="text-xs font-semibold text-muted">{tr("Post matni")}</span>
                 <span className={`text-xs ${form.content.length > 4500 ? "font-bold text-red-500" : "text-muted"}`}>{form.content.length} belgi</span>
               </div>
 
               <div className="mt-1.5 flex flex-wrap items-center gap-1 rounded-t-xl border border-b-0 border-green/15 bg-soft px-2 py-1.5">
-                <button type="button" onClick={() => wrap("**")} title="Qalin" className="h-7 w-7 rounded font-bold hover:bg-white">B</button>
-                <button type="button" onClick={() => wrap("_")} title="Qiya" className="h-7 w-7 rounded italic hover:bg-white">I</button>
-                <button type="button" onClick={() => wrap("<u>", "</u>")} title="Tagi chizilgan" className="h-7 w-7 rounded underline hover:bg-white">U</button>
+                <button type="button" onClick={() => wrap("**")} title={tr("Qalin")} className="h-7 w-7 rounded font-bold hover:bg-white">B</button>
+                <button type="button" onClick={() => wrap("_")} title={tr("Qiya")} className="h-7 w-7 rounded italic hover:bg-white">I</button>
+                <button type="button" onClick={() => wrap("<u>", "</u>")} title={tr("Tagi chizilgan")} className="h-7 w-7 rounded underline hover:bg-white">U</button>
                 <span className="mx-1 h-4 w-px bg-green/15" />
-                <button type="button" onClick={() => prefixLines(() => "• ")} title="Ro'yxat" className="grid h-7 w-7 place-items-center rounded hover:bg-white">
+                <button type="button" onClick={() => prefixLines(() => "• ")} title={tr("Ro'yxat")} className="grid h-7 w-7 place-items-center rounded hover:bg-white">
                   <Icon d="M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01" className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => prefixLines((i) => `${i + 1}. `)} title="Raqamli ro'yxat" className="grid h-7 w-7 place-items-center rounded hover:bg-white">
+                <button type="button" onClick={() => prefixLines((i) => `${i + 1}. `)} title={tr("Raqamli ro'yxat")} className="grid h-7 w-7 place-items-center rounded hover:bg-white">
                   <Icon d="M10 6h11 M10 12h11 M10 18h11 M4 6h1v4 M4 10h2 M6 16a1.5 1.5 0 1 0-2-1.4 M4 18h2.5" className="h-4 w-4" />
                 </button>
                 <span className="mx-1 h-4 w-px bg-green/15" />
-                <button type="button" onClick={addLink} title="Havola" className="grid h-7 w-7 place-items-center rounded hover:bg-white">
+                <button type="button" onClick={addLink} title={tr("Havola")} className="grid h-7 w-7 place-items-center rounded hover:bg-white">
                   <Icon d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5" className="h-4 w-4" />
                 </button>
                 <span className="relative">
-                  <button type="button" onClick={() => setEmojiOpen((v) => !v)} title="Emoji" className="grid h-7 w-7 place-items-center rounded hover:bg-white">
+                  <button type="button" onClick={() => setEmojiOpen((v) => !v)} title={tr("Emoji")} className="grid h-7 w-7 place-items-center rounded hover:bg-white">
                     <Icon d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9 10h.01 M15 10h.01 M8.5 14.5a4.5 4.5 0 0 0 7 0" className="h-4 w-4" />
                   </button>
                   {emojiOpen && (
@@ -1336,17 +1337,17 @@ export default function SmmPanel({ seed }: {
 
               <textarea ref={taRef} value={form.content} rows={8}
                 onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                placeholder="Post matni shu yerda ko'rinadi…"
+                placeholder={tr("Post matni shu yerda ko'rinadi…")}
                 className="w-full resize-y rounded-b-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
 
               <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Sarlavha (ixtiyoriy)"
+                placeholder={tr("Sarlavha (ixtiyoriy)")}
                 className="mt-3 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
             </div>
 
             {/* Rasm yoki video */}
             <div className="min-w-0">
-              <span className="text-xs font-semibold text-muted">Rasm yoki video (ixtiyoriy)</span>
+              <span className="text-xs font-semibold text-muted">{tr("Rasm yoki video (ixtiyoriy)")}</span>
               <p className="mt-0.5 text-[11px] text-muted">
                 Rasm yuklasangiz AI uni ko'rib postni o'zi yozadi. Video
                 yuklasangiz "Muqova tayyorlash" tugmasini bosing.
@@ -1370,7 +1371,7 @@ export default function SmmPanel({ seed }: {
                         )}
                       </>
                     ) : (
-                      <img src={form.image_url} alt="" title="Kattalashtirish uchun bosing"
+                      <img src={form.image_url} alt="" title={tr("Kattalashtirish uchun bosing")}
                         onClick={() => setZoomImg(form.image_url)}
                         className="h-32 w-full cursor-zoom-in rounded-lg object-contain transition-opacity hover:opacity-90"
                         onLoad={(e) => {
@@ -1398,7 +1399,7 @@ export default function SmmPanel({ seed }: {
                     {seenDesc && (
                       <div className="mt-2 rounded-lg bg-green/5 px-3 py-2">
                         <p className="text-xs text-ink/75">
-                          <strong className="text-green">AI ko'rdi:</strong> {seenDesc}
+                          <strong className="text-green">{tr("AI ko'rdi:")}</strong> {seenDesc}
                         </p>
                       </div>
                     )}
@@ -1435,7 +1436,7 @@ export default function SmmPanel({ seed }: {
                     {/* ---- Video muqovasi: HAR O'LCHAM UCHUN ALOHIDA ---- */}
                     {isVideo && (
                       <div className="mt-3 rounded-xl border border-green/15 bg-white p-3">
-                        <p className="text-xs font-bold text-ink">Muqova (video ustidagi rasm)</p>
+                        <p className="text-xs font-bold text-ink">{tr("Muqova (video ustidagi rasm)")}</p>
                         <p className="mt-0.5 text-[11px] text-muted">
                           AI videoni ko'rib, mazmuniga MOS muqova chizadi —
                           YouTube, Instagram va kvadrat uchun birdan. Biri
@@ -1473,7 +1474,7 @@ export default function SmmPanel({ seed }: {
                               {/* Shu o'lcham uchun TANLANGAN muqova */}
                               {chosen && (
                                 <div className="mt-1.5">
-                                  <img src={chosen} alt={`${sz.label} muqovasi`} title="Kattalashtirish uchun bosing"
+                                  <img src={chosen} alt={`${sz.label} muqovasi`} title={tr("Kattalashtirish uchun bosing")}
                                     onClick={() => setZoomImg(chosen)}
                                     className="w-full cursor-zoom-in rounded-lg border-2 border-green object-contain transition-opacity hover:opacity-90" />
                                   <p className="mt-1 text-[10px] font-semibold text-green">
@@ -1483,7 +1484,7 @@ export default function SmmPanel({ seed }: {
                               )}
 
                               {busy && !variants.length && (
-                                <p className="mt-1.5 text-[10px] text-muted">yasalmoqda…</p>
+                                <p className="mt-1.5 text-[10px] text-muted">{tr("yasalmoqda…")}</p>
                               )}
 
                               {variants.length > 0 && (
@@ -1498,7 +1499,7 @@ export default function SmmPanel({ seed }: {
                                           className="block w-full disabled:opacity-50">
                                           <img src={t} alt={`${sz.label} ${i + 1}`} className="block w-full" />
                                         </button>
-                                        <button type="button" onClick={() => setZoomImg(t)} title="Kattalashtirish"
+                                        <button type="button" onClick={() => setZoomImg(t)} title={tr("Kattalashtirish")}
                                           className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100">
                                           <Icon d={I.search} className="h-3.5 w-3.5" />
                                         </button>
@@ -1513,7 +1514,7 @@ export default function SmmPanel({ seed }: {
                       </div>
                     )}
 
-                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbsBySize({}); setCoverBySize({}); setThumbErr(""); setTranscript(null); coverPlan.current = null }} className="mt-2 text-xs font-bold text-red-500 hover:underline">Olib tashlash</button>
+                    <button type="button" onClick={() => { setForm((f) => ({ ...f, image_url: "", thumb_url: "" })); setFitErr(""); setSeenDesc(""); setSeenTopic(""); setThumbsBySize({}); setCoverBySize({}); setThumbErr(""); setTranscript(null); coverPlan.current = null }} className="mt-2 text-xs font-bold text-red-500 hover:underline">{tr("Olib tashlash")}</button>
                   </div>
                 ) : (
                   // Ikki yo'l: fayl yuklash yoki matndan AI chizdirish.
@@ -1577,7 +1578,7 @@ export default function SmmPanel({ seed }: {
                 bo'lmaydi. */}
             {picked.size > 1 && (
               <div>
-                <span className="text-xs font-semibold text-muted">AI uslubi</span>
+                <span className="text-xs font-semibold text-muted">{tr("AI uslubi")}</span>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {Array.from(picked).map((k) => (
                     <button key={k} type="button" onClick={() => setOrigin(k)}
@@ -1604,7 +1605,7 @@ export default function SmmPanel({ seed }: {
       {/* Ekranga mahkamlangan dumaloq tugma: qaysi bo'limда bo'lsangiz
           ham qo'l ostida turadi va joy egallamaydi. */}
       {!chatOpen && (
-        <button onClick={() => setChatOpen(true)} title="AI maslahatchi"
+        <button onClick={() => setChatOpen(true)} title={tr("AI maslahatchi")}
           className="fixed bottom-6 right-6 z-40 grid h-14 w-14 place-items-center rounded-full bg-green text-white shadow-2xl shadow-green/40 transition-transform hover:scale-110">
           <Icon d={I.robot} className="h-6 w-6" />
           {/* Yashil nuqta — bot tayyor */}
@@ -1627,17 +1628,17 @@ export default function SmmPanel({ seed }: {
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400" />
             </span>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate font-display font-bold">AI maslahatchi</h3>
+              <h3 className="truncate font-display font-bold">{tr("AI maslahatchi")}</h3>
               <p className="text-xs text-muted">{asking || analyzing ? "yozmoqda…" : "onlayn"}</p>
             </div>
             {(chat.length > 0 || analysis) && (
               <button onClick={() => { setChat([]); setAnalysis(null); setNetworks([]); setAiErr("") }}
-                title="Suhbatni tozalash"
+                title={tr("Suhbatni tozalash")}
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
                 <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6" className="h-4 w-4" />
               </button>
             )}
-            <button onClick={() => setChatOpen(false)} title="Yopish"
+            <button onClick={() => setChatOpen(false)} title={tr("Yopish")}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
               <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
             </button>
@@ -1696,7 +1697,7 @@ export default function SmmPanel({ seed }: {
                   <div className="mt-3 space-y-2">
                     {analysis.kuchli?.length ? (
                       <div className="rounded-lg bg-green/5 p-2.5">
-                        <p className="text-[11px] font-bold text-green">Kuchli tomonlar</p>
+                        <p className="text-[11px] font-bold text-green">{tr("Kuchli tomonlar")}</p>
                         <ul className="mt-1 space-y-0.5">
                           {analysis.kuchli.map((k, i) => <li key={i} className="text-xs text-ink/80">• {k}</li>)}
                         </ul>
@@ -1704,7 +1705,7 @@ export default function SmmPanel({ seed }: {
                     ) : null}
                     {analysis.zaif?.length ? (
                       <div className="rounded-lg bg-orange-50 p-2.5">
-                        <p className="text-[11px] font-bold text-orange-700">Zaif tomonlar</p>
+                        <p className="text-[11px] font-bold text-orange-700">{tr("Zaif tomonlar")}</p>
                         <ul className="mt-1 space-y-0.5">
                           {analysis.zaif.map((z, i) => <li key={i} className="text-xs text-ink/80">• {z}</li>)}
                         </ul>
@@ -1715,7 +1716,7 @@ export default function SmmPanel({ seed }: {
 
                 {(analysis.tavsiyalar || []).length > 0 && (
                   <>
-                    <p className="mt-3 text-[11px] font-bold text-muted">Bosing — shu mavzuda post yozaman</p>
+                    <p className="mt-3 text-[11px] font-bold text-muted">{tr("Bosing — shu mavzuda post yozaman")}</p>
                     <div className="mt-1.5 space-y-1.5">
                       {analysis.tavsiyalar.map((t, i) => (
                         <button key={i} type="button" onClick={() => { setTopic(t.mavzu); generate(t.mavzu) }} disabled={generating}
@@ -1765,9 +1766,9 @@ export default function SmmPanel({ seed }: {
             <div className="flex items-center gap-2 rounded-full border border-green/20 bg-white py-1 pl-4 pr-1 focus-within:border-green">
               <input value={question} onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask() } }}
-                placeholder="Xabar yozing…"
+                placeholder={tr("Xabar yozing…")}
                 className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none" />
-              <button onClick={ask} disabled={asking || !question.trim()} title="Yuborish"
+              <button onClick={ask} disabled={asking || !question.trim()} title={tr("Yuborish")}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green text-white transition-opacity hover:opacity-90 disabled:opacity-30">
                 <Icon d={I.send} className="h-4 w-4" />
               </button>
@@ -1788,11 +1789,11 @@ export default function SmmPanel({ seed }: {
           <div className="flex items-center gap-4">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green/10 font-display text-lg font-extrabold text-green">4</span>
             <div className="min-w-0">
-              <h3 className="font-display font-bold">Postni nashr etish</h3>
+              <h3 className="font-display font-bold">{tr("Postni nashr etish")}</h3>
               <p className="mt-0.5 text-sm text-muted">
                 Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
               </p>
-              {!editingId && <p className="mt-0.5 text-sm text-muted">Avval 3-bosqichda saqlang</p>}
+              {!editingId && <p className="mt-0.5 text-sm text-muted">{tr("Avval 3-bosqichda saqlang")}</p>}
               {/* Ulanmagan tarmoq tanlangan bo'lsa oldindan ogohlantiramiz —
                   aks holda xato faqat joylash paytida chiqadi. */}
               {offline.length > 0 && (
@@ -1812,7 +1813,7 @@ export default function SmmPanel({ seed }: {
       {/* ============ SAQLANGAN POSTLAR ============ */}
       <div className={`${card} mt-5`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display font-bold">Saqlangan postlar</h3>
+          <h3 className="font-display font-bold">{tr("Saqlangan postlar")}</h3>
           <div className="flex flex-wrap gap-2">
             {/* Tarmoqdan qo'lda o'chirilgan postni panel o'zi bilmaydi —
                 shu tugma tekshiradi va holatni yangilaydi. */}
@@ -1823,17 +1824,17 @@ export default function SmmPanel({ seed }: {
             </button>
             <span className="relative">
               <Icon d={I.search} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidirish…"
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Qidirish…")}
                 className="w-44 rounded-xl border border-green/15 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-green" />
             </span>
             <select value={filter} onChange={(e) => setFilter(e.target.value)}
               className="rounded-xl border border-green/15 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-green">
-              <option value="all">Holat bo'yicha: barchasi</option>
-              <option value="pending_approval">Saqlangan</option>
-              <option value="published">Joylandi</option>
-              <option value="failed">Xato</option>
-              <option value="removed">O'chirilgan</option>
-              <option value="draft">Qoralama</option>
+              <option value="all">{tr("Holat bo'yicha: barchasi")}</option>
+              <option value="pending_approval">{tr("Saqlangan")}</option>
+              <option value="published">{tr("Joylandi")}</option>
+              <option value="failed">{tr("Xato")}</option>
+              <option value="removed">{tr("O'chirilgan")}</option>
+              <option value="draft">{tr("Qoralama")}</option>
             </select>
           </div>
         </div>
@@ -1853,11 +1854,11 @@ export default function SmmPanel({ seed }: {
                 <thead>
                   <tr className="border-b border-green/10 text-left text-xs font-bold text-muted">
                     <th className="pb-3 pl-1 pr-3">ID</th>
-                    <th className="pb-3 pr-3">Matn (qisqacha)</th>
-                    <th className="pb-3 pr-3">Tarmoqlar</th>
-                    <th className="pb-3 pr-3">Holat</th>
-                    <th className="pb-3 pr-3">Yaratilgan</th>
-                    <th className="pb-3 pr-1 text-right">Amallar</th>
+                    <th className="pb-3 pr-3">{tr("Matn (qisqacha)")}</th>
+                    <th className="pb-3 pr-3">{tr("Tarmoqlar")}</th>
+                    <th className="pb-3 pr-3">{tr("Holat")}</th>
+                    <th className="pb-3 pr-3">{tr("Yaratilgan")}</th>
+                    <th className="pb-3 pr-1 text-right">{tr("Amallar")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1889,16 +1890,16 @@ export default function SmmPanel({ seed }: {
                         <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted">{fmtDate(p.created_at)}</td>
                         <td className="py-3 pr-1">
                           <div className="flex justify-end gap-1.5">
-                            <button onClick={() => edit(p)} title="Tahrirlash" className={iconBtn}>
+                            <button onClick={() => edit(p)} title={tr("Tahrirlash")} className={iconBtn}>
                               <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setPreview(p)} title="Ko'rish" className={iconBtn}>
+                            <button onClick={() => setPreview(p)} title={tr("Ko'rish")} className={iconBtn}>
                               <Icon d={I.eye} className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => publish(p.id)} disabled={acting || p.status === "published"} title="Joylash" className={iconBtn}>
+                            <button onClick={() => publish(p.id)} disabled={acting || p.status === "published"} title={tr("Joylash")} className={iconBtn}>
                               <Icon d={I.send} className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => remove(p)} disabled={acting} title="O'chirish"
+                            <button onClick={() => remove(p)} disabled={acting} title={tr("O'chirish")}
                               className="grid h-8 w-8 place-items-center rounded-lg border border-red-100 text-red-400 transition-colors hover:bg-red-50 disabled:opacity-40">
                               <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
                             </button>
@@ -1950,7 +1951,7 @@ export default function SmmPanel({ seed }: {
             </div>
             {preview.title && <h4 className="mt-3 font-display text-lg font-bold">{preview.title}</h4>}
             {preview.image_url && (
-              <img src={preview.image_url} alt="" title="Kattalashtirish uchun bosing"
+              <img src={preview.image_url} alt="" title={tr("Kattalashtirish uchun bosing")}
                 onClick={() => setZoomImg(preview.image_url!)}
                 className="mt-3 w-full cursor-zoom-in rounded-xl object-cover" />
             )}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Icon, I, useBusy, SkeletonCard, useBodyScrollLock } from "../../lib/ui"
 import { api } from "../../lib/api"
+import { tr } from "../../lib/i18n"
 
 /**
  * Marketing tahlili.
@@ -507,7 +508,7 @@ export default function MarketPanel({ onCreatePost }: {
       {/* ============ SARLAVHA ============ */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Marketing tahlili</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Marketing tahlili")}</h2>
           <p className="mt-1 text-sm text-muted">
             AI internetdagi yangiliklarni tahlil qilib, kerakli kontentlarni topadi va reja tuzadi
           </p>
@@ -529,7 +530,7 @@ export default function MarketPanel({ onCreatePost }: {
             <Icon d={CALENDAR} className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-display font-bold">Tahlil va kontent reja</h3>
+            <h3 className="font-display font-bold">{tr("Tahlil va kontent reja")}</h3>
             <p className={`mt-0.5 text-sm ${planFailed ? "text-red-600" : "text-muted"}`}>
               {planFailed
                 ? "Rejani yuklab bo'lmadi — mavjud reja yo'qolgani anglatmaydi"
@@ -561,10 +562,10 @@ export default function MarketPanel({ onCreatePost }: {
         {/* Uzoq kutishda nima bo'layotgani ko'rinib tursin */}
         {analyzing && (
           <div className="mt-4 space-y-2 rounded-xl bg-green/5 p-4 text-sm text-ink/75">
-            <p className="flex items-center gap-2"><Icon d={I.globe} className="h-4 w-4 shrink-0 text-green" /> Internetdagi yangiliklar uch tilda o'qilmoqda</p>
-            <p className="flex items-center gap-2"><Icon d={I.chart} className="h-4 w-4 shrink-0 text-green" /> Hisoblaringiz ko'rsatkichlari olinmoqda</p>
-            <p className="flex items-center gap-2"><Icon d={I.brain} className="h-4 w-4 shrink-0 text-green" /> Kontent reja tuzilmoqda</p>
-            <p className="text-xs text-muted">Bu bir necha o'n soniya oladi.</p>
+            <p className="flex items-center gap-2"><Icon d={I.globe} className="h-4 w-4 shrink-0 text-green" />{tr("Internetdagi yangiliklar uch tilda o'qilmoqda")}</p>
+            <p className="flex items-center gap-2"><Icon d={I.chart} className="h-4 w-4 shrink-0 text-green" />{tr("Hisoblaringiz ko'rsatkichlari olinmoqda")}</p>
+            <p className="flex items-center gap-2"><Icon d={I.brain} className="h-4 w-4 shrink-0 text-green" />{tr("Kontent reja tuzilmoqda")}</p>
+            <p className="text-xs text-muted">{tr("Bu bir necha o'n soniya oladi.")}</p>
           </div>
         )}
 
@@ -582,7 +583,7 @@ export default function MarketPanel({ onCreatePost }: {
       {/* Reja statistikasi — HAQIQIY raqamlar: qancha manba o'qildi,
           nechta post rejalashtirildi, nechtasi bajarildi */}
       <div className={card}>
-        <h3 className="font-display font-bold">Reja statistikasi</h3>
+        <h3 className="font-display font-bold">{tr("Reja statistikasi")}</h3>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat icon={I.globe} tone="bg-purple-100 text-purple-600"
             value={web.length + world.length + sources.length} label="Topilgan yangilik" />
@@ -601,14 +602,14 @@ export default function MarketPanel({ onCreatePost }: {
       {/* Manbalar — tahlil sifatini shu belgilaydi, shuning uchun
           birinchi ustunda */}
       <div className={card}>
-        <h3 className="font-display font-bold">Manbalar</h3>
+        <h3 className="font-display font-bold">{tr("Manbalar")}</h3>
         <p className="mt-0.5 text-sm text-muted">
           AI tahlilni birinchi navbatda manbalardan oladi va post yaratish rejasini tuzadi.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
           <input value={newSrc.name} onChange={(e) => setNewSrc((v) => ({ ...v, name: e.target.value }))}
-            placeholder="Nomi (ixtiyoriy)"
+            placeholder={tr("Nomi (ixtiyoriy)")}
             className="w-40 rounded-xl border border-green/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
           <input value={newSrc.url} onChange={(e) => setNewSrc((v) => ({ ...v, url: e.target.value }))}
             onKeyDown={(e) => { if (e.key === "Enter") addSource() }}
@@ -629,7 +630,7 @@ export default function MarketPanel({ onCreatePost }: {
         {SAMPLE_SOURCES.filter((s) => !srcList.some((x) => x.url === s.url)).length > 0 && (
           <div className="mt-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-bold text-muted">Tayyor agro manbalar</p>
+              <p className="text-xs font-bold text-muted">{tr("Tayyor agro manbalar")}</p>
               {/* Hammasi bitta so'rovda — birma-bir qo'shish sekin */}
               <button onClick={addAllSamples} disabled={srcBusy}
                 className="text-[11px] font-bold text-green hover:underline disabled:opacity-50">
@@ -659,9 +660,9 @@ export default function MarketPanel({ onCreatePost }: {
                 <a href={s.url} target="_blank" rel="noreferrer"
                   className="min-w-0 flex-1 truncate text-xs text-muted hover:text-green hover:underline">{s.url}</a>
                 {s.last_error && (
-                  <span className="text-xs font-semibold text-orange-600" title={s.last_error}>o'qilmadi</span>
+                  <span className="text-xs font-semibold text-orange-600" title={s.last_error}>{tr("o'qilmadi")}</span>
                 )}
-                <button onClick={() => removeSource(s)} disabled={srcBusy} title="O'chirish"
+                <button onClick={() => removeSource(s)} disabled={srcBusy} title={tr("O'chirish")}
                   className="rounded-lg border border-red-200 p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">
                   <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
                 </button>
@@ -676,13 +677,13 @@ export default function MarketPanel({ onCreatePost }: {
             {srcFailed ? (
               <p className="inline-flex items-center gap-2 text-sm text-red-600">
                 <Icon d={I.bolt} className="h-4 w-4 shrink-0" />
-                <span>Manbalarni yuklab bo'lmadi.</span>
-                <button onClick={loadSources} className="font-bold underline">Qayta urinish</button>
+                <span>{tr("Manbalarni yuklab bo'lmadi.")}</span>
+                <button onClick={loadSources} className="font-bold underline">{tr("Qayta urinish")}</button>
               </p>
             ) : (
             <p className="inline-flex items-center gap-2 text-sm text-muted">
               <Icon d={I.bolt} className="h-4 w-4 shrink-0 text-green" />
-              <span>Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.</span>
+              <span>{tr("Hali manba qo'shilmagan — AI faqat Google yangiliklaridan foydalanadi.")}</span>
             </p>
             )}
           </div>
@@ -691,8 +692,8 @@ export default function MarketPanel({ onCreatePost }: {
 
       {/* Bizning hisoblar — AI xulosasi shu raqamlarga asoslangan */}
       <div className={card}>
-        <h3 className="font-display font-bold">Bizning hisoblar</h3>
-        <p className="mt-0.5 text-sm text-muted">Hisoblaringizdan ko'rsatkichlar avtomatik olinadi</p>
+        <h3 className="font-display font-bold">{tr("Bizning hisoblar")}</h3>
+        <p className="mt-0.5 text-sm text-muted">{tr("Hisoblaringizdan ko'rsatkichlar avtomatik olinadi")}</p>
         {nets.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             {nets.map((n) => (
@@ -725,7 +726,7 @@ export default function MarketPanel({ onCreatePost }: {
 
       {/* Sotuv maslahatlari — uchinchi ustun */}
       <div className={card}>
-        <h3 className="font-display font-bold">Sotuvni oshirish bo'yicha maslahatlar</h3>
+        <h3 className="font-display font-bold">{tr("Sotuvni oshirish bo'yicha maslahatlar")}</h3>
         {txtList(plan?.sotuv).length > 0 ? (
           <ul className="mt-3 space-y-2.5">
             {txtList(plan?.sotuv).map((r, i) => (
@@ -755,8 +756,8 @@ export default function MarketPanel({ onCreatePost }: {
           {/* Tarmoqni o'stirish — obunachi va qamrovni oshirish */}
           {txtList(plan.osish).length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Tarmoqni o'stirish</h3>
-              <p className="mt-0.5 text-sm text-muted">Obunachi va qamrovni oshirish uchun aniq amallar</p>
+              <h3 className="font-display font-bold">{tr("Tarmoqni o'stirish")}</h3>
+              <p className="mt-0.5 text-sm text-muted">{tr("Obunachi va qamrovni oshirish uchun aniq amallar")}</p>
               <ul className="mt-3 space-y-2">
                 {txtList(plan.osish).map((r, i) => (
                   <li key={i} className="flex gap-2.5 text-sm text-ink/80">
@@ -771,8 +772,8 @@ export default function MarketPanel({ onCreatePost }: {
           {/* Qanday kontent ishlaydi */}
           {txtList(plan.kontent_turlari).length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Qanday kontent ishlaydi</h3>
-              <p className="mt-0.5 text-sm text-muted">Sizning holatingizda samarali kontent turlari va nega</p>
+              <h3 className="font-display font-bold">{tr("Qanday kontent ishlaydi")}</h3>
+              <p className="mt-0.5 text-sm text-muted">{tr("Sizning holatingizda samarali kontent turlari va nega")}</p>
               <ul className="mt-3 space-y-2">
                 {txtList(plan.kontent_turlari).map((r, i) => (
                   <li key={i} className="flex gap-2.5 text-sm text-ink/80">
@@ -810,7 +811,7 @@ export default function MarketPanel({ onCreatePost }: {
               </div>
             )}
             <p className="mt-2 text-sm text-muted">
-              Kun ustiga bosing — <strong>to'liq marketing reja</strong> ochiladi:
+              Kun ustiga bosing — <strong>{tr("to'liq marketing reja")}</strong> ochiladi:
               ssenariy, matn, rasmlar, format, joylash va vaqt.
             </p>
 
@@ -830,7 +831,7 @@ export default function MarketPanel({ onCreatePost }: {
                     className={`shrink-0 rounded-xl border px-4 py-2 text-center transition-colors ${
                       dayFilter === 0 ? "border-green bg-green text-white" : "border-green/12 hover:border-green/40"
                     }`}>
-                    <span className="block text-sm font-bold">Hammasi</span>
+                    <span className="block text-sm font-bold">{tr("Hammasi")}</span>
                     <span className={`block text-[11px] ${dayFilter === 0 ? "text-white/80" : "text-muted"}`}>
                       {plan.reja.length} kun
                     </span>
@@ -869,12 +870,12 @@ export default function MarketPanel({ onCreatePost }: {
                         {allDone && <Icon d={I.check} className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="pb-2 pr-3">Kun / Vaqt</th>
-                    <th className="pb-2 pr-3">Mavzu</th>
-                    <th className="pb-2 pr-3">Format</th>
-                    <th className="pb-2 pr-3">Tarmoq</th>
-                    <th className="pb-2 pr-3">Holat</th>
-                    <th className="pb-2 pr-1 text-right">Amallar</th>
+                    <th className="pb-2 pr-3">{tr("Kun / Vaqt")}</th>
+                    <th className="pb-2 pr-3">{tr("Mavzu")}</th>
+                    <th className="pb-2 pr-3">{tr("Format")}</th>
+                    <th className="pb-2 pr-3">{tr("Tarmoq")}</th>
+                    <th className="pb-2 pr-3">{tr("Holat")}</th>
+                    <th className="pb-2 pr-1 text-right">{tr("Amallar")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -887,7 +888,7 @@ export default function MarketPanel({ onCreatePost }: {
                           <td className="py-3 pr-3 font-bold text-green">{it.kun}</td>
                           <td className="py-3 pr-3">
                             <input value={editVal.mavzu} onChange={(e) => setEditVal((v) => ({ ...v, mavzu: e.target.value }))}
-                              placeholder="Mavzu"
+                              placeholder={tr("Mavzu")}
                               className="w-full rounded-lg border border-green/25 px-2 py-1.5 text-sm outline-none focus:border-green" />
                           </td>
                           <td className="py-3 pr-3">
@@ -909,15 +910,15 @@ export default function MarketPanel({ onCreatePost }: {
                           </td>
                           <td className="py-3 pr-1 text-right">
                             <div className="flex justify-end gap-1.5">
-                              <button onClick={saveEdit} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white">Saqlash</button>
-                              <button onClick={() => setEditKun(null)} className="rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-muted">Bekor</button>
+                              <button onClick={saveEdit} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white">{tr("Saqlash")}</button>
+                              <button onClick={() => setEditKun(null)} className="rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-muted">{tr("Bekor")}</button>
                             </div>
                           </td>
                         </tr>
                       )
                     }
                     return (
-                      <tr key={i} onClick={() => openPlanItem(it)} title="To'liq rejani ochish"
+                      <tr key={i} onClick={() => openPlanItem(it)} title={tr("To'liq rejani ochish")}
                         className={`cursor-pointer border-b border-green/5 align-top transition-colors hover:bg-green/5 ${isDone ? "opacity-55" : ""}`}>
                         {/* stopPropagation: qator bosilib modal ochilmasin */}
                         <td className="py-3 pr-2" onClick={(e) => e.stopPropagation()}>
@@ -975,11 +976,11 @@ export default function MarketPanel({ onCreatePost }: {
                         </td>
                         <td className="py-3 pr-1 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
-                            <button onClick={() => startEdit(it)} title="Tahrirlash"
+                            <button onClick={() => startEdit(it)} title={tr("Tahrirlash")}
                               className="rounded-lg border border-green/20 p-1.5 text-muted transition-colors hover:border-green/50 hover:text-green">
                               <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => removeDay(it.kun)} title="O'chirish"
+                            <button onClick={() => removeDay(it.kun)} title={tr("O'chirish")}
                               className="rounded-lg border border-red-200 p-1.5 text-red-500 transition-colors hover:bg-red-50">
                               <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3.5 w-3.5" />
                             </button>
@@ -1037,7 +1038,7 @@ export default function MarketPanel({ onCreatePost }: {
               kerak emas. Reja global kontekstga ham tayanadi. */}
           {world.length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Jahon agro tendensiyalari</h3>
+              <h3 className="font-display font-bold">{tr("Jahon agro tendensiyalari")}</h3>
               <p className="mt-0.5 text-sm text-muted">
                 Global narxlar, texnologiya va bozor holati — reja shularni ham hisobga oldi
               </p>
@@ -1057,7 +1058,7 @@ export default function MarketPanel({ onCreatePost }: {
               ularga ustuvor tayanadi */}
           {sources.length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Sizning manbalaringiz</h3>
+              <h3 className="font-display font-bold">{tr("Sizning manbalaringiz")}</h3>
               <p className="mt-0.5 text-sm text-muted">
                 "Manbalar" bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi
               </p>
@@ -1075,8 +1076,8 @@ export default function MarketPanel({ onCreatePost }: {
           {/* Manbalar — xulosa nimaga asoslanganini ko'rish uchun */}
           {web.length > 0 && (
             <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">Yangiliklar</h3>
-              <p className="mt-0.5 text-sm text-muted">Tahlil shu manbalarni ham hisobga oldi</p>
+              <h3 className="font-display font-bold">{tr("Yangiliklar")}</h3>
+              <p className="mt-0.5 text-sm text-muted">{tr("Tahlil shu manbalarni ham hisobga oldi")}</p>
               <ul className="mt-3 space-y-2">
                 {web.map((h, i) => (
                   <li key={i}>
@@ -1104,7 +1105,7 @@ export default function MarketPanel({ onCreatePost }: {
               <div className="flex shrink-0 items-center gap-1">
                 {/* Saqlangan reja yoqmasa — qaytadan yozdirish */}
                 {detail && !loadingDetail && (
-                  <button onClick={() => openPlanItem(openItem, true)} title="Qaytadan yozdirish"
+                  <button onClick={() => openPlanItem(openItem, true)} title={tr("Qaytadan yozdirish")}
                     className="rounded-lg border border-green/20 px-2.5 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green/5">
                     <Icon d={I.refresh} className="mr-1 inline h-3 w-3" /> Qaytadan
                   </button>
@@ -1122,7 +1123,7 @@ export default function MarketPanel({ onCreatePost }: {
                   <Icon d={I.refresh} className="h-4 w-4 shrink-0 animate-spin text-green" />
                   To'liq reja yozilmoqda…
                 </p>
-                <p className="text-xs text-muted">Ssenariy, tezislar va joylash rejasi tayyorlanmoqda.</p>
+                <p className="text-xs text-muted">{tr("Ssenariy, tezislar va joylash rejasi tayyorlanmoqda.")}</p>
               </div>
             )}
 
@@ -1132,21 +1133,21 @@ export default function MarketPanel({ onCreatePost }: {
 
             {detail && !loadingDetail && (
               <div className="mt-5 space-y-4 text-sm">
-                <Block title="Nega aynan shu mavzu" body={txt(detail.nega)} />
-                <Block title="Kimga qaratilgan" body={txt(detail.auditoriya)} />
+                <Block title={tr("Nega aynan shu mavzu")} body={txt(detail.nega)} />
+                <Block title={tr("Kimga qaratilgan")} body={txt(detail.auditoriya)} />
 
                 {txt(detail.hook) && (
                   <div className="rounded-xl border border-green/20 bg-green/5 p-3">
-                    <p className="text-xs font-bold text-green">Ochilish jumlasi</p>
+                    <p className="text-xs font-bold text-green">{tr("Ochilish jumlasi")}</p>
                     <p className="mt-1 font-semibold text-ink">{txt(detail.hook)}</p>
                   </div>
                 )}
 
-                <ListBlock title="Matnda yoritiladigan fikrlar" items={txtList(detail.tezislar)} />
+                <ListBlock title={tr("Matnda yoritiladigan fikrlar")} items={txtList(detail.tezislar)} />
 
                 {txt(detail.matn_namuna) && (
                   <div>
-                    <p className="text-xs font-bold text-muted">Tayyor post matni</p>
+                    <p className="text-xs font-bold text-muted">{tr("Tayyor post matni")}</p>
                     <p className="mt-1 whitespace-pre-wrap rounded-xl bg-soft p-3 text-ink/85">{txt(detail.matn_namuna)}</p>
                   </div>
                 )}
@@ -1154,32 +1155,32 @@ export default function MarketPanel({ onCreatePost }: {
                 {/* VIDEO uchun — ssenariy va ma'no */}
                 {Array.isArray(detail.ssenariy) && detail.ssenariy.length > 0 && (
                   <div>
-                    <p className="text-xs font-bold text-muted">Video ssenariysi</p>
+                    <p className="text-xs font-bold text-muted">{tr("Video ssenariysi")}</p>
                     <div className="mt-1 space-y-2">
                       {(detail.ssenariy as unknown[]).map((sc, i) => {
                         const o = (sc || {}) as Record<string, unknown>
                         return (
                           <div key={i} className="rounded-xl border border-green/10 p-3">
                             <p className="text-[11px] font-bold text-green">{txt(o.vaqt) || `${i + 1}-kadr`}</p>
-                            {txt(o.kadr) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">Kadr:</strong> {txt(o.kadr)}</p>}
-                            {txt(o.gap) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">Gap:</strong> {txt(o.gap)}</p>}
+                            {txt(o.kadr) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">{tr("Kadr:")}</strong> {txt(o.kadr)}</p>}
+                            {txt(o.gap) && <p className="mt-0.5 text-ink/85"><strong className="text-muted">{tr("Gap:")}</strong> {txt(o.gap)}</p>}
                           </div>
                         )
                       })}
                     </div>
                   </div>
                 )}
-                <Block title="Videoning asl ma'nosi" body={txt(detail.video_mazmuni)} />
-                <Block title="Qanday suratga olish" body={txt(detail.suratga_olish)} />
+                <Block title={tr("Videoning asl ma'nosi")} body={txt(detail.video_mazmuni)} />
+                <Block title={tr("Qanday suratga olish")} body={txt(detail.suratga_olish)} />
 
                 {/* RASM uchun */}
-                <Block title="Rasm nimani anglatsin" body={txt(detail.tasvir_mazmuni)} />
-                <Block title="Kadr kompozitsiyasi" body={txt(detail.kompozitsiya)} />
+                <Block title={tr("Rasm nimani anglatsin")} body={txt(detail.tasvir_mazmuni)} />
+                <Block title={tr("Kadr kompozitsiyasi")} body={txt(detail.kompozitsiya)} />
 
-                <Block title="Muqova" body={txt(detail.muqova)} />
-                <Block title="Qachon va qayerga joylash" body={txt(detail.joylash)} />
-                <Block title="Kutilgan natija" body={txt(detail.kutilgan_natija)} />
-                <Block title="Chaqiriq (CTA)" body={txt(detail.keyingi_qadam)} />
+                <Block title={tr("Muqova")} body={txt(detail.muqova)} />
+                <Block title={tr("Qachon va qayerga joylash")} body={txt(detail.joylash)} />
+                <Block title={tr("Kutilgan natija")} body={txt(detail.kutilgan_natija)} />
+                <Block title={tr("Chaqiriq (CTA)")} body={txt(detail.keyingi_qadam)} />
 
                 {txtList(detail.hashtaglar).length > 0 && (
                   <div className="flex flex-wrap gap-1.5">

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { logo, Icon, I } from "../lib/ui"
+import { tr } from "../lib/i18n"
 
 export type NavItem = { label: string; icon: string }
 
@@ -79,10 +80,10 @@ export default function DashboardLayout({
           {help && (
             <div className="m-3 rounded-2xl border border-green/15 bg-soft p-5">
               <div className="flex items-center justify-between">
-                <h4 className="font-display text-sm font-bold">Yordam kerakmi?</h4>
+                <h4 className="font-display text-sm font-bold">{tr("Yordam kerakmi?")}</h4>
                 <Icon d={I.headset} className="h-5 w-5 text-green" />
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted">Savollaringiz bo'lsa, biz bilan bog'laning.</p>
+              <p className="mt-2 text-xs leading-relaxed text-muted">{tr("Savollaringiz bo'lsa, biz bilan bog'laning.")}</p>
               <Link to="/aloqa" className="mt-3 block rounded-lg border-2 border-green/30 bg-white py-2 text-center text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
                 Yordamga murojaat
               </Link>
@@ -110,7 +111,7 @@ export default function DashboardLayout({
                   <span className="block text-xs text-muted">{user.role}</span>
                 </span>
                 {onLogout && (
-                  <button onClick={onLogout} title="Chiqish" className="ml-1 grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-red-500">
+                  <button onClick={onLogout} title={tr("Chiqish")} className="ml-1 grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-red-500">
                     <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9" className="h-4 w-4" />
                   </button>
                 )}

@@ -111,3 +111,24 @@ export function useI18n(): Ctx {
 export function useT(): (uz: string) => string {
   return useI18n().t
 }
+
+/**
+ * HOOKSIZ tarjima.
+ *
+ * NEGA KERAK: panellarda (admin, bloger, hamkor) 500 dan ortiq matn bor
+ * va ular 40 dan ortiq komponentga tarqalgan. Har biriga `useT()` hook
+ * qo'shish — 40 ta alohida o'zgarish va har birida xato qilish ehtimoli.
+ *
+ * `tr()` tilni to'g'ridan-to'g'ri localStorage'dan o'qiydi, shuning
+ * uchun uni istalgan joyda — komponent tashqarisida, massiv e'lonida,
+ * shartli ifodada — chaqirsa bo'ladi.
+ *
+ * SHARTI: til o'zgarganda daraxt QAYTA MOUNT bo'lishi kerak, aks holda
+ * eski matn ekranda qolib ketadi. Buni App.tsx dagi `key={lang}` hal
+ * qiladi.
+ */
+export function tr(uz: string): string {
+  const l = currentLang()
+  if (l === "uz") return uz
+  return DICTS[l][uz] ?? uz
+}

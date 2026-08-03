@@ -8,6 +8,7 @@ import { Skeleton, SkeletonTable, SkeletonStatGrid, ErrorState, useBusy } from "
 import { api, type User } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { categories } from "../../lib/bloggers"
+import { tr } from "../../lib/i18n"
 
 const VILOYATLAR = [
   "Qoraqalpog'iston Respublikasi",
@@ -156,13 +157,13 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
 
   return (
     <div className={card}>
-      <h3 className="font-display text-lg font-bold">Profil ma'lumotlari</h3>
+      <h3 className="font-display text-lg font-bold">{tr("Profil ma'lumotlari")}</h3>
       <div className="mt-4">
         {/* YouTube Sync Section */}
         <div className="mb-4 rounded-xl border border-green/20 bg-soft p-3">
           <div className="flex items-center gap-2 text-green mb-2">
             <Icon d={I.youtube} className="h-4 w-4" />
-            <span className="font-display text-xs font-bold">YouTube kanal</span>
+            <span className="font-display text-xs font-bold">{tr("YouTube kanal")}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -202,7 +203,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
         <div className="mb-4 rounded-xl border border-pink-200 bg-pink-50/50 p-3">
           <div className="flex items-center gap-2 text-pink-600 mb-2">
             <Icon d={I.instagram} className="h-4 w-4" />
-            <span className="font-display text-xs font-bold">Instagram akkaunt</span>
+            <span className="font-display text-xs font-bold">{tr("Instagram akkaunt")}</span>
           </div>
 
           {igData ? (
@@ -218,11 +219,11 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
                 <div className="ml-auto flex gap-4 text-center">
                   <div>
                     <p className="text-sm font-bold">{igData.stats?.followers_count?.toLocaleString() || 0}</p>
-                    <p className="text-[10px] text-muted">Obunachilar</p>
+                    <p className="text-[10px] text-muted">{tr("Obunachilar")}</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold">{igData.stats?.media_count || 0}</p>
-                    <p className="text-[10px] text-muted">Postlar</p>
+                    <p className="text-[10px] text-muted">{tr("Postlar")}</p>
                   </div>
                 </div>
               </div>
@@ -320,7 +321,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
             {p.banner ? (
               <img src={String(p.banner)} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-xs text-muted">Banner YouTube'dan yuklanadi</span>
+              <span className="text-xs text-muted">{tr("Banner YouTube'dan yuklanadi")}</span>
             )}
           </div>
         </div>
@@ -333,7 +334,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
               <span className="grid h-full w-full place-items-center font-display text-lg font-extrabold text-green">{initials}</span>
             )}
           </div>
-          <span className="text-[11px] text-muted">Profil rasmi</span>
+          <span className="text-[11px] text-muted">{tr("Profil rasmi")}</span>
         </div>
         {/* Fields */}
         <div className="space-y-2">
@@ -343,7 +344,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
               <span className="w-16 shrink-0 text-muted">{label}</span>
               {edit && key === "region" ? (
                 <select value={form.region} onChange={(e) => setForm((s) => ({ ...s, region: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none focus:border-green">
-                  <option value="">Viloyatni tanlang</option>
+                  <option value="">{tr("Viloyatni tanlang")}</option>
                   {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               ) : edit && key !== "niche" ? (
@@ -361,12 +362,12 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
             <>
               <div className="flex items-start gap-3 text-sm">
                 <Icon d={I.fileText} className="h-4 w-4 shrink-0 text-muted mt-1" />
-                <span className="w-20 shrink-0 text-muted text-xs">Bio (qisqa)</span>
-                <input value={form.bio} onChange={(e) => setForm((s) => ({ ...s, bio: e.target.value }))} placeholder="10 ta so'z atrofida" maxLength={120} className="flex-1 rounded-lg border border-green/20 px-2 py-1 outline-none focus:border-green" />
+                <span className="w-20 shrink-0 text-muted text-xs">{tr("Bio (qisqa)")}</span>
+                <input value={form.bio} onChange={(e) => setForm((s) => ({ ...s, bio: e.target.value }))} placeholder={tr("10 ta so'z atrofida")} maxLength={120} className="flex-1 rounded-lg border border-green/20 px-2 py-1 outline-none focus:border-green" />
               </div>
               <div className="flex items-start gap-3 text-sm">
                 <Icon d={I.fileText} className="h-4 w-4 shrink-0 text-muted mt-1" />
-                <span className="w-20 shrink-0 text-muted text-xs">Haqida</span>
+                <span className="w-20 shrink-0 text-muted text-xs">{tr("Haqida")}</span>
                 <textarea value={form.about} onChange={(e) => setForm((s) => ({ ...s, about: e.target.value }))} rows={3} className="flex-1 rounded-lg border border-green/20 px-2 py-1 outline-none focus:border-green resize-none" />
               </div>
             </>
@@ -420,7 +421,7 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
   return (
     <div className={card}>
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">Ijtimoiy tarmoqlarim</h3>
+        <h3 className="font-display text-lg font-bold">{tr("Ijtimoiy tarmoqlarim")}</h3>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
           <Icon d={I.plus} className="h-4 w-4" /> Qo'shish
         </button>
@@ -428,13 +429,13 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
       {adding && (
         <div className="mt-3 rounded-xl bg-soft p-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="YouTube, Instagram, TikTok, Telegram..." className="flex-1 min-w-[180px] rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
+            <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("YouTube, Instagram, TikTok, Telegram...")} className="flex-1 min-w-[180px] rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
             <button onClick={add} disabled={busy} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
           </div>
         </div>
       )}
       <div className="mt-3 space-y-2">
-        {socials.length === 0 && <p className="py-3 text-center text-xs text-muted">Hali tarmoq qo'shilmagan.</p>}
+        {socials.length === 0 && <p className="py-3 text-center text-xs text-muted">{tr("Hali tarmoq qo'shilmagan.")}</p>}
         {socials.map((s) => {
           const pi = platIcon[s.platform] ?? { d: I.link2, color: "#5bb420" }
           return (
@@ -676,7 +677,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               <Icon d={I.youtube} className="h-4 w-4 text-red-500" />
               YouTube kanal videolari
             </h3>
-            <p className="text-[11px] text-muted">Kanal videolarini tanlab profilga qo'shing.</p>
+            <p className="text-[11px] text-muted">{tr("Kanal videolarini tanlab profilga qo'shing.")}</p>
           </div>
           <button
             onClick={fetchYoutubeChannelVideos}
@@ -701,7 +702,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
         )}
 
         {!loadingYoutube && youtubeChannelVids.length === 0 && (
-          <p className="py-4 text-center text-xs text-muted border border-dashed border-green/20 rounded-lg">YouTube kanal ulanmagan yoki videolar topilmadi.</p>
+          <p className="py-4 text-center text-xs text-muted border border-dashed border-green/20 rounded-lg">{tr("YouTube kanal ulanmagan yoki videolar topilmadi.")}</p>
         )}
 
         {!loadingYoutube && youtubeChannelVids.length > 0 && (
@@ -735,7 +736,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                         {parseInt(v.viewCount).toLocaleString()}
                       </div>
                       {isAdded && (
-                        <div className="absolute top-0.5 left-0.5 rounded bg-green/90 px-0.5 py-[1px] text-[7px] font-bold text-white">Qo'shilgan</div>
+                        <div className="absolute top-0.5 left-0.5 rounded bg-green/90 px-0.5 py-[1px] text-[7px] font-bold text-white">{tr("Qo'shilgan")}</div>
                       )}
                       {!isAdded && selectedVids.has(v.id) && (
                         <div className="absolute top-0.5 left-0.5 grid h-3 w-3 place-items-center rounded-full bg-green text-white">
@@ -761,7 +762,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               Instagram postlari
               {igUsername && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-600">@{igUsername}</span>}
             </h3>
-            <p className="text-[11px] text-muted">Instagram postlaringizni tanlab profilga qo'shing.</p>
+            <p className="text-[11px] text-muted">{tr("Instagram postlaringizni tanlab profilga qo'shing.")}</p>
           </div>
           <button
             onClick={fetchInstagramPosts}
@@ -790,7 +791,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
         )}
 
         {igUsername && !loadingIg && igPosts.length === 0 && (
-          <p className="py-4 text-center text-xs text-muted border border-dashed border-pink-300/50 rounded-lg">Instagram postlari topilmadi. Akkaunt Business/Creator turida ekanini tekshiring.</p>
+          <p className="py-4 text-center text-xs text-muted border border-dashed border-pink-300/50 rounded-lg">{tr("Instagram postlari topilmadi. Akkaunt Business/Creator turida ekanini tekshiring.")}</p>
         )}
 
         {!loadingIg && igPosts.length > 0 && (
@@ -831,7 +832,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                         </div>
                       )}
                       {isAdded && (
-                        <div className="absolute top-0.5 left-0.5 rounded bg-pink-500/90 px-1 py-[1px] text-[8px] font-bold text-white">Qo'shilgan</div>
+                        <div className="absolute top-0.5 left-0.5 rounded bg-pink-500/90 px-1 py-[1px] text-[8px] font-bold text-white">{tr("Qo'shilgan")}</div>
                       )}
                       {!isAdded && selectedIgPosts.has(m.id) && (
                         <div className="absolute top-0.5 left-0.5 grid h-4 w-4 place-items-center rounded-full bg-pink-500 text-white">
@@ -851,7 +852,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       {/* Tanlangan / Qo'shilgan videolar — pastda */}
       <div className="border-t border-green/10 pt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-display text-base font-bold">Profilimdagi videolar</h3>
+          <h3 className="font-display text-base font-bold">{tr("Profilimdagi videolar")}</h3>
           <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-1 rounded-lg bg-green px-2.5 py-1.5 text-[10px] font-bold text-white">
             <Icon d={I.plus} className="h-3 w-3" /> Qo'shish
           </button>
@@ -860,7 +861,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
         {adding && (
           <div className="mb-3 rounded-lg bg-soft p-2.5">
             <div className="flex items-center gap-2">
-              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Video linkini joylang..." className="flex-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
+              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("Video linkini joylang...")} className="flex-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-md bg-green px-3 py-1.5 text-[10px] font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
             </div>
             {linkError && <p className="mt-1 text-[10px] text-red-500">{linkError}</p>}
@@ -868,7 +869,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
         )}
 
         {videos.length === 0 ? (
-          <p className="py-6 text-center text-xs text-muted">Hali video qo'shilmagan.</p>
+          <p className="py-6 text-center text-xs text-muted">{tr("Hali video qo'shilmagan.")}</p>
         ) : (
           <div className="space-y-1.5">
             {videos.map((v) => (
@@ -945,7 +946,7 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
 
   return (
     <>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight">Bloger Dashboard</h1>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">{tr("Bloger Dashboard")}</h1>
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((s) => (
           <div key={s.t} className={card.replace("p-6", "p-5")}>
@@ -963,7 +964,7 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
         <div className="flex flex-col gap-5">
           <SocialsCard me={me} reload={reload} />
           <div className={card}>
-            <h3 className="font-display text-base font-bold">Tezkor amallar</h3>
+            <h3 className="font-display text-base font-bold">{tr("Tezkor amallar")}</h3>
             <div className="mt-3 space-y-2">
               {quickActions.map((a) => {
                 const isRefresh = a.action === "reload"
@@ -994,8 +995,8 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
 function ProfileTab({ me, reload }: { me: User; reload: () => void }) {
   return (
     <>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight">Profilim</h1>
-      <p className="mt-1 text-sm text-muted">Shaxsiy ma'lumotlaringizni tahrirlang.</p>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">{tr("Profilim")}</h1>
+      <p className="mt-1 text-sm text-muted">{tr("Shaxsiy ma'lumotlaringizni tahrirlang.")}</p>
       <div className="mt-6"><ProfileCard me={me} reload={reload} /></div>
     </>
   )
@@ -1004,8 +1005,8 @@ function ProfileTab({ me, reload }: { me: User; reload: () => void }) {
 function SocialsTab({ me, reload }: { me: User; reload: () => void }) {
   return (
     <>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight">Ijtimoiy tarmoqlar</h1>
-      <p className="mt-1 text-sm text-muted">Ijtimoiy tarmoq akkauntlaringizni boshqaring.</p>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">{tr("Ijtimoiy tarmoqlar")}</h1>
+      <p className="mt-1 text-sm text-muted">{tr("Ijtimoiy tarmoq akkauntlaringizni boshqaring.")}</p>
       <div className="mt-6"><SocialsCard me={me} reload={reload} /></div>
     </>
   )
@@ -1014,8 +1015,8 @@ function SocialsTab({ me, reload }: { me: User; reload: () => void }) {
 function VideosTab({ me, reload }: { me: User; reload: () => void }) {
   return (
     <>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight">Videolarim</h1>
-      <p className="mt-1 text-sm text-muted">Joylangan videolaringizni boshqaring.</p>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">{tr("Videolarim")}</h1>
+      <p className="mt-1 text-sm text-muted">{tr("Joylangan videolaringizni boshqaring.")}</p>
       <div className="mt-6"><VideosCard me={me} reload={reload} /></div>
     </>
   )
@@ -1023,7 +1024,7 @@ function VideosTab({ me, reload }: { me: User; reload: () => void }) {
 
 function Placeholder({ title }: { title: string }) {
   return (
-    <div className="grid min-h-[60vh] place-items-center"><div className="text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.gear} className="h-8 w-8" /></span><h2 className="mt-4 font-display text-xl font-bold">{title}</h2><p className="mt-2 text-muted">Bu bo'lim tez orada qo'shiladi.</p></div></div>
+    <div className="grid min-h-[60vh] place-items-center"><div className="text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.gear} className="h-8 w-8" /></span><h2 className="mt-4 font-display text-xl font-bold">{title}</h2><p className="mt-2 text-muted">{tr("Bu bo'lim tez orada qo'shiladi.")}</p></div></div>
   )
 }
 
@@ -1072,21 +1073,21 @@ function ServicesTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Xizmatlarim</h2>
-      <p className="mt-1 text-sm text-muted">Taqdim etayotgan xizmatlaringiz.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Xizmatlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Taqdim etayotgan xizmatlaringiz.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading ? (
           <SkeletonTable rows={4} cols={3} />
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Xizmat nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Tavsif (ixtiyoriy)" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("Xizmat nomi")} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={tr("Tavsif (ixtiyoriy)")} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
             {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
-              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali xizmat qo'shilmagan.</p>)}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">{tr("Hali xizmat qo'shilmagan.")}</p>)}
               {items.map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.check} className="h-4 w-4 shrink-0 text-green" />
@@ -1149,8 +1150,8 @@ function TasksTab() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Topshiriqlarim</h2>
-          <p className="mt-1 text-sm text-muted">Administrator tomonidan yuborilgan topshiriqlar (TZ).</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Topshiriqlarim")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Administrator tomonidan yuborilgan topshiriqlar (TZ).")}</p>
         </div>
         {unread > 0 && <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">{unread} ta yangi</span>}
       </div>
@@ -1162,7 +1163,7 @@ function TasksTab() {
       ) : tasks.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center">
           <Icon d={I.task} className="mx-auto h-10 w-10 text-green/30" />
-          <p className="mt-3 text-sm text-muted">Hozircha topshiriq yo'q.</p>
+          <p className="mt-3 text-sm text-muted">{tr("Hozircha topshiriq yo'q.")}</p>
         </div>
       ) : (
         <div className="mt-5 space-y-3">
@@ -1171,7 +1172,7 @@ function TasksTab() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tzPrioColor[t.priority] || tzPrioColor.normal}`}>{tzPrioLabel[t.priority] || t.priority}</span>
-                  {!t.is_read && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Yangi</span>}
+                  {!t.is_read && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">{tr("Yangi")}</span>}
                   <h3 className="font-display font-bold">{t.title}</h3>
                 </div>
                 <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${t.status === "done" ? "bg-green/10 text-green" : t.status === "in_progress" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>{tzStatusLabel[t.status] || t.status}</span>
@@ -1247,8 +1248,8 @@ function RegionsTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Hududlarim</h2>
-      <p className="mt-1 text-sm text-muted">Faoliyat yuritayotgan hududlaringiz.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Hududlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Faoliyat yuritayotgan hududlaringiz.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading ? (
           <SkeletonTable rows={3} cols={2} />
@@ -1256,14 +1257,14 @@ function RegionsTab() {
           <>
             <div className="flex gap-3">
               <select value={region} onChange={(e) => setRegion(e.target.value)} className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                <option value="">Viloyatni tanlang</option>
+                <option value="">{tr("Viloyatni tanlang")}</option>
                 {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
-              <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
             {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
-              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali hudud qo'shilmagan.</p>)}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">{tr("Hali hudud qo'shilmagan.")}</p>)}
               {items.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.pin} className="h-4 w-4 shrink-0 text-green" />
@@ -1325,20 +1326,20 @@ function SpecializationsTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Yo'nalishlarim</h2>
-      <p className="mt-1 text-sm text-muted">Mutaxassislik yo'nalishlaringiz.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Yo'nalishlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Mutaxassislik yo'nalishlaringiz.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading ? (
           <SkeletonTable rows={3} cols={2} />
         ) : (
           <>
             <div className="flex gap-3">
-              <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Yo'nalish kalit so'zi (masalan: fermerlik)" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={tr("Yo'nalish kalit so'zi (masalan: fermerlik)")} className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
             {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
-              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yo'nalish qo'shilmagan.</p>)}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">{tr("Hali yo'nalish qo'shilmagan.")}</p>)}
               {items.map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.sprout} className="h-4 w-4 shrink-0 text-green" />
@@ -1401,21 +1402,21 @@ function AchievementsTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Yutuqlarim</h2>
-      <p className="mt-1 text-sm text-muted">Erishgan yutuqlaringiz.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Yutuqlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Erishgan yutuqlaringiz.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading ? (
           <SkeletonTable rows={4} cols={3} />
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yutuq nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Qo'shimcha ma'lumot" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr("Yutuq nomi")} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={tr("Qo'shimcha ma'lumot")} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <button onClick={add} disabled={busy} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
             {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
-              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali yutuq qo'shilmagan.</p>)}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">{tr("Hali yutuq qo'shilmagan.")}</p>)}
               {items.map((a) => (
                 <div key={a.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <Icon d={I.trophy} className="h-4 w-4 shrink-0 text-gold" />
@@ -1490,8 +1491,8 @@ function ImagesTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Rasmlarim</h2>
-      <p className="mt-1 text-sm text-muted">Galereyangizga rasm qo'shing. Bir nechta faylni bir vaqtda yuklashingiz mumkin.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Rasmlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Galereyangizga rasm qo'shing. Bir nechta faylni bir vaqtda yuklashingiz mumkin.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <MediaUpload onUpload={onUpload} multiple accept="image/*" />
         {uploading && (
@@ -1509,7 +1510,7 @@ function ImagesTab() {
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="col-span-full py-8 text-center text-sm text-muted">Hali rasm qo'shilmagan.</p>)}
+            {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="col-span-full py-8 text-center text-sm text-muted">{tr("Hali rasm qo'shilmagan.")}</p>)}
             {items.map((img) => (
               <div key={img.id} className="group relative overflow-hidden rounded-xl border border-green/10">
                 <img loading="lazy" decoding="async" src={img.url} alt={img.caption || ""} className="h-36 w-full object-cover" />
@@ -1570,20 +1571,20 @@ function BrandsTab() {
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Hamkor brendlarim</h2>
-      <p className="mt-1 text-sm text-muted">Hamkorlik qilgan brendlaringiz.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Hamkor brendlarim")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("Hamkorlik qilgan brendlaringiz.")}</p>
       <div className="mt-5 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading ? (
           <SkeletonTable rows={4} cols={3} />
         ) : (
           <>
             <div className="flex gap-3">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Brend nomi" className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="shrink-0 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" /> Qo'shish</button>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Brend nomi")} className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <button onClick={add} disabled={busy} className="shrink-0 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
             {actionErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{actionErr}</p>}
             <div className="mt-4 space-y-2">
-              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">Hali brend qo'shilmagan.</p>)}
+              {items.length === 0 && (failed ? <ErrorState onRetry={() => load()} /> : <p className="py-4 text-center text-sm text-muted">{tr("Hali brend qo'shilmagan.")}</p>)}
               {items.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-[#fafdf7] px-3 py-2.5">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.building} className="h-4 w-4" /></span>
@@ -1645,8 +1646,8 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
 
   return (
     <div>
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Auditoriya analitikasi</h2>
-      <p className="mt-1 text-sm text-muted">YouTube kanalingiz auditoriyasi haqida ma'lumot.</p>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Auditoriya analitikasi")}</h2>
+      <p className="mt-1 text-sm text-muted">{tr("YouTube kanalingiz auditoriyasi haqida ma'lumot.")}</p>
 
       {/* YouTube sinxronlash haqida ma'lumot */}
       <div className="mt-4 rounded-xl border border-green/20 bg-soft p-4">
@@ -1664,11 +1665,11 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
         {/* Jins taqsimoti */}
         <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-          <h3 className="font-display text-base font-bold">Jins taqsimoti</h3>
+          <h3 className="font-display text-base font-bold">{tr("Jins taqsimoti")}</h3>
           <div className="mt-4 space-y-4">
             <div>
               <label className="flex items-center justify-between text-sm">
-                <span className="text-muted">Erkaklar (%)</span>
+                <span className="text-muted">{tr("Erkaklar (%)")}</span>
                 <span className="font-bold text-green">{male}%</span>
               </label>
               <input
@@ -1682,7 +1683,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
             </div>
             <div>
               <label className="flex items-center justify-between text-sm">
-                <span className="text-muted">Ayollar (%)</span>
+                <span className="text-muted">{tr("Ayollar (%)")}</span>
                 <span className="font-bold text-blue-500">{female}%</span>
               </label>
               <input
@@ -1699,7 +1700,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
 
         {/* Yosh oralig'lari */}
         <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-          <h3 className="font-display text-base font-bold">Yosh oralig'lari</h3>
+          <h3 className="font-display text-base font-bold">{tr("Yosh oralig'lari")}</h3>
           <div className="mt-4 space-y-3">
             {Object.entries(ages).map(([key, value]) => (
               <div key={key} className="flex items-center gap-3">
@@ -1720,7 +1721,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
 
         {/* Hududlar */}
         <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)] lg:col-span-2">
-          <h3 className="font-display text-base font-bold">Top hududlar</h3>
+          <h3 className="font-display text-base font-bold">{tr("Top hududlar")}</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(regions).map(([key, value]) => (
               <div key={key} className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid, ErrorState } from "../../l
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { supabase } from "../../lib/supabase"
+import { tr } from "../../lib/i18n"
 
 const nav = [
   { label: "Umumiy", icon: I.dashboard },
@@ -37,7 +38,7 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="font-semibold">Umumiy bajarilish <span className="text-muted">({done}/{total})</span></span>
+        <span className="font-semibold">{tr("Umumiy bajarilish")}<span className="text-muted">({done}/{total})</span></span>
         <span className="font-bold text-green">{pct}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-green transition-all" style={{ width: `${pct}%` }} /></div>
@@ -114,7 +115,7 @@ export default function PartnerDashboard() {
       {err && !loading && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
           <p className="font-semibold text-red-600">{err}</p>
-          <p className="mt-1 text-sm text-red-500">Internet aloqasini tekshiring yoki qaytadan kiring.</p>
+          <p className="mt-1 text-sm text-red-500">{tr("Internet aloqasini tekshiring yoki qaytadan kiring.")}</p>
           <button onClick={reload}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white">
             <Icon d={I.refresh} className="h-4 w-4" /> Qayta urinish
@@ -125,8 +126,8 @@ export default function PartnerDashboard() {
         <div className="grid min-h-[50vh] place-items-center text-center">
           <div>
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.building} className="h-8 w-8" /></span>
-            <h2 className="mt-4 font-display text-xl font-bold">Kompaniya topilmadi</h2>
-            <p className="mt-2 text-muted">Hisobingizga biriktirilgan hamkor kompaniya topilmadi. Administrator bilan bog'laning.</p>
+            <h2 className="mt-4 font-display text-xl font-bold">{tr("Kompaniya topilmadi")}</h2>
+            <p className="mt-2 text-muted">{tr("Hisobingizga biriktirilgan hamkor kompaniya topilmadi. Administrator bilan bog'laning.")}</p>
           </div>
         </div>
       )}
@@ -189,25 +190,25 @@ function Overview({ partner, counts, pct, notifs, notifsLoading, notifsFailed, o
       </div>
 
       <div className={`mt-6 ${card}`}>
-        <h3 className="font-display text-lg font-bold">Shartnoma qisqacha</h3>
+        <h3 className="font-display text-lg font-bold">{tr("Shartnoma qisqacha")}</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Shartnoma raqami</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Summa</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} so'm</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Imzolangan</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Yo'nalish</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Shartnoma raqami")}</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Summa")}</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} so'm</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Imzolangan")}</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Yo'nalish")}</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
         </div>
         <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
       </div>
 
       <div className={`mt-6 ${card}`}>
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-lg font-bold">So'nggi bildirishnomalar</h3>
-          <button onClick={() => onNav("Bildirishnomalar")} className="text-sm font-semibold text-green hover:underline">Barchasi →</button>
+          <h3 className="font-display text-lg font-bold">{tr("So'nggi bildirishnomalar")}</h3>
+          <button onClick={() => onNav("Bildirishnomalar")} className="text-sm font-semibold text-green hover:underline">{tr("Barchasi →")}</button>
         </div>
         <div className="mt-4 space-y-2">
           {notifsLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
-          {!notifsLoading && notifsFailed && <p className="py-6 text-center text-sm text-red-600">Bildirishnomalarni yuklab bo'lmadi.</p>}
-          {!notifsLoading && !notifsFailed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
+          {!notifsLoading && notifsFailed && <p className="py-6 text-center text-sm text-red-600">{tr("Bildirishnomalarni yuklab bo'lmadi.")}</p>}
+          {!notifsLoading && !notifsFailed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">{tr("Bildirishnoma yo'q.")}</p>}
           {!notifsLoading && !notifsFailed && notifs.slice(0, 4).map((n) => (
             <div key={n.id} className={`flex items-start gap-3 rounded-lg border border-green/8 px-3 py-2.5 ${n.is_read ? "bg-white" : "bg-green/5"}`}>
               <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-soft text-green"><Icon d={I.bell} className="h-3.5 w-3.5" /></span>
@@ -249,12 +250,12 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
   return (
     <div className={`mt-6 ${card}`}>
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">Kompaniya ma'lumotlari</h3>
+        <h3 className="font-display text-lg font-bold">{tr("Kompaniya ma'lumotlari")}</h3>
         <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
           {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.check} className="h-4 w-4" />} Saqlash
         </button>
       </div>
-      {saved && <div className="mt-3 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi!</div>}
+      {saved && <div className="mt-3 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi!")}</div>}
       {error && <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {field("Kompaniya nomi", "name", "Kompaniya nomi")}
@@ -265,12 +266,12 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
         {field("Telegram", "telegram", "@username yoki link")}
       </div>
       <div className="mt-4">
-        <label className="text-xs font-semibold text-muted">Manzil</label>
-        <input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Shahar, ko'cha..." className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+        <label className="text-xs font-semibold text-muted">{tr("Manzil")}</label>
+        <input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder={tr("Shahar, ko'cha...")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
       </div>
       <div className="mt-4">
-        <label className="text-xs font-semibold text-muted">Kompaniya haqida</label>
-        <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={4} placeholder="Kompaniyangiz faoliyati haqida qisqacha..." className="mt-1 w-full resize-none rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+        <label className="text-xs font-semibold text-muted">{tr("Kompaniya haqida")}</label>
+        <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={4} placeholder={tr("Kompaniyangiz faoliyati haqida qisqacha...")} className="mt-1 w-full resize-none rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
       </div>
     </div>
   )
@@ -298,7 +299,7 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
         </div>
       </div>
       <div className={card}>
-        <h3 className="font-display text-lg font-bold">Bajarilish darajasi</h3>
+        <h3 className="font-display text-lg font-bold">{tr("Bajarilish darajasi")}</h3>
         <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
           {[["Bajarilgan", counts.done, "text-green"], ["Jarayonda", counts.progress, "text-orange-600"], ["Kutilayotgan", counts.pending, "text-slate-500"]].map(([l, v, c]) => (
@@ -330,14 +331,14 @@ function BloggersBrowse() {
   useEffect(() => { load() }, [load])
   return (
     <div className={`mt-6 ${card}`}>
-      <h3 className="font-display text-lg font-bold">Platforma blogerlari</h3>
-      <p className="mt-1 text-sm text-muted">Hamkorlik uchun blogerlarni ko'rib chiqing.</p>
+      <h3 className="font-display text-lg font-bold">{tr("Platforma blogerlari")}</h3>
+      <p className="mt-1 text-sm text-muted">{tr("Hamkorlik uchun blogerlarni ko'rib chiqing.")}</p>
       {loading ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-soft" />)}</div>
       ) : failed ? (
         <div className="mt-4"><ErrorState onRetry={load} message="Blogerlar ro'yxatini yuklab bo'lmadi." /></div>
       ) : bloggers.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">Bloger topilmadi.</p>
+        <p className="py-6 text-center text-sm text-muted">{tr("Bloger topilmadi.")}</p>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {bloggers.map((b) => (
@@ -363,11 +364,11 @@ function BloggersBrowse() {
 function Notifications({ notifs, loading, failed, onRetry }: { notifs: Notif[]; loading: boolean; failed: boolean; onRetry: () => void }) {
   return (
     <div className={`mt-6 ${card}`}>
-      <h3 className="font-display text-lg font-bold">Bildirishnomalar</h3>
+      <h3 className="font-display text-lg font-bold">{tr("Bildirishnomalar")}</h3>
       <div className="mt-4 space-y-2">
         {loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
         {!loading && failed && <ErrorState onRetry={onRetry} message="Bildirishnomalarni yuklab bo'lmadi." />}
-        {!loading && !failed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">Bildirishnoma yo'q.</p>}
+        {!loading && !failed && notifs.length === 0 && <p className="py-6 text-center text-sm text-muted">{tr("Bildirishnoma yo'q.")}</p>}
         {!loading && !failed && notifs.map((n) => (
           <div key={n.id} className={`flex items-start gap-3 rounded-lg border border-green/8 px-3 py-3 ${n.is_read ? "bg-white" : "bg-green/5"}`}>
             <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-soft text-green"><Icon d={I.bell} className="h-4 w-4" /></span>
@@ -390,8 +391,8 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
     <div className="mt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-bold">Hamkorlik hisoboti</h3>
-          <p className="mt-1 text-sm text-muted">Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.</p>
+          <h3 className="font-display text-lg font-bold">{tr("Hamkorlik hisoboti")}</h3>
+          <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.")}</p>
         </div>
         <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.doc} className="h-4 w-4" /> Chop etish / PDF
@@ -407,7 +408,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
             <div key={l} className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{l}</div><div className="mt-0.5 font-display font-bold">{v}</div></div>
           ))}
         </div>
-        {extra.description && <div className="mt-4 rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">Kompaniya haqida</div><div className="mt-1 text-sm">{extra.description}</div></div>}
+        {extra.description && <div className="mt-4 rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Kompaniya haqida")}</div><div className="mt-1 text-sm">{extra.description}</div></div>}
       </div>
     </div>
   )
@@ -434,16 +435,16 @@ function Settings() {
 
   return (
     <div className={`mt-6 ${card} max-w-lg`}>
-      <h3 className="font-display text-lg font-bold">Parolni o'zgartirish</h3>
-      <p className="mt-1 text-sm text-muted">Hisobingiz uchun yangi parol o'rnating.</p>
+      <h3 className="font-display text-lg font-bold">{tr("Parolni o'zgartirish")}</h3>
+      <p className="mt-1 text-sm text-muted">{tr("Hisobingiz uchun yangi parol o'rnating.")}</p>
       <div className="mt-4 space-y-3">
         <div>
-          <label className="text-xs font-semibold text-muted">Yangi parol</label>
-          <input value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" placeholder="Kamida 6 belgi" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <label className="text-xs font-semibold text-muted">{tr("Yangi parol")}</label>
+          <input value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" placeholder={tr("Kamida 6 belgi")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-muted">Parolni tasdiqlang</label>
-          <input value={pwd2} onChange={(e) => setPwd2(e.target.value)} type="password" placeholder="Yangi parolni qayta kiriting" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+          <label className="text-xs font-semibold text-muted">{tr("Parolni tasdiqlang")}</label>
+          <input value={pwd2} onChange={(e) => setPwd2(e.target.value)} type="password" placeholder={tr("Yangi parolni qayta kiriting")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
         </div>
         {msg && <div className={`rounded-xl px-4 py-3 text-sm font-medium ${msg.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
         <button onClick={changePwd} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">

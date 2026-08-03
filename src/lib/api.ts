@@ -515,7 +515,9 @@ const REQUEST_TIMEOUT = 30_000
 // 20s), ustiga so'rov matnini tayyorlash. Eng yomon holat ~85s,
 // shuning uchun 110s qo'yamiz — backend edge chegarasi (150s) ichida.
 const SLOW_TIMEOUT = 110_000
-const SLOW_PATHS = ["/smm/ai"]
+// Uzoq davom etadigan AI amallari — oddiy timeout ularga yetmaydi.
+// Qayta tarjima bir chaqiruvda ~45 soniya ishlaydi.
+const SLOW_PATHS = ["/smm/ai", "/settings?action=retranslate", "/news"]
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()

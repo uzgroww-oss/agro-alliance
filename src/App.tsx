@@ -3,7 +3,7 @@ import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation
 import { App as CapApp } from "@capacitor/app"
 import { isNative } from "./lib/platform"
 import { AuthProvider, useAuth } from "./lib/auth"
-import { I18nProvider } from "./lib/i18n"
+import { I18nProvider, useI18n } from "./lib/i18n"
 import { ErrorBoundary } from "./lib/error-boundary"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
@@ -104,6 +104,24 @@ function RequireRole({ role, children }: { role: "superadmin" | "blogger" | "par
   return <>{children}</>
 }
 
+/**
+ * Til o'zgarganda butun daraxtni QAYTA MOUNT qiladi.
+ *
+ * NEGA: panellarda tarjima `tr()` — hooksiz funksiya — orqali
+ * bajariladi (500+ matn, 40+ komponent; har biriga hook qo'shish
+ * juda ko'p o'zgarish bo'lardi). Hooksiz funksiya kontekstga
+ * obuna bo'lmaydi, ya'ni til almashsa komponent o'z-o'zidan qayta
+ * chizilmaydi va eski matn ekranda qolib ketardi.
+ *
+ * `key={lang}` buni bir qatorda hal qiladi. Narxi: til almashtirilganda
+ * ma'lumot qayta yuklanadi — lekin api.ts da 30 soniyalik kesh bor va
+ * til kuniga bir marta almashtiriladi.
+ */
+function LangBoundary({ children }: { children: ReactNode }) {
+  const { lang } = useI18n()
+  return <div key={lang} className="contents">{children}</div>
+}
+
 export default function App() {
   return (
     <I18nProvider>
@@ -112,6 +130,7 @@ export default function App() {
         <ScrollToTop />
         <AndroidBackButton />
         <ErrorBoundary>
+        <LangBoundary>
         {/* Suspense — kechiktirilgan sahifa yuklanguncha spinner */}
         <Suspense fallback={<PageLoading />}>
         <Routes>
@@ -137,6 +156,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
+        </LangBoundary>
         </ErrorBoundary>
       </Router>
     </AuthProvider>

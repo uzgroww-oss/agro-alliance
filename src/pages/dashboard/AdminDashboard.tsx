@@ -8,6 +8,7 @@ import MarketPanel from "./MarketPanel"
 import { categories } from "../../lib/bloggers"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
+import { tr } from "../../lib/i18n"
 
 const nav = [
   { label: "Dashboard", icon: I.dashboard },
@@ -184,8 +185,8 @@ function Bloggers() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Bloggerlarni boshqarish</h2>
-          <p className="mt-1 text-sm text-muted">Bloggerlar faqat admin tomonidan ro'yxatdan o'tkaziladi.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Bloggerlarni boshqarish")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Bloggerlar faqat admin tomonidan ro'yxatdan o'tkaziladi.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi bloger qo'shish
@@ -196,21 +197,21 @@ function Bloggers() {
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Yangi bloger qo'shish</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Yangi bloger qo'shish")}</h3>
             <form onSubmit={register} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
-              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-              <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Bloger ismi")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder={tr("Email")} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <select value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required>
-                <option value="" disabled>Viloyatni tanlang (bloger qayerdan)</option>
+                <option value="" disabled>{tr("Viloyatni tanlang (bloger qayerdan)")}</option>
                 {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               <select value={form.cat} onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
                 {categories.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
-              <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Boshlang'ich parol" type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder={tr("Boshlang'ich parol")} type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={registering} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {registering && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   {registering ? "Ro'yxatdan o'tkazilmoqda…" : "Ro'yxatdan o'tkazish"}
@@ -227,12 +228,12 @@ function Bloggers() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-display text-base font-extrabold text-green">Bloger yaratildi: {createdBlogger.name}</h3>
-              <p className="mt-0.5 text-xs text-muted">Endi ijtimoiy tarmoq linklarini qo'shing</p>
+              <p className="mt-0.5 text-xs text-muted">{tr("Endi ijtimoiy tarmoq linklarini qo'shing")}</p>
             </div>
-            <button onClick={() => { setCreatedBlogger(null); setSocialResults([]) }} className="rounded-lg border border-green/30 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">Yopish</button>
+            <button onClick={() => { setCreatedBlogger(null); setSocialResults([]) }} className="rounded-lg border border-green/30 px-3 py-1.5 text-xs font-bold text-green hover:bg-green hover:text-white">{tr("Yopish")}</button>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <input value={socialLink} onChange={(e) => setSocialLink(e.target.value)} placeholder="Ijtimoiy tarmoq linki — YouTube, Instagram, Telegram..." className="flex-1 min-w-[200px] rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={socialLink} onChange={(e) => setSocialLink(e.target.value)} placeholder={tr("Ijtimoiy tarmoq linki — YouTube, Instagram, Telegram...")} className="flex-1 min-w-[200px] rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <button onClick={addSocialLink} disabled={addingSocial || !socialLink.trim()} className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               {addingSocial && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
               {addingSocial ? "Olinmoqda…" : "Qo'shish"}
@@ -274,7 +275,7 @@ function Bloggers() {
         )}
         <div className="relative mb-4 max-w-sm">
           <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Bloger qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("Bloger qidirish...")} className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px]">
@@ -283,11 +284,11 @@ function Bloggers() {
                 <th className="pb-3 font-semibold w-10">
                   <input type="checkbox" checked={list.length > 0 && selectedIds.size === list.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
                 </th>
-                <th className="pb-3 font-semibold">Bloger</th>
-                <th className="pb-3 font-semibold">Yo'nalish</th>
-                <th className="pb-3 font-semibold">Hudud</th>
-                <th className="pb-3 font-semibold">Holati</th>
-                <th className="pb-3 font-semibold">Amallar</th>
+                <th className="pb-3 font-semibold">{tr("Bloger")}</th>
+                <th className="pb-3 font-semibold">{tr("Yo'nalish")}</th>
+                <th className="pb-3 font-semibold">{tr("Hudud")}</th>
+                <th className="pb-3 font-semibold">{tr("Holati")}</th>
+                <th className="pb-3 font-semibold">{tr("Amallar")}</th>
               </tr>
             </thead>
             <tbody>
@@ -295,7 +296,7 @@ function Bloggers() {
                 <tr><td colSpan={7} className="py-6"><SkeletonTable rows={5} cols={5} /></td></tr>
               )}
               {!loading && failed && (
-                <tr><td colSpan={7} className="py-10 text-center text-red-600">Blogerlar ro'yxatini yuklab bo'lmadi. <button onClick={() => reload()} className="font-bold text-green hover:underline">Qayta urinish</button></td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-red-600">{tr("Blogerlar ro'yxatini yuklab bo'lmadi.")}<button onClick={() => reload()} className="font-bold text-green hover:underline">{tr("Qayta urinish")}</button></td></tr>
               )}
               {!loading && !failed && list.length === 0 && (
                 <tr><td colSpan={7} className="py-10 text-center text-muted">Bloger yo'q. "Yangi bloger qo'shish" orqali qo'shing.</td></tr>
@@ -314,19 +315,19 @@ function Bloggers() {
                   <td className="py-3 pr-3 text-muted">{catLabel(r.cat)}</td>
                   <td className="py-3 pr-3 text-muted">{r.region || "—"}</td>
                   <td className="py-3 pr-3">
-                    <button onClick={() => toggle(r)} disabled={mutating} title="Holatni o'zgartirish" className="disabled:opacity-50">
+                    <button onClick={() => toggle(r)} disabled={mutating} title={tr("Holatni o'zgartirish")} className="disabled:opacity-50">
                       {r.status === "active"
-                        ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Faol</span>
-                        : <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-bold text-orange-600"><span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> Kutilmoqda</span>}
+                        ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" />{tr("Faol")}</span>
+                        : <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-bold text-orange-600"><span className="h-1.5 w-1.5 rounded-full bg-orange-500" />{tr("Kutilmoqda")}</span>}
                     </button>
                   </td>
                   <td className="py-3">
                     <span className="flex gap-1.5">
                       {/* Marshrut /blogerlar/:slug (ko'plikda). Ilgari bu yerda
                           "/bloger/" yozilgani uchun har doim 404 chiqardi. */}
-                      <Link to={`/blogerlar/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title="Profilni ko'rish"><Icon d={I.external} className="h-4 w-4" /></Link>
-                      <button onClick={() => startEdit(r)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:border-green hover:text-green" title="Tahrirlash"><Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" /></button>
-                      <button onClick={() => setDeleteTarget(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
+                      <Link to={`/blogerlar/${r.slug}`} target="_blank" className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:text-green" title={tr("Profilni ko'rish")}><Icon d={I.external} className="h-4 w-4" /></Link>
+                      <button onClick={() => startEdit(r)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/15 text-muted hover:border-green hover:text-green" title={tr("Tahrirlash")}><Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" /></button>
+                      <button onClick={() => setDeleteTarget(r.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title={tr("O'chirish")}><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </span>
                   </td>
                 </tr>
@@ -340,16 +341,16 @@ function Bloggers() {
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setEditTarget(null)}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Blogerni tahrirlash</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Blogerni tahrirlash")}</h3>
             <form onSubmit={saveEdit} className="mt-5 space-y-4">
               {editErr && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{editErr}</div>}
-              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Bloger ismi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Bloger ismi")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               <div>
-                <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-                <p className="mt-1.5 text-xs text-orange-600">Diqqat: bu bloger LOGINI. O'zgartirsangiz u yangi email bilan kiradi.</p>
+                <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} placeholder={tr("Email")} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+                <p className="mt-1.5 text-xs text-orange-600">{tr("Diqqat: bu bloger LOGINI. O'zgartirsangiz u yangi email bilan kiradi.")}</p>
               </div>
               <select value={editForm.region} onChange={(e) => setEditForm((f) => ({ ...f, region: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
-                <option value="">Viloyat tanlanmagan</option>
+                <option value="">{tr("Viloyat tanlanmagan")}</option>
                 {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               <select value={editForm.cat} onChange={(e) => setEditForm((f) => ({ ...f, cat: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
@@ -359,7 +360,7 @@ function Bloggers() {
               <p className="text-xs text-muted">Holat (Faol/Kutilmoqda) jadvaldagi tugma orqali o'zgaradi. Parol bu yerdan o'zgartirilmaydi.</p>
 
               <div className="flex justify-end gap-3 pt-1">
-                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
                 </button>
@@ -377,11 +378,11 @@ function Bloggers() {
               <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
                 <Icon d="M12 9v4 M12 17h.01 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" className="h-7 w-7 text-red-500" />
               </span>
-              <h3 className="mt-4 font-display text-lg font-extrabold">Blogerni o'chirish</h3>
-              <p className="mt-2 text-sm text-muted">Bu blogerni ro'yxatdan o'chirishni tasdiqlaysizmi?</p>
+              <h3 className="mt-4 font-display text-lg font-extrabold">{tr("Blogerni o'chirish")}</h3>
+              <p className="mt-2 text-sm text-muted">{tr("Bu blogerni ro'yxatdan o'chirishni tasdiqlaysizmi?")}</p>
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
               <button type="button" onClick={() => remove(deleteTarget)} disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 disabled:opacity-60">
                 <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> {mutating ? "O'chirilmoqda…" : "O'chirish"}
               </button>
@@ -574,8 +575,8 @@ function AdminPartners() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Hamkorlarni boshqarish</h2>
-          <p className="mt-1 text-sm text-muted">Hamkor tashkilotlar, shartnomalar va rejadagi ishlar.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Hamkorlarni boshqarish")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Hamkor tashkilotlar, shartnomalar va rejadagi ishlar.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi hamkor qo'shish
@@ -602,16 +603,16 @@ function AdminPartners() {
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Yangi hamkor qo'shish</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Yangi hamkor qo'shish")}</h3>
             <form onSubmit={add} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
-              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-              <input value={form.sphere} onChange={(e) => setForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Tashkilot nomi")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.sphere} onChange={(e) => setForm((f) => ({ ...f, sphere: e.target.value }))} placeholder={tr("Yo'nalish (masalan: O'g'itlar)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               {/* Logo: URL yozish YOKI rasm yuklash — ikkalasi ham bitta
                   `form.logo` maydoniga yozadi, shuning uchun backend o'zgarmadi. */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted">Logo (ixtiyoriy)</label>
-                <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Rasm havolasi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <label className="mb-1.5 block text-xs font-semibold text-muted">{tr("Logo (ixtiyoriy)")}</label>
+                <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder={tr("Rasm havolasi (URL)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
                 <div className="mt-2 flex items-center gap-3">
                   <span className="text-xs text-muted">yoki</span>
                   <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, logo: r.signedUrl }))} />
@@ -625,19 +626,19 @@ function AdminPartners() {
                   </div>
                 )}
               </div>
-              <input value={form.contractNo} onChange={(e) => setForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-              <input value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={form.contractNo} onChange={(e) => setForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder={tr("Shartnoma raqami")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} placeholder={tr("Summa (so'm)")} type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
-                <option value="active">Faol</option>
-                <option value="pending">Kutilmoqda</option>
-                <option value="completed">Yakunlangan</option>
+                <option value="active">{tr("Faol")}</option>
+                <option value="pending">{tr("Kutilmoqda")}</option>
+                <option value="completed">{tr("Yakunlangan")}</option>
               </select>
               <hr className="border-green/10" />
-              <p className="text-xs font-semibold text-muted">Hamkor kompaniya logini (ixtiyoriy — email + parol)</p>
-              <input value={form.clientEmail} onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))} placeholder="Email (login)" type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-              <input value={form.clientPassword} onChange={(e) => setForm((f) => ({ ...f, clientPassword: e.target.value }))} placeholder="Parol (kamida 6 belgi)" type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <p className="text-xs font-semibold text-muted">{tr("Hamkor kompaniya logini (ixtiyoriy — email + parol)")}</p>
+              <input value={form.clientEmail} onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))} placeholder={tr("Email (login)")} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={form.clientPassword} onChange={(e) => setForm((f) => ({ ...f, clientPassword: e.target.value }))} placeholder={tr("Parol (kamida 6 belgi)")} type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   {saving ? "Qo'shilmoqda…" : "Qo'shish"}
@@ -687,10 +688,10 @@ function AdminPartners() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => startEdit(p)} className="grid h-9 w-9 place-items-center rounded-lg border border-green/20 text-muted hover:border-green hover:text-green" title="Tahrirlash">
+                  <button onClick={() => startEdit(p)} className="grid h-9 w-9 place-items-center rounded-lg border border-green/20 text-muted hover:border-green hover:text-green" title={tr("Tahrirlash")}>
                     <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeleteTarget(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                  <button onClick={() => setDeleteTarget(p.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title={tr("O'chirish")}>
                     <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
                   </button>
                 </div>
@@ -698,15 +699,15 @@ function AdminPartners() {
 
               {/* contract row */}
               <div className="mt-4 grid gap-3 rounded-xl bg-[#fafdf7] p-4 sm:grid-cols-3">
-                <div><div className="text-xs text-muted">Shartnoma raqami</div><div className="mt-0.5 font-display font-bold">{p.contractNo}</div></div>
-                <div><div className="text-xs text-muted">Summa</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(p.amount)} so'm</div></div>
-                <div><div className="text-xs text-muted">Imzolangan sana</div><div className="mt-0.5 font-display font-bold">{p.signedDate}</div></div>
+                <div><div className="text-xs text-muted">{tr("Shartnoma raqami")}</div><div className="mt-0.5 font-display font-bold">{p.contractNo}</div></div>
+                <div><div className="text-xs text-muted">{tr("Summa")}</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(p.amount)} so'm</div></div>
+                <div><div className="text-xs text-muted">{tr("Imzolangan sana")}</div><div className="mt-0.5 font-display font-bold">{p.signedDate}</div></div>
               </div>
 
               {/* tasks */}
               <div className="mt-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-semibold">Rejadagi ishlar <span className="text-muted">({done}/{p.tasks.length})</span></span>
+                  <span className="text-sm font-semibold">{tr("Rejadagi ishlar")}<span className="text-muted">({done}/{p.tasks.length})</span></span>
                   <span className="text-xs font-bold text-green">{pct}%</span>
                 </div>
                 <div className="mb-3 h-2 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-green transition-all" style={{ width: `${pct}%` }} /></div>
@@ -715,7 +716,7 @@ function AdminPartners() {
                     const tm = taskMeta[t.status]
                     return (
                       <div key={t.id} className="flex items-center gap-3 rounded-lg border border-green/8 bg-white px-3 py-2">
-                        <button onClick={() => cycleTask(p.id, t.id)} disabled={mutating} title="Holatni o'zgartirish" className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${tm.cls}`}>
+                        <button onClick={() => cycleTask(p.id, t.id)} disabled={mutating} title={tr("Holatni o'zgartirish")} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-bold ${tm.cls}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${tm.dot}`} /> {tm.label}
                         </button>
                         <span className={`flex-1 text-sm ${t.status === "done" ? "text-muted line-through" : ""}`}>{t.title}</span>
@@ -726,8 +727,8 @@ function AdminPartners() {
                 </div>
                 {/* add task */}
                 <div className="mt-2 flex gap-2">
-                  <input value={taskDrafts[p.id] || ""} onChange={(e) => setTaskDrafts((d) => ({ ...d, [p.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter" && !mutating) addTask(p.id) }} placeholder="Yangi vazifa qo'shish..." className="flex-1 rounded-lg border border-green/15 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                  <button onClick={() => addTask(p.id)} disabled={mutating} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50"><Icon d={I.plus} className="h-4 w-4" /> Vazifa</button>
+                  <input value={taskDrafts[p.id] || ""} onChange={(e) => setTaskDrafts((d) => ({ ...d, [p.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter" && !mutating) addTask(p.id) }} placeholder={tr("Yangi vazifa qo'shish...")} className="flex-1 rounded-lg border border-green/15 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                  <button onClick={() => addTask(p.id)} disabled={mutating} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50"><Icon d={I.plus} className="h-4 w-4" />{tr("Vazifa")}</button>
                 </div>
               </div>
 
@@ -737,14 +738,14 @@ function AdminPartners() {
                   <div className="flex items-center gap-2.5">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.building} className="h-5 w-5" /></span>
                     <div>
-                      <div className="text-sm font-bold">Hamkor kabineti (login)</div>
+                      <div className="text-sm font-bold">{tr("Hamkor kabineti (login)")}</div>
                       <div className="text-xs text-muted">{p.client ? "Hamkor o'z kabinetiga kira oladi" : "Login yarating — hamkor o'z kabinetiga kiradi"}</div>
                     </div>
                   </div>
                   {p.client ? (
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-md bg-green/10 px-2.5 py-1 text-xs font-bold text-green"><Icon d={I.check} className="h-3.5 w-3.5" /> {p.client.email}</span>
-                      <button onClick={() => removeClient(p.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="Loginni o'chirish"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
+                      <button onClick={() => removeClient(p.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title={tr("Loginni o'chirish")}><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
                     </div>
                   ) : (
                     <button onClick={() => setOpenClient((o) => ({ ...o, [p.id]: !o[p.id] }))} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold text-green hover:bg-green hover:text-white">
@@ -756,8 +757,8 @@ function AdminPartners() {
                   <div className="mt-3">
                     {clientErr[p.id] && <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{clientErr[p.id]}</div>}
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                      <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder="Hamkor emaili" type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                      <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder="Boshlang'ich parol" type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder={tr("Hamkor emaili")} type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder={tr("Boshlang'ich parol")} type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <button onClick={() => createClient(p)} disabled={mutating} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{mutating ? "..." : "Yaratish"}</button>
                     </div>
                   </div>
@@ -772,16 +773,16 @@ function AdminPartners() {
       {editTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setEditTarget(null)}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Hamkorni tahrirlash</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Hamkorni tahrirlash")}</h3>
             <form onSubmit={saveEdit} className="mt-5 space-y-4">
               {editErr && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{editErr}</div>}
-              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tashkilot nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
-              <input value={editForm.sphere} onChange={(e) => setEditForm((f) => ({ ...f, sphere: e.target.value }))} placeholder="Yo'nalish (masalan: O'g'itlar)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Tashkilot nomi")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+              <input value={editForm.sphere} onChange={(e) => setEditForm((f) => ({ ...f, sphere: e.target.value }))} placeholder={tr("Yo'nalish (masalan: O'g'itlar)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
 
               {/* Logo: URL yozish yoki rasm yuklash — qo'shish formasi bilan bir xil */}
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted">Logo</label>
-                <input value={editForm.logo} onChange={(e) => setEditForm((f) => ({ ...f, logo: e.target.value }))} placeholder="Rasm havolasi (URL)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <label className="mb-1.5 block text-xs font-semibold text-muted">{tr("Logo")}</label>
+                <input value={editForm.logo} onChange={(e) => setEditForm((f) => ({ ...f, logo: e.target.value }))} placeholder={tr("Rasm havolasi (URL)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
                 <div className="mt-2 flex items-center gap-3">
                   <span className="text-xs text-muted">yoki</span>
                   <MediaUpload accept="image/*" onUpload={(r) => setEditForm((f) => ({ ...f, logo: r.signedUrl }))} />
@@ -796,18 +797,18 @@ function AdminPartners() {
                 )}
               </div>
 
-              <input value={editForm.contractNo} onChange={(e) => setEditForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder="Shartnoma raqami" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-              <input value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} placeholder="Summa (so'm)" type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={editForm.contractNo} onChange={(e) => setEditForm((f) => ({ ...f, contractNo: e.target.value }))} placeholder={tr("Shartnoma raqami")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+              <input value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} placeholder={tr("Summa (so'm)")} type="number" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
-                <option value="active">Faol</option>
-                <option value="pending">Kutilmoqda</option>
-                <option value="completed">Yakunlangan</option>
+                <option value="active">{tr("Faol")}</option>
+                <option value="pending">{tr("Kutilmoqda")}</option>
+                <option value="completed">{tr("Yakunlangan")}</option>
               </select>
 
               <p className="text-xs text-muted">Hamkor logini (email/parol) bu yerdan o'zgartirilmaydi — buning uchun kartadagi alohida bo'lim bor.</p>
 
               <div className="flex justify-end gap-3 pt-1">
-                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
                 </button>
@@ -825,11 +826,11 @@ function AdminPartners() {
               <span className="grid h-14 w-14 place-items-center rounded-full bg-red-50">
                 <Icon d="M12 9v4 M12 17h.01 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" className="h-7 w-7 text-red-500" />
               </span>
-              <h3 className="mt-4 font-display text-lg font-extrabold">Hamkorni o'chirish</h3>
-              <p className="mt-2 text-sm text-muted">Bu hamkorni ro'yxatdan o'chirishni tasdiqlaysizmi?</p>
+              <h3 className="mt-4 font-display text-lg font-extrabold">{tr("Hamkorni o'chirish")}</h3>
+              <p className="mt-2 text-sm text-muted">{tr("Bu hamkorni ro'yxatdan o'chirishni tasdiqlaysizmi?")}</p>
             </div>
             <div className="mt-6 flex items-center justify-center gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+              <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
               <button type="button" onClick={() => remove(deleteTarget)} disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 disabled:opacity-60">
                 <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> O'chirish
               </button>
@@ -872,8 +873,8 @@ function Overview() {
   ]
   return (
     <>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight">Admin Panel</h1>
-      <p className="mt-1 text-sm text-muted">Platformaning to'liq boshqaruvi.</p>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight">{tr("Admin Panel")}</h1>
+      <p className="mt-1 text-sm text-muted">{tr("Platformaning to'liq boshqaruvi.")}</p>
 
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
@@ -890,7 +891,7 @@ function Overview() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className={card}>
-          <h3 className="font-display text-lg font-bold">Platforma o'sishi</h3>
+          <h3 className="font-display text-lg font-bold">{tr("Platforma o'sishi")}</h3>
           <div className="mt-4">
               {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
               <LineChart
@@ -903,7 +904,7 @@ function Overview() {
           </div>
         </div>
         <div className={card}>
-          <h3 className="font-display text-lg font-bold">So'nggi yangiliklar</h3>
+          <h3 className="font-display text-lg font-bold">{tr("So'nggi yangiliklar")}</h3>
           <ul className="mt-4 space-y-3 text-sm">
             {newsLoading ? Array.from({ length: 4 }).map((_, i) => (
               <li key={i}><Skeleton className="h-8 w-full" /></li>
@@ -916,7 +917,7 @@ function Overview() {
                 </span>
               </li>
             )) : (
-              <li className="text-muted">Yangiliklar yo'q</li>
+              <li className="text-muted">{tr("Yangiliklar yo'q")}</li>
             )}
           </ul>
         </div>
@@ -962,15 +963,15 @@ function StatsEditor() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Sayt statistikasi</h2>
-          <p className="mt-1 text-sm text-muted">Bosh sahifadagi raqamlar (120+, 5M+ …) — bu yerdan tahrirlanadi.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Sayt statistikasi")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Bosh sahifadagi raqamlar (120+, 5M+ …) — bu yerdan tahrirlanadi.")}</p>
         </div>
         <button onClick={save} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
           <Icon d={I.check} className="h-4 w-4" /> {busy ? "Saqlanmoqda…" : "Saqlash"}
         </button>
       </div>
 
-      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi — bosh sahifada yangilandi.</div>}
+      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi — bosh sahifada yangilandi.")}</div>}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((s, i) => (
@@ -979,16 +980,16 @@ function StatsEditor() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-soft text-green"><Icon d={statIcon[s.key] || I.star} className="h-5 w-5" /></span>
               <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
             </div>
-            <label className="mt-4 block text-xs font-semibold text-muted">Qiymat</label>
+            <label className="mt-4 block text-xs font-semibold text-muted">{tr("Qiymat")}</label>
             <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} placeholder="120+" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 font-display text-lg font-extrabold outline-none focus:border-green" />
-            <label className="mt-3 block text-xs font-semibold text-muted">Izoh</label>
-            <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder="Agro blogerlar" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <label className="mt-3 block text-xs font-semibold text-muted">{tr("Izoh")}</label>
+            <input value={s.label} onChange={(e) => set(i, "label", e.target.value)} placeholder={tr("Agro blogerlar")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
           </div>
         ))}
         {loading && <div className="sm:col-span-2 lg:col-span-3"><SkeletonCard /></div>}
         {!loading && failed && <div className="sm:col-span-2 lg:col-span-3"><ErrorState onRetry={reload} /></div>}
         {!loading && !failed && items.length === 0 && (
-          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">Statistika sozlanmagan.</div>
+          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted sm:col-span-2 lg:col-span-3">{tr("Statistika sozlanmagan.")}</div>
         )}
       </div>
     </div>
@@ -1058,7 +1059,7 @@ function AdminTeam() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Jamoa a'zolari</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Jamoa a'zolari")}</h2>
           <p className="mt-1 text-sm text-muted">"Bizning jamoa" bo'limidagi a'zolarni boshqarish.</p>
         </div>
         <button onClick={openNew} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
@@ -1071,20 +1072,20 @@ function AdminTeam() {
           <h3 className="font-display text-lg font-bold">{editing ? "Tahrirlash" : "Yangi a'zo"}</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-muted">Ism *</label>
-              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Aliyev Alisher" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <label className="block text-xs font-semibold text-muted">{tr("Ism *")}</label>
+              <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Aliyev Alisher")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted">Lavozim</label>
-              <input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder="Bosh direktor" className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <label className="block text-xs font-semibold text-muted">{tr("Lavozim")}</label>
+              <input value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} placeholder={tr("Bosh direktor")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-xs font-semibold text-muted">Rasm</label>
+            <label className="block text-xs font-semibold text-muted">{tr("Rasm")}</label>
             {form.image_url && (
               <div className="mt-2 mb-2 flex items-center gap-3">
                 <img src={form.image_url} alt="preview" className="h-16 w-16 rounded-full object-cover ring-2 ring-soft" />
-                <button onClick={() => setForm((f) => ({ ...f, image_url: "" }))} className="text-xs font-semibold text-red-500 hover:underline">O'chirish</button>
+                <button onClick={() => setForm((f) => ({ ...f, image_url: "" }))} className="text-xs font-semibold text-red-500 hover:underline">{tr("O'chirish")}</button>
               </div>
             )}
             <MediaUpload
@@ -1096,7 +1097,7 @@ function AdminTeam() {
             <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
               <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
             </button>
-            <button onClick={() => setShowForm(false)} className="rounded-xl border border-green/20 bg-white px-5 py-2.5 text-sm font-bold text-muted transition-colors hover:bg-soft">Bekor qilish</button>
+            <button onClick={() => setShowForm(false)} className="rounded-xl border border-green/20 bg-white px-5 py-2.5 text-sm font-bold text-muted transition-colors hover:bg-soft">{tr("Bekor qilish")}</button>
           </div>
         </div>
       )}
@@ -1121,8 +1122,8 @@ function AdminTeam() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <button onClick={() => openEdit(m)} className="flex-1 rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">Tahrirlash</button>
-              <button onClick={() => remove(m.id)} disabled={mutating} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">O'chirish</button>
+              <button onClick={() => openEdit(m)} className="flex-1 rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">{tr("Tahrirlash")}</button>
+              <button onClick={() => remove(m.id)} disabled={mutating} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50">{tr("O'chirish")}</button>
             </div>
           </div>
         ))}
@@ -1143,7 +1144,7 @@ function Placeholder({ title }: { title: string }) {
       <div>
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.gear} className="h-8 w-8" /></span>
         <h2 className="mt-4 font-display text-xl font-bold">{title}</h2>
-        <p className="mt-2 text-muted">Bu bo'lim tez orada qo'shiladi.</p>
+        <p className="mt-2 text-muted">{tr("Bu bo'lim tez orada qo'shiladi.")}</p>
       </div>
     </div>
   )
@@ -1270,16 +1271,16 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
             {/* Asosiy matn */}
             <div className="space-y-4">
               <div>
-                <label className={lbl}>Sarlavha *</label>
-                <input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Yangilik sarlavhasi" className={inp} />
+                <label className={lbl}>{tr("Sarlavha *")}</label>
+                <input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder={tr("Yangilik sarlavhasi")} className={inp} />
               </div>
               <div>
-                <label className={lbl}>Qisqacha (ro'yxatda ko'rinadi)</label>
-                <textarea value={form.excerpt} onChange={(e) => set("excerpt", e.target.value)} rows={2} placeholder="Bir-ikki jumla" className={`${inp} resize-none`} />
+                <label className={lbl}>{tr("Qisqacha (ro'yxatda ko'rinadi)")}</label>
+                <textarea value={form.excerpt} onChange={(e) => set("excerpt", e.target.value)} rows={2} placeholder={tr("Bir-ikki jumla")} className={`${inp} resize-none`} />
               </div>
               <div>
-                <label className={lbl}>Matn *</label>
-                <textarea value={form.content} onChange={(e) => set("content", e.target.value)} rows={16} placeholder="Yangilik matni" className={`${inp} resize-y font-mono text-[13px] leading-relaxed`} />
+                <label className={lbl}>{tr("Matn *")}</label>
+                <textarea value={form.content} onChange={(e) => set("content", e.target.value)} rows={16} placeholder={tr("Yangilik matni")} className={`${inp} resize-y font-mono text-[13px] leading-relaxed`} />
                 <p className="mt-1 text-xs text-muted">
                   {form.content.trim().split(/\s+/).filter(Boolean).length} so'z
                   {" · "}
@@ -1291,15 +1292,15 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
             {/* Yon ustun */}
             <div className="space-y-4">
               <div>
-                <label className={lbl}>Kategoriya</label>
+                <label className={lbl}>{tr("Kategoriya")}</label>
                 <select value={form.category_id} onChange={(e) => set("category_id", e.target.value)} className={inp}>
-                  <option value="">— tanlanmagan —</option>
+                  <option value="">{tr("— tanlanmagan —")}</option>
                   {cats.map((c) => <option key={c.id} value={c.id}>{c.name_uz}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className={lbl}>Muqova rasmi</label>
+                <label className={lbl}>{tr("Muqova rasmi")}</label>
                 {form.cover_image ? (
                   <div className="relative overflow-hidden rounded-lg border border-green/15">
                     <img loading="lazy" decoding="async" src={form.cover_image} alt="" className="h-32 w-full object-cover" />
@@ -1324,12 +1325,12 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
               </div>
 
               <details className="rounded-xl border border-green/10 p-3">
-                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-muted">Manba va SEO</summary>
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-muted">{tr("Manba va SEO")}</summary>
                 <div className="mt-3 space-y-3">
-                  <input value={form.source_name} onChange={(e) => set("source_name", e.target.value)} placeholder="Manba nomi" className={inp} />
-                  <input value={form.source_url} onChange={(e) => set("source_url", e.target.value)} placeholder="Manba havolasi" className={inp} />
-                  <input value={form.seo_title} onChange={(e) => set("seo_title", e.target.value)} placeholder="SEO sarlavha" className={inp} />
-                  <textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} placeholder="SEO tavsif" className={`${inp} resize-none`} />
+                  <input value={form.source_name} onChange={(e) => set("source_name", e.target.value)} placeholder={tr("Manba nomi")} className={inp} />
+                  <input value={form.source_url} onChange={(e) => set("source_url", e.target.value)} placeholder={tr("Manba havolasi")} className={inp} />
+                  <input value={form.seo_title} onChange={(e) => set("seo_title", e.target.value)} placeholder={tr("SEO sarlavha")} className={inp} />
+                  <textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} placeholder={tr("SEO tavsif")} className={`${inp} resize-none`} />
                 </div>
               </details>
             </div>
@@ -1417,8 +1418,8 @@ function AdminNews() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Yangiliklar boshqaruvi</h2>
-          <p className="mt-1 text-sm text-muted">Platformadagi barcha yangiliklar.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Yangiliklar boshqaruvi")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Platformadagi barcha yangiliklar.")}</p>
         </div>
         <button onClick={() => setEditing("new")} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi yangilik
@@ -1436,14 +1437,14 @@ function AdminNews() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         <div className="relative mb-4 max-w-sm">
           <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder="Yangilik qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+          <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} placeholder={tr("Yangilik qidirish...")} className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
         </div>
 
         {loading && <SkeletonTable rows={6} cols={5} />}
 
         {!loading && failed && <ErrorState onRetry={() => fetchNews(page, query)} />}
         {!loading && !failed && articles.length === 0 && (
-          <div className="py-8 text-center text-muted">Yangiliklar topilmadi.</div>
+          <div className="py-8 text-center text-muted">{tr("Yangiliklar topilmadi.")}</div>
         )}
 
         {!loading && selectedIds.size > 0 && (
@@ -1462,12 +1463,12 @@ function AdminNews() {
                   <th className="pb-3 font-semibold w-10">
                     <input type="checkbox" checked={articles.length > 0 && selectedIds.size === articles.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
                   </th>
-                  <th className="pb-3 font-semibold">Sarlavha</th>
-                  <th className="pb-3 font-semibold">Kategoriya</th>
-                  <th className="pb-3 font-semibold">Holat</th>
-                  <th className="pb-3 font-semibold">Ko'rishlar</th>
-                  <th className="pb-3 font-semibold">Sana</th>
-                  <th className="pb-3 font-semibold">Amallar</th>
+                  <th className="pb-3 font-semibold">{tr("Sarlavha")}</th>
+                  <th className="pb-3 font-semibold">{tr("Kategoriya")}</th>
+                  <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                  <th className="pb-3 font-semibold">{tr("Ko'rishlar")}</th>
+                  <th className="pb-3 font-semibold">{tr("Sana")}</th>
+                  <th className="pb-3 font-semibold">{tr("Amallar")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1496,10 +1497,10 @@ function AdminNews() {
                     <td className="py-3 pr-3 text-muted text-xs">{a.published_at ? new Date(a.published_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setEditing(a.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title="Tahrirlash">
+                        <button onClick={() => setEditing(a.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title={tr("Tahrirlash")}>
                           <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-4 w-4" />
                         </button>
-                        <button onClick={() => remove(a.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title="O'chirish">
+                        <button onClick={() => remove(a.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" title={tr("O'chirish")}>
                           <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
                         </button>
                       </div>
@@ -1563,6 +1564,33 @@ function AdminSettings() {
 
   useEffect(() => { load(); checkIgStatus() }, [])
 
+  /**
+   * QAYTA TARJIMA.
+   *
+   * Kontent tarjimasi odatda sahifa ochilgani sari o'z-o'zidan
+   * to'ldiriladi, lekin bu sekin. Bu tugma bir bosishda imkon qadar
+   * ko'p yozuvni tarjima qiladi va nechtasi qolganini aytadi.
+   */
+  const [trBusy, runTr] = useBusy()
+  const [trMsg, setTrMsg] = useState("")
+  const [trErr, setTrErr] = useState("")
+  const retranslate = (reset: boolean) => runTr(async () => {
+    setTrMsg(""); setTrErr("")
+    try {
+      const r = await api<{ qilindi: number; qoldi: number }>(
+        `/settings?action=retranslate${reset ? "&reset=1" : ""}`,
+        { method: "POST", body: "{}" },
+      )
+      setTrMsg(
+        r.qoldi > 0
+          ? `${r.qilindi} ta yozuv tarjima qilindi. Yana ${r.qoldi} ta qoldi — tugmani qayta bosing.`
+          : `${r.qilindi} ta yozuv tarjima qilindi. Hammasi tayyor.`,
+      )
+    } catch (e) {
+      setTrErr(e instanceof Error ? e.message : "Tarjima qilib bo'lmadi")
+    }
+  })
+
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "instagram-connected") {
@@ -1620,23 +1648,57 @@ function AdminSettings() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Sozlamalar</h2>
-          <p className="mt-1 text-sm text-muted">Platforma sozlamalarini boshqarish.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Sozlamalar")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Platforma sozlamalarini boshqarish.")}</p>
         </div>
         <button onClick={save} disabled={loading || saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
           <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
         </button>
       </div>
 
-      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Saqlandi!</div>}
+      {saved && <div className="mt-4 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi!")}</div>}
       {igError && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{igError}</div>}
+
+      {/* Kontent tarjimasi */}
+      <div className="mt-5 rounded-2xl border border-green/15 bg-[#fafdf7] p-5">
+        <div className="flex items-center gap-2 text-green">
+          <Icon d={I.globe} className="h-5 w-5" />
+          <span className="font-display text-base font-bold">{tr("Kontent tarjimasi")}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          Bosh sahifa bloklari, yangiliklar, hamkorlar va jamoa ma'lumotlari rus,
+          ingliz va xitoy tillariga AI orqali tarjima qilinadi. Odatda bu
+          o'z-o'zidan bajariladi — bu tugmalar jarayonni tezlashtiradi.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => retranslate(false)}
+            disabled={trBusy}
+            className="inline-flex items-center gap-2 rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60"
+          >
+            <Icon d={I.refresh} className={`h-4 w-4 ${trBusy ? "animate-spin" : ""}`} />
+            {trBusy ? "Tarjima qilinmoqda…" : "Tarjima qilinmaganlarni tarjima qilish"}
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Mavjud tarjimalar o'chiriladi va hammasi boshidan qilinadi. Davom etamizmi?")) retranslate(true)
+            }}
+            disabled={trBusy}
+            className="rounded-xl border-2 border-green/25 px-4 py-2.5 text-sm font-bold hover:border-green hover:text-green disabled:opacity-50"
+          >
+            Boshidan qayta tarjima
+          </button>
+        </div>
+        {trMsg && <p className="mt-3 rounded-lg bg-green/10 px-3 py-2 text-sm font-medium text-green">{trMsg}</p>}
+        {trErr && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{trErr}</p>}
+      </div>
 
       {/* Instagram/Facebook ulash */}
       <div className="mt-5 rounded-2xl border border-pink-200 bg-pink-50/50 p-5">
         <div className="flex items-center justify-between gap-2 text-pink-600">
           <div className="flex items-center gap-2">
             <Icon d={I.instagram} className="h-5 w-5" />
-            <span className="font-display text-base font-bold">Instagram akkaunt ulash</span>
+            <span className="font-display text-base font-bold">{tr("Instagram akkaunt ulash")}</span>
           </div>
           {!igChecking && igConnected && (
             <span className="inline-flex items-center gap-1.5 rounded-md bg-green/10 px-2.5 py-1 text-xs font-bold text-green">
@@ -1671,7 +1733,7 @@ function AdminSettings() {
       {!loading && failed && <ErrorState onRetry={load} message="Sozlamalarni yuklab bo'lmadi." />}
 
       {!loading && !failed && settings.length === 0 && (
-        <div className="py-8 text-center text-muted">Sozlamalar topilmadi.</div>
+        <div className="py-8 text-center text-muted">{tr("Sozlamalar topilmadi.")}</div>
       )}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1679,9 +1741,9 @@ function AdminSettings() {
           <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.key}</span>
-              {s.is_public && <span className="rounded-md bg-green/10 px-2 py-0.5 text-[11px] font-bold text-green">Public</span>}
+              {s.is_public && <span className="rounded-md bg-green/10 px-2 py-0.5 text-[11px] font-bold text-green">{tr("Public")}</span>}
             </div>
-            <label className="mt-3 block text-xs font-semibold text-muted">Qiymat</label>
+            <label className="mt-3 block text-xs font-semibold text-muted">{tr("Qiymat")}</label>
             <input value={s.value} onChange={(e) => set(i, "value", e.target.value)} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             {s.description && <p className="mt-1 text-[11px] text-muted">{s.description}</p>}
           </div>
@@ -1759,24 +1821,24 @@ function AdminTasks() {
   return (
     <div>
       <div>
-        <h2 className="font-display text-xl font-extrabold tracking-tight">Topshiriqlar (TZ)</h2>
-        <p className="mt-1 text-sm text-muted">Blogerlarga topshiriq yuboring va bajarilishini kuzating.</p>
+        <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Topshiriqlar (TZ)")}</h2>
+        <p className="mt-1 text-sm text-muted">{tr("Blogerlarga topshiriq yuboring va bajarilishini kuzating.")}</p>
       </div>
 
       {/* Yangi TZ formasi */}
       <div className={`${card} mt-5`}>
-        <h3 className="font-display font-bold">Yangi topshiriq yuborish</h3>
+        <h3 className="font-display font-bold">{tr("Yangi topshiriq yuborish")}</h3>
         <div className="mt-4 space-y-3">
-          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Sarlavha (masalan: Yangi mahsulot haqida video)" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} placeholder="Topshiriq tavsifi / talablar…" className="w-full resize-none rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder={tr("Sarlavha (masalan: Yangi mahsulot haqida video)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} placeholder={tr("Topshiriq tavsifi / talablar…")} className="w-full resize-none rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-muted">Muddat (ixtiyoriy)</span>
+            <span className="mb-1 block text-xs font-semibold text-muted">{tr("Muddat (ixtiyoriy)")}</span>
             <input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
           </label>
 
           {/* TZ fayl (ixtiyoriy) */}
           <div>
-            <span className="mb-1.5 block text-xs font-semibold text-muted">TZ fayli (ixtiyoriy) — PDF, Word, rasm</span>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">{tr("TZ fayli (ixtiyoriy) — PDF, Word, rasm")}</span>
             {file ? (
               <div className="flex items-center gap-2 rounded-xl border border-green/20 bg-green/5 px-4 py-2.5 text-sm">
                 <Icon d={I.paperclip} className="h-4 w-4 shrink-0 text-green" />
@@ -1790,10 +1852,10 @@ function AdminTasks() {
 
           {/* Kimga */}
           <div>
-            <span className="mb-1.5 block text-xs font-semibold text-muted">Kimga yuborish</span>
+            <span className="mb-1.5 block text-xs font-semibold text-muted">{tr("Kimga yuborish")}</span>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setTarget("all")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "all" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>Hamma blogerlarga</button>
-              <button type="button" onClick={() => setTarget("selected")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "selected" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>Tanlangan blogerlarga</button>
+              <button type="button" onClick={() => setTarget("all")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "all" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>{tr("Hamma blogerlarga")}</button>
+              <button type="button" onClick={() => setTarget("selected")} className={`rounded-lg px-4 py-2 text-sm font-bold transition-colors ${target === "selected" ? "bg-green text-white" : "border-2 border-green/25 text-ink hover:border-green"}`}>{tr("Tanlangan blogerlarga")}</button>
             </div>
             {target === "selected" && (
               <div className="mt-3 max-h-52 overflow-y-auto rounded-xl border border-green/15 p-3">
@@ -1824,13 +1886,13 @@ function AdminTasks() {
 
       {/* Yuborilgan TZ ro'yxati */}
       <div className="mt-6">
-        <h3 className="font-display font-bold">Yuborilgan topshiriqlar</h3>
+        <h3 className="font-display font-bold">{tr("Yuborilgan topshiriqlar")}</h3>
         {loading ? (
           <div className="mt-3"><SkeletonCard /></div>
         ) : failed ? (
           <div className="mt-3"><ErrorState onRetry={load} message="Topshiriqlarni yuklab bo'lmadi." /></div>
         ) : tasks.length === 0 ? (
-          <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">Hali topshiriq yuborilmagan.</p>
+          <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">{tr("Hali topshiriq yuborilmagan.")}</p>
         ) : (
           <div className="mt-3 space-y-3">
             {tasks.map((t) => (
@@ -1961,8 +2023,8 @@ function BloggerTaskStatus() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Bloger holatlari</h2>
-          <p className="mt-1 text-sm text-muted">Har bir bloger qaysi topshiriqni bajaryapti.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Bloger holatlari")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Har bir bloger qaysi topshiriqni bajaryapti.")}</p>
         </div>
         <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           <Icon d={I.refresh} className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Yangilash
@@ -1980,20 +2042,20 @@ function BloggerTaskStatus() {
       ) : (
         <>
           <div className="mt-5 grid gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Blogerlar</div><div className="mt-1 font-display text-2xl font-extrabold">{totals.bloggers}</div></div>
-            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Yangi</div><div className="mt-1 font-display text-2xl font-extrabold text-gray-600">{totals.new}</div></div>
-            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Bajarilmoqda</div><div className="mt-1 font-display text-2xl font-extrabold text-blue-700">{totals.in_progress}</div></div>
-            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">Bajarildi</div><div className="mt-1 font-display text-2xl font-extrabold text-green">{totals.done}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">{tr("Blogerlar")}</div><div className="mt-1 font-display text-2xl font-extrabold">{totals.bloggers}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">{tr("Yangi")}</div><div className="mt-1 font-display text-2xl font-extrabold text-gray-600">{totals.new}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">{tr("Bajarilmoqda")}</div><div className="mt-1 font-display text-2xl font-extrabold text-blue-700">{totals.in_progress}</div></div>
+            <div className="rounded-2xl border border-green/10 bg-white p-4"><div className="text-xs text-muted">{tr("Bajarildi")}</div><div className="mt-1 font-display text-2xl font-extrabold text-green">{totals.done}</div></div>
           </div>
 
           <div className={`${card} mt-5`}>
             <div className="relative mb-4 max-w-sm">
               <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Bloger qidirish..." className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Bloger qidirish...")} className="w-full rounded-xl border border-green/15 bg-[#f7faf4] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-green" />
             </div>
 
             {list.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted">Bloger topilmadi.</p>
+              <p className="py-8 text-center text-sm text-muted">{tr("Bloger topilmadi.")}</p>
             ) : (
               <div className="space-y-2">
                 {list.map((r) => (
@@ -2075,8 +2137,8 @@ function AdminMonitoring() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Monitoring</h2>
-          <p className="mt-1 text-sm text-muted">Worker'lar, queue'lar va tizim holati.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Monitoring")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Worker'lar, queue'lar va tizim holati.")}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
@@ -2089,27 +2151,27 @@ function AdminMonitoring() {
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <div className={card.replace("p-6", "p-5")}>
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.doc} className="h-5 w-5" /></span>
-          <div className="mt-3 text-xs text-muted">Yangiliklar queue</div>
+          <div className="mt-3 text-xs text-muted">{tr("Yangiliklar queue")}</div>
           <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "pending").length}</div>
         </div>
         <div className={card.replace("p-6", "p-5")}>
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.chart} className="h-5 w-5" /></span>
-          <div className="mt-3 text-xs text-muted">Jarayonda</div>
+          <div className="mt-3 text-xs text-muted">{tr("Jarayonda")}</div>
           <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "processing").length}</div>
         </div>
         <div className={card.replace("p-6", "p-5")}>
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.shield} className="h-5 w-5" /></span>
-          <div className="mt-3 text-xs text-muted">Bajarilgan</div>
+          <div className="mt-3 text-xs text-muted">{tr("Bajarilgan")}</div>
           <div className="mt-1 font-display text-2xl font-extrabold">{newsJobs.filter((j) => j.status === "completed").length}</div>
         </div>
       </div>
 
       {/* Job List */}
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-        <h3 className="font-display text-lg font-bold">Yangiliklar ishlari</h3>
+        <h3 className="font-display text-lg font-bold">{tr("Yangiliklar ishlari")}</h3>
         {loading && <div className="py-8"><SkeletonTable rows={4} cols={3} /></div>}
         {!loading && failed && <ErrorState onRetry={load} />}
-        {!loading && !failed && newsJobs.length === 0 && <div className="py-8 text-center text-muted">Hech qanday ish topilmadi.</div>}
+        {!loading && !failed && newsJobs.length === 0 && <div className="py-8 text-center text-muted">{tr("Hech qanday ish topilmadi.")}</div>}
         {!loading && newsJobs.length > 0 && (
           <div className="mt-4 space-y-2">
             {newsJobs.slice(0, 20).map((j) => (
@@ -2121,7 +2183,7 @@ function AdminMonitoring() {
                 <span className="flex-1 text-sm font-medium">{j.job_type}</span>
                 <span className="text-xs text-muted">{new Date(j.created_at).toLocaleString("uz")}</span>
                 {j.status === "failed" && (
-                  <button onClick={() => retry(j.id)} disabled={mutating} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50">Qayta</button>
+                  <button onClick={() => retry(j.id)} disabled={mutating} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white disabled:opacity-50">{tr("Qayta")}</button>
                 )}
               </div>
             ))}
@@ -2178,8 +2240,8 @@ function AdminNewsSources() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Yangilik manbalari</h2>
-          <p className="mt-1 text-sm text-muted">RSS, Telegram va veb-saytlardan yangiliklar yig'ish manbalari.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Yangilik manbalari")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("RSS, Telegram va veb-saytlardan yangiliklar yig'ish manbalari.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi manba qo'shish
@@ -2190,11 +2252,11 @@ function AdminNewsSources() {
         <form onSubmit={add} className="mt-5 rounded-2xl border border-green/15 bg-soft p-5">
           {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
           <div className="grid gap-3 sm:grid-cols-3">
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Manba nomi" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={tr("Manba nomi")} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none">
               <option value="rss">RSS</option>
-              <option value="web">Web Crawler</option>
-              <option value="telegram">Telegram</option>
+              <option value="web">{tr("Web Crawler")}</option>
+              <option value="telegram">{tr("Telegram")}</option>
             </select>
             <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="URL" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <button type="submit" disabled={saving} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? "..." : "Qo'shish"}</button>
@@ -2207,18 +2269,18 @@ function AdminNewsSources() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
-                <th className="pb-3 font-semibold">Nomi</th>
-                <th className="pb-3 font-semibold">Turi</th>
+                <th className="pb-3 font-semibold">{tr("Nomi")}</th>
+                <th className="pb-3 font-semibold">{tr("Turi")}</th>
                 <th className="pb-3 font-semibold">URL</th>
-                <th className="pb-3 font-semibold">Holat</th>
-                <th className="pb-3 font-semibold">Oxirgi yuklash</th>
-                <th className="pb-3 font-semibold">Amallar</th>
+                <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                <th className="pb-3 font-semibold">{tr("Oxirgi yuklash")}</th>
+                <th className="pb-3 font-semibold">{tr("Amallar")}</th>
               </tr>
             </thead>
             <tbody>
               {loading && <tr><td colSpan={6} className="py-6"><SkeletonTable rows={4} cols={5} /></td></tr>}
               {!loading && failed && (
-                <tr><td colSpan={6} className="py-10 text-center text-red-600">Manbalarni yuklab bo'lmadi. <button onClick={() => reload()} className="font-bold text-green hover:underline">Qayta urinish</button></td></tr>
+                <tr><td colSpan={6} className="py-10 text-center text-red-600">{tr("Manbalarni yuklab bo'lmadi.")}<button onClick={() => reload()} className="font-bold text-green hover:underline">{tr("Qayta urinish")}</button></td></tr>
               )}
               {!loading && !failed && sources.length === 0 && (
                 <tr><td colSpan={6} className="py-10 text-center text-muted">Manba yo'q. "Yangi manba qo'shish" orqali qo'shing.</td></tr>
@@ -2236,7 +2298,7 @@ function AdminNewsSources() {
                   </td>
                   <td className="py-3 pr-3 text-muted text-xs">{s.last_fetched_at ? new Date(s.last_fetched_at).toLocaleString("uz") : "—"}</td>
                   <td className="py-3">
-                    <button onClick={() => remove(s.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title="O'chirish">
+                    <button onClick={() => remove(s.id)} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500" title={tr("O'chirish")}>
                       <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" />
                     </button>
                   </td>
@@ -2311,8 +2373,8 @@ function AdminUsers() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Foydalanuvchilar</h2>
-          <p className="mt-1 text-sm text-muted">Barcha ro'yxatdan o'tgan foydalanuvchilar.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Foydalanuvchilar")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Barcha ro'yxatdan o'tgan foydalanuvchilar.")}</p>
         </div>
         <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
@@ -2321,17 +2383,17 @@ function AdminUsers() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && failed && <ErrorState onRetry={load} />}
-        {!loading && !failed && users.length === 0 && <div className="py-8 text-center text-muted">Foydalanuvchilar topilmadi.</div>}
+        {!loading && !failed && users.length === 0 && <div className="py-8 text-center text-muted">{tr("Foydalanuvchilar topilmadi.")}</div>}
         {!loading && users.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
-                  <th className="pb-3 font-semibold">Foydalanuvchi</th>
+                  <th className="pb-3 font-semibold">{tr("Foydalanuvchi")}</th>
                   <th className="pb-3 font-semibold">Rol</th>
-                  <th className="pb-3 font-semibold">Holat</th>
-                  <th className="pb-3 font-semibold">Ro'yxatdan o'tgan</th>
-                  <th className="pb-3 font-semibold">Amallar</th>
+                  <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                  <th className="pb-3 font-semibold">{tr("Ro'yxatdan o'tgan")}</th>
+                  <th className="pb-3 font-semibold">{tr("Amallar")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2355,7 +2417,7 @@ function AdminUsers() {
                           autoFocus
                           className="rounded-lg border border-green/30 px-2 py-1 text-xs font-bold outline-none"
                         >
-                          <option value="" disabled>Rolni tanlang</option>
+                          <option value="" disabled>{tr("Rolni tanlang")}</option>
                           {roles.map((r) => (
                             <option key={r.id} value={r.id}>{r.name}</option>
                           ))}
@@ -2447,8 +2509,8 @@ function AdminContacts() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Aloqa xabarlari</h2>
-          <p className="mt-1 text-sm text-muted">Foydalanuvchilardan kelgan xabarlar.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Aloqa xabarlari")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Foydalanuvchilardan kelgan xabarlar.")}</p>
         </div>
         <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
@@ -2457,17 +2519,17 @@ function AdminContacts() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && failed && <ErrorState onRetry={load} />}
-        {!loading && !failed && messages.length === 0 && <div className="py-8 text-center text-muted">Xabarlar yo'q.</div>}
+        {!loading && !failed && messages.length === 0 && <div className="py-8 text-center text-muted">{tr("Xabarlar yo'q.")}</div>}
         {!loading && messages.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
-                  <th className="pb-3 font-semibold">Yuboruvchi</th>
-                  <th className="pb-3 font-semibold">Mavzu</th>
-                  <th className="pb-3 font-semibold">Holat</th>
-                  <th className="pb-3 font-semibold">Sana</th>
-                  <th className="pb-3 font-semibold">Amallar</th>
+                  <th className="pb-3 font-semibold">{tr("Yuboruvchi")}</th>
+                  <th className="pb-3 font-semibold">{tr("Mavzu")}</th>
+                  <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                  <th className="pb-3 font-semibold">{tr("Sana")}</th>
+                  <th className="pb-3 font-semibold">{tr("Amallar")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2480,7 +2542,7 @@ function AdminContacts() {
                     </td>
                     <td className="py-3 pr-3 text-muted text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3 flex gap-1.5">
-                      <button onClick={() => markRead(m)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">Ko'rish</button>
+                      <button onClick={() => markRead(m)} className="rounded-lg border border-green/20 px-2.5 py-1 text-xs font-bold text-green hover:bg-green hover:text-white">{tr("Ko'rish")}</button>
                       <button onClick={() => remove(m.id)} disabled={mutating} className="grid h-8 w-8 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"><Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6" className="h-4 w-4" /></button>
                     </td>
                   </tr>
@@ -2497,7 +2559,7 @@ function AdminContacts() {
               <h3 className="font-display text-lg font-bold">{selected.subject || "Xabar"}</h3>
               <button onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-soft"><Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" /></button>
             </div>
-            <div className="mt-3 text-sm text-muted">Yuboruvchi: <strong>{selected.name}</strong> ({selected.email})</div>
+            <div className="mt-3 text-sm text-muted">{tr("Yuboruvchi:")}<strong>{selected.name}</strong> ({selected.email})</div>
             {selected.phone && <div className="mt-1 text-sm text-muted">Telefon: {selected.phone}</div>}
             <div className="mt-4 rounded-xl bg-soft p-4 text-sm leading-relaxed whitespace-pre-wrap">{selected.message}</div>
           </div>
@@ -2537,8 +2599,8 @@ function AdminSubscribers() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Obunachilar</h2>
-          <p className="mt-1 text-sm text-muted">Newsletter obunachilari ro'yxati.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Obunachilar")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Newsletter obunachilari ro'yxati.")}</p>
         </div>
         <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
@@ -2547,16 +2609,16 @@ function AdminSubscribers() {
       <div className="mt-5 min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
         {loading && <SkeletonTable rows={6} cols={5} />}
         {!loading && failed && <ErrorState onRetry={load} />}
-        {!loading && !failed && subs.length === 0 && <div className="py-8 text-center text-muted">Obunachilar yo'q.</div>}
+        {!loading && !failed && subs.length === 0 && <div className="py-8 text-center text-muted">{tr("Obunachilar yo'q.")}</div>}
         {!loading && subs.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[500px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
-                  <th className="pb-3 font-semibold">Email</th>
-                  <th className="pb-3 font-semibold">Holat</th>
-                  <th className="pb-3 font-semibold">Obuna bo'lgan</th>
-                  <th className="pb-3 font-semibold">Amallar</th>
+                  <th className="pb-3 font-semibold">{tr("Email")}</th>
+                  <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                  <th className="pb-3 font-semibold">{tr("Obuna bo'lgan")}</th>
+                  <th className="pb-3 font-semibold">{tr("Amallar")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2649,8 +2711,8 @@ function AdminCategories() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Kategoriyalar</h2>
-          <p className="mt-1 text-sm text-muted">Yangiliklar kategoriyalarini boshqarish.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Kategoriyalar")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Yangiliklar kategoriyalarini boshqarish.")}</p>
         </div>
         <button onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi kategoriya
@@ -2674,17 +2736,17 @@ function AdminCategories() {
                 <th className="pb-3 font-semibold w-10">
                   <input type="checkbox" checked={cats.length > 0 && selectedIds.size === cats.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
                 </th>
-                <th className="pb-3 font-semibold">Kalit</th>
-                <th className="pb-3 font-semibold">Nomi (uz)</th>
-                <th className="pb-3 font-semibold">Nomi (ru)</th>
-                <th className="pb-3 font-semibold">Nomi (en)</th>
-                <th className="pb-3 font-semibold">Holat</th>
-                <th className="pb-3 font-semibold">Amallar</th>
+                <th className="pb-3 font-semibold">{tr("Kalit")}</th>
+                <th className="pb-3 font-semibold">{tr("Nomi (uz)")}</th>
+                <th className="pb-3 font-semibold">{tr("Nomi (ru)")}</th>
+                <th className="pb-3 font-semibold">{tr("Nomi (en)")}</th>
+                <th className="pb-3 font-semibold">{tr("Holat")}</th>
+                <th className="pb-3 font-semibold">{tr("Amallar")}</th>
               </tr>
             </thead>
             <tbody>
               {failed && <tr><td colSpan={8} className="py-10 text-center"><ErrorState onRetry={load} /></td></tr>}
-              {!failed && cats.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-muted">Kategoriya yo'q.</td></tr>}
+              {!failed && cats.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-muted">{tr("Kategoriya yo'q.")}</td></tr>}
               {cats.map((c) => (
                 <tr key={c.id} className="border-t border-green/8 text-sm">
                   <td className="py-3 pr-3 w-10">
@@ -2697,8 +2759,8 @@ function AdminCategories() {
                   <td className="py-3 pr-3">
                     <button onClick={() => toggle(c)} disabled={mutating} className="disabled:opacity-50">
                       {c.is_active
-                        ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Faol</span>
-                        : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Nofaol</span>}
+                        ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" />{tr("Faol")}</span>
+                        : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{tr("Nofaol")}</span>}
                     </button>
                   </td>
                   <td className="py-3">
@@ -2716,27 +2778,27 @@ function AdminCategories() {
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setAdding(false); setError(""); setForm(blank) }}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Yangi kategoriya qo'shish</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Yangi kategoriya qo'shish")}</h3>
             <form onSubmit={add} className="mt-5 space-y-4">
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</div>}
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Kalit</label>
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Kalit")}</label>
                 <input value={form.key} onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))} placeholder="masalan: texnologiya" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (uz)</label>
-                <input value={form.name_uz} onChange={(e) => setForm((f) => ({ ...f, name_uz: e.target.value }))} placeholder="O'zbekcha nomi" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Nomi (uz)")}</label>
+                <input value={form.name_uz} onChange={(e) => setForm((f) => ({ ...f, name_uz: e.target.value }))} placeholder={tr("O'zbekcha nomi")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" required />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (ru)</label>
-                <input value={form.name_ru} onChange={(e) => setForm((f) => ({ ...f, name_ru: e.target.value }))} placeholder="Russkiy" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Nomi (ru)")}</label>
+                <input value={form.name_ru} onChange={(e) => setForm((f) => ({ ...f, name_ru: e.target.value }))} placeholder={tr("Russkiy")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Nomi (en)</label>
-                <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="English" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Nomi (en)")}</label>
+                <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder={tr("English")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   {saving ? "Qo'shilmoqda…" : "Qo'shish"}
@@ -2808,8 +2870,8 @@ function AdminHomepage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Bosh sahifa boshqaruvi</h2>
-          <p className="mt-1 text-sm text-muted">Sayt kontenti: sarlavhalar, matnlar, aloqa ma'lumotlari va linklarni tahrirlang.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Bosh sahifa boshqaruvi")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Sayt kontenti: sarlavhalar, matnlar, aloqa ma'lumotlari va linklarni tahrirlang.")}</p>
         </div>
         <button onClick={() => runRefresh(load)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border-2 border-green/30 px-4 py-2 text-sm font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           <Icon d={I.refresh} className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Yangilanmoqda…" : "Yangilash"}
@@ -2818,16 +2880,16 @@ function AdminHomepage() {
       {saveErr && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{saveErr}</div>}
       {loading && <div className="mt-5"><SkeletonTable rows={5} cols={3} /></div>}
       {!loading && failed && <ErrorState onRetry={load} />}
-        {!loading && !failed && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Bo'limlar topilmadi.</div>}
+        {!loading && !failed && sections.length === 0 && <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">{tr("Bo'limlar topilmadi.")}</div>}
       <div className="mt-5 space-y-4">
         {sections.map((s) => (
           <div key={s.id} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => toggleSection(s)} disabled={mutating} title="Ko'rsatish/yashirish" className="disabled:opacity-50">
+                <button onClick={() => toggleSection(s)} disabled={mutating} title={tr("Ko'rsatish/yashirish")} className="disabled:opacity-50">
                   {s.is_active
-                    ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" /> Ko'rinadi</span>
-                    : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Yashirin</span>}
+                    ? <span className="inline-flex items-center gap-1 rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green"><span className="h-1.5 w-1.5 rounded-full bg-green" />{tr("Ko'rinadi")}</span>
+                    : <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />{tr("Yashirin")}</span>}
                 </button>
                 <div className="min-w-0">
                   <h3 className="font-display font-bold truncate">{s.title || s.section_key}</h3>
@@ -2841,11 +2903,11 @@ function AdminHomepage() {
 
             {editSec === s.id && (
               <div className="mt-4 space-y-2 rounded-xl bg-soft p-3">
-                <div><label className="text-xs font-semibold text-muted">Sarlavha</label><input value={secForm.title} onChange={(e) => setSecForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
-                <div><label className="text-xs font-semibold text-muted">Tavsif / matn</label><textarea value={secForm.subtitle} onChange={(e) => setSecForm((f) => ({ ...f, subtitle: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
+                <div><label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label><input value={secForm.title} onChange={(e) => setSecForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                <div><label className="text-xs font-semibold text-muted">{tr("Tavsif / matn")}</label><textarea value={secForm.subtitle} onChange={(e) => setSecForm((f) => ({ ...f, subtitle: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
                 <div className="flex gap-2">
                   <button onClick={() => saveSec(s.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
-                  <button onClick={() => setEditSec(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">Bekor</button>
+                  <button onClick={() => setEditSec(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">{tr("Bekor")}</button>
                 </div>
               </div>
             )}
@@ -2863,19 +2925,19 @@ function AdminHomepage() {
                         {item.description && <span className="block truncate text-xs text-muted">{item.description}</span>}
                       </div>
                       {item.icon && <span className="rounded-md bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">{item.icon}</span>}
-                      <button onClick={() => startEditItem(item)} className="shrink-0 grid h-7 w-7 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title="Tahrirlash">
+                      <button onClick={() => startEditItem(item)} className="shrink-0 grid h-7 w-7 place-items-center rounded-lg border border-green/25 text-green hover:bg-green hover:text-white" title={tr("Tahrirlash")}>
                         <Icon d="M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     {editItem === item.id && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <div><label className="text-xs font-semibold text-muted">Sarlavha</label><input value={itemForm.title} onChange={(e) => setItemForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
-                        <div><label className="text-xs font-semibold text-muted">Matn / tavsif</label><input value={itemForm.description} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} className={inp} /></div>
-                        <div><label className="text-xs font-semibold text-muted">Ikon</label><input value={itemForm.icon} onChange={(e) => setItemForm((f) => ({ ...f, icon: e.target.value }))} placeholder="masalan: phone, mail" className={inp} /></div>
-                        <div><label className="text-xs font-semibold text-muted">Link</label><input value={itemForm.link} onChange={(e) => setItemForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://..." className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label><input value={itemForm.title} onChange={(e) => setItemForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">{tr("Matn / tavsif")}</label><input value={itemForm.description} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">{tr("Ikon")}</label><input value={itemForm.icon} onChange={(e) => setItemForm((f) => ({ ...f, icon: e.target.value }))} placeholder={tr("masalan: phone, mail")} className={inp} /></div>
+                        <div><label className="text-xs font-semibold text-muted">{tr("Link")}</label><input value={itemForm.link} onChange={(e) => setItemForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://..." className={inp} /></div>
                         <div className="sm:col-span-2 flex gap-2">
                           <button onClick={() => saveItem(item.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
-                          <button onClick={() => setEditItem(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">Bekor</button>
+                          <button onClick={() => setEditItem(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">{tr("Bekor")}</button>
                         </div>
                       </div>
                     )}
@@ -3082,8 +3144,8 @@ function AdminRoles() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-extrabold tracking-tight">Rollar va Ruxsatlar</h2>
-          <p className="mt-1 text-sm text-muted">Rol yaratish, tahrirlash va ruxsatlarni boshqarish.</p>
+          <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Rollar va Ruxsatlar")}</h2>
+          <p className="mt-1 text-sm text-muted">{tr("Rol yaratish, tahrirlash va ruxsatlarni boshqarish.")}</p>
         </div>
         <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> Yangi foydalanuvchi
@@ -3103,7 +3165,7 @@ function AdminRoles() {
           </div>
         )}
         {!loading && failed && <ErrorState onRetry={loadAll} />}
-        {!loading && !failed && roles.length === 0 && <div className="py-8 text-center text-muted">Rollar topilmadi.</div>}
+        {!loading && !failed && roles.length === 0 && <div className="py-8 text-center text-muted">{tr("Rollar topilmadi.")}</div>}
         {!loading && roles.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
@@ -3112,11 +3174,11 @@ function AdminRoles() {
                   <th className="pb-3 font-semibold w-10">
                     <input type="checkbox" checked={roles.length > 0 && selectedIds.size === roles.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
                   </th>
-                  <th className="pb-3 font-semibold">Rol nomi</th>
-                  <th className="pb-3 font-semibold">Tavsif</th>
-                  <th className="pb-3 font-semibold">Priority</th>
-                  <th className="pb-3 font-semibold">Turi</th>
-                  <th className="pb-3 font-semibold">Amallar</th>
+                  <th className="pb-3 font-semibold">{tr("Rol nomi")}</th>
+                  <th className="pb-3 font-semibold">{tr("Tavsif")}</th>
+                  <th className="pb-3 font-semibold">{tr("Priority")}</th>
+                  <th className="pb-3 font-semibold">{tr("Turi")}</th>
+                  <th className="pb-3 font-semibold">{tr("Amallar")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -3131,8 +3193,8 @@ function AdminRoles() {
                       <td className="py-3 pr-3">{r.priority}</td>
                       <td className="py-3 pr-3">
                         {r.is_system
-                          ? <span className="rounded-md bg-soft px-2 py-1 text-[11px] font-bold text-muted">Tizim</span>
-                          : <span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">Maxsus</span>}
+                          ? <span className="rounded-md bg-soft px-2 py-1 text-[11px] font-bold text-muted">{tr("Tizim")}</span>
+                          : <span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">{tr("Maxsus")}</span>}
                       </td>
                       <td className="py-3">
                         <div className="flex items-center gap-2">
@@ -3157,7 +3219,7 @@ function AdminRoles() {
                         <td colSpan={6} className="bg-[#fafdf7] px-4 pb-4">
                           <div className="rounded-xl border border-green/10 bg-white p-4">
                             <div className="mb-3 flex items-center justify-between">
-                              <h4 className="font-display text-sm font-bold">Ruxsatlar: <span className="text-green">{r.name}</span></h4>
+                              <h4 className="font-display text-sm font-bold">{tr("Ruxsatlar:")}<span className="text-green">{r.name}</span></h4>
                               {/* permsError bo'lsa saqlash TO'SILADI: bo'sh ro'yxatni
                                   saqlash rolning haqiqiy ruxsatlarini o'chirib yuboradi. */}
                               <button onClick={savePerms} disabled={savingPerms || permsLoading || !!permsError} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-green-deep disabled:opacity-60">
@@ -3176,7 +3238,7 @@ function AdminRoles() {
                                 ifodalardi: so'rov muvaffaqiyatsiz bo'lsa matn abadiy turardi. */}
                             {permsLoading && <div className="py-4"><SkeletonTable rows={4} cols={3} /></div>}
                             {!permsLoading && Object.keys(groupedPerms).length === 0 && (
-                              <div className="py-4 text-center text-sm text-red-600">Ruxsatlar ro'yxatini yuklab bo'lmadi.</div>
+                              <div className="py-4 text-center text-sm text-red-600">{tr("Ruxsatlar ro'yxatini yuklab bo'lmadi.")}</div>
                             )}
                             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                               {!permsLoading && Object.entries(groupedPerms).map(([resource, perms]) => (
@@ -3215,10 +3277,10 @@ function AdminRoles() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setShowForm(false)}>
           <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-display text-lg font-extrabold">Yangi foydalanuvchi qo'shish</h3>
+            <h3 className="font-display text-lg font-extrabold">{tr("Yangi foydalanuvchi qo'shish")}</h3>
             <form onSubmit={saveUser} className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Rolni tanlang</label>
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Rolni tanlang")}</label>
                 <select value={userRole} onChange={(e) => setUserRole(e.target.value)} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green">
                   {["super_admin", "admin", "editor", "company"].map((r) => (
                     <option key={r} value={r}>{r.replace("_", " ")}</option>
@@ -3228,19 +3290,19 @@ function AdminRoles() {
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-muted">Ism</label>
-                <input value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="Foydalanuvchi ismi" required />
+                <input value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder={tr("Foydalanuvchi ismi")} required />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Email</label>
-                <input value={userEmail} onChange={(e) => setUserEmail(e.target.value)} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="email@example.com" required />
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Email")}</label>
+                <input value={userEmail} onChange={(e) => setUserEmail(e.target.value)} type="email" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder={tr("email@example.com")} required />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted">Parol</label>
-                <input value={userPassword} onChange={(e) => setUserPassword(e.target.value)} type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder="Kamida 6 belgi" required />
+                <label className="mb-1.5 block text-xs font-medium text-muted">{tr("Parol")}</label>
+                <input value={userPassword} onChange={(e) => setUserPassword(e.target.value)} type="password" className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" placeholder={tr("Kamida 6 belgi")} required />
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">Bekor qilish</button>
+                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={savingUser} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {savingUser && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   {savingUser ? "Yaratilmoqda…" : "Yaratish"}
