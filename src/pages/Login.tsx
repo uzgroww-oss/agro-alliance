@@ -6,6 +6,7 @@ import { setRememberPref } from "../lib/api"
 import { useAuth } from "../lib/auth"
 import { supabase } from "../lib/supabase"
 import { useStaticSeo } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 const mascot = "/mascot.webp"
 
@@ -27,6 +28,7 @@ const features = [
 ]
 
 export default function Login() {
+  const t = useT()
   useStaticSeo("/kirish")
   const navigate = useNavigate()
   const { login, user, loading } = useAuth()
@@ -50,7 +52,7 @@ export default function Login() {
       const user = await login(email, password)
       navigate(roleHome(user.role), { replace: true })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Kirishda xatolik")
+      setError(err instanceof Error ? err.message : t("Kirishda xatolik"))
     } finally {
       setBusy(false)
     }
@@ -126,7 +128,7 @@ export default function Login() {
                 <label className="mb-1.5 block text-sm font-semibold">Telefon raqami yoki email</label>
                 <div className="relative">
                   <Icon d={I.user} className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
-                  <input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Telefon raqami yoki email kiriting" className="w-full rounded-xl border border-green/15 bg-white py-3.5 pl-12 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green" />
+                  <input required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("Telefon raqami yoki email kiriting")} className="w-full rounded-xl border border-green/15 bg-white py-3.5 pl-12 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green" />
                 </div>
               </div>
 
@@ -134,7 +136,7 @@ export default function Login() {
                 <label className="mb-1.5 block text-sm font-semibold">Parol</label>
                 <div className="relative">
                   <Icon d={I.lock} className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
-                  <input required type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Parolingizni kiriting" className="w-full rounded-xl border border-green/15 bg-white py-3.5 pl-12 pr-12 text-sm outline-none transition-colors hover:border-green/40 focus:border-green" />
+                  <input required type={show ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("Parolingizni kiriting")} className="w-full rounded-xl border border-green/15 bg-white py-3.5 pl-12 pr-12 text-sm outline-none transition-colors hover:border-green/40 focus:border-green" />
                   <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-green" aria-label="Parolni korishtirish">
                     <Icon d={show ? I.eyeOff : I.eye} className="h-5 w-5" />
                   </button>
@@ -146,7 +148,7 @@ export default function Login() {
                   <span onClick={() => { const next = !remember; setRememberPref(next); setRemember(next) }} className={`grid h-5 w-5 place-items-center rounded-md border transition-colors ${remember ? "border-green bg-green text-white" : "border-green/30 bg-white"}`}>{remember && <Icon d="M9 12l2 2 4-4" className="h-3.5 w-3.5" sw={3} />}</span>
                   <span className="text-ink/70">Meni eslab qol</span>
                 </label>
-                <Link to="/reset-password" className="font-semibold text-green hover:underline">Parolni unutdingiz?</Link>
+                <Link to="/reset-password" className="font-semibold text-green hover:underline">{t("Parolni unutdingiz?")}</Link>
               </div>
 
               {error && (
@@ -157,7 +159,7 @@ export default function Login() {
               )}
 
               <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
-                <Icon d={I.login} className="h-5 w-5" /> {busy ? "Kirilmoqda..." : "KIRISH"}
+                <Icon d={I.login} className="h-5 w-5" /> {busy ? t("Kirilmoqda...") : t("KIRISH")}
               </button>
 
               {import.meta.env.DEV && (
@@ -173,7 +175,7 @@ export default function Login() {
 
             <div className="space-y-3">
               <button onClick={googleSignIn} disabled={googleBusy} className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60">
-                <GoogleMark /> {googleBusy ? "Yo'naltirilmoqda…" : "Google bilan kirish"}
+                <GoogleMark /> {googleBusy ? t("Yo'naltirilmoqda…") : t("Google bilan kirish")}
               </button>
               <button disabled className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft" title="Tez orada">
                 <Icon d={I.telegram} className="h-5 w-5 text-[#229ED9]" /> Telegram bilan kirish (Tez orada)

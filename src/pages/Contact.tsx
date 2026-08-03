@@ -5,6 +5,7 @@ import { api } from "../lib/api"
 import { useContactInfo } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 const mascot = "/mascot-contact.webp"
 
@@ -22,6 +23,7 @@ const features = [
 const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
 
 function Hero() {
+  const t = useT()
   // Footer bilan BIR XIL manba (useContactInfo). Ilgari bu sahifa faqat
   // Sozlamalarni o'qigani uchun footerni tahrirlaganda shu yer o'zgarmasdi.
   const contact = useContactInfo()
@@ -48,9 +50,9 @@ function Hero() {
         <Reveal>
           <nav className="flex items-center gap-2 text-sm text-muted">
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
-              <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" /> Bosh sahifa
+              <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" /> {t("Bosh sahifa")}
             </Link>
-            <span>/</span><span className="font-semibold text-green">Aloqa</span>
+            <span>/</span><span className="font-semibold text-green">{t("Aloqa")}</span>
           </nav>
         </Reveal>
 
@@ -58,7 +60,7 @@ function Hero() {
           {/* Left: info */}
           <div>
             <Reveal>
-              <span className="inline-block rounded-lg bg-green/10 px-3 py-1 text-xs font-bold tracking-widest text-green">ALOQA</span>
+              <span className="inline-block rounded-lg bg-green/10 px-3 py-1 text-xs font-bold tracking-widest text-green">{t("ALOQA")}</span>
             </Reveal>
             <Reveal delay={70}>
               <h1 className="mt-4 font-display text-[clamp(2.4rem,6vw,4rem)] font-extrabold leading-[1] tracking-[-0.03em]">
@@ -110,6 +112,7 @@ function Hero() {
 }
 
 function ContactForm() {
+  const t = useT()
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
@@ -137,7 +140,7 @@ function ContactForm() {
 
   return (
     <div className="rounded-3xl border border-green/10 bg-white p-7 shadow-[0_12px_44px_rgba(91,180,32,0.10)]">
-      <h2 className="font-display text-xl font-extrabold tracking-tight">Bizga xabar yuboring</h2>
+      <h2 className="font-display text-xl font-extrabold tracking-tight">{t("Bizga xabar yuboring")}</h2>
       <p className="mt-2 text-sm text-muted">Quyidagi formani to'ldirib, bizga xabar yuboring. Tez orada siz bilan bog'lanamiz.</p>
 
   {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">{error}</div>}
@@ -151,8 +154,8 @@ function ContactForm() {
   ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Ismingiz" className={inputCls} />
-            <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="E-mail manzilingiz" className={inputCls} />
+            <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={t("Ismingiz")} className={inputCls} />
+            <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("E-mail manzilingiz")} className={inputCls} />
           </div>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-muted">Mavzu</span>
@@ -163,7 +166,7 @@ function ContactForm() {
               <Icon d={I.chevDown} className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             </div>
           </label>
-          <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder="Xabaringiz" rows={5} className={`${inputCls} resize-none`} />
+          <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder={t("Xabaringiz")} rows={5} className={`${inputCls} resize-none`} />
           <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">
             {busy ? "YUBORILMOQDA…" : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
           </button>
@@ -194,6 +197,7 @@ function Features() {
 }
 
 function Offices({ offices, loading, failed, onRetry }: { offices: Office[] | null; loading: boolean; failed: boolean; onRetry: () => void }) {
+  const t = useT()
   // Ma'lumot ham yo'q, yuklanmayapti ham, xato ham emas -> bo'limni chizmaymiz.
   if (!loading && !failed && !offices?.length) return null
   return (
@@ -201,7 +205,7 @@ function Offices({ offices, loading, failed, onRetry }: { offices: Office[] | nu
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
           <Reveal>
-            <h2 className="font-display text-2xl font-extrabold tracking-tight">Bizning ofislarimiz</h2>
+            <h2 className="font-display text-2xl font-extrabold tracking-tight">{t("Bizning ofislarimiz")}</h2>
             <p className="mt-2 max-w-md leading-relaxed text-muted">
               Siz bizning ofisimizga tashrif buyurishingiz mumkin. Oldindan qo'ng'iroq qilib kelishingizni tavsiya qilamiz.
             </p>

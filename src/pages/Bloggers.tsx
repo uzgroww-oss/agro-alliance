@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, ErrorState, useDebounced } from "../lib/ui"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
 import { useStaticSeo } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 
 const mascot = "/mascot3.webp"
@@ -10,9 +11,10 @@ const mascot = "/mascot3.webp"
 type HeroStat = { icon: string; v: string; l: string }
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  const t = useT()
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-muted">{t(label)}</span>
       <div className="relative">
         <select
           value={value}
@@ -20,7 +22,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
           className="w-full appearance-none rounded-xl border border-green/15 bg-white px-4 py-3 pr-9 text-sm font-medium text-ink outline-none transition-colors hover:border-green/40 focus:border-green"
         >
           {options.map((o) => (
-            <option key={o} value={o}>{o}</option>
+            <option key={o} value={o}>{t(o)}</option>
           ))}
         </select>
         <Icon d={I.chevDown} className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -42,6 +44,7 @@ function Socials() {
 }
 
 function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger | null; topLoading: boolean; totalBloggers: number | null }) {
+  const t = useT()
   // TEZLIK: bu yerda ilgari `/public/bloggers?per_page=1` alohida
   // chaqirilardi — FAQAT `pagination.total` uchun. Aynan shu raqam
   // sahifaning asosiy ro'yxat so'rovi javobida ham bor edi, ya'ni
@@ -49,10 +52,10 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
   // Endi raqam yuqoridan uzatiladi.
   // "0+" o'rniga "…" — nol real raqamdek ko'rinib qolmasin.
   const heroStats: HeroStat[] = [
-    { icon: I.users, v: totalBloggers === null ? "…" : `${totalBloggers}+`, l: "Faol blogerlar" },
-    { icon: I.sprout, v: "20+", l: "Yo'nalishlar" },
-    { icon: I.building, v: "5M+", l: "Jami auditoriya" },
-    { icon: I.play, v: "50M+", l: "Oylik ko'rishlar" },
+    { icon: I.users, v: totalBloggers === null ? "…" : `${totalBloggers}+`, l: t("Faol blogerlar") },
+    { icon: I.sprout, v: "20+", l: t("Yo'nalishlar") },
+    { icon: I.building, v: "5M+", l: t("Jami auditoriya") },
+    { icon: I.play, v: "50M+", l: t("Oylik ko'rishlar") },
   ]
   return (
     <section className="relative overflow-hidden">
@@ -67,10 +70,10 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
           <nav className="flex items-center gap-2 text-sm text-muted">
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
               <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" />
-              Bosh sahifa
+              {t("Bosh sahifa")}
             </Link>
             <span>/</span>
-            <span className="font-semibold text-green">Blogerlar</span>
+            <span className="font-semibold text-green">{t("Blogerlar")}</span>
           </nav>
         </Reveal>
 
@@ -115,7 +118,7 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
             <div className="rounded-3xl border border-green/10 bg-white p-6 shadow-[0_12px_44px_rgba(91,180,32,0.12)]">
               <div className="flex items-center gap-2 text-green">
                 <Icon d={I.trophy} className="h-5 w-5" />
-                <span className="font-display text-sm font-bold tracking-wide">TOP BLOGER</span>
+                <span className="font-display text-sm font-bold tracking-wide">{t("TOP BLOGER")}</span>
               </div>
               <div className="mt-5 flex flex-col items-center text-center">
                 <div className="relative">
@@ -144,9 +147,9 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
                 {[
                   // Yuklanayotganda "0" emas "…": ilgari bo'sh karta real
                   // bloger ma'lumotidek ko'rinardi.
-                  { icon: I.users, v: topLoading ? "…" : topBlogger?.subs || "0", l: "Obunachilar" },
-                  { icon: I.play, v: topLoading ? "…" : topBlogger?.views || "0", l: "Ko'rishlar" },
-                  { icon: I.star, v: topLoading ? "…" : topBlogger?.rating?.toString() || "0", l: "Reyting" },
+                  { icon: I.users, v: topLoading ? "…" : topBlogger?.subs || "0", l: t("Obunachilar") },
+                  { icon: I.play, v: topLoading ? "…" : topBlogger?.views || "0", l: t("Ko'rishlar") },
+                  { icon: I.star, v: topLoading ? "…" : topBlogger?.rating?.toString() || "0", l: t("Reyting") },
                 ].map((x) => (
                   <div key={x.l}>
                     <Icon d={x.icon} className="mx-auto h-4 w-4 text-green" />
@@ -157,7 +160,7 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
               </div>
               {topBlogger && (
                 <Link to={`/blogerlar/${topBlogger.slug}`} className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-                  PROFILNI KO'RISH
+                  {t("PROFILNI KO'RISH")}
                   <Icon d={I.arrow} className="h-4 w-4" />
                 </Link>
               )}
@@ -171,6 +174,7 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
 }
 
 export default function Bloggers() {
+  const t = useT()
   useStaticSeo("/blogerlar")
   const [query, setQuery] = useState("")
   // Har harfda emas — yozish to'xtagach so'rov ketadi
@@ -239,23 +243,23 @@ export default function Bloggers() {
         <div className="rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
           <div className="grid gap-4 lg:grid-cols-[1.4fr_repeat(4,1fr)_auto] lg:items-end">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-muted">Qidiruv</span>
+              <span className="mb-1.5 block text-xs font-medium text-muted">{t("Qidiruv")}</span>
               <div className="relative">
                 <Icon d={I.search} className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setPage(1) }}
-                  placeholder="Ism yoki Instagram username (@...)"
+                  placeholder={t("Ism yoki Instagram username (@...)")}
                   className="w-full rounded-xl border border-green/15 bg-white py-3 pl-10 pr-4 text-sm outline-none transition-colors hover:border-green/40 focus:border-green"
                 />
               </div>
             </label>
-            <Select label="Yo'nalish" value={catLabel(cat)} onChange={(v) => { setCat(categories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={categories.map((c) => c.label)} />
-            <Select label="Platforma" value={platform} onChange={(v) => { setPlatform(v); setPage(1) }} options={platforms} />
-            <Select label="Hudud" value={region} onChange={(v) => { setRegion(v); setPage(1) }} options={regions} />
-            <Select label="Saralash" value={sort} onChange={(v) => { setSort(v); setPage(1) }} options={sorts} />
+            <Select label={t("Yo'nalish")} value={catLabel(cat)} onChange={(v) => { setCat(categories.find((c) => c.label === v)?.key ?? "all"); setPage(1) }} options={categories.map((c) => c.label)} />
+            <Select label={t("Platforma")} value={platform} onChange={(v) => { setPlatform(v); setPage(1) }} options={platforms} />
+            <Select label={t("Hudud")} value={region} onChange={(v) => { setRegion(v); setPage(1) }} options={regions} />
+            <Select label={t("Saralash")} value={sort} onChange={(v) => { setSort(v); setPage(1) }} options={sorts} />
             <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-green/30 bg-white px-5 py-3 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">
-              FILTRNI TOZALASH
+              {t("FILTRNI TOZALASH")}
               <Icon d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5" className="h-4 w-4" />
             </button>
           </div>
@@ -275,7 +279,7 @@ export default function Bloggers() {
                 }`}
               >
                 <Icon d={c.icon} className="h-4 w-4" />
-                {c.label}
+                {t(c.label)}
               </button>
             )
           })}
@@ -298,7 +302,7 @@ export default function Bloggers() {
           <ErrorState onRetry={() => load(page)} message="Blogerlar ro'yxatini yuklab bo'lmadi." />
         ) : bloggersList.length === 0 ? (
           <div className="rounded-3xl border border-green/10 bg-white py-20 text-center text-muted">
-            Hech narsa topilmadi. Filtrlarni tozalab ko'ring.
+            {t("Hech narsa topilmadi.")}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -333,7 +337,7 @@ export default function Bloggers() {
                     <div className="mt-4 grid grid-cols-3 gap-2 border-t border-green/10 pt-4 text-center">
                       <div>
                         <div className="font-display text-base font-extrabold">{b.subs}</div>
-                        <div className="text-[10px] text-muted">Obunachilar</div>
+                        <div className="text-[10px] text-muted">{t("Obunachilar")}</div>
                       </div>
                       <div>
                         <div className="font-display text-base font-extrabold">{b.eng}</div>
@@ -343,14 +347,14 @@ export default function Bloggers() {
                         <div className="flex items-center justify-center gap-1 font-display text-base font-extrabold">
                           <Icon d={I.star} className="h-3.5 w-3.5 text-green" /> {b.rating}
                         </div>
-                        <div className="text-[10px] text-muted">Reyting</div>
+                        <div className="text-[10px] text-muted">{t("Reyting")}</div>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1.5 text-sm text-muted">
                       <Icon d={I.pin} className="h-4 w-4 text-green" /> {b.region}
                     </div>
                     <Link to={`/blogerlar/${b.slug}`} className="mt-4 flex items-center justify-center gap-2 rounded-xl border-2 border-green/25 bg-white px-4 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:bg-green hover:text-white">
-                      PROFILNI KO'RISH
+                      {t("PROFILNI KO'RISH")}
                       <Icon d={I.arrow} className="h-4 w-4" />
                     </Link>
                   </div>
