@@ -3,11 +3,14 @@ import { Link, useLocation } from "react-router-dom"
 import { logo, navLinks, Icon, I } from "../lib/ui"
 import { useAuth } from "../lib/auth"
 import { roleHome } from "../lib/roles"
+import { useT } from "../lib/i18n"
+import LangSwitch from "./LangSwitch"
 
 export default function Header() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const { user, loading } = useAuth()
+  const t = useT()
 
   return (
     <header className="sticky top-0 z-50 border-b border-green/10 bg-white/90 backdrop-blur-md">
@@ -24,8 +27,8 @@ export default function Header() {
           {navLinks.map((n) => {
             const active = n.to === pathname
             return (
-              <Link key={n.label} to={n.to} className={`text-[13px] font-semibold tracking-wide transition-colors hover:text-green ${active ? "text-green" : "text-ink/70"}`}>
-                {n.label}
+              <Link key={t(n.label)} to={n.to} className={`text-[13px] font-semibold tracking-wide transition-colors hover:text-green ${active ? "text-green" : "text-ink/70"}`}>
+                {t(n.label)}
               </Link>
             )
           })}
@@ -35,11 +38,11 @@ export default function Header() {
           {!loading && user ? (
             <Link to={roleHome(user.role)} className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 sm:px-5">
               <Icon d={I.dashboard} className="h-4 w-4" />
-              <span className="hidden sm:inline">DASHBOARD</span>
+              <span className="hidden sm:inline">{t("DASHBOARD")}</span>
             </Link>
           ) : !loading ? (
             <Link to="/kirish" className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 sm:px-5">
-              KIRISH
+              {t("KIRISH")}
               <Icon d={I.login} className="h-4 w-4" />
             </Link>
           ) : (
@@ -47,6 +50,8 @@ export default function Header() {
             // umuman chizilmasdi va yuklangach paydo bo'lib, header "sakrardi".
             <span aria-hidden className="h-[42px] w-[104px] animate-pulse rounded-lg bg-green/15 sm:w-[124px]" />
           )}
+
+          <LangSwitch />
 
           {/* Hamburger (mobile/tablet) */}
           <button
@@ -67,11 +72,11 @@ export default function Header() {
               const active = n.to === pathname
               const cls = `rounded-lg px-3 py-3 text-sm font-semibold transition-colors ${active ? "bg-green/10 text-green" : "text-ink/75 hover:bg-soft"}`
               return (
-                <Link key={n.label} to={n.to} onClick={() => setOpen(false)} className={cls}>{n.label}</Link>
+                <Link key={t(n.label)} to={n.to} onClick={() => setOpen(false)} className={cls}>{t(n.label)}</Link>
               )
             })}
             {!loading && !user && (
-              <Link to="/kirish" onClick={() => setOpen(false)} className="mt-2 rounded-lg bg-green px-3 py-3 text-center text-sm font-bold text-white">KIRISH</Link>
+              <Link to="/kirish" onClick={() => setOpen(false)} className="mt-2 rounded-lg bg-green px-3 py-3 text-center text-sm font-bold text-white">{t("KIRISH")}</Link>
             )}
           </div>
         </nav>

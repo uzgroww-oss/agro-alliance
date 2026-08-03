@@ -2,6 +2,7 @@ import { Link } from "react-router-dom"
 import { logoWhite, Icon, I } from "../lib/ui"
 import { usePublicSettings, useContactInfo } from "../lib/settings"
 import { useHomeSections } from "../lib/sections"
+import { useT } from "../lib/i18n"
 
 const cols = [
   { h: "Platforma", links: [["Blogerlar", "/blogerlar"], ["Yangiliklar", "/yangiliklar"], ["Hamkorlar", "/hamkorlar"], ["Aloqa", "/aloqa"]] },
@@ -43,6 +44,7 @@ export default function Footer() {
     .map((i) => ({ url: i.link as string, icon: socialIconByKey[i.item_key as string] || I.link2 }))
   const settingsSocials = Object.entries(socialIcons).map(([key, icon]) => ({ url: settings[key], icon })).filter((s) => s.url)
   const socialLinks = seededSocials.length ? seededSocials : settingsSocials
+  const t = useT()
 
   return (
     <footer className="bg-ink text-white">
@@ -74,11 +76,11 @@ export default function Footer() {
           {/* Link columns */}
           {cols.map((c) => (
             <div key={c.h}>
-              <h4 className="font-display text-sm font-bold tracking-wide">{c.h}</h4>
+              <h4 className="font-display text-sm font-bold tracking-wide">{t(c.h)}</h4>
               <ul className="mt-4 space-y-2.5 text-sm">
                 {c.links.map(([label, to]) => (
                   <li key={label}>
-                    <Link to={to} className="text-white/55 transition-colors hover:text-green">{label}</Link>
+                    <Link to={to} className="text-white/55 transition-colors hover:text-green">{t(label)}</Link>
                   </li>
                 ))}
               </ul>
@@ -87,7 +89,7 @@ export default function Footer() {
 
           {/* Aloqa */}
           <div>
-            <h4 className="font-display text-sm font-bold tracking-wide">Aloqa</h4>
+            <h4 className="font-display text-sm font-bold tracking-wide">{t("Aloqa")}</h4>
             <ul className="mt-4 space-y-3 text-sm">
               {sLoading
                 ? Array.from({ length: 3 }).map((_, i) => (

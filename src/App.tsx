@@ -3,6 +3,7 @@ import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation
 import { App as CapApp } from "@capacitor/app"
 import { isNative } from "./lib/platform"
 import { AuthProvider, useAuth } from "./lib/auth"
+import { I18nProvider } from "./lib/i18n"
 import { ErrorBoundary } from "./lib/error-boundary"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
@@ -105,6 +106,7 @@ function RequireRole({ role, children }: { role: "superadmin" | "blogger" | "par
 
 export default function App() {
   return (
+    <I18nProvider>
     <AuthProvider>
       <Router>
         <ScrollToTop />
@@ -138,5 +140,6 @@ export default function App() {
         </ErrorBoundary>
       </Router>
     </AuthProvider>
+    </I18nProvider>
   )
 }
