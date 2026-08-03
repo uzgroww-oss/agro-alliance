@@ -1,7 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { applyLang, langOf } from "../_shared/translate.ts"
+import { applyLang, langOf, fondaTarjima } from "../_shared/translate.ts"
 
 const CACHE_TTL = 600
 
@@ -20,6 +20,8 @@ Deno.serve(async (req) => {
       .order("sort_order", { ascending: true })
 
     if (error) return errorResponse(error.message, 500)
+
+    await fondaTarjima("partners", (partners || []) as Record<string, unknown>[], lang, ["sphere", "direction"])
 
     const list = (partners || []).map((raw: Record<string, unknown>) => {
       // Kompaniya NOMI tarjima qilinmaydi — u brend

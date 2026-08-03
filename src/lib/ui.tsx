@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { api } from "./api"
+import { useT } from "./i18n"
 
 /* ---------- Skeleton loader ---------- */
 const shimmer = "animate-shimmer bg-gradient-to-r from-gray-100 via-gray-200/60 to-gray-100 bg-[length:200%_100%]"
@@ -112,12 +113,13 @@ export function useDebounced<T>(value: T, ms = 350): T {
 }
 
 export function ErrorState({ onRetry, message = "Ma'lumotni yuklab bo'lmadi." }: { onRetry?: () => void; message?: string }) {
+  const t = useT()
   return (
     <div className="rounded-3xl border border-red-200 bg-red-50/60 px-6 py-10 text-center">
-      <p className="text-sm font-medium text-red-700">{message}</p>
+      <p className="text-sm font-medium text-red-700">{t(message)}</p>
       {onRetry && (
         <button onClick={onRetry} className="mt-3 text-sm font-bold text-green hover:underline">
-          Qayta urinish
+          {t("Qayta urinish")}
         </button>
       )}
     </div>
@@ -284,6 +286,7 @@ function StatsBarSkeleton() {
 }
 
 export function StatsBar() {
+  const t = useT()
   const [items, setItems] = useState<StatItem[] | null>(null)
   const [loaded, setLoaded] = useState(false)
 
@@ -313,7 +316,7 @@ export function StatsBar() {
               </span>
               <div>
                 <div className="font-display text-2xl font-extrabold leading-none">{s.value}</div>
-                <div className="mt-1 text-xs font-medium text-muted">{s.label}</div>
+                <div className="mt-1 text-xs font-medium text-muted">{t(s.label)}</div>
               </div>
             </div>
           ))}

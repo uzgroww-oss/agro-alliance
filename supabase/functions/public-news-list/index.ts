@@ -3,7 +3,7 @@ import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { formatNewsDate } from "../_shared/time.ts"
-import { applyLang, langOf } from "../_shared/translate.ts"
+import { applyLang, langOf, fondaTarjima } from "../_shared/translate.ts"
 
 /**
  * Kategoriya nomi tanlangan tilda.
@@ -69,6 +69,8 @@ Deno.serve(async (req) => {
     const { data, error, count } = await query
 
     if (error) return errorResponse(error.message, 500)
+
+    await fondaTarjima("news_articles", (data || []) as Record<string, unknown>[], lang, ["title", "excerpt"])
 
     const news = (data || []).map((row: Record<string, unknown>) => {
       // Tanlangan tilda: tarjima bo'lsa u, bo'lmasa o'zbekcha

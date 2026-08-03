@@ -1,7 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { applyLang, langOf } from "../_shared/translate.ts"
+import { applyLang, langOf, fondaTarjima } from "../_shared/translate.ts"
 
 const CACHE_TTL = 300
 
@@ -25,6 +25,9 @@ Deno.serve(async (req) => {
       return cachedJsonResponse({ sections: [] }, CACHE_TTL)
     }
 
+    // Tarjimasi yo'q bo'limlarni fonda tarjima qilib qo'yamiz
+    await fondaTarjima("homepage_sections", sections as Record<string, unknown>[], lang, ["title", "subtitle"])
+
     const sectionIds = sections.map((s) => s.id)
 
     const { data: items, error: itemsError } = await supabaseAdmin
@@ -36,6 +39,8 @@ Deno.serve(async (req) => {
       .order("sort_order", { ascending: true })
 
     if (itemsError) return errorResponse(itemsError.message, 500)
+
+    await fondaTarjima("homepage_section_items", (items || []) as Record<string, unknown>[], lang, ["title", "description"])
 
     const itemsBySection: Record<string, typeof items> = {}
     for (const item of items ?? []) {

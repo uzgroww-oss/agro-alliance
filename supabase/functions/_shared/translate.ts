@@ -33,6 +33,36 @@ export type Translations = Partial<Record<TargetLang, Record<string, string>>>;
 /** Juda uzun matnni kesamiz — model chegarasi va vaqt uchun */
 const MAX_FIELD = 6_000;
 
+/**
+ * Tarjima mantig'i versiyasi.
+ *
+ * Saqlangan tarjima shu versiyadan eski bo'lsa QAYTA tarjima qilinadi.
+ * Kerak bo'ldi, chunki birinchi urinishda xitoycha buzuq yozilgan edi
+ * va uni qayta yozishning boshqa yo'li yo'q — kod tarjimasi bor
+ * yozuvni o'tkazib yuborardi.
+ */
+const TR_VERSION = 2;
+
+/**
+ * Bu matnni tarjima qilish KERAKMI?
+ *
+ * Brend nomlari va qisqa bosh harfli so'zlar ("AGRO", "ALLIANCE")
+ * tarjima qilinganda ma'nosiz chiqadi: xitoychada "亞给", ruschada
+ * kirillga transliteratsiya. Ularni tegmasdan qoldirgan yaxshiroq.
+ */
+function tarjimaKerakmi(v: string): boolean {
+  const s = v.trim();
+  if (s.length < 12) return false;                    // juda qisqa — nom bo'lishi ehtimoli katta
+  if (!/[a-zA-ZЀ-ӿ]/.test(s)) return false; // harf yo'q (raqam, belgi)
+  if (s === s.toUpperCase() && s.split(/\s+/).length <= 2) return false; // "AGRO ALLIANCE"
+  return true;
+}
+
+/** Model ba'zan javobni <p>...</p> ichiga o'rab yuboradi — tozalaymiz */
+function tozala(s: string): string {
+  return s.replace(/^\s*<p>\s*/i, "").replace(/\s*<\/p>\s*$/i, "").trim();
+}
+
 function buildPrompt(fields: Record<string, string>, lang: TargetLang): string {
   const target = LANG_NAME[lang];
   const payload = JSON.stringify(fields, null, 1);
@@ -73,12 +103,22 @@ async function translateTo(
   const kalitlar = Object.keys(fields);
   const ok = valid(kalitlar);
 
-  const chain: { nom: string; ishla: (ms: number) => Promise<unknown> }[] = [];
+  /**
+   * TARTIB MUHIM: Gemini BIRINCHI.
+   *
+   * Ilgari Cloudflare birinchi edi va uning kichik modellari XITOYCHANI
+   * buzib qo'yardi — "合李频粗学客, 平学人" kabi ma'nosiz belgilar
+   * chiqardi. Ruscha va inglizcha yaxshi bo'lgani uchun muammo darrov
+   * ko'rinmasdi. Gemini ko'p tilli matnda ancha ishonchli.
+   * Cloudflare oxirgi zaxira sifatida qoladi.
+   */
+  const chain: { nom: string; ishla: (ms: number) => Promise<unknown> }[] = [
+    { nom: "Gemini", ishla: (ms) => geminiJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) },
+    { nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) },
+  ];
   if (cfChatAvailable()) {
     chain.push({ nom: "Cloudflare", ishla: (ms) => cfJson(prompt, { maxTokens: 3000, timeoutMs: ms, deadline }) });
   }
-  chain.push({ nom: "Gemini", ishla: (ms) => geminiJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) });
-  chain.push({ nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) });
 
   for (const { nom, ishla } of chain) {
     const qolgan = deadline - Date.now();
@@ -89,7 +129,7 @@ async function translateTo(
         const o = raw as Record<string, unknown>;
         const out: Record<string, string> = {};
         for (const k of kalitlar) {
-          if (typeof o[k] === "string" && (o[k] as string).trim()) out[k] = (o[k] as string).trim();
+          if (typeof o[k] === "string" && (o[k] as string).trim()) out[k] = tozala(o[k] as string);
         }
         return out;
       }
@@ -109,15 +149,17 @@ async function translateTo(
 export async function translateFields(
   fields: Record<string, string | null | undefined>,
   langs: readonly TargetLang[] = TARGET_LANGS,
+  /** Tashqi muddat (absolyut vaqt). Berilmasa o'z byudjeti ishlatiladi. */
+  tashqiDeadline?: number,
 ): Promise<Translations> {
   // Bo'sh maydonlarni tashlaymiz va uzunlarini kesamiz
   const toza: Record<string, string> = {};
   for (const [k, v] of Object.entries(fields)) {
-    if (typeof v === "string" && v.trim()) toza[k] = v.slice(0, MAX_FIELD);
+    if (typeof v === "string" && v.trim() && tarjimaKerakmi(v)) toza[k] = v.slice(0, MAX_FIELD);
   }
   if (Object.keys(toza).length === 0) return {};
 
-  const deadline = Date.now() + BUDGET_MS;
+  const deadline = tashqiDeadline ?? Date.now() + BUDGET_MS;
   const juftlar = await Promise.all(
     langs.map(async (l) => [l, await translateTo(toza, l, deadline)] as const),
   );
@@ -126,6 +168,8 @@ export async function translateFields(
   for (const [l, natija] of juftlar) {
     if (natija && Object.keys(natija).length) out[l] = natija;
   }
+  // Versiya belgisi — eski, sifatsiz tarjimalarni keyin ajratish uchun
+  if (Object.keys(out).length) (out as Record<string, unknown>)._v = TR_VERSION;
   return out;
 }
 
@@ -151,6 +195,73 @@ export async function tarjimaYoz(
     if (error) console.error(`tarjimaYoz ${table}:`, error.message)
   } catch (e) {
     console.error(`tarjimaYoz ${table}:`, e instanceof Error ? e.message : e)
+  }
+}
+
+/**
+ * TARJIMASI YO'Q YOZUVLARNI FONDA TARJIMA QILADI.
+ *
+ * MUAMMO EDI: tarjima faqat admin kontentni QAYTA SAQLAGANDA yozilardi.
+ * Ya'ni sayt ochilganda bosh sahifa bloklari, hamkorlar, jamoa —
+ * hammasi o'zbekcha qolardi, chunki ular allaqachon bazada turgan va
+ * hech kim ularni qayta saqlamagan edi. Foydalanuvchi tilni
+ * o'zgartirsa, faqat menyu tarjima bo'lib, MAZMUN o'zbekcha qolardi.
+ *
+ * Endi ommaviy endpoint tarjimasi yo'q yozuvni ko'rsa, uni FONDA
+ * tarjima qilib qo'yadi. Javob KUTMAYDI — birinchi tashrifchi
+ * o'zbekcha ko'radi, keyingilari tarjimani oladi.
+ *
+ * `EdgeRuntime.waitUntil` javob yuborilgandan keyin ham ishlashga
+ * ruxsat beradi. U bo'lmasa umuman ishga tushirmaymiz — javobni
+ * sekinlashtirgandan ko'ra tarjimasiz qolgani yaxshiroq.
+ */
+export async function fondaTarjima(
+  table: string,
+  rows: Record<string, unknown>[],
+  lang: string | null,
+  fields: string[],
+): Promise<void> {
+  if (!lang || lang === "uz") return
+
+  const kerak = rows.filter((r) => {
+    const tr = r.translations as (Translations & { _v?: number }) | undefined
+    // Eski versiyadagi tarjima — qayta qilinadi
+    if (tr?.[lang as TargetLang] && (tr._v ?? 1) >= TR_VERSION) return false
+    // Tarjima qilinadigan matni bormi
+    return fields.some((f) => typeof r[f] === "string" && (r[f] as string).trim())
+  })
+  if (kerak.length === 0) return
+
+  /**
+   * NEGA KUTAMIZ (fon emas):
+   * Avval `EdgeRuntime.waitUntil` bilan javobdan KEYIN bajarishga
+   * urinildi — ishlamadi. Javob yuborilgach izolyat to'xtatiladi va
+   * tarjima yarim yo'lda uzilib qoladi; bazaga hech narsa yozilmadi.
+   *
+   * Endi kutamiz, lekin QATTIQ chegara bilan: bir so'rovda ko'pi bilan
+   * 3 ta yozuv va jami 20 soniya. Javob keshlanadi (300s), shuning
+   * uchun bu narxni faqat kesh eskirgandagi BIRINCHI tashrifchi to'laydi
+   * va har safar yana 3 ta yozuv tarjima bo'lib boradi.
+   *
+   * Chegaraga urilsa qolganlari keyingi so'rovda davom etadi.
+   */
+  const deadline = Date.now() + 14_000
+  for (const r of kerak.slice(0, 2)) {
+    if (Date.now() > deadline) break
+    const fl: Record<string, string | null | undefined> = {}
+    for (const f of fields) fl[f] = r[f] as string | undefined
+    // Qolgan vaqtni uzatamiz — bitta yozuv butun byudjetni yeb qo'ymasin
+    const tr = await translateFields(fl, TARGET_LANGS, deadline)
+    if (Object.keys(tr).length === 0) continue
+
+    // Shu javobga ham qo'llaymiz — birinchi tashrifchi ham tarjimani ko'radi
+    r.translations = { ...(r.translations as Translations || {}), ...tr }
+
+    const { error } = await supabaseAdmin
+      .from(table)
+      .update({ translations: r.translations })
+      .eq("id", r.id as string)
+    if (error) console.error(`fondaTarjima ${table}:`, error.message)
   }
 }
 
