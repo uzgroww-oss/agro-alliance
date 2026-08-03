@@ -4,8 +4,10 @@ import DOMPurify from "dompurify"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
 import { useSeo, newsSeo, SITE_URL } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 export default function NewsDetail() {
+  const t = useT()
   const { slug } = useParams()
   const [article, setArticle] = useState<News | null>(null)
   const [related, setRelated] = useState<News[]>([])
@@ -70,10 +72,10 @@ export default function NewsDetail() {
       <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center">
         <div>
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-red-50 text-red-500"><Icon d={I.doc} className="h-8 w-8" /></span>
-          <h1 className="mt-4 font-display text-2xl font-extrabold">Yangilikni yuklab bo'lmadi</h1>
+          <h1 className="mt-4 font-display text-2xl font-extrabold">{t("Yangilikni yuklab bo'lmadi")}</h1>
           <p className="mt-2 text-muted">{error}</p>
           <button onClick={() => window.location.reload()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 font-bold text-white shadow-lg shadow-green/30">
-            <Icon d={I.refresh} className="h-4 w-4" /> Qayta urinish
+            <Icon d={I.refresh} className="h-4 w-4" /> {t("Qayta urinish")}
           </button>
         </div>
       </div>
@@ -85,10 +87,10 @@ export default function NewsDetail() {
       <div className="mx-auto grid min-h-[60vh] max-w-[1320px] place-items-center px-5 text-center">
         <div>
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.doc} className="h-8 w-8" /></span>
-          <h1 className="mt-4 font-display text-2xl font-extrabold">Yangilik topilmadi</h1>
-          <p className="mt-2 text-muted">Bu yangilik mavjud emas yoki o'chirilgan.</p>
+          <h1 className="mt-4 font-display text-2xl font-extrabold">{t("Yangilik topilmadi")}</h1>
+          <p className="mt-2 text-muted">{t("Bu yangilik mavjud emas yoki o'chirilgan.")}</p>
           <Link to="/yangiliklar" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 font-bold text-white shadow-lg shadow-green/30">
-            <Icon d={I.chevLeft} className="h-4 w-4" /> Yangiliklarga qaytish
+            <Icon d={I.chevLeft} className="h-4 w-4" /> {t("Yangiliklarga qaytish")}
           </Link>
         </div>
       </div>
@@ -102,9 +104,9 @@ export default function NewsDetail() {
       {/* Breadcrumb */}
       <Reveal>
         <nav className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <Link to="/" className="hover:text-green">Bosh sahifa</Link>
+          <Link to="/" className="hover:text-green">{t("Bosh sahifa")}</Link>
           <span>/</span>
-          <Link to="/yangiliklar" className="hover:text-green">Yangiliklar</Link>
+          <Link to="/yangiliklar" className="hover:text-green">{t("Yangiliklar")}</Link>
           <span>/</span>
           <span className="line-clamp-1 font-semibold text-green">{article.title}</span>
         </nav>
@@ -116,7 +118,7 @@ export default function NewsDetail() {
           <h1 className="mt-4 font-display text-[clamp(1.9rem,4vw,3rem)] font-extrabold leading-tight tracking-[-0.02em]">{article.title}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
             <span className="flex items-center gap-1.5"><Icon d="M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" className="h-4 w-4 text-green" /> {article.date}</span>
-            <span className="flex items-center gap-1.5"><Icon d={I.eye} className="h-4 w-4 text-green" /> {article.views} ko'rish</span>
+            <span className="flex items-center gap-1.5"><Icon d={I.eye} className="h-4 w-4 text-green" /> {article.views} {t("ko'rish")}</span>
             {article.author && <span className="flex items-center gap-1.5"><Icon d={I.user} className="h-4 w-4 text-green" /> {article.author}</span>}
           </div>
         </Reveal>
@@ -137,29 +139,29 @@ export default function NewsDetail() {
         {/* Share */}
         <Reveal delay={160}>
           <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-green/10 pt-6">
-            <span className="text-sm font-semibold text-muted">Ulashish:</span>
+            <span className="text-sm font-semibold text-muted">{t("Ulashish:")}</span>
             {/* Ilgari to'rttasi ham href="#" edi — hech narsa qilmasdi.
                 Instagram havola orqali ulashishni qo'llab-quvvatlamaydi,
                 shuning uchun uning o'rniga "havolani nusxalash" qo'yildi. */}
             <a
               href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.title)}`}
-              target="_blank" rel="noreferrer" title="Telegram orqali ulashish"
+              target="_blank" rel="noreferrer" title={t("Telegram orqali ulashish")}
               className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
             ><Icon d={I.telegram} className="h-4 w-4" /></a>
             <a
               href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-              target="_blank" rel="noreferrer" title="Facebook orqali ulashish"
+              target="_blank" rel="noreferrer" title={t("Facebook orqali ulashish")}
               className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
             ><Icon d={I.facebook} className="h-4 w-4" /></a>
             <button
               type="button"
               onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => setCopied(true)); setTimeout(() => setCopied(false), 2000) }}
-              title="Havolani nusxalash"
+              title={t("Havolani nusxalash")}
               className="grid h-10 w-10 place-items-center rounded-lg bg-soft text-green transition-colors hover:bg-green hover:text-white"
             ><Icon d={copied ? I.check : I.link2} className="h-4 w-4" /></button>
-            {copied && <span className="text-xs font-semibold text-green">Nusxalandi</span>}
+            {copied && <span className="text-xs font-semibold text-green">{t("Nusxalandi")}</span>}
             <Link to="/yangiliklar" className="ml-auto inline-flex items-center gap-2 rounded-xl border-2 border-green/25 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">
-              <Icon d={I.chevLeft} className="h-4 w-4" /> Barcha yangiliklar
+              <Icon d={I.chevLeft} className="h-4 w-4" /> {t("Barcha yangiliklar")}
             </Link>
           </div>
         </Reveal>
@@ -180,7 +182,7 @@ export default function NewsDetail() {
             ))}
           </div>
         ) : more.length === 0 ? (
-          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">O'xshash yangiliklar topilmadi.</div>
+          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">{t("O'xshash yangiliklar topilmadi")}</div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {more.map((n, i) => (

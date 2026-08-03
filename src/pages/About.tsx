@@ -4,6 +4,7 @@ import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 
 import { api } from "../lib/api"
 import { useStaticSeo } from "../lib/seo"
+import { useT } from "../lib/i18n"
 
 const mascot = "/mascot2.webp"
 
@@ -16,6 +17,7 @@ type SectionItem = { title: string; description: string; icon: string; link: str
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
 function Hero() {
+  const t = useT()
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -30,10 +32,10 @@ function Hero() {
           <nav className="flex items-center gap-2 text-sm text-muted">
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
               <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" />
-              Bosh sahifa
+              {t("Bosh sahifa")}
             </Link>
             <span>/</span>
-            <span className="font-semibold text-green">Biz haqimizda</span>
+            <span className="font-semibold text-green">{t("Biz haqimizda")}</span>
           </nav>
         </Reveal>
 
