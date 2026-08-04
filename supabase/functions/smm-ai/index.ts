@@ -589,8 +589,75 @@ async function ownSources(): Promise<WebHit[]> {
   }
 }
 
+/**
+ * YOUTUBE KANALI STATISTIKASI.
+ *
+ * Boshqa tarmoqlardan farqi: OAuth kerak emas, API kaliti yetarli —
+ * obunachi soni, video soni va so'nggi videolarning ko'rish/yoqtirish/
+ * izoh raqamlari ochiq ma'lumot.
+ *
+ * `recent` da video SARLAVHASI matn o'rniga ishlatiladi: tahlil qaysi
+ * mavzu ishlaganini aynan shundan o'rganadi.
+ */
+async function gatherYouTube(): Promise<NetworkStat | null> {
+  const kalit = Deno.env.get("YOUTUBE_API_KEY")
+  const channelId = await conf("youtube", "channel_id", "YOUTUBE_CHANNEL_ID")
+  if (!kalit || !channelId) return null
+
+  const API = "https://www.googleapis.com/youtube/v3"
+  const base: NetworkStat = {
+    platform: "youtube", name: channelId,
+    followers: null, posts: null, avgLikes: null, avgComments: null, recent: [],
+  }
+
+  try {
+    const c = await fetch(`${API}/channels?part=snippet,statistics,contentDetails&id=${channelId}&key=${kalit}`)
+    const cd = await c.json()
+    const kanal = cd.items?.[0]
+    if (!kanal) return { ...base, error: "Kanal topilmadi" }
+
+    base.name = kanal.snippet?.title || channelId
+    base.followers = Number(kanal.statistics?.subscriberCount ?? 0) || null
+    base.posts = Number(kanal.statistics?.videoCount ?? 0) || null
+
+    // Kanalning "yuklanganlar" pleylisti — eng ishonchli yo'l.
+    // `search` endpoint kvotadan 100 barobar ko'p yeydi va ba'zan
+    // eski videolarni tashlab ketadi.
+    const uploads = kanal.contentDetails?.relatedPlaylists?.uploads
+    if (!uploads) return base
+
+    const pl = await fetch(`${API}/playlistItems?part=contentDetails&playlistId=${uploads}&maxResults=12&key=${kalit}`)
+    const pld = await pl.json()
+    const idlar = ((pld.items || []) as Record<string, any>[])
+      .map((x) => x.contentDetails?.videoId).filter(Boolean)
+    if (idlar.length === 0) return base
+
+    const v = await fetch(`${API}/videos?part=snippet,statistics&id=${idlar.join(",")}&key=${kalit}`)
+    const vd = await v.json()
+    const yoqtirish: number[] = []
+    const izoh: number[] = []
+    for (const it of ((vd.items || []) as Record<string, any>[])) {
+      const l = Number(it.statistics?.likeCount ?? 0)
+      const cm = Number(it.statistics?.commentCount ?? 0)
+      yoqtirish.push(l)
+      izoh.push(cm)
+      base.recent.push({
+        text: it.snippet?.title || "",
+        likes: l, comments: cm,
+        date: String(it.snippet?.publishedAt || "").split("T")[0],
+      })
+    }
+    const ortacha = (a: number[]) => a.length ? Math.round(a.reduce((s, n) => s + n, 0) / a.length) : null
+    base.avgLikes = ortacha(yoqtirish)
+    base.avgComments = ortacha(izoh)
+    return base
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+}
+
 async function gatherNetworks(): Promise<NetworkStat[]> {
-  const all = await Promise.all([gatherInstagram(), gatherTelegram(), gatherFacebook()])
+  const all = await Promise.all([gatherInstagram(), gatherTelegram(), gatherFacebook(), gatherYouTube()])
   return all.filter((x): x is NetworkStat => x !== null)
 }
 
@@ -920,7 +987,6 @@ Kamida 4 ta tavsiya ber.`
         telegram: "1000 belgigacha, Telegram uchun",
         instagram: "2000 belgigacha, Instagram uchun (emoji ishlatsa bo'ladi)",
         facebook: "1500 belgigacha, Facebook uchun",
-        linkedin: "1500 belgigacha, professional ohangda, LinkedIn uchun",
         youtube: "video tavsifi, 1500 belgigacha",
       }
 

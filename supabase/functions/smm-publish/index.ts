@@ -17,7 +17,17 @@ import { getFacebookPage, exchangeForLongLived } from "../_shared/facebook.ts"
  * MUHIM: post faqat ODAM "publish" chaqirganda joylanadi. AI o'zi joylamaydi.
  */
 
-const PLATFORMS = ["telegram", "facebook", "instagram", "linkedin", "youtube"] as const
+/**
+ * LinkedIn RO'YXATDAN OLIB TASHLANDI: hech qachon ulanmagan, faqat
+ * "hali qo'llab-quvvatlanmaydi" xatosini qaytarardi va panelda
+ * ishlaydigan tarmoqlar orasida bekorga joy egallardi.
+ *
+ * YouTube QOLADI, lekin u TAHLIL uchun: kanal statistikasi va
+ * videolar raqamlari o'qiladi. Post joylash yo'q — YouTube'ga matn
+ * chiqarib bo'lmaydi, u yerga video FAYL yuklanadi va bu butunlay
+ * boshqa oqim (OAuth + resumable upload).
+ */
+const PLATFORMS = ["telegram", "facebook", "instagram", "youtube"] as const
 type Platform = typeof PLATFORMS[number]
 
 type PublishResult = { platform: string; success: boolean; external_id?: string; error?: string }
@@ -211,11 +221,61 @@ async function publishInstagram(text: string, imageUrl: string | null, coverUrl:
   }
 }
 
+/**
+ * Kiritilgan matndan YouTube kanalini topadi.
+ *
+ * Odam kanalni turlicha yozadi va hammasi to'g'ri:
+ *   https://youtube.com/@AgroAlliance   @AgroAlliance   AgroAlliance
+ *   https://youtube.com/channel/UCxxxx  UCxxxx
+ * Shuning uchun avval ID deb, keyin @nom deb, oxirida qidiruv orqali
+ * urinib ko'riladi — bittasi ishlasa bas.
+ */
+async function youtubeKanalTop(
+  xom: string,
+  kalit: string,
+): Promise<{ id: string; title: string } | null> {
+  const API = "https://www.googleapis.com/youtube/v3"
+  const ol = async (url: string): Promise<{ id: string; title: string } | null> => {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(8_000) })
+      const d = await r.json()
+      const it = d.items?.[0]
+      if (!it) return null
+      return { id: it.id?.channelId || it.id, title: it.snippet?.title || "" }
+    } catch {
+      return null
+    }
+  }
+
+  let s = xom.replace(/^https?:\/\/(www\.)?youtube\.com\//i, "").replace(/\/$/, "")
+  const kanalYoli = s.match(/^channel\/([A-Za-z0-9_-]+)/)
+  if (kanalYoli) s = kanalYoli[1]
+  s = s.replace(/^(c|user)\//i, "")
+
+  // 1) To'g'ridan-to'g'ri kanal ID
+  if (/^UC[A-Za-z0-9_-]{20,}$/.test(s)) {
+    const r = await ol(`${API}/channels?part=snippet&id=${s}&key=${kalit}`)
+    if (r) return r
+  }
+  // 2) @nom
+  const nom = s.replace(/^@/, "")
+  if (nom) {
+    const r = await ol(`${API}/channels?part=snippet&forHandle=${encodeURIComponent(nom)}&key=${kalit}`)
+    if (r) return r
+    const r2 = await ol(`${API}/channels?part=snippet&forUsername=${encodeURIComponent(nom)}&key=${kalit}`)
+    if (r2) return r2
+    // 3) Oxirgi chora — qidiruv
+    const r3 = await ol(`${API}/search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(nom)}&key=${kalit}`)
+    if (r3) return r3
+  }
+  return null
+}
+
 /** Hali qurilmagan tarmoqlar — aniq xabar beradi, jim yiqilmaydi */
 function notReady(platform: string): PublishResult {
   const why: Record<string, string> = {
-    linkedin: "LinkedIn hali ulanmagan (alohida app va OAuth kerak)",
-    youtube: "YouTube hali ulanmagan (OAuth va video yuklash kerak)",
+    // YouTube post joylash uchun emas — kanal tahlili uchun ulanadi
+    youtube: "YouTube'ga matn post joylab bo'lmaydi — u faqat tahlil uchun ulanadi",
   }
   return { platform, success: false, error: why[platform] || "Bu tarmoq hali ulanmagan" }
 }
@@ -339,6 +399,7 @@ Deno.serve(async (req) => {
         const ok =
           c.platform === "telegram" ? Boolean(cfg.chat_id) :
           c.platform === "facebook" ? Boolean(cfg.page_id && cfg.page_token) :
+          c.platform === "youtube" ? Boolean(cfg.channel_id) :
           Object.keys(cfg).length > 0
         if (byPlatform[c.platform]) {
           byPlatform[c.platform] = { connected: ok, display_name: c.display_name, via: "panel" }
@@ -409,6 +470,31 @@ Deno.serve(async (req) => {
         const longLived = await exchangeForLongLived(pageToken)
         config = { page_id: pageId, page_token: longLived || pageToken }
         display = d.name || pageId
+      } else if (platform === "youtube") {
+        /**
+         * YOUTUBE KANALINI ULASH.
+         *
+         * OAuth KERAK EMAS: kanal statistikasi va videolar raqamlari
+         * ochiq ma'lumot, API kaliti yetarli. Foydalanuvchi kanalning
+         * havolasini, @nomini yoki ID sini kiritadi — uchalasi ham
+         * qabul qilinadi, chunki odam odatda brauzerdagi havolani
+         * nusxalab qo'yadi.
+         */
+        const kalit = Deno.env.get("YOUTUBE_API_KEY")
+        if (!kalit) return errorResponse("YouTube API kaliti sozlanmagan", 400)
+
+        const xom = String(body.channel || "").trim()
+        if (!xom) return errorResponse("Kanal havolasini yoki @nomini kiriting", 400)
+
+        const kanal = await youtubeKanalTop(xom, kalit)
+        if (!kanal) {
+          return errorResponse(
+            `${xom} bo'yicha kanal topilmadi — havolani (youtube.com/@nom) yoki kanal ID sini tekshiring`,
+            400,
+          )
+        }
+        config = { channel_id: kanal.id }
+        display = kanal.title
       } else {
         return errorResponse("Bu tarmoq hali qo'llab-quvvatlanmaydi", 400)
       }

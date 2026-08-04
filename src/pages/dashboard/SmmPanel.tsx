@@ -44,14 +44,24 @@ type NetworkStat = {
   error?: string
 }
 
-type Platform = { key: string; label: string; ready: boolean; color: string }
+/**
+ * `ready` — tarmoq ulanadimi.
+ * `publish` — unga POST JOYLASA bo'ladimi.
+ *
+ * Ikkisi bir xil emas: YouTube ulanadi va tahlil qilinadi, lekin unga
+ * matn post joylab bo'lmaydi — u yerga video fayl yuklanadi. Ilgari
+ * bunday farq yo'q edi va ulangan tarmoq avtomatik "joylash mumkin"
+ * deb hisoblanardi.
+ */
+type Platform = { key: string; label: string; ready: boolean; publish: boolean; color: string }
 
+// LinkedIn OLIB TASHLANDI: hech qachon ulanmagan, faqat "hali
+// qo'llab-quvvatlanmaydi" xatosini qaytarardi va bekorga joy egallardi.
 const PLATFORMS: Platform[] = [
-  { key: "telegram", label: "Telegram", ready: true, color: "#229ED9" },
-  { key: "facebook", label: "Facebook", ready: true, color: "#1877F2" },
-  { key: "instagram", label: "Instagram", ready: true, color: "#E1306C" },
-  { key: "linkedin", label: "LinkedIn", ready: false, color: "#0A66C2" },
-  { key: "youtube", label: "YouTube", ready: false, color: "#FF0000" },
+  { key: "telegram", label: "Telegram", ready: true, publish: true, color: "#229ED9" },
+  { key: "facebook", label: "Facebook", ready: true, publish: true, color: "#1877F2" },
+  { key: "instagram", label: "Instagram", ready: true, publish: true, color: "#E1306C" },
+  { key: "youtube", label: "YouTube", ready: true, publish: false, color: "#FF0000" },
 ]
 
 const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
@@ -69,7 +79,6 @@ const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
 const BRAND: Record<string, string> = {
   telegram: "M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z",
   facebook: "M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.02 4.39 11.01 10.13 11.93v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.08 24 18.09 24 12.07z",
-  linkedin: "M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z",
   youtube: "M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.08 0 12 0 12s0 3.92.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.92 24 12 24 12s0-3.92-.5-5.81zM9.55 15.57V8.43L15.82 12l-6.27 3.57z",
   instagram: "M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16M12 0C8.74 0 8.33.01 7.05.07 5.78.13 4.9.33 4.14.63c-.79.3-1.46.72-2.12 1.38C1.36 2.67.94 3.34.63 4.14.33 4.9.13 5.78.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.27.26 2.15.56 2.91.3.79.72 1.46 1.38 2.12.66.66 1.33 1.08 2.12 1.38.76.3 1.64.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.27-.06 2.15-.26 2.91-.56.79-.3 1.46-.72 2.12-1.38.66-.66 1.08-1.33 1.38-2.12.3-.76.5-1.64.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.27-.26-2.15-.56-2.91-.3-.79-.72-1.46-1.38-2.12-.66-.66-1.33-1.08-2.12-1.38-.76-.3-1.64-.5-2.91-.56C15.67.01 15.26 0 12 0z M12 5.84A6.16 6.16 0 1 0 12 18.16 6.16 6.16 0 0 0 12 5.84zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8z M18.41 4.15a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z",
 }
@@ -191,7 +200,7 @@ export default function SmmPanel({ seed }: {
     return new Set(["telegram"])
   })
   const [connOpen, setConnOpen] = useState<string | null>(null)
-  const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "" })
+  const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "", channel: "" })
   const [connBusy, runConn] = useBusy()
   const [pickMsg, setPickMsg] = useState("")
 
@@ -333,6 +342,17 @@ export default function SmmPanel({ seed }: {
     }
     if (!p.ready) { setPickMsg(`${p.label} hali qo'shilmagan`); return }
     if (!conns[p.key]?.connected) { setConnOpen(p.key); setPickMsg(`${p.label} ulanmagan — avval ulang`); return }
+    /**
+     * YouTube joylash ro'yxatiga TUSHMAYDI. U ulanadi va tahlil
+     * qilinadi, lekin matn post qabul qilmaydi. Ilgari uni tanlash
+     * mumkin edi va joylash paytida "qo'llab-quvvatlanmaydi" xatosi
+     * chiqardi — ya'ni xato ish qilingandan KEYIN bilinardi.
+     */
+    if (!p.publish) {
+      setConnOpen(p.key)
+      setPickMsg(`${p.label} tahlil uchun ulanadi — unga post joylab bo'lmaydi`)
+      return
+    }
     setPickMsg("")
     setPicked((prev) => new Set(prev).add(p.key))
   }
@@ -348,12 +368,16 @@ export default function SmmPanel({ seed }: {
     const body: Record<string, string> = { platform }
     if (platform === "telegram") body.chat_id = connForm.chat_id.trim()
     if (platform === "facebook") { body.page_id = connForm.page_id.trim(); body.page_token = connForm.page_token.trim() }
+    if (platform === "youtube") body.channel = connForm.channel.trim()
     try {
       const r = await api<{ display_name: string }>("/smm/posts?action=connect", { method: "POST", body: JSON.stringify(body) })
       setPickMsg(`✅ Ulandi: ${r.display_name}`)
       setConnOpen(null)
-      setConnForm({ chat_id: "", page_id: "", page_token: "" })
-      setPicked((prev) => new Set(prev).add(platform))
+      setConnForm({ chat_id: "", page_id: "", page_token: "", channel: "" })
+      // Joylash mumkin bo'lmagan tarmoq (YouTube) tanlovga qo'shilmaydi
+      if (PLATFORMS.find((x) => x.key === platform)?.publish) {
+        setPicked((prev) => new Set(prev).add(platform))
+      }
       load()
     } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
   })
@@ -1104,10 +1128,19 @@ export default function SmmPanel({ seed }: {
                 {/* Ulangan kartada: qayta ulash (aylana strelka) va uzish.
                     Faqat shu tarmoqqa tegishli — pastdagi umumiy tugmalar
                     qatori olib tashlandi. */}
-                {/* Belgilash katakchasi — doim o'ng yuqorida, qat'iy joyda */}
-                <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
-                  {sel && <Icon d={I.check} className="h-3 w-3" />}
-                </span>
+                {/* Belgilash katakchasi — doim o'ng yuqorida, qat'iy joyda.
+                    Joylash mumkin bo'lmagan tarmoqda (YouTube) katakcha
+                    o'rniga "Tahlil" belgisi: u post qabul qilmaydi,
+                    shuning uchun uni tanlash ham mantiqsiz. */}
+                {p.publish ? (
+                  <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
+                    {sel && <Icon d={I.check} className="h-3 w-3" />}
+                  </span>
+                ) : (
+                  <span className="absolute right-2 top-4 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">
+                    {tr("Tahlil")}
+                  </span>
+                )}
 
                 {/* Amal ikonkalari faqat sichqoncha ustiga kelganda.
                     Doim ko'rinsa karta tiqilib qoladi — mockup'da ular yo'q,
@@ -1155,6 +1188,25 @@ export default function SmmPanel({ seed }: {
             <button onClick={() => connect("facebook")} disabled={connBusy} className="mt-2 rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
               {connBusy ? "Tekshirilmoqda…" : "Ulash"}
             </button>
+          </div>
+        )}
+
+        {connOpen === "youtube" && (
+          <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
+            <p className="text-xs text-muted">
+              Kanal havolasini, <strong>@nomini</strong> yoki ID sini kiriting. YouTube
+              <strong>{tr(" tahlil uchun ")}</strong>ulanadi: obunachilar, videolar soni va
+              so'nggi videolarning ko'rish/yoqtirish/izoh raqamlari AI tahliliga qo'shiladi.
+              Bu yerdan post joylanmaydi.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input value={connForm.channel} onChange={(e) => setConnForm((f) => ({ ...f, channel: e.target.value }))}
+                placeholder={tr("https://youtube.com/@kanal yoki @kanal")}
+                className="min-w-[260px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+              <button onClick={() => connect("youtube")} disabled={connBusy} className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+                {connBusy ? "Tekshirilmoqda…" : "Ulash"}
+              </button>
+            </div>
           </div>
         )}
 
