@@ -51,9 +51,18 @@ function ilovagaQaytar(origin: string, params: Record<string, string>): Response
       { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } },
     )
   }
+  /**
+   * `/admin` EMAS, `/oauth-yakun`.
+   *
+   * Rozilik kichik qalqib chiqqan oynada ochiladi. `/admin` ga
+   * qaytarilganda o'sha 400px lik oynada BUTUN admin paneli yuklanib,
+   * ichida "Topshiriqlar" bo'limi chiqib turardi — ulanish tugaganini
+   * tushunib bo'lmasdi. Yangi sahifa natijani bir qatorda aytadi va
+   * oynani o'zi yopadi.
+   */
   return new Response(null, {
     status: 302,
-    headers: { Location: `${origin}/admin?${new URLSearchParams(params).toString()}` },
+    headers: { Location: `${origin}/oauth-yakun?${new URLSearchParams(params).toString()}` },
   })
 }
 

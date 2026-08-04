@@ -29,6 +29,7 @@ const News = lazy(() => import("./pages/News"))
 const NewsDetail = lazy(() => import("./pages/NewsDetail"))
 const Partners = lazy(() => import("./pages/Partners"))
 const Contact = lazy(() => import("./pages/Contact"))
+const OauthYakun = lazy(() => import("./pages/OauthYakun"))
 const Login = lazy(() => import("./pages/Login"))
 const ResetPassword = lazy(() => import("./pages/ResetPassword"))
 const Terms = lazy(() => import("./pages/Terms"))
@@ -150,6 +151,8 @@ export default function App() {
           </Route>
             <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/kirish" element={<Login />} />
+          {/* OAuth qalqib chiqqan oynasi shu yerga qaytadi va o'zini yopadi */}
+          <Route path="/oauth-yakun" element={<OauthYakun />} />
           <Route path="/dashboard" element={<RequireRole role="blogger"><BloggerDashboard /></RequireRole>} />
           <Route path="/admin" element={<RequireRole role="superadmin"><AdminDashboard /></RequireRole>} />
           <Route path="/hamkor" element={<RequireRole role="partner"><PartnerDashboard /></RequireRole>} />
