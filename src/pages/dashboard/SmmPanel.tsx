@@ -201,7 +201,7 @@ export default function SmmPanel({ seed }: {
     return new Set(["telegram"])
   })
   const [connOpen, setConnOpen] = useState<string | null>(null)
-  const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "", channel: "" })
+  const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "" })
   const [connBusy, runConn] = useBusy()
   const [pickMsg, setPickMsg] = useState("")
 
@@ -369,12 +369,11 @@ export default function SmmPanel({ seed }: {
     const body: Record<string, string> = { platform }
     if (platform === "telegram") body.chat_id = connForm.chat_id.trim()
     if (platform === "facebook") { body.page_id = connForm.page_id.trim(); body.page_token = connForm.page_token.trim() }
-    if (platform === "youtube") body.channel = connForm.channel.trim()
     try {
       const r = await api<{ display_name: string }>("/smm/posts?action=connect", { method: "POST", body: JSON.stringify(body) })
       setPickMsg(`✅ Ulandi: ${r.display_name}`)
       setConnOpen(null)
-      setConnForm({ chat_id: "", page_id: "", page_token: "", channel: "" })
+      setConnForm({ chat_id: "", page_id: "", page_token: "" })
       // Joylash mumkin bo'lmagan tarmoq (YouTube) tanlovga qo'shilmaydi
       if (PLATFORMS.find((x) => x.key === platform)?.publish) {
         setPicked((prev) => new Set(prev).add(platform))
@@ -397,13 +396,40 @@ export default function SmmPanel({ seed }: {
   })
 
   /**
+   * YouTube — Google OAuth.
+   *
+   * YAGONA ULANISH NUQTASI. Ilgari ikkita edi: shu yerda kanal
+   * havolasi so'ralardi (faqat statistika uchun), pastdagi studiyada
+   * esa alohida "Kanalni ulash" tugmasi turardi (yuklash uchun).
+   * Foydalanuvchi ikki marta ulashga majbur bo'lardi va qaysi biri
+   * nima berishi tushunarsiz edi. Endi bitta rozilik hammasini
+   * qamraydi: statistika ham, video boshqaruvi ham.
+   */
+  const ytConnect = () => runConn(async () => {
+    setPickMsg("")
+    try {
+      const r = await api<{ authUrl: string }>("/youtube/oauth?action=start", { method: "POST" })
+      if (!r.authUrl) { setPickMsg("❌ Ulanish manzili olinmadi"); return }
+      window.open(r.authUrl, "_blank", "width=600,height=760")
+      setPickMsg("Google oynasida ruxsat bering — keyin holat o'zi yangilanadi")
+      setConnOpen(null)
+      // Oyna yopilganini bilishning yo'li yo'q (boshqa domen) —
+      // shuning uchun bir necha marta qayta so'raymiz
+      let n = 0
+      const t = setInterval(() => { n++; load(); if (n >= 10) clearInterval(t) }, 4000)
+    } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
+  })
+
+  /**
    * Qayta ulash — tarmoqqa qarab usul har xil:
    *   Instagram — Facebook OAuth (igConnect)
+   *   YouTube   — Google OAuth (ytConnect)
    *   Telegram/Facebook — ulash formasini ochamiz (kalit qayta kiritiladi)
    */
   const reconnect = (p: Platform) => {
     setPickMsg("")
     if (p.key === "instagram") { igConnect(); return }
+    if (p.key === "youtube") { ytConnect(); return }
     setConnOpen(p.key)
   }
 
@@ -1195,19 +1221,16 @@ export default function SmmPanel({ seed }: {
         {connOpen === "youtube" && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
             <p className="text-xs text-muted">
-              Kanal havolasini, <strong>@nomini</strong> yoki ID sini kiriting. YouTube
-              <strong>{tr(" tahlil uchun ")}</strong>ulanadi: obunachilar, videolar soni va
-              so'nggi videolarning ko'rish/yoqtirish/izoh raqamlari AI tahliliga qo'shiladi.
-              Bu yerdan post joylanmaydi.
+              YouTube <strong>{tr("Google hisobi orqali")}</strong> ulanadi. Bitta rozilik
+              hammasini qamraydi: kanal statistikasi AI tahliliga qo'shiladi va pastdagi
+              studiyadan video yuklash, tahrirlash, muqova qo'yish va o'chirish ochiladi.
+              Bu yerdan matn post joylanmaydi — YouTube'ga video fayl yuklanadi.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <input value={connForm.channel} onChange={(e) => setConnForm((f) => ({ ...f, channel: e.target.value }))}
-                placeholder={tr("https://youtube.com/@kanal yoki @kanal")}
-                className="min-w-[260px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-              <button onClick={() => connect("youtube")} disabled={connBusy} className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
-                {connBusy ? "Tekshirilmoqda…" : "Ulash"}
-              </button>
-            </div>
+            <button onClick={ytConnect} disabled={connBusy}
+              className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
+              <Brand k="youtube" className="h-4 w-4" color="#fff" />
+              {connBusy ? "Ochilmoqda…" : "Google bilan ulash"}
+            </button>
           </div>
         )}
 

@@ -99,25 +99,6 @@ export default function YoutubeStudio() {
     })()
   }, [])
 
-  /**
-   * OAuth oynasi yopilganini bilishning ishonchli yo'li yo'q (boshqa
-   * domen). Shuning uchun oyna ochilgach ro'yxatni bir necha marta
-   * qayta so'raymiz — rozilik berilgan bo'lsa o'zi ko'rinadi.
-   */
-  const ulash = async () => {
-    setXabar("")
-    try {
-      const r = await api<{ authUrl: string }>("/youtube/oauth?action=start", { method: "POST" })
-      if (!r.authUrl) { setXabar("❌ Ulanish manzili olinmadi"); return }
-      window.open(r.authUrl, "_blank", "width=600,height=760")
-      setXabar("Google oynasida ruxsat bering — keyin ro'yxat o'zi yangilanadi")
-      let n = 0
-      const t = setInterval(() => { n++; yukla(); if (n >= 10) clearInterval(t) }, 4000)
-    } catch (e) {
-      setXabar(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`)
-    }
-  }
-
   const ochir = async (v: YtVideo) => {
     setXabar("")
     try {
@@ -150,17 +131,24 @@ export default function YoutubeStudio() {
               </svg>
             </span>
             <div>
-              <h3 className="font-display font-bold">{tr("YouTube kanali")}</h3>
+              <h3 className="font-display font-bold">{tr("YouTube studiyasi")}</h3>
               <p className="text-sm text-muted">
-                {ulangan && kanal ? kanal.title : tr("Video yuklash, tahrirlash va o'chirish uchun kanalni ulang")}
+                {/*
+                  ULASH TUGMASI BU YERDA YO'Q — ATAYLAB.
+                  Kanal yuqoridagi tarmoqlar ro'yxatidan bir marta
+                  ulanadi. Ilgari ikkita ulash nuqtasi bor edi va
+                  foydalanuvchi ikki marta ulashga majbur bo'lardi.
+                */}
+                {ulangan && kanal ? kanal.title : tr("Yuqoridagi YouTube kartochkasidan kanalni ulang")}
               </p>
             </div>
           </div>
-          <button onClick={ulangan ? yukla : ulash}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white transition-transform hover:scale-105">
-            <Icon d={ulangan ? I.refresh : I.login} className="h-4 w-4" />
-            {ulangan ? tr("Yangilash") : tr("Kanalni ulash")}
-          </button>
+          {ulangan && (
+            <button onClick={yukla}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white transition-transform hover:scale-105">
+              <Icon d={I.refresh} className="h-4 w-4" /> {tr("Yangilash")}
+            </button>
+          )}
         </div>
 
         {xabar && (
