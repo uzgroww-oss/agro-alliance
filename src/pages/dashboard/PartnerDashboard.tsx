@@ -33,9 +33,79 @@ type PartnerVideo = {
   plats: string[]; date: string; thumbnail: string | null
   blogger: { id: string; name: string; slug: string | null; avatar: string | null }
 }
+type TopBlogger = {
+  id: string; name: string; slug: string | null; avatar: string | null
+  videos: number; views: number; likes: number; comments: number
+}
 type VideoStats = {
   total: number; views: number; likes: number; comments: number
-  bloggers: number; platforms: Record<string, number>; lastDate: string
+  bloggers: number; platforms: Record<string, number>
+  platformViews: Record<string, number>
+  monthly: { oy: string; views: number; videos: number }[]
+  topBloggers: TopBlogger[]
+  lastDate: string
+}
+
+/* ==========================================================================
+   DIAGRAMMA RANGLARI
+   ==========================================================================
+   Ranglar KO'ZDAN emas, tekshiruvdan o'tkazib tanlangan: har juftlik
+   rangni ajrata olmaydigan odam uchun ham (deutan/protan/tritan), oddiy
+   ko'rish uchun ham yetarlicha farq qiladi.
+
+   Tarmoqlarning O'Z brend ranglari ishlatilmadi: Telegram va Facebook
+   ikkalasi ham ko'k, YouTube va Instagram esa qizil-pushti — donut
+   bo'laklari bir-biriga qo'shilib ketardi. Shuning uchun rang faqat
+   yordamchi belgi, ASOSIY belgi — yozuv: har bo'lak nomi va foizi
+   bilan birga ko'rsatiladi.
+   ========================================================================== */
+const PLATFORMA_RANG: Record<string, string> = {
+  YouTube: "#e34948",
+  Telegram: "#2a78d6",
+  Instagram: "#eda100",
+  Facebook: "#4a3aa7",
+}
+/** Ro'yxatda yo'q tarmoq uchun — kulrang, "boshqa" ma'nosida */
+const BOSHQA_RANG = "#6b7280"
+const rangOl = (nom: string) => PLATFORMA_RANG[nom] || BOSHQA_RANG
+
+/** Ustunlar rangi — bitta qator, shuning uchun bitta rang */
+const USTUN_RANG = "#2f7d1f"
+
+const qisqaSon = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`
+  return String(n)
+}
+
+/**
+ * Foizlarni yig'indisi ANIQ 100 bo'ladigan qilib yaxlitlaydi.
+ *
+ * Oddiy `Math.round` da 56 + 28 + 14 + 3 = 101 chiqardi va bu
+ * diagrammada darrov ko'zga tashlanadi. Eng katta qoldiqli
+ * bo'laklarga bittadan qo'shib, farq yopiladi.
+ */
+function foizlar(qiymatlar: number[]): number[] {
+  const jami = qiymatlar.reduce((s, n) => s + n, 0)
+  if (jami <= 0) return qiymatlar.map(() => 0)
+  const aniq = qiymatlar.map((n) => (n / jami) * 100)
+  const past = aniq.map(Math.floor)
+  let qoldiq = 100 - past.reduce((s, n) => s + n, 0)
+  const tartib = aniq
+    .map((n, i) => ({ i, kasr: n - Math.floor(n) }))
+    .sort((a, b) => b.kasr - a.kasr)
+  for (const { i } of tartib) {
+    if (qoldiq <= 0) break
+    past[i] += 1
+    qoldiq -= 1
+  }
+  return past
+}
+
+const OY_NOMI = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
+const oyYorlig = (oy: string) => {
+  const [y, m] = oy.split("-")
+  return { nom: OY_NOMI[Number(m) - 1] || m, yil: y }
 }
 
 const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
@@ -587,6 +657,281 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
   )
 }
 
+/* ---------- Diagrammalar ---------- */
+
+/**
+ * OYLIK KO'RSATKICH — bir yillik, oylar bo'yicha ustunlar.
+ *
+ * Bitta qator (ko'rishlar), shuning uchun BITTA rang va afsona
+ * (legend) yo'q — sarlavha nima chizilganini aytadi. Har ustunga
+ * raqam yozilmaydi: eng kattasi belgilanadi, qolganlari sichqoncha
+ * ustiga kelganda ko'rinadi.
+ *
+ * Video yo'q oylar ham qoladi — ular tashlab ketilsa vaqt o'qi
+ * buzilib, tanaffuslar ko'rinmasdi.
+ */
+function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
+  const [ustida, setUstida] = useState<number | null>(null)
+  const max = Math.max(1, ...data.map((d) => d.views))
+  const engKattaIdx = data.reduce((eng, d, i) => (d.views > data[eng].views ? i : eng), 0)
+  const jami = data.reduce((s, d) => s + d.views, 0)
+
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-display text-lg font-bold">{tr("Oylik ko'rishlar")}</h3>
+        <span className="text-xs text-muted">{tr("so'nggi 12 oy")} · {qisqaSon(jami)}</span>
+      </div>
+      {/* Raqam nimani anglatishini AYTAMIZ: ijtimoiy tarmoqlar
+          ko'rishlarning kunlik tarixini bermaydi, faqat joriy jami
+          raqamni. Shusiz kompaniya buni "shu oyda shuncha ko'rildi"
+          deb o'qib, noto'g'ri xulosa chiqarardi. */}
+      <p className="mt-0.5 text-xs text-muted">
+        {tr("Shu oyda chiqarilgan videolar bugungi kunga yig'gan ko'rishlar")}
+      </p>
+
+      <div className="relative mt-5">
+        {/* Yuqori chegara chizig'i — o'qsiz ham masshtab bilinsin */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-green/15" />
+        <span className="pointer-events-none absolute -top-2 right-0 bg-white px-1 text-[10px] text-muted">
+          {qisqaSon(max)}
+        </span>
+
+        <div className="flex h-44 items-end gap-[2px]">
+          {data.map((d, i) => {
+            const bal = Math.round((d.views / max) * 100)
+            const faol = ustida === i
+            return (
+              <div
+                key={d.oy}
+                className="group relative flex h-full flex-1 cursor-default items-end justify-center"
+                onMouseEnter={() => setUstida(i)}
+                onMouseLeave={() => setUstida(null)}
+              >
+                {/* Eng katta oy doim belgilangan — hikoya shunda */}
+                {(i === engKattaIdx || faol) && d.views > 0 && (
+                  <span
+                    className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    /**
+                     * Baland ustunda yorliq USTUNNING ICHIGA tushadi.
+                     * Ustidan qo'yilsa u grafik chegarasidan chiqib
+                     * ketardi — eng katta oy, ya'ni aynan ko'rsatilishi
+                     * kerak bo'lgan raqam kesilib qolardi.
+                     */
+                    style={bal > 80 ? { bottom: `calc(${bal}% - 22px)` } : { bottom: `calc(${bal}% + 6px)` }}
+                  >
+                    {qisqaSon(d.views)}
+                    {faol && <span className="font-normal"> · {d.videos} {tr("video")}</span>}
+                  </span>
+                )}
+                <div
+                  className="w-full max-w-[24px] rounded-t transition-[height,opacity]"
+                  style={{
+                    height: d.views > 0 ? `max(${bal}%, 3px)` : "2px",
+                    background: d.views > 0 ? USTUN_RANG : "#e5e7eb",
+                    opacity: ustida === null || faol ? 1 : 0.55,
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="mt-2 flex gap-[2px]">
+          {data.map((d) => {
+            const { nom, yil } = oyYorlig(d.oy)
+            return (
+              <div key={d.oy} className="min-w-0 flex-1 text-center">
+                <div className="truncate text-[10px] text-muted">{nom}</div>
+                {/* Yil faqat yanvarda — takrorlanish shovqin qiladi */}
+                {d.oy.endsWith("-01") && <div className="text-[9px] text-muted/70">{yil}</div>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * PLATFORMA ULUSHI — donut.
+ *
+ * Ko'rishlar bo'yicha, video soni bo'yicha emas: kompaniya uchun 2 ta
+ * video 100 000 ko'rish bergan tarmoq 10 ta video 500 ko'rish
+ * bergandan qimmatliroq.
+ *
+ * Rang yagona belgi EMAS — har bo'lak afsonada nomi, foizi va aniq
+ * raqami bilan turadi. Bo'laklar orasida 2px oq tirqish: qo'shni
+ * ranglar bir-biriga qo'shilib ketmasin.
+ */
+function PlatformaDonut({ stats }: { stats: VideoStats }) {
+  const [ustida, setUstida] = useState<string | null>(null)
+
+  const qatorlar = Object.entries(stats.platformViews || {})
+    .map(([nom, views]) => ({ nom, views, videos: stats.platforms[nom] || 0 }))
+    .sort((a, b) => b.views - a.views)
+  const jami = qatorlar.reduce((s, r) => s + r.views, 0)
+
+  // Ko'rish raqami umuman yo'q bo'lsa donut ma'nosiz — video soniga o'tamiz
+  const korishBor = jami > 0
+  const asos = korishBor
+    ? qatorlar
+    : qatorlar.map((r) => ({ ...r, views: r.videos })).sort((a, b) => b.views - a.views)
+  const asosJami = asos.reduce((s, r) => s + r.views, 0)
+  if (asosJami === 0) return null
+
+  const R = 56
+  const QALINLIK = 18
+  const C = 2 * Math.PI * R
+  const TIRQISH = 2
+
+  /**
+   * Har bo'lakning aylanadagi boshlanish nuqtasi — undan oldingi
+   * bo'laklar uzunligining yig'indisi. `reduce` ichida to'plangani
+   * uchun render paytida o'zgaruvchi qayta yozilmaydi.
+   */
+  const foiz = foizlar(asos.map((r) => r.views))
+  const boklaklar = asos.reduce<Array<typeof asos[number] & { ulush: number; foiz: number; uzunlik: number; siljish: number }>>(
+    (acc, r, i) => {
+      const oldingi = acc.length ? acc[acc.length - 1] : null
+      const siljish = oldingi ? oldingi.siljish + oldingi.ulush * C : 0
+      const ulush = r.views / asosJami
+      acc.push({ ...r, ulush, foiz: foiz[i], uzunlik: Math.max(ulush * C - TIRQISH, 0.5), siljish })
+      return acc
+    },
+    [],
+  )
+
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-display text-lg font-bold">{tr("Platformalar ulushi")}</h3>
+        <span className="text-xs text-muted">{korishBor ? tr("ko'rishlar bo'yicha") : tr("videolar soni bo'yicha")}</span>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-6">
+        <div className="relative shrink-0">
+          <svg width={2 * (R + QALINLIK / 2)} height={2 * (R + QALINLIK / 2)} role="img"
+            aria-label={tr("Platformalar ulushi diagrammasi")}>
+            <g transform={`translate(${R + QALINLIK / 2} ${R + QALINLIK / 2}) rotate(-90)`}>
+              {boklaklar.map((b) => (
+                <circle
+                  key={b.nom}
+                  r={R} fill="none"
+                  stroke={rangOl(b.nom)}
+                  strokeWidth={QALINLIK}
+                  strokeDasharray={`${b.uzunlik} ${C - b.uzunlik}`}
+                  strokeDashoffset={-b.siljish}
+                  opacity={ustida === null || ustida === b.nom ? 1 : 0.4}
+                  onMouseEnter={() => setUstida(b.nom)}
+                  onMouseLeave={() => setUstida(null)}
+                  style={{ transition: "opacity .15s" }}
+                />
+              ))}
+            </g>
+          </svg>
+          <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+            {ustida ? (
+              <div>
+                <div className="font-display text-lg font-extrabold">
+                  {boklaklar.find((b) => b.nom === ustida)!.foiz}%
+                </div>
+                <div className="max-w-[80px] truncate text-[10px] text-muted">{ustida}</div>
+              </div>
+            ) : (
+              <div>
+                <div className="font-display text-lg font-extrabold">{qisqaSon(asosJami)}</div>
+                <div className="text-[10px] text-muted">{korishBor ? tr("ko'rish") : tr("video")}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Afsona — RANG YOLG'IZ BELGI EMAS: nom, foiz va raqam */}
+        <ul className="min-w-[180px] flex-1 space-y-2">
+          {boklaklar.map((b) => (
+            <li key={b.nom}
+              className="flex items-center gap-2"
+              onMouseEnter={() => setUstida(b.nom)}
+              onMouseLeave={() => setUstida(null)}
+            >
+              <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: rangOl(b.nom) }} />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{b.nom}</span>
+              <span className="shrink-0 text-sm font-bold">{b.foiz}%</span>
+              <span className="w-14 shrink-0 text-right text-xs text-muted">{qisqaSon(b.views)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * ENG SAMARALI BLOGERLAR.
+ *
+ * Nomlar tabiiy tartibga ega emas, shuning uchun har blogerga
+ * alohida rang berilmaydi — hammasi bitta rangda. Uzunlik allaqachon
+ * kattalikni ko'rsatib turibdi, rangga ikkinchi marta yuklash
+ * ma'lumot qo'shmaydi.
+ */
+function TopBloggers({ list }: { list: TopBlogger[] }) {
+  const [hammasi, setHammasi] = useState(false)
+  if (!list.length) return null
+  const max = Math.max(1, ...list.map((b) => b.views))
+  const korinadigan = hammasi ? list : list.slice(0, 5)
+
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-display text-lg font-bold">{tr("Eng samarali blogerlar")}</h3>
+        <span className="text-xs text-muted">{tr("ko'rishlar bo'yicha")}</span>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {korinadigan.map((b, i) => (
+          <div key={b.id} className="flex items-center gap-3">
+            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-extrabold ${i === 0 ? "bg-green text-white" : "bg-soft text-muted"}`}>
+              {i + 1}
+            </span>
+            {b.avatar
+              ? <img loading="lazy" decoding="async" src={b.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+              : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green/10 text-xs font-bold text-green">{b.name[0]}</span>}
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                {b.slug ? (
+                  <a href={`/blogerlar/${b.slug}`} target="_blank" rel="noreferrer"
+                    className="truncate text-sm font-bold hover:text-green hover:underline">{b.name}</a>
+                ) : (
+                  <span className="truncate text-sm font-bold">{b.name}</span>
+                )}
+                <span className="shrink-0 font-display text-sm font-extrabold">{qisqaSon(b.views)}</span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-soft">
+                <div className="h-full rounded-full" style={{ width: `${Math.max((b.views / max) * 100, 2)}%`, background: USTUN_RANG }} />
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-muted">
+                <span>{b.videos} {tr("video")}</span>
+                <span>{qisqaSon(b.likes)} {tr("yoqtirish")}</span>
+                <span>{qisqaSon(b.comments)} {tr("izoh")}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {list.length > 5 && (
+        <button onClick={() => setHammasi((h) => !h)}
+          className="mt-4 w-full rounded-xl border border-green/20 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5">
+          {hammasi ? tr("Kamroq") : `${tr("Yana")} ${list.length - 5}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Videolar ---------- */
 /**
  * BLOGERLAR SHU KOMPANIYA UCHUN BELGILAGAN VIDEOLAR.
@@ -657,27 +1002,12 @@ function PartnerVideos() {
         ))}
       </div>
 
+      {stats && stats.monthly?.length > 0 && <OylikGrafik data={stats.monthly} />}
+
       {stats && Object.keys(stats.platforms).length > 0 && (
-        <div className={card}>
-          <h3 className="font-display text-lg font-bold">{tr("Platformalar bo'yicha")}</h3>
-          <div className="mt-4 space-y-3">
-            {Object.entries(stats.platforms)
-              .sort((a, b) => b[1] - a[1])
-              .map(([nom, soni]) => {
-                const pct = stats.total ? Math.round((soni / stats.total) * 100) : 0
-                return (
-                  <div key={nom}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-semibold">{nom}</span>
-                      <span className="text-muted">{soni} ({pct}%)</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-soft">
-                      <div className="h-full rounded-full bg-green transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-          </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <PlatformaDonut stats={stats} />
+          <TopBloggers list={stats.topBloggers || []} />
         </div>
       )}
 

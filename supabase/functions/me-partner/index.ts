@@ -305,10 +305,75 @@ Deno.serve(async (req) => {
       const jamiKorish = videolar.reduce((s, v) => s + sonGa(v.views), 0)
       const jamiYoqtirish = videolar.reduce((s, v) => s + sonGa(v.likes), 0)
       const jamiIzoh = videolar.reduce((s, v) => s + sonGa(v.comments), 0)
+
+      /**
+       * PLATFORMA ULUSHI.
+       *
+       * Video soni ham, ko'rishlar ham sanaladi — kompaniya uchun
+       * ikkinchisi muhimroq: 2 ta video 100 000 ko'rish bergan
+       * platforma 10 ta video 500 ko'rish bergandan qimmatliroq.
+       *
+       * Bitta video bir nechta platformada bo'lsa BIRINCHISIGA
+       * yoziladi. Aks holda ko'rishlar ikki marta sanalib, ulushlar
+       * yig'indisi 100% dan oshib ketardi.
+       */
       const platformalar: Record<string, number> = {}
+      const platformaKorish: Record<string, number> = {}
       for (const v of videolar) {
-        for (const pl of (v.plats as string[])) platformalar[pl] = (platformalar[pl] || 0) + 1
+        const asosiy = (v.plats as string[])[0] || "Boshqa"
+        platformalar[asosiy] = (platformalar[asosiy] || 0) + 1
+        platformaKorish[asosiy] = (platformaKorish[asosiy] || 0) + sonGa(v.views)
       }
+
+      /**
+       * OYLIK KO'RSATKICH — oxirgi 12 oy.
+       *
+       * DIQQAT: bu "shu oyda nechta ko'rish bo'ldi" EMAS. Bizda
+       * ko'rishlarning kunlik tarixi yo'q — ijtimoiy tarmoq faqat
+       * JORIY jami raqamni beradi. Shuning uchun bu "shu oyda
+       * CHIQARILGAN videolar bugungi kunga qancha ko'rish yig'gan"
+       * degani. Grafik sarlavhasida ham shunday yozilgan — aks holda
+       * kompaniya raqamlarni noto'g'ri o'qib qolardi.
+       *
+       * Video yo'q oylar ham ro'yxatda qoladi (nol bilan): ular
+       * tashlab ketilsa vaqt o'qi buzilib, tanaffuslar ko'rinmasdi.
+       */
+      const hozir = new Date()
+      const oylar: { oy: string; views: number; videos: number }[] = []
+      const indeks = new Map<string, number>()
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(Date.UTC(hozir.getUTCFullYear(), hozir.getUTCMonth() - i, 1))
+        const kalit = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+        indeks.set(kalit, oylar.length)
+        oylar.push({ oy: kalit, views: 0, videos: 0 })
+      }
+      for (const v of videolar) {
+        const kalit = String(v.date || "").slice(0, 7)
+        const i = indeks.get(kalit)
+        if (i === undefined) continue
+        oylar[i].views += sonGa(v.views)
+        oylar[i].videos += 1
+      }
+
+      /** ENG SAMARALI BLOGERLAR — ko'rishlar bo'yicha */
+      type BlogerJami = {
+        id: string; name: string; slug: string | null; avatar: string | null
+        videos: number; views: number; likes: number; comments: number
+      }
+      const blogerlar = new Map<string, BlogerJami>()
+      for (const v of videolar) {
+        const b = v.blogger as { id: string; name: string; slug: string | null; avatar: string | null }
+        const bor = blogerlar.get(b.id) || {
+          id: b.id, name: b.name, slug: b.slug, avatar: b.avatar,
+          videos: 0, views: 0, likes: 0, comments: 0,
+        }
+        bor.videos += 1
+        bor.views += sonGa(v.views)
+        bor.likes += sonGa(v.likes)
+        bor.comments += sonGa(v.comments)
+        blogerlar.set(b.id, bor)
+      }
+      const top = [...blogerlar.values()].sort((a, b) => b.views - a.views)
 
       return jsonResponse({
         videos: videolar,
@@ -317,8 +382,11 @@ Deno.serve(async (req) => {
           views: jamiKorish,
           likes: jamiYoqtirish,
           comments: jamiIzoh,
-          bloggers: new Set(videolar.map((v) => (v.blogger as { id: string }).id)).size,
+          bloggers: blogerlar.size,
           platforms: platformalar,
+          platformViews: platformaKorish,
+          monthly: oylar,
+          topBloggers: top,
           lastDate: videolar[0]?.date || "",
         },
       })
