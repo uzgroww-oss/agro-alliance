@@ -705,14 +705,28 @@ Deno.serve(async (req) => {
       // Instagram REELS uchun cover_url sifatida ishlatiladi.
       const cover = (post.cover_url as string) || null
 
-      const results: PublishResult[] = []
-      for (const p of platforms) {
-        if (p === "telegram") results.push(await publishTelegram(text, img))
-        else if (p === "facebook") results.push(await publishFacebook(text, img))
-        else if (p === "instagram") results.push(await publishInstagram(text, img, cover))
-        else if (p === "youtube") results.push(await publishYoutube(post.title as string, text, img))
-        else results.push(notReady(p))
-      }
+      /**
+       * TARMOQLAR PARALLEL — ketma-ket EMAS.
+       *
+       * Ilgari har biri navbat bilan kutilardi va vaqtlar QO'SHILARDI:
+       * Instagram ikki bosqichli (konteyner + nashr), Facebook rasmni
+       * o'zi yuklab oladi, YouTube esa video faylni uzatadi. To'rt
+       * tarmoqda bu 30 soniyadan oshib ketardi va mijoz kutishni
+       * to'xtatardi — post aslida joylangan bo'lsa ham panelda
+       * "So'rov vaqti tugadi" chiqardi.
+       *
+       * Ular bir-biriga bog'liq emas, shuning uchun birga ketadi:
+       * umumiy vaqt eng sekin tarmoqning vaqtiga teng bo'ladi.
+       */
+      const results: PublishResult[] = await Promise.all(
+        platforms.map((p) => {
+          if (p === "telegram") return publishTelegram(text, img)
+          if (p === "facebook") return publishFacebook(text, img)
+          if (p === "instagram") return publishInstagram(text, img, cover)
+          if (p === "youtube") return publishYoutube(post.title as string, text, img)
+          return Promise.resolve(notReady(p))
+        }),
+      )
 
       await supabaseAdmin.from("smm_post_results").insert(
         results.map((r) => ({

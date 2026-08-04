@@ -526,7 +526,14 @@ const REQUEST_TIMEOUT = 30_000
 const SLOW_TIMEOUT = 110_000
 // Uzoq davom etadigan AI amallari — oddiy timeout ularga yetmaydi.
 // Qayta tarjima bir chaqiruvda ~45 soniya ishlaydi.
-const SLOW_PATHS = ["/smm/ai", "/settings?action=retranslate", "/news"]
+/**
+ * `/smm/posts` ham shu ro'yxatda: joylash bir necha tarmoqqa boradi
+ * va har biri o'z tarmoq so'rovini kutadi (Instagram ikki bosqichli,
+ * YouTube esa video faylni uzatadi). 30 soniya yetmasdi — server
+ * ishlashda davom etardi, panel esa "So'rov vaqti tugadi" deb
+ * ko'rsatib, post joylanganini bilmay qolardi.
+ */
+const SLOW_PATHS = ["/smm/ai", "/smm/posts", "/settings?action=retranslate", "/news"]
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
