@@ -131,15 +131,17 @@ export default function YoutubeStudio() {
               </svg>
             </span>
             <div>
-              <h3 className="font-display font-bold">{tr("YouTube studiyasi")}</h3>
+              {/*
+                ULASH TUGMASI BU YERDA YO'Q — ATAYLAB.
+                Kanal tarmoqlar ro'yxatidagi kartochkadan bir marta
+                ulanadi. Ilgari ikkita ulash nuqtasi bor edi va
+                foydalanuvchi ikki marta ulashga majbur bo'lardi.
+              */}
+              <h3 className="font-display font-bold">
+                {ulangan && kanal ? kanal.title : tr("Kanal ulanmagan")}
+              </h3>
               <p className="text-sm text-muted">
-                {/*
-                  ULASH TUGMASI BU YERDA YO'Q — ATAYLAB.
-                  Kanal yuqoridagi tarmoqlar ro'yxatidan bir marta
-                  ulanadi. Ilgari ikkita ulash nuqtasi bor edi va
-                  foydalanuvchi ikki marta ulashga majbur bo'lardi.
-                */}
-                {ulangan && kanal ? kanal.title : tr("Yuqoridagi YouTube kartochkasidan kanalni ulang")}
+                {ulangan ? tr("Video yuklash, tahrirlash va o'chirish") : tr("YouTube kartochkasidan kanalni ulang")}
               </p>
             </div>
           </div>

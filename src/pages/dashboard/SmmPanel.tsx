@@ -201,6 +201,8 @@ export default function SmmPanel({ seed }: {
     return new Set(["telegram"])
   })
   const [connOpen, setConnOpen] = useState<string | null>(null)
+  /** YouTube studiyasi oynasi — kanal kartochkasi bosilganda ochiladi */
+  const [ytStudio, setYtStudio] = useState(false)
   const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "" })
   const [connBusy, runConn] = useBusy()
   const [pickMsg, setPickMsg] = useState("")
@@ -350,10 +352,16 @@ export default function SmmPanel({ seed }: {
      * chiqardi — ya'ni xato ish qilingandan KEYIN bilinardi.
      */
     if (!p.publish) {
-      // ULANGAN bo'lsa ulash formasi QAYTA OCHILMAYDI. Ilgari ochilardi
-      // va kartochkada "Ulangan" turgani holda pastda "Google bilan
-      // ulash" tugmasi chiqib, ulanmagandek ko'rinardi.
-      setPickMsg(`${p.label} tahlil uchun ulangan — unga post joylab bo'lmaydi`)
+      /**
+       * Ulangan YouTube kartochkasi bosilganda STUDIYA ochiladi.
+       *
+       * Studiya ilgari sahifaning eng pastida alohida blok edi —
+       * uni ko'rish uchun butun panelni aylantirib tushish kerak
+       * bo'lardi va u yerda turgani mantiqsiz edi. Endi kanal
+       * kartochkasining o'zi uni ochadi.
+       */
+      setPickMsg("")
+      if (p.key === "youtube") setYtStudio(true)
       return
     }
     setPickMsg("")
@@ -1890,13 +1898,6 @@ export default function SmmPanel({ seed }: {
         </div>
       </div>
 
-      {/* ============ YOUTUBE STUDIYASI ============ */}
-      {/* Alohida faylda: video yuklash, tahrirlash, muqova va o'chirish
-          bir-biriga bog'liq va bu panelning postlar oqimidan mustaqil. */}
-      <div className="mt-5">
-        <YoutubeStudio />
-      </div>
-
       {/* ============ SAQLANGAN POSTLAR ============ */}
       <div className={`${card} mt-5`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2053,6 +2054,24 @@ export default function SmmPanel({ seed }: {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ============ YOUTUBE STUDIYASI (oyna) ============ */}
+      {ytStudio && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setYtStudio(false)}>
+          <div className="my-auto w-full max-w-5xl rounded-2xl bg-[#fafdf7] p-4 shadow-2xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-extrabold">{tr("YouTube studiyasi")}</h2>
+              <button onClick={() => setYtStudio(false)}
+                className="grid h-9 w-9 place-items-center rounded-lg bg-white text-muted shadow-sm transition-colors hover:text-ink">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+              </button>
+            </div>
+            <YoutubeStudio />
           </div>
         </div>
       )}
