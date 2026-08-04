@@ -314,7 +314,7 @@ export default function PartnerDashboard() {
                 : <CompanyProfile partner={partner} extra={extra} onSaved={reload} />
           )}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
-          {active === "Videolar" && <PartnerVideos />}
+          {active === "Videolar" && <PartnerVideos partnerId={String(partner.id)} />}
           {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
           {active === "Sozlamalar" && <Settings />}
         </>
@@ -1043,6 +1043,205 @@ function TopBloggers({ list }: { list: TopBlogger[] }) {
   )
 }
 
+/* ---------- Taqqoslash ---------- */
+
+/**
+ * O'zgarish belgisi: +38% yoki -12%.
+ *
+ * Oldingi davr NOL bo'lsa foiz chiqarilmaydi — nolga bo'linish
+ * cheksizlik beradi va "+∞%" foydalanuvchiga hech narsa aytmaydi.
+ * O'sha holatda "yangi" deb yoziladi.
+ */
+function Ozgarish({ hozir, oldin }: { hozir: number; oldin: number }) {
+  if (oldin === 0) {
+    if (hozir === 0) return null
+    return <span className="text-[11px] font-semibold text-green">{tr("yangi")}</span>
+  }
+  const foiz = Math.round(((hozir - oldin) / oldin) * 100)
+  if (foiz === 0) return <span className="text-[11px] font-semibold text-muted">{tr("o'zgarmadi")}</span>
+  const osdi = foiz > 0
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold ${osdi ? "text-green" : "text-red-500"}`}>
+      {/* Strelka — rang yolg'iz belgi bo'lib qolmasin */}
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {osdi ? <path d="M12 19V5 M5 12l7-7 7 7" /> : <path d="M12 5v14 M5 12l7 7 7-7" />}
+      </svg>
+      {Math.abs(foiz)}%
+    </span>
+  )
+}
+
+/* ---------- Izohlar tahlili ---------- */
+
+type IzohTahlil = {
+  ijobiy: number; salbiy: number; savol: number; neytral: number
+  savollar: { matn: string; soni: number }[]
+  shikoyatlar: { matn: string; soni: number }[]
+  brend: string[]
+  xulosa: string
+}
+type TahlilJavob = { tahlil: IzohTahlil | null; izohlar?: number; videolar?: number; sabab?: string }
+
+/**
+ * Ohang ranglari — HOLAT palitrasi, kategoriya emas.
+ *
+ * Yashil/qizil bu yerda "yaxshi/yomon" ma'nosini bildiradi, shuning
+ * uchun ular diagrammalardagi qator ranglaridan alohida turadi. Rang
+ * yolg'iz belgi emas: har bo'lak nomi va soni bilan ko'rsatiladi.
+ */
+const OHANG: { kalit: keyof Pick<IzohTahlil, "ijobiy" | "savol" | "neytral" | "salbiy">; nom: string; rang: string }[] = [
+  { kalit: "ijobiy", nom: "Ijobiy", rang: "#1e7a4d" },
+  { kalit: "savol", nom: "Savol", rang: "#2a78d6" },
+  { kalit: "neytral", nom: "Neytral", rang: "#9ca3af" },
+  { kalit: "salbiy", nom: "Salbiy", rang: "#c23b3b" },
+]
+
+const TAHLIL_KESH = "aa_izoh_tahlil_"
+
+function IzohlarTahlili({ partnerId }: { partnerId: string }) {
+  /**
+   * Natija BRAUZERDA saqlanadi. AI chaqiruvi sekin va kvota talab
+   * qiladi — sahifa har ochilganda qayta yugurtirish bekorga sarf
+   * bo'lardi. Yangilash kerak bo'lsa tugma bor.
+   *
+   * Kesh effektda emas, boshlang'ich qiymatda o'qiladi: effekt
+   * ortiqcha render keltirib, natija bir zumga yo'q bo'lib turardi.
+   */
+  const [kesh] = useState(() => {
+    try {
+      const xom = localStorage.getItem(TAHLIL_KESH + partnerId)
+      if (xom) return JSON.parse(xom) as { javob: TahlilJavob; vaqt: string }
+    } catch { /* buzuq kesh — e'tiborsiz qoldiramiz */ }
+    return null
+  })
+  const [javob, setJavob] = useState<TahlilJavob | null>(kesh?.javob ?? null)
+  const [vaqt, setVaqt] = useState<string>(kesh?.vaqt ?? "")
+  const [band, setBand] = useState(false)
+  const [xato, setXato] = useState("")
+
+  const yugurt = async () => {
+    setBand(true); setXato("")
+    try {
+      const d = await api<TahlilJavob>("/me/partner?action=comment-analysis")
+      const v = new Date().toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+      setJavob(d); setVaqt(v)
+      try { localStorage.setItem(TAHLIL_KESH + partnerId, JSON.stringify({ javob: d, vaqt: v })) } catch { /* joy yo'q */ }
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : "Tahlil qilib bo'lmadi")
+    } finally {
+      setBand(false)
+    }
+  }
+
+  const t = javob?.tahlil
+  const jami = t ? t.ijobiy + t.salbiy + t.savol + t.neytral : 0
+
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-lg font-bold">{tr("Izohlar tahlili")}</h3>
+          <p className="mt-0.5 text-xs text-muted">
+            {vaqt ? `${tr("oxirgi tahlil")}: ${vaqt}` : tr("Odamlar videolar ostida nima yozayotganini AI ko'rib chiqadi")}
+          </p>
+        </div>
+        <button onClick={yugurt} disabled={band}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-4 py-2 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100">
+          {band
+            ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            : <Icon d={I.brain} className="h-4 w-4" />}
+          {band ? tr("Tahlil qilinmoqda…") : javob ? tr("Yangilash") : tr("Tahlil qilish")}
+        </button>
+      </div>
+
+      {xato && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600">{xato}</div>}
+      {javob && !t && javob.sabab && (
+        <div className="mt-3 rounded-xl bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700">{javob.sabab}</div>
+      )}
+
+      {t && jami > 0 && (
+        <>
+          <p className="mt-4 text-sm">
+            <b>{javob?.izohlar}</b> {tr("ta izoh")} · <b>{javob?.videolar}</b> {tr("ta video")}
+          </p>
+
+          {/* Ohang nisbati — 2px oq tirqish bilan ajratilgan bo'laklar */}
+          <div className="mt-3 flex h-3 gap-[2px] overflow-hidden rounded-full">
+            {OHANG.map((o) => {
+              const n = t[o.kalit]
+              if (n <= 0) return null
+              return <div key={o.kalit} style={{ width: `${(n / jami) * 100}%`, background: o.rang }} title={`${tr(o.nom)}: ${n}`} />
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {OHANG.map((o) => (
+              <span key={o.kalit} className="inline-flex items-center gap-1.5 text-xs">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: o.rang }} />
+                <span className="font-semibold">{tr(o.nom)}</span>
+                <span className="text-muted">{t[o.kalit]} ({Math.round((t[o.kalit] / jami) * 100)}%)</span>
+              </span>
+            ))}
+          </div>
+
+          {t.xulosa && (
+            <p className="mt-4 rounded-xl bg-[#fafdf7] p-3 text-sm leading-relaxed">{t.xulosa}</p>
+          )}
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <TahlilRoyxat
+              sarlavha="Eng ko'p so'ralgan savollar"
+              bosh="Savol berilmagan"
+              rang="text-blue-600"
+              elementlar={t.savollar}
+            />
+            <TahlilRoyxat
+              sarlavha="Eng ko'p uchragan shikoyatlar"
+              bosh="Shikoyat yo'q"
+              rang="text-red-500"
+              elementlar={t.shikoyatlar}
+            />
+          </div>
+
+          {t.brend.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-xs font-bold text-muted">{tr("Kompaniyangiz tilga olingan izohlar")}</h4>
+              <div className="mt-2 space-y-1.5">
+                {t.brend.map((b, i) => (
+                  <p key={i} className="rounded-lg border-l-2 border-green bg-[#fafdf7] px-3 py-2 text-xs leading-relaxed">{b}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function TahlilRoyxat({ sarlavha, bosh, rang, elementlar }: {
+  sarlavha: string; bosh: string; rang: string
+  elementlar: { matn: string; soni: number }[]
+}) {
+  return (
+    <div>
+      <h4 className="text-xs font-bold text-muted">{tr(sarlavha)}</h4>
+      {elementlar.length === 0 ? (
+        <p className="mt-2 text-xs text-muted">{tr(bosh)}</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {elementlar.map((e, i) => (
+            <li key={i} className="flex items-start gap-2 rounded-lg bg-[#fafdf7] px-3 py-2">
+              <span className={`shrink-0 font-display text-xs font-extrabold ${rang}`}>{e.soni}×</span>
+              <span className="min-w-0 flex-1 text-xs leading-relaxed">{e.matn}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Videolar ---------- */
 /**
  * BLOGERLAR SHU KOMPANIYA UCHUN BELGILAGAN VIDEOLAR.
@@ -1052,7 +1251,7 @@ function TopBloggers({ list }: { list: TopBlogger[] }) {
  * ko'rinadi: umumiy ko'rishlar, platformalar bo'yicha taqsimot va
  * qaysi bloger tayyorlagani.
  */
-function PartnerVideos() {
+function PartnerVideos({ partnerId }: { partnerId: string }) {
   const [videos, setVideos] = useState<PartnerVideo[]>([])
   const [stats, setStats] = useState<VideoStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1107,6 +1306,36 @@ function PartnerVideos() {
 
   const oyNomi = oy ? `${oyYorlig(oy).nom} ${oyYorlig(oy).yil}` : ""
 
+  /**
+   * TAQQOSLASH — "12K ko'rish" o'zi hech narsa anglatmaydi, "o'tgan
+   * oyga nisbatan +38%" esa anglatadi.
+   *
+   * Oy tanlanganda oldingi oy bilan solishtiriladi. "Jami" holatida
+   * solishtiradigan oldingi davr yo'q, shuning uchun kartochkalarda
+   * o'zgarish ko'rsatilmaydi — uning o'rniga oxirgi TO'LIQ oy
+   * alohida qatorda beriladi (joriy oy hali tugamagan, uni oldingisi
+   * bilan solishtirish adolatsiz).
+   */
+  const oldingiOy = useMemo(() => {
+    if (!oy) return null
+    const [y, m] = oy.split("-").map(Number)
+    const d = new Date(Date.UTC(y, m - 2, 1))
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+  }, [oy])
+
+  const oldingiKorsatkich = useMemo(
+    () => (oldingiOy ? hisobla(videos.filter((v) => String(v.date || "").startsWith(oldingiOy))) : null),
+    [videos, oldingiOy],
+  )
+
+  /** "Jami" holatidagi qator uchun: oxirgi tugagan oy va undan oldingisi */
+  const oxirgiToliq = useMemo(() => {
+    const m = stats?.monthly
+    if (!m || m.length < 3) return null
+    // Oxirgi element — JORIY oy, u hali tugamagan
+    return { oy: m[m.length - 2], oldin: m[m.length - 3] }
+  }, [stats])
+
   const son = (n: number) => n.toLocaleString("ru-RU")
 
   if (loading) {
@@ -1153,19 +1382,40 @@ function PartnerVideos() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: "Videolar", v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} bloger` },
-          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: "barcha platformalar" },
-          { icon: I.star, t: "Yoqtirishlar", v: son(korsatkich.likes), sub: "like" },
-          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: "komment" },
+          { icon: I.media, t: "Videolar", v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} bloger`, n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
+          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: "barcha platformalar", n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
+          { icon: I.star, t: "Yoqtirishlar", v: son(korsatkich.likes), sub: "like", n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
+          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: "komment", n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
         ].map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
             <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
             <div className="mt-1 font-display text-2xl font-extrabold truncate">{s.v}</div>
-            <div className="mt-0.5 text-[11px] font-semibold text-green">{tr(s.sub)}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold text-green">{tr(s.sub)}</span>
+              {/* O'zgarish faqat oy tanlanganda — solishtiradigan davr o'shanda bor */}
+              {oldingiKorsatkich && <Ozgarish hozir={s.n} oldin={s.oldin} />}
+            </div>
           </div>
         ))}
       </div>
+
+      {/*
+        "Jami" holatida kartochkalarda o'zgarish yo'q — butun davrni
+        solishtiradigan oldingi davr yo'q. O'rniga oxirgi TUGAGAN oy
+        beriladi: joriy oy hali tugamagan va uni to'liq oy bilan
+        solishtirish har doim "tushib ketdi" degan yolg'on chiqarardi.
+      */}
+      {!oy && oxirgiToliq && oxirgiToliq.oy.videos > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-green/10 bg-white px-5 py-3 text-sm shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+          <span className="text-muted">{tr("Oxirgi tugagan oy")}</span>
+          <b>{oyYorlig(oxirgiToliq.oy.oy).nom} {oyYorlig(oxirgiToliq.oy.oy).yil}</b>
+          <span className="font-display font-extrabold">{son(oxirgiToliq.oy.views)}</span>
+          <span className="text-muted">{tr("ko'rish")}</span>
+          <Ozgarish hozir={oxirgiToliq.oy.views} oldin={oxirgiToliq.oldin.views} />
+          <span className="text-xs text-muted">{tr("o'tgan oyga nisbatan")}</span>
+        </div>
+      )}
 
       {/*
         Shart massiv uzunligiga EMAS, ma'lumot borligiga qaraydi:
@@ -1177,6 +1427,8 @@ function PartnerVideos() {
       {stats?.monthly?.some((m) => m.videos > 0) && (
         <OylikGrafik data={stats.monthly} tanlangan={oy} onTanla={setOy} />
       )}
+
+      <IzohlarTahlili partnerId={partnerId} />
 
       {Object.keys(korsatkich.platforms).length > 0 && (
         <div className="grid gap-6 lg:grid-cols-2">

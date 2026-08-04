@@ -2,6 +2,9 @@ import { handleCors } from "../_shared/cors.ts"
 import { verifyAuth } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { geminiJson } from "../_shared/gemini.ts"
+import { groqJson } from "../_shared/groq.ts"
+import { cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 
 /**
  * Ko'rishlar soni matn sifatida saqlanadi va manbaga qarab har xil
@@ -168,6 +171,137 @@ async function youtubeRaqamlariniTolatir(
   }
 }
 
+/* ---------------- IZOHLAR TAHLILI ---------------- */
+
+type IzohXom = { text: string; likes: number; author: string }
+
+/**
+ * Bitta videoning izohlarini oladi. Xato bo'lsa bo'sh massiv —
+ * bitta video yiqilgani butun tahlilni to'xtatmasin.
+ */
+async function izohlarniOl(videoId: string, kalit: string): Promise<IzohXom[]> {
+  try {
+    const r = await fetch(
+      `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}` +
+      `&maxResults=50&order=relevance&textFormat=plainText&key=${kalit}`,
+      { signal: AbortSignal.timeout(10_000) },
+    )
+    if (!r.ok) return []
+    const d = await r.json()
+    return ((d.items || []) as Record<string, any>[]).map((it) => {
+      const s = it.snippet?.topLevelComment?.snippet || {}
+      return {
+        text: String(s.textOriginal || s.textDisplay || "").trim(),
+        likes: Number(s.likeCount || 0),
+        author: String(s.authorDisplayName || ""),
+      }
+    }).filter((c) => c.text)
+  } catch {
+    return []
+  }
+}
+
+type Tahlil = {
+  ijobiy: number; salbiy: number; savol: number; neytral: number
+  savollar: { matn: string; soni: number }[]
+  shikoyatlar: { matn: string; soni: number }[]
+  brend: string[]
+  xulosa: string
+}
+
+/** Modeldan kelgan javobni ISHONCHSIZ deb qarab, shaklga keltiramiz */
+function tahlilniTozala(xom: unknown, jami: number): Tahlil | null {
+  if (!xom || typeof xom !== "object") return null
+  const o = xom as Record<string, unknown>
+  const son = (v: unknown) => Math.max(0, Math.round(Number(v) || 0))
+  const royxat = (v: unknown, n: number) =>
+    Array.isArray(v)
+      ? v.slice(0, n).map((x) => {
+        const e = (x || {}) as Record<string, unknown>
+        return { matn: String(e.matn ?? e.text ?? x ?? "").slice(0, 200), soni: son(e.soni ?? e.count ?? 1) }
+      }).filter((x) => x.matn)
+      : []
+
+  let ijobiy = son(o.ijobiy), salbiy = son(o.salbiy), savol = son(o.savol), neytral = son(o.neytral)
+  const yigindi = ijobiy + salbiy + savol + neytral
+
+  /**
+   * Model raqamlarni "taxminan" beradi va yig'indi izohlar soniga
+   * to'g'ri kelmasligi mumkin. Foiz chiqarganda bu darrov ko'zga
+   * tashlanadi, shuning uchun nisbatni saqlagan holda haqiqiy songa
+   * keltiramiz.
+   */
+  if (yigindi > 0 && yigindi !== jami) {
+    const k = jami / yigindi
+    ijobiy = Math.round(ijobiy * k)
+    salbiy = Math.round(salbiy * k)
+    savol = Math.round(savol * k)
+    neytral = Math.max(0, jami - ijobiy - salbiy - savol)
+  }
+
+  return {
+    ijobiy, salbiy, savol, neytral,
+    savollar: royxat(o.savollar, 5),
+    shikoyatlar: royxat(o.shikoyatlar, 5),
+    brend: Array.isArray(o.brend) ? (o.brend as unknown[]).slice(0, 5).map((x) => String(x).slice(0, 300)).filter(Boolean) : [],
+    xulosa: String(o.xulosa ?? "").slice(0, 600),
+  }
+}
+
+async function izohTahlili(izohlar: IzohXom[], kompaniya: string): Promise<Tahlil | null> {
+  // Modelga faqat matn kerak — muallif ismi shaxsiy ma'lumot va
+  // tahlilga hech narsa qo'shmaydi
+  const royxat = izohlar.slice(0, 200).map((c, i) => `${i + 1}. ${c.text.slice(0, 300)}`).join("\n")
+
+  const prompt = [
+    `Quyida "${kompaniya}" kompaniyasi haqidagi reklama videolariga yozilgan ${Math.min(izohlar.length, 200)} ta izoh bor.`,
+    "Izohlar o'zbek, rus yoki ingliz tilida bo'lishi mumkin, aralash ham.",
+    "",
+    "VAZIFA — faqat JSON qaytaring:",
+    "{",
+    '  "ijobiy": <maqtov, minnatdorchilik, ijobiy his bildirgan izohlar soni>,',
+    '  "salbiy": <shikoyat, tanqid, norozilik bildirgan izohlar soni>,',
+    '  "savol": <savol bergan izohlar soni>,',
+    '  "neytral": <qolganlari>,',
+    '  "savollar": [{"matn": "eng ko\'p so\'ralgan savol O\'ZBEK TILIDA", "soni": <nechta izohda>}],',
+    '  "shikoyatlar": [{"matn": "eng ko\'p uchragan shikoyat O\'ZBEK TILIDA", "soni": <nechta izohda>}],',
+    `  "brend": ["${kompaniya} nomi yoki mahsuloti tilga olingan izohlar, asl holida"],`,
+    '  "xulosa": "2-3 jumla: odamlar umuman nima deyapti"',
+    "}",
+    "",
+    "QOIDALAR:",
+    "- To'rt sonning yig'indisi izohlar soniga TENG bo'lsin.",
+    "- savollar va shikoyatlar: eng ko'p takrorlanganidan 3 tagacha. Yo'q bo'lsa bo'sh massiv.",
+    "- Umumlashtiring: bir xil ma'nodagi izohlarni bitta qilib birlashtiring va sonini yozing.",
+    "- Emoji va bir so'zli izohlar neytral hisoblanadi.",
+    "- Faqat JSON, boshqa matn yo'q.",
+    "",
+    "IZOHLAR:",
+    royxat,
+  ].join("\n")
+
+  const deadline = Date.now() + 45_000
+  const zanjir: { nom: string; ishla: (ms: number) => Promise<unknown> }[] = [
+    { nom: "Gemini", ishla: (ms) => geminiJson(prompt, { retries: 1, maxTokens: 2000, timeoutMs: ms }) },
+    { nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 2000, timeoutMs: ms }) },
+  ]
+  if (cfChatAvailable()) {
+    zanjir.push({ nom: "Cloudflare", ishla: (ms) => cfJson(prompt, { maxTokens: 2000, timeoutMs: ms, deadline }) })
+  }
+
+  for (const { nom, ishla } of zanjir) {
+    const qolgan = deadline - Date.now()
+    if (qolgan < 6_000) break
+    try {
+      const t = tahlilniTozala(await ishla(Math.min(25_000, qolgan)), Math.min(izohlar.length, 200))
+      if (t) return t
+    } catch (e) {
+      console.error(`izohTahlili ${nom}:`, e instanceof Error ? e.message : e)
+    }
+  }
+  return null
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
@@ -250,6 +384,66 @@ Deno.serve(async (req) => {
         console.error("izohlar:", e instanceof Error ? e.message : e)
         return jsonResponse({ comments: [], sabab: "Izohlarni olib bo'lmadi" })
       }
+    }
+
+    /**
+     * IZOHLAR TAHLILI — odamlar nima deyapti.
+     *
+     * Raqam yetarli emas, izohlarni birma-bir o'qish esa vaqt oladi.
+     * Bu yerda AI ularni ko'rib chiqadi: ohang nisbati, eng ko'p
+     * takrorlangan savol va shikoyat, kompaniya nomi tilga olingan
+     * izohlar.
+     *
+     * TALAB BILAN ishlaydi (avtomatik emas): AI chaqiruvi pul va
+     * kvota, sahifa har ochilganda yugurtirish bekorga sarf bo'lardi.
+     */
+    if (new URL(req.url).searchParams.get("action") === "comment-analysis") {
+      const kalit = Deno.env.get("YOUTUBE_API_KEY")
+      if (!kalit) return jsonResponse({ tahlil: null, sabab: "YouTube kaliti sozlanmagan" })
+
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles").select("metadata").is("deleted_at", null).limit(1000)
+
+      // Shu kompaniyaga belgilangan YouTube videolari, izohi ko'pidan
+      const nomzodlar: { yid: string; izoh: number }[] = []
+      for (const p of ((profiles || []) as Record<string, unknown>[])) {
+        const meta = (p.metadata as Record<string, unknown>) || {}
+        for (const v of ((meta.videos as Record<string, unknown>[]) || [])) {
+          if (v.partner_id !== partner.id) continue
+          const yid = youtubeId(v.link, v.id)
+          if (yid) nomzodlar.push({ yid, izoh: sonGa(v.comments) })
+        }
+      }
+      if (nomzodlar.length === 0) {
+        return jsonResponse({ tahlil: null, sabab: "Tahlil uchun YouTube videolari yo'q" })
+      }
+      nomzodlar.sort((a, b) => b.izoh - a.izoh)
+
+      /**
+       * Ko'pi bilan 6 ta video. Chegara ataylab: har biri alohida
+       * so'rov va tahlil 200 ta izohdan ortig'ini baribir o'qimaydi —
+       * qolgani vaqt va kvotani yeb, natijaga hech narsa qo'shmasdi.
+       */
+      const tanlangan = nomzodlar.slice(0, 6)
+      const guruhlar = await Promise.all(tanlangan.map((n) => izohlarniOl(n.yid, kalit)))
+      const izohlar = guruhlar.flat()
+
+      if (izohlar.length === 0) {
+        return jsonResponse({
+          tahlil: null,
+          izohlar: 0,
+          videolar: tanlangan.length,
+          sabab: "Videolarda izoh yo'q yoki izohlar o'chirilgan",
+        })
+      }
+
+      const tahlil = await izohTahlili(izohlar, partner.name as string)
+      return jsonResponse({
+        tahlil,
+        izohlar: Math.min(izohlar.length, 200),
+        videolar: tanlangan.length,
+        sabab: tahlil ? "" : "AI javob bermadi — birozdan keyin urinib ko'ring",
+      })
     }
 
     /**
