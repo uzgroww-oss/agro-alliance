@@ -30,19 +30,37 @@ function youtubeId(link: unknown, id: unknown): string | null {
   return /^[a-zA-Z0-9_-]{11}$/.test(t) ? t : null
 }
 
+/** "PT12M30S" -> "12:30" */
+function davomiylik(iso: unknown): string {
+  const m = String(iso || "").match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/)
+  if (!m) return ""
+  const [h, d, s] = [Number(m[1] || 0), Number(m[2] || 0), Number(m[3] || 0)]
+  const ikki = (n: number) => String(n).padStart(2, "0")
+  return h ? `${h}:${ikki(d)}:${ikki(s)}` : `${d}:${ikki(s)}`
+}
+
+type YtMalumot = {
+  views?: string; likes?: string; comments?: string
+  duration?: string; description?: string; channel?: string
+  title?: string; date?: string; thumbnail?: string
+}
+
 /**
- * YOQTIRISH VA IZOHLARNI YOUTUBE'DAN TO'LDIRISH.
+ * VIDEO MA'LUMOTLARINI YOUTUBE'DAN OLISH VA YANGILASH.
  *
- * Bu raqamlar video qo'shilayotganda saqlanadi, lekin AVVAL qo'shilgan
- * videolarda ular umuman yo'q — kompaniya kabinetida "—" ko'rinardi.
- * Ularni qayta qo'shishni so'rash noto'g'ri bo'lardi.
+ * Ikki muammoni hal qiladi:
+ *   1) AVVAL qo'shilgan videolarda yoqtirish/izoh umuman saqlanmagan
+ *      edi — kabinetda "—" ko'rinardi. Blogerdan videoni qayta
+ *      qo'shishni so'rash noto'g'ri bo'lardi.
+ *   2) Raqamlar vaqt o'tishi bilan o'zgaradi. Qo'shilgan kundagi
+ *      ko'rishlar soni bir oydan keyin eskirgan bo'ladi.
  *
- * Yechim: yetishmagan videolar YouTube'dan BITTA so'rovda olinadi
- * (API 50 tagacha ID qabul qiladi) va natija bazaga ham yoziladi —
- * keyingi ochilishda so'rov takrorlanmaydi.
+ * Shuning uchun raqamlar SOATIGA BIR MARTA yangilanadi: `yt_at`
+ * belgisi shundan. Har ochilishda so'rov yuborish kvotani behuda
+ * sarflardi, umuman yubormaslik esa raqamlarni eskirtirardi.
  *
- * Kalit yo'q bo'lsa yoki so'rov yiqilsa hech narsa buzilmaydi:
- * raqamlar shunchaki bo'sh qoladi.
+ * Bitta so'rovda 50 tagacha video (API chegarasi). Kalit yo'q bo'lsa
+ * yoki so'rov yiqilsa hech narsa buzilmaydi — mavjud raqamlar qoladi.
  */
 async function youtubeRaqamlariniTolatir(
   videolar: Record<string, unknown>[],
@@ -51,11 +69,17 @@ async function youtubeRaqamlariniTolatir(
   const kalit = Deno.env.get("YOUTUBE_API_KEY")
   if (!kalit) return
 
-  const bosh = (v: unknown) => !v || v === "0"
+  const YANGILASH_ORALIGI = 60 * 60 * 1000
+  const hozir = Date.now()
+  const eskirgan = (v: Record<string, unknown>) => {
+    const t = Number(v.yt_at || 0)
+    return !t || hozir - t > YANGILASH_ORALIGI
+  }
+
   const kerak = new Map<string, Record<string, unknown>[]>()
   for (const v of videolar) {
     if (!(v.plats as string[]).includes("YouTube")) continue
-    if (!bosh(v.likes) && !bosh(v.comments)) continue
+    if (!eskirgan(v)) continue
     const yid = youtubeId(v.link, v.id)
     if (!yid) continue
     const ro = kerak.get(yid) || []
@@ -65,45 +89,75 @@ async function youtubeRaqamlariniTolatir(
   if (kerak.size === 0) return
 
   const idlar = [...kerak.keys()].slice(0, 50)
-  let stats: Record<string, { viewCount?: string; likeCount?: string; commentCount?: string }> = {}
+  const malumot: Record<string, YtMalumot> = {}
   try {
     const resp = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${idlar.join(",")}&key=${kalit}`,
-      { signal: AbortSignal.timeout(8_000) },
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${idlar.join(",")}&key=${kalit}`,
+      { signal: AbortSignal.timeout(10_000) },
     )
     const data = await resp.json()
-    for (const it of (data.items || []) as { id: string; statistics?: Record<string, string> }[]) {
-      stats[it.id] = it.statistics || {}
+    for (const it of (data.items || []) as Record<string, any>[]) {
+      const st = it.statistics || {}
+      const sn = it.snippet || {}
+      malumot[it.id] = {
+        views: st.viewCount,
+        likes: st.likeCount,
+        comments: st.commentCount,
+        duration: davomiylik(it.contentDetails?.duration),
+        // Tavsif juda uzun bo'lishi mumkin — kartochka uchun shuncha yetadi
+        description: String(sn.description || "").slice(0, 1500),
+        channel: sn.channelTitle || "",
+        title: sn.title || "",
+        date: String(sn.publishedAt || "").split("T")[0],
+        thumbnail: sn.thumbnails?.maxres?.url || sn.thumbnails?.high?.url || sn.thumbnails?.medium?.url || "",
+      }
     }
   } catch (e) {
     console.error("youtubeRaqamlari:", e instanceof Error ? e.message : e)
-    stats = {}
+    return
   }
-  if (Object.keys(stats).length === 0) return
+  if (Object.keys(malumot).length === 0) return
+
+  /** Bitta yozuvga yangi ma'lumotni qo'llaydi. O'zgargan bo'lsa `true`. */
+  const qolla = (v: Record<string, unknown>, m: YtMalumot): boolean => {
+    let o = false
+    const yoz = (kalit: string, qiymat: unknown) => {
+      if (qiymat === undefined || qiymat === "" || v[kalit] === qiymat) return
+      v[kalit] = qiymat
+      o = true
+    }
+    yoz("views", m.views)
+    yoz("likes", m.likes)
+    yoz("comments", m.comments)
+    yoz("duration", m.duration)
+    yoz("description", m.description)
+    yoz("channel", m.channel)
+    if (!v.thumbnail) yoz("thumbnail", m.thumbnail)
+    if (!v.date) yoz("date", m.date)
+    return o
+  }
 
   // Javobga qo'llaymiz
   for (const [yid, ro] of kerak) {
-    const s = stats[yid]
-    if (!s) continue
-    for (const v of ro) {
-      if (s.viewCount) v.views = s.viewCount
-      if (s.likeCount) v.likes = s.likeCount
-      if (s.commentCount) v.comments = s.commentCount
-    }
+    const m = malumot[yid]
+    if (!m) continue
+    for (const v of ro) qolla(v, m)
   }
 
-  // Bazaga ham yozamiz — keyingi safar so'rov kerak bo'lmasin
+  // Bazaga ham yozamiz — keyingi soatgacha so'rov kerak bo'lmaydi
   for (const p of profiles) {
     const meta = (p.metadata as Record<string, unknown>) || {}
     const list = (meta.videos as Record<string, unknown>[]) || []
     let ozgardi = false
     for (const v of list) {
       const yid = youtubeId(v.link, v.id)
-      const s = yid ? stats[yid] : undefined
-      if (!s) continue
-      if (s.viewCount && v.views !== s.viewCount) { v.views = s.viewCount; ozgardi = true }
-      if (s.likeCount && v.likes !== s.likeCount) { v.likes = s.likeCount; ozgardi = true }
-      if (s.commentCount && v.comments !== s.commentCount) { v.comments = s.commentCount; ozgardi = true }
+      const m = yid ? malumot[yid] : undefined
+      if (!m) continue
+      // Vaqt belgisi HAR DOIM yangilanadi: raqamlar o'zgarmagan bo'lsa
+      // ham so'rov qilingan, bir soatgacha takrorlanmasin
+      if (qolla(v, m)) ozgardi = true
+      v.yt_at = hozir
+      ozgardi = true
     }
     if (!ozgardi) continue
     const { error } = await supabaseAdmin
@@ -172,6 +226,9 @@ Deno.serve(async (req) => {
             views: v.views ?? "0",
             likes: v.likes ?? "0",
             comments: v.comments ?? "0",
+            duration: v.duration || "",
+            description: v.description || "",
+            channel: v.channel || "",
             plats: v.plats || [],
             date: v.date || "",
             thumbnail: v.thumbnail || null,

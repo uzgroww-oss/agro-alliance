@@ -29,6 +29,7 @@ type Partner = {
 type CompanyExtra = { description?: string; website?: string; phone?: string; address?: string; instagram?: string; telegram?: string }
 type PartnerVideo = {
   id: string; name: string; link: string; views: string; likes: string; comments: string
+  duration: string; description: string; channel: string
   plats: string[]; date: string; thumbnail: string | null
   blogger: { id: string; name: string; slug: string | null; avatar: string | null }
 }
@@ -334,11 +335,26 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
  * o'shanda "0" emas, "—" chiqadi: nol real o'lchov, "—" esa
  * "ma'lumot yo'q" degani va ikkovi bir xil ko'rinmasligi kerak.
  */
-function VideoCard({ v }: { v: PartnerVideo }) {
-  const raqam = (s: string) => {
-    const n = Number(String(s).replace(/[^\d]/g, ""))
-    return Number.isFinite(n) && n > 0 ? n.toLocaleString("ru-RU") : (String(s).trim() && String(s) !== "0" ? String(s) : "—")
-  }
+const raqam = (s: string) => {
+  const n = Number(String(s).replace(/[^\d]/g, ""))
+  return Number.isFinite(n) && n > 0 ? n.toLocaleString("ru-RU") : (String(s).trim() && String(s) !== "0" ? String(s) : "—")
+}
+
+/**
+ * JALB QILISH DARAJASI = (yoqtirish + izoh) / ko'rish.
+ *
+ * Kompaniya uchun yalpi ko'rishlar sonidan ko'ra muhimroq: ko'p
+ * ko'rilgan, lekin hech kim javob bermagan video reklama sifatida
+ * kuchsiz. Ko'rishlar noma'lum bo'lsa hisoblanmaydi.
+ */
+function jalbDarajasi(v: PartnerVideo): string {
+  const son = (s: string) => Number(String(s).replace(/[^\d]/g, "")) || 0
+  const k = son(v.views)
+  if (!k) return "—"
+  return `${(((son(v.likes) + son(v.comments)) / k) * 100).toFixed(1)}%`
+}
+
+function VideoCard({ v, onOpen }: { v: PartnerVideo; onOpen: () => void }) {
   const olcham = [
     { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
     { icon: I.star, label: "Yoqtirishlar", value: raqam(v.likes) },
@@ -346,7 +362,7 @@ function VideoCard({ v }: { v: PartnerVideo }) {
   ]
   return (
     <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-green/12 bg-white shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-shadow hover:shadow-[0_8px_28px_rgba(91,180,32,0.12)]">
-      <a href={v.link} target="_blank" rel="noreferrer" className="relative block aspect-video bg-soft">
+      <button onClick={onOpen} className="relative block aspect-video w-full bg-soft" title={tr("To'liq ma'lumot")}>
         {v.thumbnail ? (
           <img loading="lazy" decoding="async" src={v.thumbnail} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -357,12 +373,15 @@ function VideoCard({ v }: { v: PartnerVideo }) {
             <span key={p} className="rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">{p}</span>
           ))}
         </span>
-      </a>
+        {v.duration && (
+          <span className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">{v.duration}</span>
+        )}
+      </button>
 
       <div className="flex min-w-0 flex-1 flex-col p-2.5">
-        <a href={v.link} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-[12px] font-bold leading-snug hover:text-green">
+        <button onClick={onOpen} className="line-clamp-2 text-left font-display text-[12px] font-bold leading-snug hover:text-green">
           {v.name}
-        </a>
+        </button>
 
         <div className="mt-1.5 flex items-center gap-1.5">
           {v.blogger.avatar ? (
@@ -388,6 +407,104 @@ function VideoCard({ v }: { v: PartnerVideo }) {
             </div>
           ))}
         </div>
+
+        <button onClick={onOpen} className="mt-2 w-full rounded-lg bg-soft py-1.5 text-[10px] font-bold text-green transition-colors hover:bg-green hover:text-white">
+          {tr("To'liq ma'lumot")}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * VIDEO HAQIDA TO'LIQ MA'LUMOT.
+ *
+ * Kartochkaga hammasi sig'maydi — u ro'yxat uchun ixcham bo'lishi
+ * kerak. Bu oynada esa hech narsa qisqartirilmaydi: to'liq sarlavha,
+ * tavsif, kanal, davomiylik, sana, barcha raqamlar va jalb qilish
+ * darajasi.
+ */
+function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
+  const qatorlar: [string, string][] = [
+    ["Bloger", v.blogger.name],
+    ["Kanal", v.channel || "—"],
+    ["Platforma", v.plats.join(", ") || "—"],
+    ["Chiqarilgan sana", v.date || "—"],
+    ["Davomiyligi", v.duration || "—"],
+  ]
+  const olcham = [
+    { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
+    { icon: I.star, label: "Yoqtirishlar", value: raqam(v.likes) },
+    { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
+    { icon: I.target, label: "Jalb qilish", value: jalbDarajasi(v) },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="relative shrink-0">
+          {v.thumbnail ? (
+            <img src={v.thumbnail} alt="" className="aspect-video w-full bg-soft object-cover" />
+          ) : (
+            <div className="grid aspect-video w-full place-items-center bg-soft text-green"><Icon d={I.play} className="h-12 w-12" /></div>
+          )}
+          <button onClick={onClose} className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80">
+            <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          <h3 className="font-display text-lg font-extrabold leading-snug">{v.name}</h3>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {olcham.map((o) => (
+              <div key={o.label} className="rounded-xl bg-[#fafdf7] p-3 text-center">
+                <Icon d={o.icon} className="mx-auto h-4 w-4 text-green" />
+                <div className="mt-1 font-display text-lg font-extrabold">{o.value}</div>
+                <div className="text-[10px] text-muted">{tr(o.label)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-green/12 p-3">
+            {v.blogger.avatar ? (
+              <img src={v.blogger.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/10 font-bold text-green">{v.blogger.name[0]}</span>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-bold">{v.blogger.name}</div>
+              <div className="text-[11px] text-muted">{tr("Videoni joylagan bloger")}</div>
+            </div>
+            {v.blogger.slug && (
+              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer"
+                className="shrink-0 rounded-lg border border-green/25 px-3 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green hover:text-white">
+                {tr("Profil")}
+              </a>
+            )}
+          </div>
+
+          <dl className="mt-4 divide-y divide-green/8 rounded-xl border border-green/12">
+            {qatorlar.map(([k, val]) => (
+              <div key={k} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <dt className="text-xs text-muted">{tr(k)}</dt>
+                <dd className="min-w-0 truncate text-sm font-semibold">{val}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {v.description && (
+            <div className="mt-4">
+              <h4 className="text-xs font-bold text-muted">{tr("Tavsif")}</h4>
+              <p className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-[#fafdf7] p-3 text-xs leading-relaxed">{v.description}</p>
+            </div>
+          )}
+
+          <a href={v.link} target="_blank" rel="noreferrer"
+            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-[1.02]">
+            <Icon d={I.play} className="h-4 w-4" /> {tr("Videoni ochish")}
+          </a>
+        </div>
       </div>
     </div>
   )
@@ -408,6 +525,8 @@ function PartnerVideos() {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [platform, setPlatform] = useState("Barchasi")
+  /** To'liq ma'lumot oynasida ochilgan video */
+  const [ochiq, setOchiq] = useState<PartnerVideo | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -511,10 +630,14 @@ function PartnerVideos() {
           </div>
         ) : (
           <div className="mt-4 grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {korinadigan.map((v) => <VideoCard key={`${v.blogger.id}-${v.id}`} v={v} />)}
+            {korinadigan.map((v) => (
+              <VideoCard key={`${v.blogger.id}-${v.id}`} v={v} onOpen={() => setOchiq(v)} />
+            ))}
           </div>
         )}
       </div>
+
+      {ochiq && <VideoModal v={ochiq} onClose={() => setOchiq(null)} />}
     </div>
   )
 }
