@@ -424,7 +424,28 @@ function VideoCard({ v, onOpen }: { v: PartnerVideo; onOpen: () => void }) {
  * tavsif, kanal, davomiylik, sana, barcha raqamlar va jalb qilish
  * darajasi.
  */
+type VideoComment = { id: string; author: string; avatar: string; text: string; likes: number; date: string; replies: number }
+
+/** Linkdan YouTube video ID — izohlarni so'rash uchun kerak */
+function youtubeIdFrom(v: PartnerVideo): string | null {
+  const m = v.link.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (m) return m[1]
+  return /^[a-zA-Z0-9_-]{11}$/.test(v.id) ? v.id : null
+}
+
 function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
+  const ytId = youtubeIdFrom(v)
+  // YouTube bo'lmasa so'rov ham yubormaymiz — darrov bo'sh ro'yxat
+  const [comments, setComments] = useState<VideoComment[] | null>(ytId ? null : [])
+  const [sabab, setSabab] = useState(ytId ? "" : "Izohlar faqat YouTube videolari uchun ko'rsatiladi")
+
+  useEffect(() => {
+    if (!ytId) return
+    api<{ comments: VideoComment[]; sabab: string }>(`/me/partner?action=comments&video=${ytId}`)
+      .then((d) => { setComments(d.comments || []); setSabab(d.sabab || "") })
+      .catch(() => { setComments([]); setSabab("Izohlarni yuklab bo'lmadi") })
+  }, [ytId])
+
   const qatorlar: [string, string][] = [
     ["Bloger", v.blogger.name],
     ["Kanal", v.channel || "—"],
@@ -499,6 +520,62 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
               <p className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-[#fafdf7] p-3 text-xs leading-relaxed">{v.description}</p>
             </div>
           )}
+
+          {/*
+            IZOHLAR — raqamning o'zi yetarli emas.
+            Kompaniya odamlar NIMA yozganini bilishi kerak: maqtovmi,
+            shikoyatmi, savolmi. Eng ko'p javob olganlari tepada
+            (YouTube "relevance" tartibi).
+          */}
+          <div className="mt-5">
+            <div className="flex items-center justify-between">
+              <h4 className="font-display text-sm font-bold">{tr("Izohlar")}</h4>
+              <span className="text-xs text-muted">
+                {comments === null ? tr("yuklanmoqda...") : `${raqam(v.comments)} ${tr("ta")}`}
+              </span>
+            </div>
+
+            {comments === null && (
+              <div className="mt-2 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>
+            )}
+
+            {comments !== null && comments.length === 0 && (
+              <p className="mt-2 rounded-xl bg-[#fafdf7] px-3 py-4 text-center text-xs text-muted">
+                {sabab ? tr(sabab) : tr("Hali izoh yozilmagan.")}
+              </p>
+            )}
+
+            {comments !== null && comments.length > 0 && (
+              <>
+                <div className="mt-2 space-y-2">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex gap-2.5 rounded-xl border border-green/10 bg-[#fafdf7] p-3">
+                      {c.avatar ? (
+                        <img loading="lazy" decoding="async" src={c.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green/10 text-xs font-bold text-green">{c.author[0] || "?"}</span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 text-[11px]">
+                          <span className="font-bold">{c.author}</span>
+                          <span className="text-muted">{c.date}</span>
+                        </div>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed">{c.text}</p>
+                        <div className="mt-1 flex items-center gap-3 text-[10px] text-muted">
+                          <span className="inline-flex items-center gap-1"><Icon d={I.star} className="h-3 w-3" />{c.likes}</span>
+                          {c.replies > 0 && <span className="inline-flex items-center gap-1"><Icon d={I.message} className="h-3 w-3" />{c.replies} {tr("javob")}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* YouTube bir so'rovda 50 tagacha beradi — qolgani videoda */}
+                {comments.length >= 50 && (
+                  <p className="mt-2 text-center text-[11px] text-muted">{tr("Eng mashhur 50 ta izoh ko'rsatildi.")}</p>
+                )}
+              </>
+            )}
+          </div>
 
           <a href={v.link} target="_blank" rel="noreferrer"
             className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-[1.02]">

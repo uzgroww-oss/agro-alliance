@@ -193,6 +193,66 @@ Deno.serve(async (req) => {
     }
 
     /**
+     * VIDEO IZOHLARINI O'QISH.
+     *
+     * Raqam yetarli emas: kompaniya odamlar NIMA yozganini bilishi
+     * kerak — maqtovmi, shikoyatmi, savolmi.
+     *
+     * XAVFSIZLIK: kompaniya faqat O'ZIGA belgilangan videoning
+     * izohlarini o'qiy oladi. Aks holda istalgan hamkor istalgan
+     * blogerning videosini shu endpoint orqali kuzatib turardi.
+     */
+    if (new URL(req.url).searchParams.get("action") === "comments") {
+      const kalit = Deno.env.get("YOUTUBE_API_KEY")
+      if (!kalit) return jsonResponse({ comments: [], sabab: "YouTube kaliti sozlanmagan" })
+
+      const soralgan = new URL(req.url).searchParams.get("video") || ""
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(soralgan)) return errorResponse("Video ID noto'g'ri", 400)
+
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles").select("metadata").is("deleted_at", null).limit(1000)
+      const tegishli = ((profiles || []) as Record<string, unknown>[]).some((p) => {
+        const meta = (p.metadata as Record<string, unknown>) || {}
+        return ((meta.videos as Record<string, unknown>[]) || []).some(
+          (v) => v.partner_id === partner.id && youtubeId(v.link, v.id) === soralgan,
+        )
+      })
+      if (!tegishli) return errorResponse("Bu video sizning kompaniyangizga tegishli emas", 403)
+
+      try {
+        const resp = await fetch(
+          `https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${soralgan}` +
+          `&maxResults=50&order=relevance&textFormat=plainText&key=${kalit}`,
+          { signal: AbortSignal.timeout(10_000) },
+        )
+        const data = await resp.json()
+        if (!resp.ok) {
+          // Eng keng tarqalgani: muallif izohlarni o'chirib qo'ygan
+          const sabab = data?.error?.errors?.[0]?.reason === "commentsDisabled"
+            ? "Bu videoda izohlar o'chirilgan"
+            : "Izohlarni olib bo'lmadi"
+          return jsonResponse({ comments: [], sabab })
+        }
+        const comments = ((data.items || []) as Record<string, any>[]).map((it) => {
+          const s = it.snippet?.topLevelComment?.snippet || {}
+          return {
+            id: it.id,
+            author: s.authorDisplayName || "",
+            avatar: s.authorProfileImageUrl || "",
+            text: s.textOriginal || s.textDisplay || "",
+            likes: Number(s.likeCount || 0),
+            date: String(s.publishedAt || "").split("T")[0],
+            replies: Number(it.snippet?.totalReplyCount || 0),
+          }
+        })
+        return jsonResponse({ comments, sabab: "" })
+      } catch (e) {
+        console.error("izohlar:", e instanceof Error ? e.message : e)
+        return jsonResponse({ comments: [], sabab: "Izohlarni olib bo'lmadi" })
+      }
+    }
+
+    /**
      * SHU KOMPANIYAGA BELGILANGAN BLOGER VIDEOLARI + STATISTIKA.
      *
      * Videolar `profiles.metadata.videos` massivida saqlanadi (alohida
