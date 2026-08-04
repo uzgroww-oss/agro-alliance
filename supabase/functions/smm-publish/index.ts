@@ -3,6 +3,7 @@ import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { getFacebookPage, exchangeForLongLived } from "../_shared/facebook.ts"
+import { tokenOl } from "../_shared/youtubeAuth.ts"
 
 /**
  * smm-publish — SMM postlarini saqlash, tasdiqlash va tarmoqlarga joylash.
@@ -221,6 +222,90 @@ async function publishInstagram(text: string, imageUrl: string | null, coverUrl:
   }
 }
 
+/* ---------------- YouTube ---------------- */
+/**
+ * POSTNI YOUTUBE'GA VIDEO SIFATIDA CHIQARISH.
+ *
+ * Boshqa tarmoqlardan farqi: YouTube matn qabul qilmaydi, unga
+ * VIDEO FAYL yuklanadi. Shuning uchun postga video biriktirilgan
+ * bo'lishi SHART — rasm yoki matn yetarli emas.
+ *
+ * Post sarlavhasi video sarlavhasiga, matni esa tavsifga aylanadi.
+ *
+ * FAYL OQIM BILAN UZATILADI (`body: resp.body`). Uni xotiraga to'liq
+ * o'qish 100 MB lik videoda edge funksiyani yiqitardi. Oqimda esa
+ * bayt kelgani sari uzatiladi.
+ */
+async function publishYoutube(
+  title: string,
+  text: string,
+  mediaUrl: string | null,
+): Promise<PublishResult> {
+  const P = "youtube"
+  if (!mediaUrl || !isVideoUrl(mediaUrl)) {
+    return { platform: P, success: false, error: "YouTube uchun video fayl majburiy — postga video biriktiring" }
+  }
+
+  const token = await tokenOl()
+  if (!token) return { platform: P, success: false, error: "YouTube ulanmagan — kanalni ulang" }
+
+  try {
+    // Hajm oldindan kerak: resumable seans uni so'raydi
+    const bosh = await fetch(mediaUrl, { method: "HEAD", signal: AbortSignal.timeout(15_000) })
+    if (!bosh.ok) return { platform: P, success: false, error: "Video faylni o'qib bo'lmadi" }
+    const hajm = Number(bosh.headers.get("content-length") || 0)
+    const turi = bosh.headers.get("content-type") || "video/mp4"
+    if (!hajm) return { platform: P, success: false, error: "Video fayl hajmi aniqlanmadi" }
+
+    const sarlavha = (title || text.split("\n")[0] || "Video").trim().slice(0, 100)
+    const seans = await fetch(
+      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json; charset=UTF-8",
+          "X-Upload-Content-Length": String(hajm),
+          "X-Upload-Content-Type": turi,
+        },
+        body: JSON.stringify({
+          snippet: { title: sarlavha, description: text.slice(0, 5000), categoryId: "22" },
+          // Panelda "joylash" bosilgan — demak ommaga chiqadi
+          status: { privacyStatus: "public", selfDeclaredMadeForKids: false },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      },
+    )
+    if (!seans.ok) {
+      const d = await seans.json().catch(() => ({}))
+      return { platform: P, success: false, error: d?.error?.message || `Yuklash seansi ochilmadi (${seans.status})` }
+    }
+    const uploadUrl = seans.headers.get("location") || seans.headers.get("Location")
+    if (!uploadUrl) return { platform: P, success: false, error: "Yuklash manzili qaytmadi" }
+
+    const manba = await fetch(mediaUrl)
+    if (!manba.ok || !manba.body) return { platform: P, success: false, error: "Video faylni yuklab bo'lmadi" }
+
+    const yuborish = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": turi, "Content-Length": String(hajm) },
+      body: manba.body,
+    })
+    const natija = await yuborish.json().catch(() => ({}))
+    if (!yuborish.ok || !natija.id) {
+      return { platform: P, success: false, error: natija?.error?.message || `Yuklanmadi (${yuborish.status})` }
+    }
+    return { platform: P, success: true, external_id: String(natija.id) }
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "Tarmoq xatosi"
+    // Katta faylda funksiya vaqti tugashi mumkin — sababini aniq aytamiz
+    const aniq = /timeout|aborted/i.test(m)
+      ? "Video juda katta yoki ulanish sekin — YouTube studiyasidan yuklang"
+      : m
+    return { platform: P, success: false, error: aniq }
+  }
+}
+
 /** Hali qurilmagan tarmoqlar — aniq xabar beradi, jim yiqilmaydi */
 function notReady(platform: string): PublishResult {
   const why: Record<string, string> = {
@@ -270,6 +355,18 @@ async function stillExists(platform: string, externalId: string): Promise<boolea
       if (d.error?.code === 100 || msg.includes("does not exist")) return false
       return null
     }
+    if (platform === "youtube") {
+      const token = await tokenOl()
+      if (!token) return null
+      const r = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=id&id=${encodeURIComponent(externalId)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!r.ok) return null
+      const d = await r.json().catch(() => ({}))
+      // Ro'yxat bo'sh — video o'chirilgan yoki yopilgan
+      return Array.isArray(d.items) ? d.items.length > 0 : null
+    }
   } catch {
     return null // tarmoq xatosi — hukm chiqarmaymiz
   }
@@ -304,6 +401,18 @@ async function removeRemote(platform: string, externalId: string): Promise<Publi
       const d = await r.json().catch(() => ({}))
       if (d.success || r.ok) return { platform, success: true }
       return { platform, success: false, error: d.error?.message || "O'chirilmadi" }
+    }
+    if (platform === "youtube") {
+      const token = await tokenOl()
+      if (!token) return { platform, success: false, error: "YouTube ulanmagan" }
+      const r = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?id=${encodeURIComponent(externalId)}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      )
+      // Muvaffaqiyatda YouTube 204 va BO'SH javob qaytaradi
+      if (r.ok) return { platform, success: true }
+      const d = await r.json().catch(() => ({}))
+      return { platform, success: false, error: d?.error?.message || "O'chirilmadi" }
     }
     // Instagram DELETE handler'da o'tkazib yuboriladi — bu yerga
     // yetib kelmaydi. Ehtiyot uchun qoldirilgan.
@@ -601,6 +710,7 @@ Deno.serve(async (req) => {
         if (p === "telegram") results.push(await publishTelegram(text, img))
         else if (p === "facebook") results.push(await publishFacebook(text, img))
         else if (p === "instagram") results.push(await publishInstagram(text, img, cover))
+        else if (p === "youtube") results.push(await publishYoutube(post.title as string, text, img))
         else results.push(notReady(p))
       }
 

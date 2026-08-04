@@ -46,15 +46,16 @@ type NetworkStat = {
 }
 
 /**
- * `ready` — tarmoq ulanadimi.
+ * `ready`   — tarmoq ulanadimi.
  * `publish` — unga POST JOYLASA bo'ladimi.
+ * `video`   — postda VIDEO bo'lishi shartmi.
  *
- * Ikkisi bir xil emas: YouTube ulanadi va tahlil qilinadi, lekin unga
- * matn post joylab bo'lmaydi — u yerga video fayl yuklanadi. Ilgari
- * bunday farq yo'q edi va ulangan tarmoq avtomatik "joylash mumkin"
- * deb hisoblanardi.
+ * YouTube matn qabul qilmaydi: unga video fayl yuklanadi. Shuning
+ * uchun u tanlangan bo'lsa, post video bilan bo'lishi kerak —
+ * buni joylashdan OLDIN tekshiramiz, aks holda xato faqat urinishdan
+ * keyin bilinardi.
  */
-type Platform = { key: string; label: string; ready: boolean; publish: boolean; color: string }
+type Platform = { key: string; label: string; ready: boolean; publish: boolean; video?: boolean; color: string }
 
 // LinkedIn OLIB TASHLANDI: hech qachon ulanmagan, faqat "hali
 // qo'llab-quvvatlanmaydi" xatosini qaytarardi va bekorga joy egallardi.
@@ -62,7 +63,7 @@ const PLATFORMS: Platform[] = [
   { key: "telegram", label: "Telegram", ready: true, publish: true, color: "#229ED9" },
   { key: "facebook", label: "Facebook", ready: true, publish: true, color: "#1877F2" },
   { key: "instagram", label: "Instagram", ready: true, publish: true, color: "#E1306C" },
-  { key: "youtube", label: "YouTube", ready: true, publish: false, color: "#FF0000" },
+  { key: "youtube", label: "YouTube", ready: true, publish: true, video: true, color: "#FF0000" },
 ]
 
 const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
@@ -345,26 +346,8 @@ export default function SmmPanel({ seed }: {
     }
     if (!p.ready) { setPickMsg(`${p.label} hali qo'shilmagan`); return }
     if (!conns[p.key]?.connected) { setConnOpen(p.key); setPickMsg(`${p.label} ulanmagan — avval ulang`); return }
-    /**
-     * YouTube joylash ro'yxatiga TUSHMAYDI. U ulanadi va tahlil
-     * qilinadi, lekin matn post qabul qilmaydi. Ilgari uni tanlash
-     * mumkin edi va joylash paytida "qo'llab-quvvatlanmaydi" xatosi
-     * chiqardi — ya'ni xato ish qilingandan KEYIN bilinardi.
-     */
-    if (!p.publish) {
-      /**
-       * Ulangan YouTube kartochkasi bosilganda STUDIYA ochiladi.
-       *
-       * Studiya ilgari sahifaning eng pastida alohida blok edi —
-       * uni ko'rish uchun butun panelni aylantirib tushish kerak
-       * bo'lardi va u yerda turgani mantiqsiz edi. Endi kanal
-       * kartochkasining o'zi uni ochadi.
-       */
-      setPickMsg("")
-      if (p.key === "youtube") setYtStudio(true)
-      return
-    }
-    setPickMsg("")
+    // Video talab qiladigan tarmoq (YouTube) — eslatib qo'yamiz
+    setPickMsg(p.video ? `${p.label} uchun postga VIDEO biriktiring — matn yetarli emas` : "")
     setPicked((prev) => new Set(prev).add(p.key))
   }
 
@@ -1107,6 +1090,15 @@ export default function SmmPanel({ seed }: {
     .filter((k) => !conns[k]?.connected)
     .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
 
+  /**
+   * Video talab qiladigan, lekin postda video yo'q tarmoqlar.
+   * YouTube matn qabul qilmaydi — buni joylashdan OLDIN aytamiz,
+   * aks holda xato faqat urinishdan keyin bilinardi.
+   */
+  const videosiz = isVideo ? [] : Array.from(picked)
+    .filter((k) => PLATFORMS.find((p) => p.key === k)?.video)
+    .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
+
   return (
     <div>
       <div>
@@ -1165,17 +1157,15 @@ export default function SmmPanel({ seed }: {
                 {/* Ulangan kartada: qayta ulash (aylana strelka) va uzish.
                     Faqat shu tarmoqqa tegishli — pastdagi umumiy tugmalar
                     qatori olib tashlandi. */}
-                {/* Belgilash katakchasi — doim o'ng yuqorida, qat'iy joyda.
-                    Joylash mumkin bo'lmagan tarmoqda (YouTube) katakcha
-                    o'rniga "Tahlil" belgisi: u post qabul qilmaydi,
-                    shuning uchun uni tanlash ham mantiqsiz. */}
-                {p.publish ? (
-                  <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
-                    {sel && <Icon d={I.check} className="h-3 w-3" />}
-                  </span>
-                ) : (
-                  <span className="absolute right-2 top-4 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">
-                    {tr("Tahlil")}
+                {/* Belgilash katakchasi — doim o'ng yuqorida, qat'iy joyda */}
+                <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
+                  {sel && <Icon d={I.check} className="h-3 w-3" />}
+                </span>
+                {/* YouTube post qabul qiladi, lekin FAQAT video bilan —
+                    kartochkada shu ko'rinib tursin */}
+                {p.video && (
+                  <span className="absolute bottom-2 left-4 rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-500">
+                    {tr("video kerak")}
                   </span>
                 )}
 
@@ -1184,6 +1174,15 @@ export default function SmmPanel({ seed }: {
                     lekin funksiya kerak, shuning uchun yashirin turadi. */}
                 {on && !connLoading && (
                   <span className="absolute bottom-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    {/* Studiya — kanal videolarini boshqarish. Kartochkaning
+                        o'zi endi tanlash uchun, shuning uchun alohida tugma. */}
+                    {p.key === "youtube" && (
+                      <span role="button" tabIndex={0} title={tr("YouTube studiyasi")}
+                        onClick={(e) => { e.stopPropagation(); setYtStudio(true) }}
+                        className="grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-muted shadow-sm transition-colors hover:text-green">
+                        <Icon d={I.media} className="h-3 w-3" />
+                      </span>
+                    )}
                     <span role="button" tabIndex={0} title={tr("Qayta ulash")}
                       onClick={(e) => { e.stopPropagation(); reconnect(p) }}
                       className={`grid h-6 w-6 place-items-center rounded-lg bg-white/90 text-muted shadow-sm transition-colors hover:text-green ${connBusy ? "pointer-events-none opacity-50" : ""}`}>
@@ -1887,6 +1886,11 @@ export default function SmmPanel({ seed }: {
               {offline.length > 0 && (
                 <p className="mt-1 text-sm font-semibold text-orange-600">
                   Ulanmagan: {offline.join(", ")} — bularga chiqmaydi
+                </p>
+              )}
+              {videosiz.length > 0 && (
+                <p className="mt-1 text-sm font-semibold text-red-600">
+                  {videosiz.join(", ")} uchun video kerak — 3-bosqichda video biriktiring
                 </p>
               )}
             </div>
