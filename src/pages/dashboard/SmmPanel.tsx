@@ -7,6 +7,7 @@ import { extractVideoFrame } from "../../lib/videoFrame"
 import { composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "../../lib/thumbnail"
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
+import YoutubeStudio from "./YoutubeStudio"
 
 /**
  * SMM / AI paneli.
@@ -1860,6 +1861,13 @@ export default function SmmPanel({ seed }: {
             <Icon d={I.send} className="h-4 w-4" /> {acting ? "Joylanmoqda…" : "Tanlanganlarga joylash"}
           </button>
         </div>
+      </div>
+
+      {/* ============ YOUTUBE STUDIYASI ============ */}
+      {/* Alohida faylda: video yuklash, tahrirlash, muqova va o'chirish
+          bir-biriga bog'liq va bu panelning postlar oqimidan mustaqil. */}
+      <div className="mt-5">
+        <YoutubeStudio />
       </div>
 
       {/* ============ SAQLANGAN POSTLAR ============ */}

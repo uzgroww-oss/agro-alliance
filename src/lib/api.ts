@@ -438,6 +438,15 @@ function resolveAdminUrl(path: string, method: string): string {
     }
   }
 
+  /**
+   * YouTube kanalini boshqarish.
+   *   /youtube/oauth?action=start  -> youtube-oauth
+   *   /youtube/manage?action=...   -> youtube-manage
+   */
+  if (segments[0] === "youtube" && (segments[1] === "oauth" || segments[1] === "manage")) {
+    return `${SUPABASE_FUNCTIONS_URL}/youtube-${segments[1]}${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
   if (segments[0] === "tasks") {
     if (segments.length === 1) {
       const fn = method === "POST" ? "admin-tasks-create" : "admin-tasks-list"
