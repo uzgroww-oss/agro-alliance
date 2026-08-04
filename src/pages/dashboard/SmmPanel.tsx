@@ -48,14 +48,11 @@ type NetworkStat = {
 /**
  * `ready`   — tarmoq ulanadimi.
  * `publish` — unga POST JOYLASA bo'ladimi.
- * `video`   — postda VIDEO bo'lishi shartmi.
  *
- * YouTube matn qabul qilmaydi: unga video fayl yuklanadi. Shuning
- * uchun u tanlangan bo'lsa, post video bilan bo'lishi kerak —
- * buni joylashdan OLDIN tekshiramiz, aks holda xato faqat urinishdan
- * keyin bilinardi.
+ * YouTube matn qabul qilmaydi — unga video fayl yuklanadi. Postda
+ * video bo'lmasa server aniq sabab bilan rad etadi.
  */
-type Platform = { key: string; label: string; ready: boolean; publish: boolean; video?: boolean; color: string }
+type Platform = { key: string; label: string; ready: boolean; publish: boolean; color: string }
 
 // LinkedIn OLIB TASHLANDI: hech qachon ulanmagan, faqat "hali
 // qo'llab-quvvatlanmaydi" xatosini qaytarardi va bekorga joy egallardi.
@@ -63,7 +60,7 @@ const PLATFORMS: Platform[] = [
   { key: "telegram", label: "Telegram", ready: true, publish: true, color: "#229ED9" },
   { key: "facebook", label: "Facebook", ready: true, publish: true, color: "#1877F2" },
   { key: "instagram", label: "Instagram", ready: true, publish: true, color: "#E1306C" },
-  { key: "youtube", label: "YouTube", ready: true, publish: true, video: true, color: "#FF0000" },
+  { key: "youtube", label: "YouTube", ready: true, publish: true, color: "#FF0000" },
 ]
 
 const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
@@ -346,8 +343,7 @@ export default function SmmPanel({ seed }: {
     }
     if (!p.ready) { setPickMsg(`${p.label} hali qo'shilmagan`); return }
     if (!conns[p.key]?.connected) { setConnOpen(p.key); setPickMsg(`${p.label} ulanmagan — avval ulang`); return }
-    // Video talab qiladigan tarmoq (YouTube) — eslatib qo'yamiz
-    setPickMsg(p.video ? `${p.label} uchun postga VIDEO biriktiring — matn yetarli emas` : "")
+    setPickMsg("")
     setPicked((prev) => new Set(prev).add(p.key))
   }
 
@@ -1090,14 +1086,6 @@ export default function SmmPanel({ seed }: {
     .filter((k) => !conns[k]?.connected)
     .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
 
-  /**
-   * Video talab qiladigan, lekin postda video yo'q tarmoqlar.
-   * YouTube matn qabul qilmaydi — buni joylashdan OLDIN aytamiz,
-   * aks holda xato faqat urinishdan keyin bilinardi.
-   */
-  const videosiz = isVideo ? [] : Array.from(picked)
-    .filter((k) => PLATFORMS.find((p) => p.key === k)?.video)
-    .map((k) => PLATFORMS.find((p) => p.key === k)?.label ?? k)
 
   return (
     <div>
@@ -1161,13 +1149,6 @@ export default function SmmPanel({ seed }: {
                 <span className={`absolute right-3 top-4 grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${sel ? "border-green bg-green text-white" : "border-gray-300"}`}>
                   {sel && <Icon d={I.check} className="h-3 w-3" />}
                 </span>
-                {/* YouTube post qabul qiladi, lekin FAQAT video bilan —
-                    kartochkada shu ko'rinib tursin */}
-                {p.video && (
-                  <span className="absolute bottom-2 left-4 rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-500">
-                    {tr("video kerak")}
-                  </span>
-                )}
 
                 {/* Amal ikonkalari faqat sichqoncha ustiga kelganda.
                     Doim ko'rinsa karta tiqilib qoladi — mockup'da ular yo'q,
@@ -1886,11 +1867,6 @@ export default function SmmPanel({ seed }: {
               {offline.length > 0 && (
                 <p className="mt-1 text-sm font-semibold text-orange-600">
                   Ulanmagan: {offline.join(", ")} — bularga chiqmaydi
-                </p>
-              )}
-              {videosiz.length > 0 && (
-                <p className="mt-1 text-sm font-semibold text-red-600">
-                  {videosiz.join(", ")} uchun video kerak — 3-bosqichda video biriktiring
                 </p>
               )}
             </div>
