@@ -350,8 +350,10 @@ export default function SmmPanel({ seed }: {
      * chiqardi — ya'ni xato ish qilingandan KEYIN bilinardi.
      */
     if (!p.publish) {
-      setConnOpen(p.key)
-      setPickMsg(`${p.label} tahlil uchun ulanadi — unga post joylab bo'lmaydi`)
+      // ULANGAN bo'lsa ulash formasi QAYTA OCHILMAYDI. Ilgari ochilardi
+      // va kartochkada "Ulangan" turgani holda pastda "Google bilan
+      // ulash" tugmasi chiqib, ulanmagandek ko'rinardi.
+      setPickMsg(`${p.label} tahlil uchun ulangan — unga post joylab bo'lmaydi`)
       return
     }
     setPickMsg("")
@@ -1218,7 +1220,9 @@ export default function SmmPanel({ seed }: {
           </div>
         )}
 
-        {connOpen === "youtube" && (
+        {/* Ulangan bo'lsa forma umuman ko'rinmaydi — qayta ulash
+            kartochka ustidagi aylana strelka orqali qilinadi */}
+        {connOpen === "youtube" && !conns.youtube?.connected && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
             <p className="text-xs text-muted">
               YouTube <strong>{tr("Google hisobi orqali")}</strong> ulanadi. Bitta rozilik
