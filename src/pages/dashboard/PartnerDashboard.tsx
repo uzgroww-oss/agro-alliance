@@ -359,33 +359,32 @@ function VideoCard({ v }: { v: PartnerVideo }) {
         </span>
       </a>
 
-      <div className="flex min-w-0 flex-1 flex-col p-4">
-        <a href={v.link} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-sm font-bold leading-snug hover:text-green">
+      <div className="flex min-w-0 flex-1 flex-col p-2.5">
+        <a href={v.link} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-[12px] font-bold leading-snug hover:text-green">
           {v.name}
         </a>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-1.5">
           {v.blogger.avatar ? (
-            <img loading="lazy" decoding="async" src={v.blogger.avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+            <img loading="lazy" decoding="async" src={v.blogger.avatar} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
           ) : (
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green/10 text-[11px] font-bold text-green">{v.blogger.name[0]}</span>
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green/10 text-[9px] font-bold text-green">{v.blogger.name[0]}</span>
           )}
           <div className="min-w-0 flex-1">
             {v.blogger.slug ? (
-              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer" className="block truncate text-xs font-bold text-green hover:underline">{v.blogger.name}</a>
+              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer" className="block truncate text-[10px] font-bold text-green hover:underline">{v.blogger.name}</a>
             ) : (
-              <span className="block truncate text-xs font-bold">{v.blogger.name}</span>
+              <span className="block truncate text-[10px] font-bold">{v.blogger.name}</span>
             )}
-            <span className="text-[10px] text-muted">{v.date || "—"}</span>
           </div>
+          <span className="shrink-0 text-[9px] text-muted">{v.date || "—"}</span>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-green/10 pt-3">
+        <div className="mt-2 grid grid-cols-3 gap-1 border-t border-green/10 pt-2">
           {olcham.map((o) => (
-            <div key={o.label} className="min-w-0 rounded-lg bg-[#fafdf7] px-1.5 py-2 text-center">
-              <Icon d={o.icon} className="mx-auto h-3.5 w-3.5 text-green" />
-              <div className="mt-1 truncate font-display text-sm font-extrabold">{o.value}</div>
-              <div className="truncate text-[9px] text-muted">{tr(o.label)}</div>
+            <div key={o.label} className="min-w-0 text-center" title={tr(o.label)}>
+              <Icon d={o.icon} className="mx-auto h-3 w-3 text-green" />
+              <div className="mt-0.5 truncate font-display text-[11px] font-extrabold">{o.value}</div>
             </div>
           ))}
         </div>
@@ -511,7 +510,7 @@ function PartnerVideos() {
             <p className="mt-1 text-xs text-muted">{tr("Bloger video qo'shayotganda kompaniyangizni belgilasa, u shu yerda paydo bo'ladi.")}</p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {korinadigan.map((v) => <VideoCard key={`${v.blogger.id}-${v.id}`} v={v} />)}
           </div>
         )}

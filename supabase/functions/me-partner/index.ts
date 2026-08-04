@@ -20,6 +20,100 @@ function sonGa(v: unknown): number {
   return Math.round(n * (kat === "k" ? 1_000 : kat === "m" ? 1_000_000 : kat === "b" ? 1_000_000_000 : 1))
 }
 
+/** YouTube linkidan video ID */
+function youtubeId(link: unknown, id: unknown): string | null {
+  const s = String(link || "")
+  const m = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (m) return m[1]
+  // Eski yozuvlarda ID ning o'zi saqlangan bo'lishi mumkin
+  const t = String(id || "")
+  return /^[a-zA-Z0-9_-]{11}$/.test(t) ? t : null
+}
+
+/**
+ * YOQTIRISH VA IZOHLARNI YOUTUBE'DAN TO'LDIRISH.
+ *
+ * Bu raqamlar video qo'shilayotganda saqlanadi, lekin AVVAL qo'shilgan
+ * videolarda ular umuman yo'q — kompaniya kabinetida "—" ko'rinardi.
+ * Ularni qayta qo'shishni so'rash noto'g'ri bo'lardi.
+ *
+ * Yechim: yetishmagan videolar YouTube'dan BITTA so'rovda olinadi
+ * (API 50 tagacha ID qabul qiladi) va natija bazaga ham yoziladi —
+ * keyingi ochilishda so'rov takrorlanmaydi.
+ *
+ * Kalit yo'q bo'lsa yoki so'rov yiqilsa hech narsa buzilmaydi:
+ * raqamlar shunchaki bo'sh qoladi.
+ */
+async function youtubeRaqamlariniTolatir(
+  videolar: Record<string, unknown>[],
+  profiles: Record<string, unknown>[],
+): Promise<void> {
+  const kalit = Deno.env.get("YOUTUBE_API_KEY")
+  if (!kalit) return
+
+  const bosh = (v: unknown) => !v || v === "0"
+  const kerak = new Map<string, Record<string, unknown>[]>()
+  for (const v of videolar) {
+    if (!(v.plats as string[]).includes("YouTube")) continue
+    if (!bosh(v.likes) && !bosh(v.comments)) continue
+    const yid = youtubeId(v.link, v.id)
+    if (!yid) continue
+    const ro = kerak.get(yid) || []
+    ro.push(v)
+    kerak.set(yid, ro)
+  }
+  if (kerak.size === 0) return
+
+  const idlar = [...kerak.keys()].slice(0, 50)
+  let stats: Record<string, { viewCount?: string; likeCount?: string; commentCount?: string }> = {}
+  try {
+    const resp = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${idlar.join(",")}&key=${kalit}`,
+      { signal: AbortSignal.timeout(8_000) },
+    )
+    const data = await resp.json()
+    for (const it of (data.items || []) as { id: string; statistics?: Record<string, string> }[]) {
+      stats[it.id] = it.statistics || {}
+    }
+  } catch (e) {
+    console.error("youtubeRaqamlari:", e instanceof Error ? e.message : e)
+    stats = {}
+  }
+  if (Object.keys(stats).length === 0) return
+
+  // Javobga qo'llaymiz
+  for (const [yid, ro] of kerak) {
+    const s = stats[yid]
+    if (!s) continue
+    for (const v of ro) {
+      if (s.viewCount) v.views = s.viewCount
+      if (s.likeCount) v.likes = s.likeCount
+      if (s.commentCount) v.comments = s.commentCount
+    }
+  }
+
+  // Bazaga ham yozamiz — keyingi safar so'rov kerak bo'lmasin
+  for (const p of profiles) {
+    const meta = (p.metadata as Record<string, unknown>) || {}
+    const list = (meta.videos as Record<string, unknown>[]) || []
+    let ozgardi = false
+    for (const v of list) {
+      const yid = youtubeId(v.link, v.id)
+      const s = yid ? stats[yid] : undefined
+      if (!s) continue
+      if (s.viewCount && v.views !== s.viewCount) { v.views = s.viewCount; ozgardi = true }
+      if (s.likeCount && v.likes !== s.likeCount) { v.likes = s.likeCount; ozgardi = true }
+      if (s.commentCount && v.comments !== s.commentCount) { v.comments = s.commentCount; ozgardi = true }
+    }
+    if (!ozgardi) continue
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ metadata: { ...meta, videos: list } })
+      .eq("id", p.id as string)
+    if (error) console.error("youtubeRaqamlari saqlash:", error.message)
+  }
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
@@ -85,6 +179,8 @@ Deno.serve(async (req) => {
           })
         }
       }
+
+      await youtubeRaqamlariniTolatir(videolar, (profiles || []) as Record<string, unknown>[])
 
       // Yangi videolar tepada
       videolar.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
