@@ -72,10 +72,24 @@ const rangOl = (nom: string) => PLATFORMA_RANG[nom] || BOSHQA_RANG
 /** Ustunlar rangi — bitta qator, shuning uchun bitta rang */
 const USTUN_RANG = "#2f7d1f"
 
+/**
+ * Katta sonni qisqartiradi: 1 250 -> "1.3K", 12 500 -> "13K".
+ *
+ * Chegara YAXLITLANGAN qiymat bo'yicha tekshiriladi, xom son bo'yicha
+ * emas. Ilgari 999 999 "1000K" bo'lib chiqardi (999.999 yaxlitlanib
+ * 1000 bo'lardi, prefiks esa "K" bo'lib qolardi), 1 000 000 esa
+ * "1.0M" — ya'ni bitta ko'rish farqda yozuv sakrab ketardi. Xuddi
+ * shunday 9 999 "10.0K", 10 000 esa "10K" bo'lardi.
+ */
 const qisqaSon = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`
-  return String(n)
+  const birlik = (v: number, belgi: string) => {
+    const r = v >= 10 ? Math.round(v) : Math.round(v * 10) / 10
+    return `${r >= 10 ? r.toFixed(0) : r.toFixed(1)}${belgi}`
+  }
+  if (n >= 999_500_000) return birlik(n / 1_000_000_000, "B")
+  if (n >= 999_500) return birlik(n / 1_000_000, "M")
+  if (n >= 999.5) return birlik(n / 1_000, "K")
+  return String(Math.round(n))
 }
 
 /**
@@ -797,7 +811,17 @@ function PlatformaDonut({ stats }: { stats: VideoStats }) {
       const oldingi = acc.length ? acc[acc.length - 1] : null
       const siljish = oldingi ? oldingi.siljish + oldingi.ulush * C : 0
       const ulush = r.views / asosJami
-      acc.push({ ...r, ulush, foiz: foiz[i], uzunlik: Math.max(ulush * C - TIRQISH, 0.5), siljish })
+      /**
+       * Uzunlik BO'LAK ULUSHIDAN OSHMASLIGI kerak.
+       *
+       * Ilgari faqat pastki chegara (0.5px) bor edi. Ulushi nolga
+       * teng bo'lak — masalan ko'rishlari o'qilmagan tarmoq —
+       * o'sha 0.5px ni olib, aylanadan chiqib ketardi va
+       * dashoffset davri bo'yicha aylanib, BIRINCHI bo'lakning
+       * ustiga, boshqa rangdagi chiziqcha bo'lib tushardi.
+       */
+      const uzunlik = Math.min(Math.max(ulush * C - TIRQISH, 0.5), ulush * C)
+      acc.push({ ...r, ulush, foiz: foiz[i], uzunlik, siljish })
       return acc
     },
     [],
@@ -1002,7 +1026,14 @@ function PartnerVideos() {
         ))}
       </div>
 
-      {stats && stats.monthly?.length > 0 && <OylikGrafik data={stats.monthly} />}
+      {/*
+        Shart massiv uzunligiga EMAS, ma'lumot borligiga qaraydi:
+        backend har doim 12 oy qaytaradi (bo'shlari ham), shuning
+        uchun `length > 0` hech qachon false bo'lmasdi va videosi
+        yo'q hamkorga "Video topilmadi" yozuvi ustida bo'm-bo'sh
+        grafik chizilardi.
+      */}
+      {stats?.monthly?.some((m) => m.videos > 0) && <OylikGrafik data={stats.monthly} />}
 
       {stats && Object.keys(stats.platforms).length > 0 && (
         <div className="grid gap-6 lg:grid-cols-2">
