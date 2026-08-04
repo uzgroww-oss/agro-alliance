@@ -454,6 +454,90 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
   )
 }
 
+/**
+ * HAMKOR KOMPANIYANI TANLASH OYNASI.
+ *
+ * Video profilga qo'shilishidan oldin ochiladi va barcha hamkor
+ * kompaniyalarni ko'rsatadi. Ro'yxat uzun bo'lishi mumkin, shuning
+ * uchun qidiruv bor.
+ *
+ * "Kompaniyasiz qo'shish" ATAYLAB qoldirilgan: bloger har doim ham
+ * kompaniya buyurtmasi bo'yicha video joylamaydi, majburlash uni
+ * tasodifiy kompaniya tanlashga olib kelardi.
+ */
+function PartnerPicker({
+  partners, nima, onPick, onClose,
+}: {
+  partners: { id: string; name: string }[]
+  nima: string
+  onPick: (partnerId: string) => void
+  onClose: () => void
+}) {
+  const [q, setQ] = useState("")
+  const [tanlangan, setTanlangan] = useState("")
+  const rojxat = partners.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-green/10 text-green"><Icon d={I.building} className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <h3 className="font-display text-lg font-extrabold">{tr("Hamkor kompaniyani tanlang")}</h3>
+            <p className="mt-0.5 text-xs text-muted">{nima} — {tr("tanlangan kompaniya bu videolarni o'z kabinetida statistikasi bilan ko'radi.")}</p>
+          </div>
+        </div>
+
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={tr("Kompaniya qidirish...")}
+          className="mt-4 w-full rounded-xl border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green"
+        />
+
+        <div className="mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+          {partners.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted">{tr("Hamkor kompaniyalar ro'yxati yuklanmadi.")}</p>
+          )}
+          {partners.length > 0 && rojxat.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted">{tr("Kompaniya topilmadi.")}</p>
+          )}
+          {rojxat.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setTanlangan(p.id)}
+              className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                tanlangan === p.id ? "border-green bg-green/5" : "border-green/15 hover:border-green/40"
+              }`}
+            >
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${tanlangan === p.id ? "border-green bg-green text-white" : "border-green/30"}`}>
+                {tanlangan === p.id && <Icon d={I.check} className="h-3 w-3" />}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          <button onClick={onClose} className="rounded-xl border-2 border-green/30 px-4 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">
+            {tr("Bekor qilish")}
+          </button>
+          <button onClick={() => onPick("")} className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted underline-offset-2 hover:underline">
+            {tr("Kompaniyasiz qo'shish")}
+          </button>
+          <button
+            onClick={() => onPick(tanlangan)}
+            disabled={!tanlangan}
+            className="rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+          >
+            {tr("Qo'shish")}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Videos ---------- */
 function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   const [videos, setVideos] = useState<NonNullable<typeof me.videos>>(me.videos || [])
@@ -475,11 +559,16 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
    *
    * Har bir video qaysi kompaniya uchun tayyorlangani belgilanadi —
    * shundan keyin o'sha kompaniya o'z kabinetida videoni statistikasi
-   * bilan ko'radi. Tanlov bir marta qilinadi va qo'lda qo'shishga ham,
-   * YouTube/Instagram'dan ommaviy qo'shishga ham birdek qo'llanadi.
+   * bilan ko'radi.
+   *
+   * Tanlov "Qo'shish" bosilgandan KEYIN modal oynada so'raladi. Ilgari
+   * u sahifa tepasidagi ro'yxat edi va bloger uni sezmay, videolarni
+   * kompaniyasiz qo'shib yuborardi.
    */
   const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
-  const [partnerId, setPartnerId] = useState("")
+  /** Modal ochiq bo'lsa — tanlov tasdiqlangach bajariladigan amal */
+  const [pickFor, setPickFor] = useState<{ run: (pid: string) => void; label: string } | null>(null)
+  const soraPartner = (label: string, run: (pid: string) => void) => setPickFor({ label, run })
 
   useEffect(() => { fetchYoutubeChannelVideos() }, [])
   useEffect(() => {
@@ -502,13 +591,17 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
     }
   }
 
-  const add = async () => {
+  const add = () => {
     setLinkError("")
     if (!link.trim()) { setLinkError("Link kiriting"); return }
     if (!link.trim().match(/^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%.+~#=]{1,256}\.[a-zA-Z]{2,}/)) {
       setLinkError("Yaroqli URL formatida emas")
       return
     }
+    soraPartner("1 ta video", (pid) => { void addWith(pid) })
+  }
+
+  const addWith = async (partnerId: string) => {
     setBusy(true)
     try {
       const res = await api<{ success: boolean; video: (typeof videos)[0] }>("/me/videos", { method: "POST", body: JSON.stringify({ link: link.trim(), partner_id: partnerId || null }) })
@@ -601,8 +694,13 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   }
 
   // Tanlangan Instagram postlarni profilga saqlash
-  const saveSelectedIgPosts = async () => {
+  const saveSelectedIgPosts = () => {
     if (selectedIgPosts.size === 0) return
+    const n = igPosts.filter((m) => selectedIgPosts.has(m.id) && !igAdded(m)).length
+    soraPartner(`${n} ta Instagram post`, (pid) => { void saveSelectedIgPostsWith(pid) })
+  }
+
+  const saveSelectedIgPostsWith = async (partnerId: string) => {
     setSavingIg(true)
     try {
       const chosen = igPosts.filter((m) => selectedIgPosts.has(m.id) && !igAdded(m))
@@ -646,8 +744,12 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   }
 
   // Tanlangan videolarni saqlash
-  const saveSelectedVideos = async () => {
+  const saveSelectedVideos = () => {
     if (selectedVids.size === 0 || savingSelected) return
+    soraPartner(`${selectedVids.size} ta video`, (pid) => { void saveSelectedVideosWith(pid) })
+  }
+
+  const saveSelectedVideosWith = async (partnerId: string) => {
     setSavingSelected(true)
     try {
       // Tanlangan videolarni metadata'ga qo'shish
@@ -701,26 +803,6 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
 
   return (
     <div className={card}>
-      {/*
-        Hamkor kompaniya tanlovi ENG TEPADA turadi, chunki u uchala
-        qo'shish yo'liga ham (qo'lda link, YouTube, Instagram) tegishli.
-        Ilgari faqat qo'lda qo'shish formasida bo'lganida, YouTube'dan
-        ommaviy qo'shayotgan bloger uni umuman ko'rmasdi.
-      */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-green/15 bg-soft px-3 py-2.5">
-        <Icon d={I.building} className="h-4 w-4 shrink-0 text-green" />
-        <span className="text-[11px] font-semibold">{tr("Yangi videolar qaysi hamkor kompaniya uchun:")}</span>
-        <select
-          value={partnerId}
-          onChange={(e) => setPartnerId(e.target.value)}
-          className="min-w-[10rem] flex-1 rounded-lg border border-green/20 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-green"
-        >
-          <option value="">{tr("Belgilanmagan")}</option>
-          {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <span className="w-full text-[10px] text-muted">{tr("Belgilangan kompaniya bu videolarni o'z kabinetida statistikasi bilan ko'radi.")}</span>
-      </div>
-
       {/* YouTube kanal videolari — tepada */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
@@ -916,9 +998,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("Video linkini joylang...")} className="flex-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-md bg-green px-3 py-1.5 text-[10px] font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
             </div>
-            <p className="mt-1 text-[10px] text-muted">
-              {tr("Kompaniya:")} <b className="text-green">{partners.find((p) => p.id === partnerId)?.name || tr("belgilanmagan")}</b>
-            </p>
+            <p className="mt-1 text-[10px] text-muted">{tr("Qo'shishni bosgach hamkor kompaniyani tanlaysiz.")}</p>
             {linkError && <p className="mt-1 text-[10px] text-red-500">{linkError}</p>}
           </div>
         )}
@@ -955,6 +1035,16 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Hamkor kompaniyani tanlash modali */}
+      {pickFor && (
+        <PartnerPicker
+          partners={partners}
+          nima={pickFor.label}
+          onClose={() => setPickFor(null)}
+          onPick={(pid) => { setPickFor(null); pickFor.run(pid) }}
+        />
+      )}
 
       {/* O'chirish modal */}
       {deleteTarget && (
