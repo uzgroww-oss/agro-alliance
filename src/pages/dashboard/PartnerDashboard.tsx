@@ -116,6 +116,68 @@ function foizlar(qiymatlar: number[]): number[] {
   return past
 }
 
+/**
+ * Ko'rishlar matn sifatida saqlanadi va manbaga qarab har xil
+ * ko'rinishda bo'ladi: "12500", "12.5K", "1,2M". Hisoblashdan oldin
+ * songa keltiriladi (serverdagi `sonGa` bilan bir xil qoida).
+ */
+function songa(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0
+  if (typeof v !== "string") return 0
+  const s = v.trim().replace(/\s/g, "").replace(",", ".")
+  const m = s.match(/^([\d.]+)\s*([KkMmBb])?$/)
+  if (!m) return 0
+  const n = parseFloat(m[1])
+  if (!Number.isFinite(n)) return 0
+  const k = (m[2] || "").toLowerCase()
+  return Math.round(n * (k === "k" ? 1e3 : k === "m" ? 1e6 : k === "b" ? 1e9 : 1))
+}
+
+type Korsatkich = {
+  total: number; views: number; likes: number; comments: number; bloggers: number
+  platforms: Record<string, number>
+  platformViews: Record<string, number>
+  topBloggers: TopBlogger[]
+}
+
+/**
+ * Ko'rsatkichlarni BERILGAN videolar to'plamidan hisoblaydi.
+ *
+ * Oy tanlanganda hammasi qaytadan hisoblanishi kerak — serverdan
+ * yangi so'rov yubormaymiz, chunki videolar allaqachon qo'lda.
+ */
+function hisobla(list: PartnerVideo[]): Korsatkich {
+  const platforms: Record<string, number> = {}
+  const platformViews: Record<string, number> = {}
+  const blogerlar = new Map<string, TopBlogger>()
+  let views = 0, likes = 0, comments = 0
+
+  for (const v of list) {
+    const k = songa(v.views), y = songa(v.likes), i = songa(v.comments)
+    views += k; likes += y; comments += i
+    // Bir video bir nechta tarmoqda bo'lsa BIRINCHISIGA yoziladi —
+    // aks holda ulushlar yig'indisi 100% dan oshib ketardi
+    const asosiy = v.plats[0] || "Boshqa"
+    platforms[asosiy] = (platforms[asosiy] || 0) + 1
+    platformViews[asosiy] = (platformViews[asosiy] || 0) + k
+
+    const b = v.blogger
+    const bor = blogerlar.get(b.id) || {
+      id: b.id, name: b.name, slug: b.slug, avatar: b.avatar,
+      videos: 0, views: 0, likes: 0, comments: 0,
+    }
+    bor.videos += 1; bor.views += k; bor.likes += y; bor.comments += i
+    blogerlar.set(b.id, bor)
+  }
+
+  return {
+    total: list.length, views, likes, comments,
+    bloggers: blogerlar.size,
+    platforms, platformViews,
+    topBloggers: [...blogerlar.values()].sort((a, b) => b.views - a.views),
+  }
+}
+
 const OY_NOMI = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
 const oyYorlig = (oy: string) => {
   const [y, m] = oy.split("-")
@@ -684,7 +746,12 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
  * Video yo'q oylar ham qoladi — ular tashlab ketilsa vaqt o'qi
  * buzilib, tanaffuslar ko'rinmasdi.
  */
-function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
+function OylikGrafik({ data, tanlangan, onTanla }: {
+  data: VideoStats["monthly"]
+  /** Tanlangan oy ("YYYY-MM") yoki null — jami */
+  tanlangan: string | null
+  onTanla: (oy: string | null) => void
+}) {
   const [ustida, setUstida] = useState<number | null>(null)
   const max = Math.max(1, ...data.map((d) => d.views))
   const engKattaIdx = data.reduce((eng, d, i) => (d.views > data[eng].views ? i : eng), 0)
@@ -702,6 +769,8 @@ function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
           deb o'qib, noto'g'ri xulosa chiqarardi. */}
       <p className="mt-0.5 text-xs text-muted">
         {tr("Shu oyda chiqarilgan videolar bugungi kunga yig'gan ko'rishlar")}
+        {" · "}
+        <span className="font-semibold">{tr("oyni bosing")}</span>
       </p>
 
       <div className="relative mt-5">
@@ -715,10 +784,26 @@ function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
           {data.map((d, i) => {
             const bal = Math.round((d.views / max) * 100)
             const faol = ustida === i
+            const tanlandi = tanlangan === d.oy
+            /**
+             * Videosi yo'q oy tanlanmaydi: bosilsa ekrandagi hamma
+             * raqam nolga aylanib, foydalanuvchi nima bo'lganini
+             * tushunmasdi.
+             */
+            const bosiladi = d.videos > 0
             return (
               <div
                 key={d.oy}
-                className="group relative flex h-full flex-1 cursor-default items-end justify-center"
+                role={bosiladi ? "button" : undefined}
+                tabIndex={bosiladi ? 0 : undefined}
+                title={bosiladi ? (tanlandi ? tr("Jamiga qaytish") : tr("Shu oyni ko'rish")) : undefined}
+                onClick={() => bosiladi && onTanla(tanlandi ? null : d.oy)}
+                onKeyDown={(e) => {
+                  if (!bosiladi || (e.key !== "Enter" && e.key !== " ")) return
+                  e.preventDefault()
+                  onTanla(tanlandi ? null : d.oy)
+                }}
+                className={`group relative flex h-full flex-1 items-end justify-center rounded-t ${bosiladi ? "cursor-pointer" : "cursor-default"} ${tanlandi ? "bg-green/8" : ""}`}
                 onMouseEnter={() => setUstida(i)}
                 onMouseLeave={() => setUstida(null)}
               >
@@ -743,7 +828,9 @@ function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
                   style={{
                     height: d.views > 0 ? `max(${bal}%, 3px)` : "2px",
                     background: d.views > 0 ? USTUN_RANG : "#e5e7eb",
-                    opacity: ustida === null || faol ? 1 : 0.55,
+                    // Oy tanlanganda faqat o'sha ustun to'liq rangda —
+                    // qaysi oy ko'rilayotgani bir qarashda bilinsin
+                    opacity: tanlangan ? (tanlandi ? 1 : 0.3) : (ustida === null || faol ? 1 : 0.55),
                   }}
                 />
               </div>
@@ -779,7 +866,7 @@ function OylikGrafik({ data }: { data: VideoStats["monthly"] }) {
  * raqami bilan turadi. Bo'laklar orasida 2px oq tirqish: qo'shni
  * ranglar bir-biriga qo'shilib ketmasin.
  */
-function PlatformaDonut({ stats }: { stats: VideoStats }) {
+function PlatformaDonut({ stats }: { stats: Korsatkich }) {
   const [ustida, setUstida] = useState<string | null>(null)
 
   const qatorlar = Object.entries(stats.platformViews || {})
@@ -971,6 +1058,8 @@ function PartnerVideos() {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [platform, setPlatform] = useState("Barchasi")
+  /** Grafikda tanlangan oy ("YYYY-MM") yoki null — jami */
+  const [oy, setOy] = useState<string | null>(null)
   /** To'liq ma'lumot oynasida ochilgan video */
   const [ochiq, setOchiq] = useState<PartnerVideo | null>(null)
 
@@ -985,14 +1074,38 @@ function PartnerVideos() {
   }, [])
   useEffect(() => { load() }, [load])
 
+  /**
+   * OY FILTRI butun bo'limga qo'llanadi: ko'rsatkichlar, donut,
+   * blogerlar reytingi va ro'yxat — hammasi shu oyga tegishli
+   * bo'ladi. Faqat oylik grafikning O'ZI to'liq yil bo'lib qoladi,
+   * chunki u filtrning boshqaruvchisi.
+   */
+  const oyVideolari = useMemo(
+    () => (oy ? videos.filter((v) => String(v.date || "").startsWith(oy)) : videos),
+    [videos, oy],
+  )
+  // Serverdan kelgan `stats` butun davr uchun — oy tanlansa
+  // ko'rsatkichlar shu yerda qaytadan hisoblanadi
+  const korsatkich = useMemo(() => hisobla(oyVideolari), [oyVideolari])
+
   const platformalar = useMemo(
-    () => ["Barchasi", ...Object.keys(stats?.platforms || {})],
-    [stats],
+    () => ["Barchasi", ...Object.keys(korsatkich.platforms)],
+    [korsatkich],
   )
+  /**
+   * Tanlangan tarmoq shu oyda umuman yo'q bo'lishi mumkin (masalan
+   * Instagram tanlangan, keyin faqat YouTube video bo'lgan oy
+   * bosilgan). Bunda holatni tuzatish shart emas — joriy tanlov
+   * shu yerda hisoblanadi va ro'yxat bo'sh qolib ketmaydi.
+   */
+  const faolPlatform = platformalar.includes(platform) ? platform : "Barchasi"
+
   const korinadigan = useMemo(
-    () => platform === "Barchasi" ? videos : videos.filter((v) => v.plats.includes(platform)),
-    [videos, platform],
+    () => faolPlatform === "Barchasi" ? oyVideolari : oyVideolari.filter((v) => v.plats.includes(faolPlatform)),
+    [oyVideolari, faolPlatform],
   )
+
+  const oyNomi = oy ? `${oyYorlig(oy).nom} ${oyYorlig(oy).yil}` : ""
 
   const son = (n: number) => n.toLocaleString("ru-RU")
 
@@ -1010,12 +1123,40 @@ function PartnerVideos() {
 
   return (
     <div className="mt-6 space-y-6">
+      {/*
+        FILTR HOLATI — qaysi davr ko'rilayotgani va "Jami" ga
+        qaytish tugmasi. Usiz foydalanuvchi raqamlar nega
+        o'zgarganini tushunmasdi: ko'rsatkichlar jimgina kichrayardi.
+      */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setOy(null)}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${oy ? "border border-green/25 text-green hover:bg-green/5" : "bg-green text-white"}`}
+        >
+          {tr("Jami")}
+        </button>
+        {oy && (
+          <span className="inline-flex items-center gap-2 rounded-xl bg-green/10 px-3 py-2 text-sm font-bold text-green">
+            {oyNomi}
+            <span role="button" tabIndex={0} title={tr("Filtrni olib tashlash")}
+              onClick={() => setOy(null)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOy(null) } }}
+              className="cursor-pointer opacity-70 hover:opacity-100">
+              <Icon d="M18 6L6 18 M6 6l12 12" className="h-3.5 w-3.5" />
+            </span>
+          </span>
+        )}
+        <span className="text-xs text-muted">
+          {oy ? tr("faqat shu oy ko'rsatkichlari") : tr("butun davr bo'yicha")}
+        </span>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: "Jami video", v: son(stats?.total || 0), sub: `${son(stats?.bloggers || 0)} bloger` },
-          { icon: I.eye, t: "Jami ko'rishlar", v: son(stats?.views || 0), sub: "barcha platformalar" },
-          { icon: I.star, t: "Jami yoqtirishlar", v: son(stats?.likes || 0), sub: "like" },
-          { icon: I.message, t: "Jami izohlar", v: son(stats?.comments || 0), sub: "komment" },
+          { icon: I.media, t: "Videolar", v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} bloger` },
+          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: "barcha platformalar" },
+          { icon: I.star, t: "Yoqtirishlar", v: son(korsatkich.likes), sub: "like" },
+          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: "komment" },
         ].map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
@@ -1033,12 +1174,14 @@ function PartnerVideos() {
         yo'q hamkorga "Video topilmadi" yozuvi ustida bo'm-bo'sh
         grafik chizilardi.
       */}
-      {stats?.monthly?.some((m) => m.videos > 0) && <OylikGrafik data={stats.monthly} />}
+      {stats?.monthly?.some((m) => m.videos > 0) && (
+        <OylikGrafik data={stats.monthly} tanlangan={oy} onTanla={setOy} />
+      )}
 
-      {stats && Object.keys(stats.platforms).length > 0 && (
+      {Object.keys(korsatkich.platforms).length > 0 && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <PlatformaDonut stats={stats} />
-          <TopBloggers list={stats.topBloggers || []} />
+          <PlatformaDonut stats={korsatkich} />
+          <TopBloggers list={korsatkich.topBloggers} />
         </div>
       )}
 
@@ -1051,7 +1194,7 @@ function PartnerVideos() {
                 <button
                   key={p}
                   onClick={() => setPlatform(p)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${platform === p ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/40"}`}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${faolPlatform === p ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/40"}`}
                 >
                   {p === "Barchasi" ? tr("Barchasi") : p}
                 </button>
