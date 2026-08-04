@@ -2,7 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { translateFields } from "../_shared/translate.ts"
+import { translateFields, birlashtir, kerakliTillar, TR_VERSION } from "../_shared/translate.ts"
 
 /**
  * Tarjima qilinadigan jadvallar va ularning matn maydonlari.
@@ -55,9 +55,14 @@ Deno.serve(async (req) => {
         .is("deleted_at", null)
         .limit(200)
 
-      for (const r of (data || []) as Record<string, unknown>[]) {
+      // Ustunlar ro'yxati o'zgaruvchi (`fields.join`), shuning uchun
+      // supabase-js turini aniqlay olmaydi — qo'lda ko'rsatamiz
+      for (const r of (data || []) as unknown as Record<string, unknown>[]) {
         const tr = r.translations as Record<string, unknown> | undefined
-        const tayyor = tr && Object.keys(tr).some((k) => k !== "_v")
+        // JORIY versiyada bo'lsa tegilmaydi — tarjimasi bo'lmasa ham.
+        // Ba'zi yozuvlar ATAYLAB tarjima qilinmaydi (brend nomi kabi),
+        // ular ham "tayyor" hisoblanadi va qayta urinilmaydi.
+        const tayyor = tr && Number(tr._v ?? 0) >= TR_VERSION
         if (tayyor) continue
         if (!fields.some((f) => typeof r[f] === "string" && (r[f] as string).trim())) continue
 
@@ -65,10 +70,20 @@ Deno.serve(async (req) => {
 
         const fl: Record<string, string | null | undefined> = {}
         for (const f of fields) fl[f] = r[f] as string | undefined
-        const natija = await translateFields(fl, undefined, Math.min(deadline, Date.now() + 20_000))
-        if (Object.keys(natija).length === 0) { qoldi++; continue }
+        const natija = await translateFields(
+          fl,
+          kerakliTillar(r.translations),
+          Math.min(deadline, Date.now() + 20_000),
+        )
 
-        const { error } = await supabaseAdmin.from(table).update({ translations: natija }).eq("id", r.id as string)
+        // BO'SH NATIJA HAM YOZILADI: eski buzuq tarjima o'chsin va yozuv
+        // joriy versiyada deb belgilansin. Aks holda "AGRO ALLIANCE"
+        // o'rniga eski "AGRICULTURE Partnership" qolib ketardi —
+        // brend endi tarjima qilinmaydi, lekin eskisini hech kim
+        // o'chirmasdi. Farqni `birlashtir` hal qiladi.
+        const yoziladi = birlashtir(r.translations, natija)
+
+        const { error } = await supabaseAdmin.from(table).update({ translations: yoziladi }).eq("id", r.id as string)
         if (error) { console.error(`retranslate ${table}:`, error.message); qoldi++; continue }
         qilindi++
       }

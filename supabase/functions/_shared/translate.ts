@@ -41,7 +41,64 @@ const MAX_FIELD = 6_000;
  * va uni qayta yozishning boshqa yo'li yo'q — kod tarjimasi bor
  * yozuvni o'tkazib yuborardi.
  */
-const TR_VERSION = 5;
+export const TR_VERSION = 9;
+
+/**
+ * "TARJIMA QILADIGAN NARSA YO'Q" javobi.
+ *
+ * Bo'sh natijaning IKKI xil sababi bor va ular bir xil emas:
+ *   1) matn butunlay himoyalangan nomdan iborat ("AGRO ALLIANCE") —
+ *      ish TUGAGAN, qayta urinish kerak emas;
+ *   2) AI yiqildi yoki kvota tugadi — ish TUGAMAGAN, keyin qayta
+ *      urinish kerak.
+ * Birinchisida saqlangan eski tarjima O'CHIRILADI (u endi noto'g'ri),
+ * ikkinchisida esa TEGILMAYDI. Farqni shu belgi bildiradi.
+ */
+export const BOSH_TAYYOR: Translations = Object.freeze(
+  { _v: TR_VERSION } as unknown as Translations,
+);
+
+/** Natijada nechta TIL bor (xizmat maydonlari `_v`, `_p` sanalmaydi) */
+function tillarSoni(t: unknown): number {
+  const o = (t || {}) as Record<string, unknown>;
+  return TARGET_LANGS.filter((l) => o[l]).length;
+}
+
+/**
+ * Yangi natijani saqlangan tarjima bilan birlashtiradi.
+ * Bazaga YOZILADIGAN yakuniy qiymatni qaytaradi.
+ */
+export function birlashtir(eski: unknown, yangi: Translations): Translations {
+  const oldingi = (eski && typeof eski === "object" ? eski : {}) as Translations;
+  const iz = (yangi as Record<string, unknown>)._p;
+
+  if (tillarSoni(yangi) === 0) {
+    // `_v` bor — tarjima qiladigan narsa yo'q edi (brend nomi).
+    // Eskisi (buzuq bo'lishi mumkin) O'CHADI.
+    if ("_v" in (yangi as Record<string, unknown>)) {
+      return { ...BOSH_TAYYOR, _p: iz } as Translations;
+    }
+    // `_v` yo'q — AI yiqildi. Eskisi QOLADI, versiya yarim:
+    // keyingi urinishda yana harakat qilinadi.
+    return { ...oldingi, _v: TR_VERSION - 0.5, _p: iz } as Translations;
+  }
+  return { ...oldingi, ...yangi };
+}
+
+/**
+ * Bu yozuv uchun qaysi tillar tarjima qilinishi kerak.
+ *
+ * Versiya YARIM bo'lsa (masalan 6.5) — o'tgan safar bir tilgina
+ * chiqmagan, qolganlari joyida. Faqat yetishmaganini qilamiz, aks
+ * holda har urinishda uchala til qaytadan tarjima qilinib, kvota
+ * behuda sarflanardi.
+ */
+export function kerakliTillar(eski: unknown): readonly TargetLang[] {
+  const o = (eski || {}) as Translations & { _v?: number };
+  if (Number(o._v ?? 0) !== TR_VERSION - 0.5) return TARGET_LANGS;
+  const yetishmagan = TARGET_LANGS.filter((l) => !o[l]);
+  return yetishmagan.length ? yetishmagan : TARGET_LANGS;
+}
 
 /**
  * Bu matnni tarjima qilish KERAKMI?
@@ -52,9 +109,38 @@ const TR_VERSION = 5;
  */
 function tarjimaKerakmi(v: string): boolean {
   const s = v.trim();
-  if (s.length < 12) return false;                    // juda qisqa — nom bo'lishi ehtimoli katta
+  if (s.length < 4) return false;
   if (!/[a-zA-ZЀ-ӿ]/.test(s)) return false; // harf yo'q (raqam, belgi)
-  if (s === s.toUpperCase() && s.split(/\s+/).length <= 2) return false; // "AGRO ALLIANCE"
+  return true;
+}
+
+/**
+ * Nomlar yashirilgandan KEYIN tarjima qiladigan narsa qoldimi?
+ *
+ * Masalan "AGRO ALLIANCE" butunlay himoyalangan nom — yashirilgach
+ * "__BR0__" bo'lib qoladi. Bunga AI chaqirish behuda: javob baribir
+ * o'sha belgi bo'ladi. Vaqt va kvota tejaladi.
+ */
+function yashiringachMatnBormi(v: string): boolean {
+  return /[a-zA-ZЀ-ӿ]/.test(v.replace(/__BR\d+__/g, " "));
+}
+
+/**
+ * Model javobi YAROQLIMI?
+ *
+ * Model ba'zan tarjima o'rniga axlat qaytaradi va uni bazaga yozib
+ * qo'ysak, saytda o'sha axlat ko'rinadi. Haqiqiy misollar:
+ *   {"title": "title"}          — qiymat o'rniga KALIT nomi
+ *   "__BR0__ with Us!"          — tiklanmagan belgi (model uni
+ *                                 o'zi o'ylab topgan)
+ * Bunday javob butunlay rad etiladi: shu til yozilmaydi, yozuv
+ * "yarim" deb belgilanadi va keyin qayta tarjima qilinadi.
+ */
+function javobYaroqlimi(tiklangan: Record<string, string>): boolean {
+  for (const [k, v] of Object.entries(tiklangan)) {
+    if (v.trim().toLowerCase() === k.toLowerCase()) return false;
+    if (/__\s*BR\s*\d+\s*__/i.test(v)) return false;
+  }
   return true;
 }
 
@@ -182,6 +268,11 @@ function buildPrompt(fields: Record<string, string>, lang: TargetLang): string {
     `- Return ONLY a JSON object with exactly the same keys.`,
     `- Translate the VALUES into ${target}. Do not translate the keys.`,
     "- Keep the meaning and tone. This is agriculture / agro-media content.",
+    // Qisqa sarlavhalar kontekstsiz noto'g'ri chiqardi: "TEZKOR
+    // IMKONIYATLAR" -> "NEW OPPORTUNITIES", "BIZNING JAMOA" ->
+    // "OUR COMMUNITY". Model matn qayerda turishini bilishi kerak.
+    "- Short values are website section headings and button labels. Translate them as natural UI headings, not word-by-word.",
+    "- Preserve letter case style: if the source is ALL CAPS, the translation is ALL CAPS too.",
     "- Do NOT translate brand names, people's names, or URLs — keep them as they are.",
     "- Tokens like __BR0__, __BR1__ are placeholders for names. Copy them EXACTLY, unchanged.",
     "- Keep any HTML tags, markdown and line breaks exactly as they appear.",
@@ -208,6 +299,13 @@ async function translateTo(
   fields: Record<string, string>,
   lang: TargetLang,
   deadline: number,
+  /**
+   * TASHXIS: qaysi provayder javob berdi yoki nima sababdan yiqildi.
+   * Natija bilan birga `_p` maydoniga yoziladi. Edge funksiya loglarini
+   * o'qish imkoni yo'q, shusiz "nega tarjima chiqmadi?" degan savolga
+   * javob topib bo'lmaydi — modelmi, kvotami, vaqtmi noma'lum qolardi.
+   */
+  sabab: string[],
 ): Promise<Record<string, string> | null> {
   const prompt = buildPrompt(fields, lang);
   const kalitlar = Object.keys(fields);
@@ -223,16 +321,37 @@ async function translateTo(
    * Cloudflare oxirgi zaxira sifatida qoladi.
    */
   const chain: { nom: string; ishla: (ms: number) => Promise<unknown> }[] = [
-    { nom: "Gemini", ishla: (ms) => geminiJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) },
-    { nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) },
+    { nom: "Gemini", ishla: (ms) => geminiJson(prompt, { retries: 1, maxTokens: 3000, timeoutMs: ms }) },
   ];
-  if (cfChatAvailable()) {
-    chain.push({ nom: "Cloudflare", ishla: (ms) => cfJson(prompt, { maxTokens: 3000, timeoutMs: ms, deadline }) });
+
+  /**
+   * KICHIK MODELLAR TARJIMAGA ZAXIRA BO'LA OLMAYDI.
+   *
+   * Groq va Cloudflare zanjirda edi va natijasi shunday bo'lgan:
+   *   "TEZKOR IMKONIYATLAR"  -> zh "平死约参子"   (ma'nosiz belgilar)
+   *   "BIZNING ASOSLARIMIZ"  -> ru "НАШИ АССОСИИ" (mavjud bo'lmagan so'z)
+   *   "BIZNING JAMOA"        -> ru "НАШ ПАРТНЁРСТВО"
+   * Sabab: bu modellar o'zbek tilini deyarli bilmaydi. Xitoychada
+   * muammo ko'zga tashlanardi, ruschada esa ishonarli ko'rinib,
+   * aslida noto'g'ri edi — shuning uchun uzoq sezilmadi.
+   *
+   * QOIDA: noto'g'ri tarjimadan ko'ra TARJIMASIZ (o'zbekcha) qolgani
+   * yaxshiroq. Yozuv "yarim" deb belgilanadi va keyingi urinishda
+   * yana Gemini bilan uriniladi.
+   *
+   * Zaxira faqat Gemini kaliti UMUMAN yo'q bo'lsa ishlatiladi —
+   * unda hech qanday tarjima bo'lmagandan ko'ra taxminiysi ma'qul.
+   */
+  if (!Deno.env.get("GEMINI_API_KEY")) {
+    chain.push({ nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) });
+    if (cfChatAvailable()) {
+      chain.push({ nom: "Cloudflare", ishla: (ms) => cfJson(prompt, { maxTokens: 3000, timeoutMs: ms, deadline }) });
+    }
   }
 
   for (const { nom, ishla } of chain) {
     const qolgan = deadline - Date.now();
-    if (qolgan < 6_000) break;
+    if (qolgan < 6_000) { sabab.push(`${lang}:vaqt-tugadi`); break; }
     try {
       const raw = await ishla(Math.min(20_000, qolgan));
       if (ok(raw)) {
@@ -241,10 +360,14 @@ async function translateTo(
         for (const k of kalitlar) {
           if (typeof o[k] === "string" && (o[k] as string).trim()) out[k] = tozala(o[k] as string);
         }
+        sabab.push(`${lang}:${nom}`);
         return out;
       }
+      sabab.push(`${lang}:${nom}=shaklsiz`);
     } catch (e) {
-      console.error(`translate ${lang} ${nom}:`, e instanceof Error ? e.message : e);
+      const m = e instanceof Error ? e.message : String(e);
+      console.error(`translate ${lang} ${nom}:`, m);
+      sabab.push(`${lang}:${nom}=${m.slice(0, 70)}`);
     }
   }
   return null;
@@ -267,7 +390,7 @@ export async function translateFields(
   for (const [k, v] of Object.entries(fields)) {
     if (typeof v === "string" && v.trim() && tarjimaKerakmi(v)) toza[k] = v.slice(0, MAX_FIELD);
   }
-  if (Object.keys(toza).length === 0) return {};
+  if (Object.keys(toza).length === 0) return BOSH_TAYYOR;
 
   /**
    * Brend nomlari, odamlar ismi va hamkor kompaniyalar AI ga
@@ -277,9 +400,21 @@ export async function translateFields(
   const nomlar = await himoyalangnNomlar();
   const { yashirilgan, jadval } = nomlarniYashir(toza, nomlar);
 
+  /**
+   * Nomlar yashirilgach faqat belgi qolgan maydonga AI chaqirmaymiz —
+   * "AGRO ALLIANCE" butunlay himoyalangan, javob baribir o'sha belgi
+   * bo'lardi. Bekorga vaqt va kvota ketardi.
+   */
+  const yuboriladi: Record<string, string> = {};
+  for (const [k, v] of Object.entries(yashirilgan)) {
+    if (yashiringachMatnBormi(v)) yuboriladi[k] = v;
+  }
+  if (Object.keys(yuboriladi).length === 0) return BOSH_TAYYOR;
+
   const deadline = tashqiDeadline ?? Date.now() + BUDGET_MS;
+  const sabab: string[] = [];
   const juftlar = await Promise.all(
-    langs.map(async (l) => [l, await translateTo(yashirilgan, l, deadline)] as const),
+    langs.map(async (l) => [l, await translateTo(yuboriladi, l, deadline, sabab)] as const),
   );
 
   const out: Translations = {};
@@ -288,10 +423,23 @@ export async function translateFields(
     // Belgilarni asl nomlarga qaytaramiz
     const tiklangan: Record<string, string> = {};
     for (const [k, v] of Object.entries(natija)) tiklangan[k] = nomlarniQaytar(v, jadval);
+    // Yaroqsiz javob — bu tilni umuman yozmaymiz, keyin qayta uriniladi
+    if (!javobYaroqlimi(tiklangan)) continue;
     out[l] = tiklangan;
   }
-  // Versiya belgisi — eski, sifatsiz tarjimalarni keyin ajratish uchun
-  if (Object.keys(out).length) (out as Record<string, unknown>)._v = TR_VERSION;
+  /**
+   * Versiya belgisi — eski, sifatsiz tarjimalarni keyin ajratish uchun.
+   *
+   * TO'LIQ EMAS bo'lsa (masalan xitoycha chiqmadi, chunki Gemini
+   * kvotasi tugagan edi) versiya YARIM qo'yiladi. Shunda yozuv
+   * "tayyor" hisoblanmaydi va keyingi qayta tarjimada yana uriniladi.
+   * Aks holda bir marta muvaffaqiyatsiz chiqqan til abadiy o'zbekcha
+   * qolib ketardi.
+   */
+  const soni = Object.keys(out).length;
+  if (soni) (out as Record<string, unknown>)._v = soni === langs.length ? TR_VERSION : TR_VERSION - 0.5;
+  // Tashxis izi — qaysi provayder ishladi / nega yiqildi
+  (out as Record<string, unknown>)._p = sabab.join(" | ").slice(0, 300);
   return out;
 }
 
@@ -312,8 +460,10 @@ export async function tarjimaYoz(
 ): Promise<void> {
   try {
     const tr = await translateFields(fields)
-    if (Object.keys(tr).length === 0) return
-    const { error } = await supabaseAdmin.from(table).update({ translations: tr }).eq("id", id)
+    const { error } = await supabaseAdmin
+      .from(table)
+      .update({ translations: birlashtir({}, tr) })
+      .eq("id", id)
     if (error) console.error(`tarjimaYoz ${table}:`, error.message)
   } catch (e) {
     console.error(`tarjimaYoz ${table}:`, e instanceof Error ? e.message : e)
@@ -373,15 +523,30 @@ export async function fondaTarjima(
     const fl: Record<string, string | null | undefined> = {}
     for (const f of fields) fl[f] = r[f] as string | undefined
     // Qolgan vaqtni uzatamiz — bitta yozuv butun byudjetni yeb qo'ymasin
-    const tr = await translateFields(fl, TARGET_LANGS, deadline)
-    if (Object.keys(tr).length === 0) continue
+    const tr = await translateFields(fl, kerakliTillar(r.translations), deadline)
 
-    // Shu javobga ham qo'llaymiz — birinchi tashrifchi ham tarjimani ko'radi
-    r.translations = { ...(r.translations as Translations || {}), ...tr }
+    /**
+     * BO'SH NATIJA HAM YOZILADI.
+     *
+     * MUAMMO EDI: natija bo'sh bo'lsa `continue` qilinardi va ESKI,
+     * BUZUQ tarjima o'z holicha qolaverardi. Aynan shundan bosh
+     * sahifada "AGRO ALLIANCE" o'rniga inglizchada "AGRICULTURE
+     * Partnership" turib qolgan edi — brend nomi endi tarjima
+     * qilinmaydi, lekin eski tarjima hech kim tomonidan
+     * o'chirilmasdi.
+     *
+     * `birlashtir` uchala holatni ajratadi: tarjima kerak emas (eskisi
+     * o'chadi), AI yiqildi (eskisi qoladi, keyin qayta uriniladi),
+     * tarjima chiqdi (birlashtiriladi).
+     */
+    const yangi = birlashtir(r.translations, tr)
+
+    // Shu javobga ham qo'llaymiz — birinchi tashrifchi ham natijani ko'radi
+    r.translations = yangi
 
     const { error } = await supabaseAdmin
       .from(table)
-      .update({ translations: r.translations })
+      .update({ translations: yangi })
       .eq("id", r.id as string)
     if (error) console.error(`fondaTarjima ${table}:`, error.message)
   }
@@ -398,12 +563,31 @@ export function applyLang<T extends Record<string, unknown>>(
   lang: string | null,
   fields: string[],
 ): T {
-  if (!lang || lang === "uz") return row;
   const tr = (row.translations as Translations | undefined)?.[lang as TargetLang];
-  if (!tr) return row;
   const out = { ...row } as Record<string, unknown>;
+  /**
+   * `translations` MIJOZGA YUBORILMAYDI.
+   *
+   * Unda uchala tilning nusxasi bor — yangiliklar ro'yxatida bu javob
+   * hajmini bir necha barobar oshiradi, mijoz esa undan foydalanmaydi:
+   * kerakli til allaqachon shu yerda qo'llanib bo'lingan.
+   */
+  delete out.translations;
+  if (!lang || lang === "uz" || !tr) return out as T;
   for (const f of fields) {
-    if (typeof tr[f] === "string" && tr[f].trim()) out[f] = tr[f];
+    const v = tr[f];
+    if (typeof v !== "string" || !v.trim()) continue;
+    /**
+     * YAROQSIZ TARJIMA O'QISHDA HAM CHETLAB O'TILADI.
+     *
+     * Bazada eski, buzuq qiymatlar qolgan: model qiymat o'rniga KALIT
+     * nomini ("title") yoki tiklanmagan "__BR0__ with Us!" belgisini
+     * qaytargan. Ular endi yozilmaydi, lekin YOZILGANLARI turibdi va
+     * saytda ko'rinardi. Shu tekshiruv ularni ko'rsatmaydi — o'rniga
+     * asl o'zbekcha matn chiqadi va yozuv keyin qayta tarjima qilinadi.
+     */
+    if (!javobYaroqlimi({ [f]: v })) continue;
+    out[f] = v;
   }
   return out as T;
 }
