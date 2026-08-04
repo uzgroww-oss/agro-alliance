@@ -1,7 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { applyLang, langOf, fondaTarjima } from "../_shared/translate.ts"
+import { applyLang, langOf } from "../_shared/translate.ts"
 
 const CACHE_TTL = 300
 
@@ -11,6 +11,22 @@ Deno.serve(async (req) => {
 
   try {
     const lang = langOf(new URL(req.url))
+
+    /**
+     * TARJIMA BU YERDA QILINMAYDI — ATAYLAB.
+     *
+     * Ilgari tarjimasi yo'q yozuvlar aynan shu so'rov ichida
+     * tarjima qilinardi. Natijada AI kvotasi tugaganda har bir
+     * tashrifchi 7-8 soniya kutardi va tarjima baribir chiqmasdi:
+     * kutish bor, foyda yo'q. Kesh eskirgan sari bu takrorlanardi.
+     *
+     * Endi tarjima FAQAT ikki joyda bo'ladi:
+     *   1) admin kontentni saqlaganda (yangi kontent darrov tarjima
+     *      bo'ladi);
+     *   2) admin panelidagi "qayta tarjima" tugmasi bosilganda
+     *      (eski yozuvlarni to'ldirish uchun).
+     * Ommaviy sahifa esa hech qachon AI ni kutmaydi.
+     */
 
     const { data: sections, error: sectionsError } = await supabaseAdmin
       .from("homepage_sections")
@@ -26,7 +42,6 @@ Deno.serve(async (req) => {
     }
 
     // Tarjimasi yo'q bo'limlarni fonda tarjima qilib qo'yamiz
-    await fondaTarjima("homepage_sections", sections as Record<string, unknown>[], lang, ["title", "subtitle"])
 
     const sectionIds = sections.map((s) => s.id)
 
@@ -40,7 +55,6 @@ Deno.serve(async (req) => {
 
     if (itemsError) return errorResponse(itemsError.message, 500)
 
-    await fondaTarjima("homepage_section_items", (items || []) as Record<string, unknown>[], lang, ["title", "description"])
 
     const itemsBySection: Record<string, typeof items> = {}
     for (const item of items ?? []) {

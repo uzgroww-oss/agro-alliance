@@ -144,6 +144,36 @@ function javobYaroqlimi(tiklangan: Record<string, string>): boolean {
   return true;
 }
 
+/* ==========================================================================
+   AI TANAFFUSI — KVOTA TUGAGANDA SAHIFANI SEKINLASHTIRMASLIK
+   ==========================================================================
+   MUAMMO EDI: tarjima ommaviy sahifa so'rovi ICHIDA bajariladi. Gemini
+   kvotasi tugaganda har bir so'rov baribir AI ga urinardi — uch til,
+   har biri qayta urinish bilan — va faqat shundan keyin javob
+   qaytarardi. Natijada kvota tugagan paytda bosh sahifa bir necha
+   soniyaga sekinlashardi, ustiga tarjima ham chiqmasdi. Ya'ni kutish
+   bor edi, foyda yo'q.
+
+   YECHIM: kvota xatosi kelgach AI bir muddat UMUMAN chaqirilmaydi.
+   Sahifa darhol o'zbekcha qaytadi, tanaffus tugagach urinish o'zi
+   qayta boshlanadi.
+   ========================================================================== */
+
+const TANAFFUS_MS = 15 * 60 * 1000;
+let aiTanaffusGacha = 0;
+
+/** AI hozir chaqirilmaydimi (kvota tugagan) */
+export function aiTanaffusdami(): boolean {
+  return Date.now() < aiTanaffusGacha;
+}
+
+/** Xato kvota/limit haqidami — shundagina tanaffus e'lon qilinadi */
+function kvotaXatosimi(m: string): boolean {
+  const s = m.toLowerCase();
+  return s.includes("quota") || s.includes("exceeded") || s.includes("rate limit") ||
+    s.includes("429") || s.includes("resource_exhausted");
+}
+
 /** Model ba'zan javobni <p>...</p> ichiga o'rab yuboradi — tozalaymiz */
 function tozala(s: string): string {
   return s.replace(/^\s*<p>\s*/i, "").replace(/\s*<\/p>\s*$/i, "").trim();
@@ -368,6 +398,8 @@ async function translateTo(
       const m = e instanceof Error ? e.message : String(e);
       console.error(`translate ${lang} ${nom}:`, m);
       sabab.push(`${lang}:${nom}=${m.slice(0, 70)}`);
+      // Kvota tugagan — keyingi so'rovlar bekorga kutmasin
+      if (kvotaXatosimi(m)) aiTanaffusGacha = Date.now() + TANAFFUS_MS;
     }
   }
   return null;
@@ -494,6 +526,12 @@ export async function fondaTarjima(
   fields: string[],
 ): Promise<void> {
   if (!lang || lang === "uz") return
+  /**
+   * Kvota tugagan bo'lsa darhol chiqamiz — bu yerdan keyin uchta
+   * baza so'rovi (himoyalangan nomlar) va AI urinishlari bor, ular
+   * baribir natija bermaydi va faqat javobni kechiktiradi.
+   */
+  if (aiTanaffusdami()) return
 
   const kerak = rows.filter((r) => {
     const tr = r.translations as (Translations & { _v?: number }) | undefined

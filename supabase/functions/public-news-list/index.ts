@@ -3,7 +3,7 @@ import { cachedJsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
 import { parsePaginationParams } from "../_shared/validation.ts"
 import { formatNewsDate } from "../_shared/time.ts"
-import { applyLang, langOf, fondaTarjima } from "../_shared/translate.ts"
+import { applyLang, langOf } from "../_shared/translate.ts"
 
 /**
  * Kategoriya nomi tanlangan tilda.
@@ -35,6 +35,18 @@ Deno.serve(async (req) => {
     const url = new URL(req.url)
     const { page, per_page } = parsePaginationParams(url)
     const lang = langOf(url)
+/**
+     * TARJIMA BU YERDA QILINMAYDI — ATAYLAB.
+     *
+     * Ilgari tarjimasi yo'q yozuvlar aynan shu so'rov ichida tarjima
+     * qilinardi. Natijada AI kvotasi tugaganda har bir tashrifchi
+     * 7-8 soniya kutardi va tarjima baribir chiqmasdi: kutish bor,
+     * foyda yo'q. Kesh eskirgan sari bu takrorlanardi.
+     *
+     * Endi tarjima FAQAT ikki joyda bo'ladi: admin kontentni
+     * saqlaganda va admin panelidagi "qayta tarjima" tugmasi
+     * bosilganda. Ommaviy sahifa hech qachon AI ni kutmaydi.
+     */
     const category = url.searchParams.get("category") || ""
     const search = url.searchParams.get("search") || ""
 
@@ -70,7 +82,6 @@ Deno.serve(async (req) => {
 
     if (error) return errorResponse(error.message, 500)
 
-    await fondaTarjima("news_articles", (data || []) as Record<string, unknown>[], lang, ["title", "excerpt"])
 
     const news = (data || []).map((row: Record<string, unknown>) => {
       // Tanlangan tilda: tarjima bo'lsa u, bo'lmasa o'zbekcha

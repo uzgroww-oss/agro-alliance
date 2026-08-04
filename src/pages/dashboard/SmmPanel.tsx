@@ -1030,7 +1030,13 @@ export default function SmmPanel({ seed }: {
         `/smm/posts/${p.id}${scope}`, { method: "DELETE" })
       const bad = (r.remote || []).filter((x) => !x.success)
       if (bad.length) {
-        setMsg(`⚠️ Ro'yxatdan o'chirildi. ${bad.map((b) => `${b.platform}: ${b.error}`).join(" · ")}`)
+        /**
+         * Sabab TAKRORLANMAYDI — u o'chirishdan oldingi so'rovda
+         * allaqachon aytilgan. Bu yerda faqat nima qilish kerakligi
+         * qoladi: uzun texnik xabar ("Instagram API postni o'chirishga
+         * ruxsat bermaydi…") panelni to'ldirib, o'qilmasdan qolardi.
+         */
+        setMsg(`✅ O'chirildi · ${bad.map((b) => b.platform).join(", ")}dan qo'lda o'chiring`)
       } else if (scope) {
         setMsg("✅ Ro'yxatdan va tarmoqlardan o'chirildi")
       } else {
