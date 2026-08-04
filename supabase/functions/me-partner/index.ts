@@ -76,6 +76,8 @@ Deno.serve(async (req) => {
             name: v.name,
             link: v.link,
             views: v.views ?? "0",
+            likes: v.likes ?? "0",
+            comments: v.comments ?? "0",
             plats: v.plats || [],
             date: v.date || "",
             thumbnail: v.thumbnail || null,
@@ -88,6 +90,8 @@ Deno.serve(async (req) => {
       videolar.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
 
       const jamiKorish = videolar.reduce((s, v) => s + sonGa(v.views), 0)
+      const jamiYoqtirish = videolar.reduce((s, v) => s + sonGa(v.likes), 0)
+      const jamiIzoh = videolar.reduce((s, v) => s + sonGa(v.comments), 0)
       const platformalar: Record<string, number> = {}
       for (const v of videolar) {
         for (const pl of (v.plats as string[])) platformalar[pl] = (platformalar[pl] || 0) + 1
@@ -98,6 +102,8 @@ Deno.serve(async (req) => {
         stats: {
           total: videolar.length,
           views: jamiKorish,
+          likes: jamiYoqtirish,
+          comments: jamiIzoh,
           bloggers: new Set(videolar.map((v) => (v.blogger as { id: string }).id)).size,
           platforms: platformalar,
           lastDate: videolar[0]?.date || "",

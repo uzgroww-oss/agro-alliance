@@ -546,7 +546,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   const [busy, setBusy] = useState(false)
   const [linkError, setLinkError] = useState("")
   const [loadingYoutube, setLoadingYoutube] = useState(false)
-  const [youtubeChannelVids, setYoutubeChannelVids] = useState<Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string }>>([])
+  const [youtubeChannelVids, setYoutubeChannelVids] = useState<Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string; likeCount: string; commentCount: string }>>([])
   const [selectedVids, setSelectedVids] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -633,7 +633,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   const fetchYoutubeChannelVideos = async () => {
     setLoadingYoutube(true)
     try {
-      const data = await api<{ videos: Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string }> }>("/me/youtube-videos")
+      const data = await api<{ videos: Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string; likeCount: string; commentCount: string }> }>("/me/youtube-videos")
       setYoutubeChannelVids(data.videos || [])
     } catch (err) {
       console.error("YouTube videolarni olishda xatolik:", err)
@@ -713,7 +713,12 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               youtube_id: m.id,
               name: m.caption ? m.caption.slice(0, 80) : "Instagram post",
               thumbnail: m.media_type === "VIDEO" ? null : m.media_url,
-              views: String(m.like_count || 0),
+              // Instagram ko'rishlar sonini bermaydi — ilgari uning
+              // o'rniga yoqtirishlar yozilardi va hisobot yolg'on
+              // chiqardi. Endi har biri o'z joyida.
+              views: "0",
+              likes: String(m.like_count || 0),
+              comments: String(m.comments_count || 0),
               date: (m.timestamp || "").split("T")[0],
               partner_id: partnerId || null,
             }),
@@ -761,6 +766,8 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           link: `https://www.youtube.com/watch?v=${v.id}`,
           thumbnail: v.thumbnail,
           views: v.viewCount,
+          likes: v.likeCount,
+          comments: v.commentCount,
           plats: ["YouTube"],
           date: v.publishedAt,
           status: "published",
@@ -781,6 +788,8 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                 name: vid.name,
                 thumbnail: vid.thumbnail,
                 views: vid.views,
+                likes: vid.likes,
+                comments: vid.comments,
                 date: vid.date,
                 partner_id: partnerId || null,
               })

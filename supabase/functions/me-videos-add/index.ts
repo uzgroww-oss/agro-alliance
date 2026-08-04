@@ -243,6 +243,14 @@ Deno.serve(async (req) => {
       author: auth.user.name,
       partner_id: hamkor?.id ?? null,
       partner_name: hamkor?.name ?? null,
+      /**
+       * Yoqtirishlar va izohlar — hamkor kompaniya kabinetidagi
+       * statistika uchun. Qo'lda link qo'yilganda ular noma'lum
+       * bo'ladi va "0" bo'lib qoladi: ijtimoiy tarmoq API'siz
+       * bu raqamlarni olishning yo'li yo'q.
+       */
+      likes: String(body.likes ?? "0"),
+      comments: String(body.comments ?? "0"),
     }
 
     videos.push(videoEntry)

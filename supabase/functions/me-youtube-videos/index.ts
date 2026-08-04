@@ -11,7 +11,7 @@ import { supabaseAdmin } from "../_shared/supabase.ts"
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY")
 
 /** YouTube kanal videolarini olish */
-async function fetchYouTubeVideos(channelIdOrHandle: string): Promise<Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string }>> {
+async function fetchYouTubeVideos(channelIdOrHandle: string): Promise<Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string; likeCount: string; commentCount: string }>> {
   if (!YOUTUBE_API_KEY) return []
 
   try {
@@ -68,13 +68,31 @@ async function fetchYouTubeVideos(channelIdOrHandle: string): Promise<Array<{ id
     const statsResp = await fetch(statsUrl)
     const statsData = await statsResp.json()
 
-    return data.items.map((item: any, index: number) => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails?.maxres?.url || item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || "",
-      publishedAt: item.snippet.publishedAt?.split("T")[0] || "",
-      viewCount: statsData.items?.[index]?.statistics?.viewCount || "0",
-    }))
+    /**
+     * Statistika ID BO'YICHA moslashtiriladi, tartib bo'yicha emas.
+     *
+     * Ilgari `statsData.items[index]` ishlatilardi — bu YouTube ikkala
+     * so'rovda ham bir xil tartib qaytaradi degan taxminga tayanardi.
+     * Bitta video o'chirilgan yoki yopiq bo'lsa statistika ro'yxati
+     * qisqaradi va qolgan hamma videoga BOSHQA videoning raqamlari
+     * yopishib qolardi.
+     */
+    const stat = new Map<string, { viewCount?: string; likeCount?: string; commentCount?: string }>()
+    for (const s of (statsData.items || []) as any[]) stat.set(s.id, s.statistics || {})
+
+    return data.items.map((item: any) => {
+      const s = stat.get(item.id.videoId) || {}
+      return {
+        id: item.id.videoId,
+        title: item.snippet.title,
+        thumbnail: item.snippet.thumbnails?.maxres?.url || item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || "",
+        publishedAt: item.snippet.publishedAt?.split("T")[0] || "",
+        viewCount: s.viewCount || "0",
+        // Yopiq statistikali videolarda bu maydonlar umuman kelmaydi
+        likeCount: s.likeCount || "0",
+        commentCount: s.commentCount || "0",
+      }
+    })
   } catch (e) {
     console.error("YouTube videos olishda xatolik:", e)
     return []

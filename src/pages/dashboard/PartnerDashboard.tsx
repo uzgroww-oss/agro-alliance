@@ -28,11 +28,14 @@ type Partner = {
 }
 type CompanyExtra = { description?: string; website?: string; phone?: string; address?: string; instagram?: string; telegram?: string }
 type PartnerVideo = {
-  id: string; name: string; link: string; views: string; plats: string[]
-  date: string; thumbnail: string | null
+  id: string; name: string; link: string; views: string; likes: string; comments: string
+  plats: string[]; date: string; thumbnail: string | null
   blogger: { id: string; name: string; slug: string | null; avatar: string | null }
 }
-type VideoStats = { total: number; views: number; bloggers: number; platforms: Record<string, number>; lastDate: string }
+type VideoStats = {
+  total: number; views: number; likes: number; comments: number
+  bloggers: number; platforms: Record<string, number>; lastDate: string
+}
 
 const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
   active: { label: "Faol", cls: "bg-green/10 text-green" },
@@ -323,6 +326,74 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
   )
 }
 
+/**
+ * Bitta video kartochkasi — rasm, sarlavha, bloger va TO'LIQ raqamlar.
+ *
+ * Ko'rish/yoqtirish/izoh uchtasi ham ko'rsatiladi. Ba'zi manbalarda
+ * ular yo'q (qo'lda qo'yilgan link, Instagram ko'rishlar bermaydi) —
+ * o'shanda "0" emas, "—" chiqadi: nol real o'lchov, "—" esa
+ * "ma'lumot yo'q" degani va ikkovi bir xil ko'rinmasligi kerak.
+ */
+function VideoCard({ v }: { v: PartnerVideo }) {
+  const raqam = (s: string) => {
+    const n = Number(String(s).replace(/[^\d]/g, ""))
+    return Number.isFinite(n) && n > 0 ? n.toLocaleString("ru-RU") : (String(s).trim() && String(s) !== "0" ? String(s) : "—")
+  }
+  const olcham = [
+    { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
+    { icon: I.star, label: "Yoqtirishlar", value: raqam(v.likes) },
+    { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
+  ]
+  return (
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-green/12 bg-white shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-shadow hover:shadow-[0_8px_28px_rgba(91,180,32,0.12)]">
+      <a href={v.link} target="_blank" rel="noreferrer" className="relative block aspect-video bg-soft">
+        {v.thumbnail ? (
+          <img loading="lazy" decoding="async" src={v.thumbnail} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="grid h-full w-full place-items-center text-green"><Icon d={I.play} className="h-9 w-9" /></span>
+        )}
+        <span className="absolute left-2 top-2 flex flex-wrap gap-1">
+          {v.plats.map((p) => (
+            <span key={p} className="rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">{p}</span>
+          ))}
+        </span>
+      </a>
+
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <a href={v.link} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-sm font-bold leading-snug hover:text-green">
+          {v.name}
+        </a>
+
+        <div className="mt-2 flex items-center gap-2">
+          {v.blogger.avatar ? (
+            <img loading="lazy" decoding="async" src={v.blogger.avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-green/10 text-[11px] font-bold text-green">{v.blogger.name[0]}</span>
+          )}
+          <div className="min-w-0 flex-1">
+            {v.blogger.slug ? (
+              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer" className="block truncate text-xs font-bold text-green hover:underline">{v.blogger.name}</a>
+            ) : (
+              <span className="block truncate text-xs font-bold">{v.blogger.name}</span>
+            )}
+            <span className="text-[10px] text-muted">{v.date || "—"}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-green/10 pt-3">
+          {olcham.map((o) => (
+            <div key={o.label} className="min-w-0 rounded-lg bg-[#fafdf7] px-1.5 py-2 text-center">
+              <Icon d={o.icon} className="mx-auto h-3.5 w-3.5 text-green" />
+              <div className="mt-1 truncate font-display text-sm font-extrabold">{o.value}</div>
+              <div className="truncate text-[9px] text-muted">{tr(o.label)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Videolar ---------- */
 /**
  * BLOGERLAR SHU KOMPANIYA UCHUN BELGILAGAN VIDEOLAR.
@@ -377,10 +448,10 @@ function PartnerVideos() {
     <div className="mt-6 space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: "Jami video", v: son(stats?.total || 0), sub: "belgilangan" },
+          { icon: I.media, t: "Jami video", v: son(stats?.total || 0), sub: `${son(stats?.bloggers || 0)} bloger` },
           { icon: I.eye, t: "Jami ko'rishlar", v: son(stats?.views || 0), sub: "barcha platformalar" },
-          { icon: I.users, t: "Blogerlar", v: son(stats?.bloggers || 0), sub: "video joylagan" },
-          { icon: I.clock, t: "So'nggi video", v: stats?.lastDate || "—", sub: "sana" },
+          { icon: I.star, t: "Jami yoqtirishlar", v: son(stats?.likes || 0), sub: "like" },
+          { icon: I.message, t: "Jami izohlar", v: son(stats?.comments || 0), sub: "komment" },
         ].map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
@@ -440,32 +511,8 @@ function PartnerVideos() {
             <p className="mt-1 text-xs text-muted">{tr("Bloger video qo'shayotganda kompaniyangizni belgilasa, u shu yerda paydo bo'ladi.")}</p>
           </div>
         ) : (
-          <div className="mt-4 space-y-2">
-            {korinadigan.map((v) => (
-              <div key={`${v.blogger.id}-${v.id}`} className="flex items-center gap-3 rounded-xl border border-green/10 bg-[#fafdf7] p-3">
-                {v.thumbnail ? (
-                  <img loading="lazy" decoding="async" src={v.thumbnail} alt="" className="h-12 w-20 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <span className="grid h-12 w-20 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.play} className="h-5 w-5" /></span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <a href={v.link} target="_blank" rel="noreferrer" className="line-clamp-1 text-sm font-bold hover:text-green hover:underline">{v.name}</a>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted">
-                    {v.blogger.slug ? (
-                      <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer" className="font-semibold text-green hover:underline">{v.blogger.name}</a>
-                    ) : (
-                      <span className="font-semibold">{v.blogger.name}</span>
-                    )}
-                    {v.plats.map((p) => <span key={p} className="rounded bg-green/10 px-1.5 py-0.5 text-[10px] font-bold text-green">{p}</span>)}
-                    {v.date && <span>{v.date}</span>}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="font-display text-sm font-extrabold text-green">{v.views}</div>
-                  <div className="text-[10px] text-muted">{tr("ko'rish")}</div>
-                </div>
-              </div>
-            ))}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {korinadigan.map((v) => <VideoCard key={`${v.blogger.id}-${v.id}`} v={v} />)}
           </div>
         )}
       </div>
