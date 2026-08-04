@@ -689,5 +689,6 @@ export type User = {
   status?: string
   profile?: Record<string, unknown>
   socials?: { id: string; platform: string; link: string; connected: boolean; name?: string; avatar?: string; subscribers?: string; views?: string }[]
-  videos?: { id: string; name: string; link: string; views: string; plats: string[]; date: string; status: string; thumbnail?: string; author?: string }[]
+  /** `partner_id` — video qaysi hamkor kompaniya uchun tayyorlangani */
+  videos?: { id: string; name: string; link: string; views: string; plats: string[]; date: string; status: string; thumbnail?: string; author?: string; partner_id?: string | null; partner_name?: string | null }[]
 }

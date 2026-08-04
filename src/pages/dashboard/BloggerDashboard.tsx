@@ -470,7 +470,37 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
   // birga ishlatardi, natijada bittasi ikkinchisining tugmasini bloklardi.
   const [savingSelected, setSavingSelected] = useState(false)
 
+  /**
+   * HAMKOR KOMPANIYA BELGILASH.
+   *
+   * Har bir video qaysi kompaniya uchun tayyorlangani belgilanadi —
+   * shundan keyin o'sha kompaniya o'z kabinetida videoni statistikasi
+   * bilan ko'radi. Tanlov bir marta qilinadi va qo'lda qo'shishga ham,
+   * YouTube/Instagram'dan ommaviy qo'shishga ham birdek qo'llanadi.
+   */
+  const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
+  const [partnerId, setPartnerId] = useState("")
+
   useEffect(() => { fetchYoutubeChannelVideos() }, [])
+  useEffect(() => {
+    api<{ partners: { id: string; name: string }[] }>("/public/partners")
+      .then((d) => setPartners((d.partners || []).filter((p) => p.id)))
+      .catch(() => setPartners([]))
+  }, [])
+
+  /** Videoning kompaniyasini keyin ham o'zgartirish mumkin */
+  const setVideoPartner = async (videoId: string, pid: string) => {
+    const oldingi = videos
+    setVideos((prev) => prev.map((v) => v.id === videoId
+      ? { ...v, partner_id: pid || null, partner_name: partners.find((p) => p.id === pid)?.name || null }
+      : v))
+    try {
+      await api(`/me/videos/${videoId}`, { method: "PATCH", body: JSON.stringify({ partner_id: pid || null }) })
+    } catch {
+      // Server rad etsa ekrandagi holat yolg'on bo'lib qolmasin
+      setVideos(oldingi)
+    }
+  }
 
   const add = async () => {
     setLinkError("")
@@ -481,7 +511,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
     }
     setBusy(true)
     try {
-      const res = await api<{ success: boolean; video: (typeof videos)[0] }>("/me/videos", { method: "POST", body: JSON.stringify({ link: link.trim() }) })
+      const res = await api<{ success: boolean; video: (typeof videos)[0] }>("/me/videos", { method: "POST", body: JSON.stringify({ link: link.trim(), partner_id: partnerId || null }) })
       if (res.video) setVideos((prev) => [...prev, res.video])
       setLink(""); setAdding(false); setLinkError("")
     } catch (err) {
@@ -587,6 +617,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               thumbnail: m.media_type === "VIDEO" ? null : m.media_url,
               views: String(m.like_count || 0),
               date: (m.timestamp || "").split("T")[0],
+              partner_id: partnerId || null,
             }),
           })
         )
@@ -649,6 +680,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                 thumbnail: vid.thumbnail,
                 views: vid.views,
                 date: vid.date,
+                partner_id: partnerId || null,
               })
             })
           )
@@ -669,6 +701,26 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
 
   return (
     <div className={card}>
+      {/*
+        Hamkor kompaniya tanlovi ENG TEPADA turadi, chunki u uchala
+        qo'shish yo'liga ham (qo'lda link, YouTube, Instagram) tegishli.
+        Ilgari faqat qo'lda qo'shish formasida bo'lganida, YouTube'dan
+        ommaviy qo'shayotgan bloger uni umuman ko'rmasdi.
+      */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-green/15 bg-soft px-3 py-2.5">
+        <Icon d={I.building} className="h-4 w-4 shrink-0 text-green" />
+        <span className="text-[11px] font-semibold">{tr("Yangi videolar qaysi hamkor kompaniya uchun:")}</span>
+        <select
+          value={partnerId}
+          onChange={(e) => setPartnerId(e.target.value)}
+          className="min-w-[10rem] flex-1 rounded-lg border border-green/20 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-green"
+        >
+          <option value="">{tr("Belgilanmagan")}</option>
+          {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <span className="w-full text-[10px] text-muted">{tr("Belgilangan kompaniya bu videolarni o'z kabinetida statistikasi bilan ko'radi.")}</span>
+      </div>
+
       {/* YouTube kanal videolari — tepada */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
@@ -864,6 +916,9 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("Video linkini joylang...")} className="flex-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
               <button onClick={add} disabled={busy} className="rounded-md bg-green px-3 py-1.5 text-[10px] font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
             </div>
+            <p className="mt-1 text-[10px] text-muted">
+              {tr("Kompaniya:")} <b className="text-green">{partners.find((p) => p.id === partnerId)?.name || tr("belgilanmagan")}</b>
+            </p>
             {linkError && <p className="mt-1 text-[10px] text-red-500">{linkError}</p>}
           </div>
         )}
@@ -880,6 +935,17 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded bg-green/10 text-green"><Icon d={I.play} className="h-3 w-3" /></span>
                 )}
                 <span className="min-w-0 flex-1 truncate text-[11px] font-medium">{v.name}</span>
+                {/* Kompaniyani keyin ham o'zgartirish mumkin — video qo'shilgach
+                    yodga tushsa qaytadan qo'shish shart emas */}
+                <select
+                  value={v.partner_id || ""}
+                  onChange={(e) => setVideoPartner(v.id, e.target.value)}
+                  title={tr("Hamkor kompaniya")}
+                  className={`shrink-0 max-w-[8.5rem] rounded-md border px-1.5 py-1 text-[9px] outline-none ${v.partner_id ? "border-green/30 bg-green/5 text-green" : "border-green/15 bg-white text-muted"}`}
+                >
+                  <option value="">{tr("Kompaniyasiz")}</option>
+                  {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
                 <span className="text-[9px] text-muted shrink-0">{v.views} ko'rish</span>
                 <button onClick={() => setDeleteTarget(v.id)} className="shrink-0 grid h-7 w-7 place-items-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                   <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />

@@ -27,6 +27,8 @@ Deno.serve(async (req) => {
       // Kompaniya NOMI tarjima qilinmaydi — u brend
       const p = applyLang(raw, lang, ["sphere", "direction"])
       return {
+      // `id` bloger video qo'shayotganda kompaniyani belgilash uchun kerak
+      id: p.id,
       name: p.name,
       slug: p.slug,
       sphere: p.sphere || "",

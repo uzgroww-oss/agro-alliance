@@ -86,16 +86,74 @@ function extractYouTubeId(url: string): string | null {
   return m ? m[1] : null
 }
 
+/**
+ * Video qaysi HAMKOR KOMPANIYAGA tegishli.
+ *
+ * Bloger video qo'shayotganda kompaniyani belgilaydi va o'sha kompaniya
+ * o'z kabinetida shu videoni statistikasi bilan ko'radi. Shuning uchun
+ * id ni ishonch bilan qabul qilib bo'lmaydi — u haqiqatan mavjud va
+ * faol hamkorga tegishli ekani tekshiriladi.
+ *
+ * Nomi ham saqlanadi: kompaniya keyin o'chirilsa ham video kimga
+ * tegishli bo'lgani ko'rinib turadi.
+ */
+async function hamkorniTekshir(
+  partnerId: unknown,
+): Promise<{ id: string; name: string } | null | "xato"> {
+  if (partnerId === null || partnerId === undefined || partnerId === "") return null
+  if (typeof partnerId !== "string") return "xato"
+  const { data } = await supabaseAdmin
+    .from("partners")
+    .select("id, name")
+    .eq("id", partnerId)
+    .is("deleted_at", null)
+    .maybeSingle()
+  if (!data) return "xato"
+  return { id: data.id as string, name: data.name as string }
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  if (req.method !== "POST" && req.method !== "DELETE") {
+  if (req.method !== "POST" && req.method !== "DELETE" && req.method !== "PATCH") {
     return errorResponse("Method not allowed", 405)
   }
 
   const authTop = await verifyAuth(req)
   if (authTop.response) return authTop.response
+
+  // --- Videoning hamkor kompaniyasini o'zgartirish ---
+  if (req.method === "PATCH") {
+    try {
+      const id = new URL(req.url).searchParams.get("id")
+      if (!id) return errorResponse("ID kerak", 400)
+      const body = await req.json().catch(() => ({}))
+
+      const hamkor = await hamkorniTekshir(body.partner_id)
+      if (hamkor === "xato") return errorResponse("Hamkor kompaniya topilmadi", 400)
+
+      const { data: profile } = await supabaseAdmin
+        .from("profiles").select("metadata").eq("id", authTop.user.id).is("deleted_at", null).single()
+      if (!profile) return errorResponse("Profil topilmadi", 404)
+
+      const meta = (profile.metadata as Record<string, unknown>) || {}
+      const videos = ((meta.videos as Record<string, unknown>[]) || [])
+      const topildi = videos.find((v) => v.id === id)
+      if (!topildi) return errorResponse("Video topilmadi", 404)
+
+      topildi.partner_id = hamkor?.id ?? null
+      topildi.partner_name = hamkor?.name ?? null
+
+      const { error } = await supabaseAdmin
+        .from("profiles").update({ metadata: { ...meta, videos } })
+        .eq("id", authTop.user.id).is("deleted_at", null)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true, video: topildi })
+    } catch (err) {
+      return errorResponse(err instanceof Error ? err.message : "Internal error", 500)
+    }
+  }
 
   // --- O'chirish (me-videos-delete birlashtirilgan) ---
   if (req.method === "DELETE") {
@@ -133,6 +191,10 @@ Deno.serve(async (req) => {
     if (!platform) {
       return errorResponse("Bu platforma qo'llab-quvvatlanmaydi", 400)
     }
+
+    // 2.1. Hamkor kompaniya (ixtiyoriy, lekin berilsa haqiqiy bo'lishi shart)
+    const hamkor = await hamkorniTekshir(body.partner_id)
+    if (hamkor === "xato") return errorResponse("Hamkor kompaniya topilmadi", 400)
 
     const userId = auth.user.id
 
@@ -179,6 +241,8 @@ Deno.serve(async (req) => {
       status: "published",
       thumbnail: resolvedThumbnail || null,
       author: auth.user.name,
+      partner_id: hamkor?.id ?? null,
+      partner_name: hamkor?.name ?? null,
     }
 
     videos.push(videoEntry)
