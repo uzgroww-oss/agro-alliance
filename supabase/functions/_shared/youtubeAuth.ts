@@ -48,6 +48,21 @@ export async function ulanishSaqla(yangi: YoutubeConfig, userId?: string): Promi
 }
 
 /**
+ * Ishlamaydigan tokenlarni o'chiradi, kanal ID sini qoldiradi.
+ * `ulanishSaqla` birlashtirib yozadi, shuning uchun bu yerda
+ * konfiguratsiya QAYTA yoziladi — aks holda eski kalitlar qolib
+ * ketardi.
+ */
+async function tokenlarniTozala(): Promise<void> {
+  const eski = (await ulanishOl()) || {}
+  await supabaseAdmin.from("smm_connections").upsert({
+    platform: "youtube",
+    config: eski.channel_id ? { channel_id: eski.channel_id } : {},
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "platform" })
+}
+
+/**
  * Ishlaydigan access token qaytaradi. Eskirgan bo'lsa yangilaydi.
  * OAuth qilinmagan bo'lsa `null` — chaqiruvchi buni "avval ulang"
  * degan aniq xabarga aylantiradi.
@@ -76,6 +91,18 @@ export async function tokenOl(): Promise<string | null> {
     const d = await r.json()
     if (!r.ok || !d.access_token) {
       console.error("youtube token yangilash:", d.error_description || d.error || r.status)
+      /**
+       * `invalid_grant` — refresh token endi ishlamaydi: bekor
+       * qilingan, parol o'zgargan yoki (eng ko'p uchraydigani) ilova
+       * Google'da HALI TEST rejimida va tokenning 7 kunlik muddati
+       * tugagan.
+       *
+       * Bunday tokenni saqlab qo'yish zararli: panel "Ulangan" deb
+       * ko'rsatib turadi, lekin har bir amal 401 bilan yiqiladi va
+       * sababi ko'rinmaydi. Tozalab qo'yamiz — kartochka halol
+       * "Ulanmagan" bo'ladi va qayta ulash kerakligi darrov bilinadi.
+       */
+      if (String(d.error || "") === "invalid_grant") await tokenlarniTozala()
       return null
     }
     await ulanishSaqla({
