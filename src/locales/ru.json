@@ -1126,5 +1126,14 @@
  "Tavsiyalar berilganda": "Когда даются рекомендации",
  "Rasm asosida matn yozilganda": "Когда текст пишется по изображению",
  "Suhbatda javob berilganda": "Когда даётся ответ в чате",
- "Kunning batafsil rejasi yozilganda": "Когда пишется подробный план дня"
+ "Kunning batafsil rejasi yozilganda": "Когда пишется подробный план дня",
+ "Hali reja yo'q": "Плана пока нет",
+ "Hammasi bajarildi": "Всё выполнено",
+ "Keyingi": "Следующий",
+ "jahon": "мир",
+ "kun": "дн.",
+ "manba": "источн.",
+ "sizniki": "свои",
+ "tayyor": "готово",
+ "yangilik": "новости"
 }

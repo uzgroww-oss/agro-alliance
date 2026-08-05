@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Icon, I, useBusy, SkeletonCard, useBodyScrollLock } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
@@ -215,19 +215,75 @@ const MONTHS = [
   tr("Iyul"), tr("Avgust"), tr("Sentabr"), tr("Oktabr"), tr("Noyabr"), tr("Dekabr"),
 ]
 
-/** Yuqoridagi raqamli plitka (topilgan yangilik, rejalashtirilgan post…) */
-function Stat({ icon, tone, value, label }: {
-  icon: string; tone: string; value: number; label: string
+/**
+ * YUQORIDAGI KO'RSATKICH PLITASI.
+ *
+ * Ilgari bu shunchaki ikonka + raqam + izoh edi. Uchta raqam
+ * (rejalashtirilgan / bajarilgan / kutilayotgan) BIR-BIRIGA bog'liq
+ * bo'lsa ham, alohida-alohida turgani uchun bog'liqlik ko'rinmasdi:
+ * "14, 5, 9" dan reja qay darajada bajarilganini o'qib bo'lmasdi.
+ * "Topilgan yangilik" esa uchta manbaning YIG'INDISI edi va nechtasi
+ * aynan SIZNING manbangizdan kelgani umuman ko'rinmasdi — holbuki AI
+ * birinchi navbatda o'shalarga tayanadi.
+ *
+ * Endi har plitada bir xil tuzilma bor va har qismi MA'NO tashiydi:
+ *   1) ikonka + o'ng burchakda aniqlovchi belgi (foiz, kun, manba soni)
+ *   2) katta raqam va nomi
+ *   3) chiziq — ikki xil ma'noda:
+ *        TARKIB   (nimalardan tashkil topgan) — yangilik va reja uchun
+ *        BAJARILISH (qancha qismi tayyor)      — bajarilgan/kutilayotgan
+ *   4) chiziqni o'qishga yordam beradigan izoh
+ *
+ * Ranglar loyihaning o'z palitrasidan: yashil uchta shaffoflikda
+ * (tarkib qismlari), `soft` chiziq izi. To'q sariq FAQAT ma'no uchun —
+ * bajarilmagan ish qolganda. Hammasi tugasa u ham yashilga qaytadi.
+ */
+const statKarta = "min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)] transition-shadow hover:shadow-[0_8px_28px_rgba(91,180,32,0.12)]"
+
+/** Tarkib chizig'ining yashil pog'onalari — eng muhimi eng to'q */
+const QISM_RANG = ["bg-green", "bg-green/55", "bg-green/25"] as const
+
+function Stat({ icon, tone, value, label, belgi, belgiTone, qismlar, izoh }: {
+  icon: string
+  /** Ikonka plitasining rangi */
+  tone: string
+  value: number
+  label: string
+  /** O'ng burchakdagi aniqlovchi: "36%", "7 kun", "5 manba" */
+  belgi?: string
+  belgiTone?: string
+  /** Chiziq bo'laklari. Yig'indisi 0 bo'lsa chiziq bo'sh qoladi. */
+  qismlar?: { qiymat: number; rang: string }[]
+  izoh?: string
 }) {
+  const bolaklar = (qismlar || []).filter((q) => q.qiymat > 0)
+  const jami = bolaklar.reduce((s, q) => s + q.qiymat, 0)
+
   return (
-    <div className="flex items-center gap-3">
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
-        <Icon d={icon} className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="font-display text-xl font-extrabold leading-none">{value}</p>
-        <p className="mt-1 truncate text-xs text-muted">{label}</p>
+    <div className={statKarta}>
+      <div className="flex items-start justify-between gap-2">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}>
+          <Icon d={icon} className="h-4 w-4" />
+        </span>
+        {belgi && (
+          <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold tabular-nums ${belgiTone || "bg-soft text-muted"}`}>
+            {belgi}
+          </span>
+        )}
       </div>
+
+      <p className="mt-3 font-display text-3xl font-extrabold leading-none tabular-nums">{value}</p>
+      <p className="mt-1.5 text-xs font-semibold text-muted">{label}</p>
+
+      {/* Bo'sh chiziq ham ko'rinadi: "ma'lumot yo'q" degani, karta
+          balandligi esa qatordagi boshqalar bilan bir xil qoladi */}
+      <div className="mt-3 flex h-1.5 gap-px overflow-hidden rounded-full bg-soft">
+        {bolaklar.map((q, i) => (
+          <span key={i} className={`h-full ${q.rang}`} style={{ width: `${(q.qiymat / jami) * 100}%` }} />
+        ))}
+      </div>
+
+      <p className="mt-1.5 truncate text-[11px] text-muted" title={izoh || ""}>{izoh || "—"}</p>
     </div>
   )
 }
@@ -571,6 +627,35 @@ export default function MarketPanel({ onCreatePost }: {
   const curPage = Math.min(page, pageCount)
   const rows = visible.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE)
 
+  /* ---------------- Yuqoridagi ko'rsatkichlar ----------------
+   * Plitalarda ko'rinadigan hamma narsa SHU YERDA hisoblanadi:
+   * raqamning o'zi, chiziq bo'laklari va izoh. Ilgari faqat to'rtta
+   * yalang'och raqam bor edi va ular orasidagi bog'liqlik ko'rinmasdi.
+   */
+  const stats = useMemo(() => {
+    const rejaJami = plan?.reja.length || 0
+    const bajarildi = done.length
+    const kutilmoqda = Math.max(0, rejaJami - bajarildi)
+    const foiz = rejaJami ? Math.round((bajarildi / rejaJami) * 100) : 0
+
+    // Reja qaysi tarmoqlarga taqsimlangan — eng ko'p uchtasi
+    const tarmoqSoni = new Map<string, number>()
+    for (const r of plan?.reja || []) {
+      const p = txt(r.platforma) || "telegram"
+      tarmoqSoni.set(p, (tarmoqSoni.get(p) || 0) + 1)
+    }
+    const tarmoqlar: [string, number][] = [...tarmoqSoni.entries()]
+      .sort((a, b) => b[1] - a[1]).slice(0, 3)
+
+    // Bajarilmagan eng yaqin kun — "keyingi navbatda nima" degani
+    const keyingi = (plan?.reja || [])
+      .filter((r) => !done.includes(r.kun))
+      .map((r) => r.kun)
+      .sort((a, b) => a - b)[0]
+
+    return { rejaJami, bajarildi, kutilmoqda, foiz, tarmoqlar, keyingi }
+  }, [plan, done])
+
   return (
     <div>
       {/* ============ SARLAVHA ============ */}
@@ -652,23 +737,69 @@ export default function MarketPanel({ onCreatePost }: {
       {/* To'rt ko'rsatkich BIR QATORDA. Ilgari alohida kartaning ichida
           edi va yonidagi boshqaruv kartasi bilan balandligi mos
           kelmasdi — o'ng tomonda katta bo'sh joy qolardi. */}
-      <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className={card}>
-          <Stat icon={I.globe} tone="bg-purple-100 text-purple-600"
-            value={web.length + world.length + sources.length} label={tr("Topilgan yangilik")} />
-        </div>
-        <div className={card}>
-          <Stat icon={I.doc} tone="bg-blue-100 text-blue-600"
-            value={plan?.reja.length || 0} label={tr("Rejalashtirilgan post")} />
-        </div>
-        <div className={card}>
-          <Stat icon={I.check} tone="bg-green/15 text-green"
-            value={done.length} label={tr("Bajarilgan")} />
-        </div>
-        <div className={card}>
-          <Stat icon={I.clock} tone="bg-orange-100 text-orange-500"
-            value={Math.max(0, (plan?.reja.length || 0) - done.length)} label={tr("Kutilayotgan")} />
-        </div>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* 1. TARKIB: yangilik uchta manbadan keladi va nechtasi
+               SIZNIKI ekani muhim — AI birinchi navbatda ularga tayanadi */}
+        <Stat icon={I.globe} tone="bg-green/10 text-green"
+          value={sources.length + web.length + world.length}
+          label={tr("Topilgan yangilik")}
+          belgi={srcList.length ? `${srcList.length} ${tr("manba")}` : undefined}
+          qismlar={[
+            { qiymat: sources.length, rang: QISM_RANG[0] },
+            { qiymat: web.length, rang: QISM_RANG[1] },
+            { qiymat: world.length, rang: QISM_RANG[2] },
+          ]}
+          izoh={sources.length + web.length + world.length
+            ? `${sources.length} ${tr("sizniki")} · ${web.length} ${tr("yangilik")} · ${world.length} ${tr("jahon")}`
+            : tr("Hali tahlil qilinmagan")}
+        />
+
+        {/* 2. TARKIB: reja qaysi tarmoqlarga taqsimlangan */}
+        <Stat icon={I.doc} tone="bg-green/10 text-green"
+          value={stats.rejaJami}
+          label={tr("Rejalashtirilgan post")}
+          belgi={stats.rejaJami ? `${days} ${tr("kun")}` : undefined}
+          qismlar={stats.tarmoqlar.map(([, n], i) => ({ qiymat: n, rang: QISM_RANG[i] }))}
+          izoh={stats.tarmoqlar.length
+            ? stats.tarmoqlar.map(([p, n]) => `${PLATFORM_LABEL[p] || p} ${n}`).join(" · ")
+            : tr("Hali reja yo'q")}
+        />
+
+        {/* 3. BAJARILISH: chiziq rejaning qancha qismi tayyor ekanini
+               ko'rsatadi. Raqamning o'zi buni aytmaydi. */}
+        <Stat icon={I.check} tone="bg-green/15 text-green"
+          value={stats.bajarildi}
+          label={tr("Bajarilgan")}
+          belgi={stats.rejaJami ? `${stats.foiz}%` : undefined}
+          belgiTone={stats.foiz > 0 ? "bg-green/10 text-green" : undefined}
+          qismlar={[
+            { qiymat: stats.bajarildi, rang: "bg-green" },
+            { qiymat: stats.kutilmoqda, rang: "bg-green/12" },
+          ]}
+          /* "14 tadan 5 tasi" emas, "5 / 14": o'zbekcha qo'shimchalardan
+             yasalgan ibora rus va xitoy tiliga so'zma-so'z ko'chganda
+             grammatikasi buzilardi. Kasr belgisi hamma tilda bir xil. */
+          izoh={stats.rejaJami ? `${stats.bajarildi} / ${stats.rejaJami}` : tr("Hali reja yo'q")}
+        />
+
+        {/* 4. To'q sariq FAQAT ish qolganda. Hammasi tugasa plita ham
+               yashilga qaytadi — rang holatni bildiradi, bezak emas. */}
+        <Stat icon={I.clock}
+          tone={stats.kutilmoqda ? "bg-orange-100 text-orange-500" : "bg-green/10 text-green"}
+          value={stats.kutilmoqda}
+          label={tr("Kutilayotgan")}
+          belgi={stats.rejaJami ? (stats.kutilmoqda ? `${100 - stats.foiz}%` : tr("tayyor")) : undefined}
+          belgiTone={stats.kutilmoqda ? "bg-orange-50 text-orange-600" : "bg-green/10 text-green"}
+          qismlar={[
+            { qiymat: stats.kutilmoqda, rang: "bg-orange-400" },
+            { qiymat: stats.bajarildi, rang: "bg-green/25" },
+          ]}
+          /* Kun RAQAMI emas, SANA: "3-kun" ni odam kalendarga o'zi
+             o'girishi kerak edi. Sana esa darhol tushunarli. */
+          izoh={stats.keyingi
+            ? `${tr("Keyingi")}: ${dayShort(stats.keyingi)}`
+            : (stats.rejaJami ? tr("Hammasi bajarildi") : tr("Hali reja yo'q"))}
+        />
       </div>
 
       {/* ============ MANBALAR + HISOBLAR ============ */}

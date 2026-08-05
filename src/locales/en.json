@@ -1126,5 +1126,14 @@
  "Tavsiyalar berilganda": "When recommendations are given",
  "Rasm asosida matn yozilganda": "When text is written from an image",
  "Suhbatda javob berilganda": "When answering in the chat",
- "Kunning batafsil rejasi yozilganda": "When the detailed day plan is written"
+ "Kunning batafsil rejasi yozilganda": "When the detailed day plan is written",
+ "Hali reja yo'q": "No plan yet",
+ "Hammasi bajarildi": "All done",
+ "Keyingi": "Next",
+ "jahon": "world",
+ "kun": "days",
+ "manba": "sources",
+ "sizniki": "yours",
+ "tayyor": "done",
+ "yangilik": "news"
 }
