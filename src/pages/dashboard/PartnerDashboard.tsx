@@ -937,7 +937,7 @@ function PlatformaDonut({ stats }: { stats: Korsatkich }) {
                   opacity={ustida === null || ustida === b.nom ? 1 : 0.4}
                   onMouseEnter={() => setUstida(b.nom)}
                   onMouseLeave={() => setUstida(null)}
-                  style={{ transition: tr("opacity .15s") }}
+                  style={{ transition: "opacity .15s" }}
                 />
               ))}
             </g>
