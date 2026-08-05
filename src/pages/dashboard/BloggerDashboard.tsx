@@ -53,9 +53,9 @@ const catLabel = (k: string) => categories.find((c) => c.key === k)?.label ?? k
 
 const quickActions: { icon: string; t: string; tab?: string; action?: "reload" }[] = [
   { icon: I.upload, t: "Video yuklash", tab: "Videolar" },
-  { icon: I.link2, t: "Silka biriktirish", tab: "Ijtimoiy tarmoqlar" },
-  { icon: I.refresh, t: "Profilni yangilash", action: "reload" },
-  { icon: I.chart, t: "Statistikani ko'rish", tab: "Auditoriya" },
+  { icon: I.link2, t: tr("Silka biriktirish"), tab: "Ijtimoiy tarmoqlar" },
+  { icon: I.refresh, t: tr("Profilni yangilash"), action: "reload" },
+  { icon: I.chart, t: tr("Statistikani ko'rish"), tab: "Auditoriya" },
 ]
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
 
@@ -119,7 +119,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
       await api("/me/profile", { method: "PUT", body: JSON.stringify(form) })
       setEdit(false)
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Saqlab bo'lmadi")
+      setSaveError(err instanceof Error ? err.message : tr("Saqlab bo'lmadi"))
     } finally {
       setSaving(false)
     }
@@ -128,8 +128,8 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
   const syncYoutube = async () => {
     setSyncError("")
     setSyncSuccess("")
-    if (!youtubeUrl.trim()) { setSyncError("YouTube kanal linkini kiriting"); return }
-    if (!youtubeUrl.match(/(youtube\.com|youtu\.be)/i)) { setSyncError("Yaroqli YouTube URL kiriting"); return }
+    if (!youtubeUrl.trim()) { setSyncError(tr("YouTube kanal linkini kiriting")); return }
+    if (!youtubeUrl.match(/(youtube\.com|youtu\.be)/i)) { setSyncError(tr("Yaroqli YouTube URL kiriting")); return }
     setSyncing(true)
     try {
       const res = await api<{ success: boolean; avatar: string; banner: string; channel_name: string }>("/me/profile", {
@@ -146,12 +146,12 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
 
   const rows: [string, "name" | "age" | "gender" | "region" | "language" | "niche" | "bio" | "about", string, string][] = [
     ["Ism", "name", I.user, me.name],
-    ["Yosh", "age", I.gear, String(p.age || "—")],
-    ["Jinsi", "gender", I.users, String(p.gender || "—")],
+    [tr("Yosh"), "age", I.gear, String(p.age || "—")],
+    [tr("Jinsi"), "gender", I.users, String(p.gender || "—")],
     ["Hudud", "region", I.pin, String(p.region || "—")],
-    ["Til", "language", I.globe, String(p.language || "—")],
+    [tr("Til"), "language", I.globe, String(p.language || "—")],
     ["Yo'nalish", "niche", I.sprout, catLabel(String(p.niche || ""))],
-    ["Bio", "bio", I.doc, String(p.bio || "—")],
+    [tr("Bio"), "bio", I.doc, String(p.bio || "—")],
     ["Haqida", "about", I.doc, p.about ? String(p.about).slice(0, 50) + "…" : "—"],
   ]
 
@@ -182,7 +182,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
               ) : (
                 <Icon d={I.refresh} className="h-4 w-4" />
               )}
-              {syncing ? "Sinxronlanmoqda..." : "Sinxronlash"}
+              {syncing ? tr("Sinxronlanmoqda...") : tr("Sinxronlash")}
             </button>
           </div>
           {syncError && (
@@ -270,8 +270,8 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
                 <button
                   onClick={async () => {
                     setIgError(""); setIgSuccess("")
-                    if (!instagramUrl.trim()) { setIgError("Instagram linkini kiriting"); return }
-                    if (!instagramUrl.match(/instagram\.com/i)) { setIgError("Yaroqli Instagram URL kiriting"); return }
+                    if (!instagramUrl.trim()) { setIgError(tr("Instagram linkini kiriting")); return }
+                    if (!instagramUrl.match(/instagram\.com/i)) { setIgError(tr("Yaroqli Instagram URL kiriting")); return }
                     setSyncingIg(true)
                     try {
                       type IgRes = { success: boolean; profile: any; stats: any; media: any[]; error?: string }
@@ -280,9 +280,9 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
                         setIgError(res.error)
                       } else if (res.profile || res.stats) {
                         setIgData({ profile: res.profile, stats: res.stats, media: res.media || [] })
-                        setIgSuccess("Instagram akkaunt muvaffaqiyatli sinxronlandi!")
+                        setIgSuccess(tr("Instagram akkaunt muvaffaqiyatli sinxronlandi!"))
                       } else {
-                        setIgSuccess("Instagram akkaunt saqlandi!")
+                        setIgSuccess(tr("Instagram akkaunt saqlandi!"))
                       }
                     } catch (err) {
                       setIgError(err instanceof Error ? err.message : "Xatolik")
@@ -296,7 +296,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
                   ) : (
                     <Icon d={I.refresh} className="h-4 w-4" />
                   )}
-                  {syncingIg ? "Sinxronlanmoqda..." : "Sinxronlash"}
+                  {syncingIg ? tr("Sinxronlanmoqda...") : tr("Sinxronlash")}
                 </button>
               </div>
               {igError && (
@@ -593,9 +593,9 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
 
   const add = () => {
     setLinkError("")
-    if (!link.trim()) { setLinkError("Link kiriting"); return }
+    if (!link.trim()) { setLinkError(tr("Link kiriting")); return }
     if (!link.trim().match(/^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%.+~#=]{1,256}\.[a-zA-Z]{2,}/)) {
-      setLinkError("Yaroqli URL formatida emas")
+      setLinkError(tr("Yaroqli URL formatida emas"))
       return
     }
     soraPartner("1 ta video", (pid) => { void addWith(pid) })
@@ -623,7 +623,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       setVideos((prev) => prev.filter((v) => v.id !== id))
       setDeleteTarget(null)
     } catch (err) {
-      setLinkError(err instanceof Error ? err.message : "O'chirib bo'lmadi")
+      setLinkError(err instanceof Error ? err.message : tr("O'chirib bo'lmadi"))
     } finally {
       setDeleting(false)
     }
@@ -636,7 +636,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       const data = await api<{ videos: Array<{ id: string; title: string; thumbnail: string; publishedAt: string; viewCount: string; likeCount: string; commentCount: string }> }>("/me/youtube-videos")
       setYoutubeChannelVids(data.videos || [])
     } catch (err) {
-      console.error("YouTube videolarni olishda xatolik:", err)
+      console.error(tr("YouTube videolarni olishda xatolik:"), err)
     } finally {
       setLoadingYoutube(false)
     }
@@ -675,7 +675,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       })
       setIgPosts(data.media || [])
     } catch (err) {
-      console.error("Instagram postlarni olishda xatolik:", err)
+      console.error(tr("Instagram postlarni olishda xatolik:"), err)
     } finally {
       setLoadingIg(false)
     }
@@ -711,7 +711,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
             body: JSON.stringify({
               link: m.permalink,
               youtube_id: m.id,
-              name: m.caption ? m.caption.slice(0, 80) : "Instagram post",
+              name: m.caption ? m.caption.slice(0, 80) : tr("Instagram post"),
               thumbnail: m.media_type === "VIDEO" ? null : m.media_url,
               // Instagram ko'rishlar sonini bermaydi — ilgari uning
               // o'rniga yoqtirishlar yozilardi va hisobot yolg'on
@@ -732,7 +732,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       if (added.length) setVideos((prev) => [...prev, ...added])
       setSelectedIgPosts(new Set())
     } catch (err) {
-      console.error("Instagram postlarni saqlashda xatolik:", err)
+      console.error(tr("Instagram postlarni saqlashda xatolik:"), err)
     } finally {
       setSavingIg(false)
     }
@@ -768,7 +768,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           views: v.viewCount,
           likes: v.likeCount,
           comments: v.commentCount,
-          plats: ["YouTube"],
+          plats: [tr("YouTube")],
           date: v.publishedAt,
           status: "published",
         }))
@@ -804,7 +804,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
       }
       setSelectedVids(new Set())
     } catch (err) {
-      console.error("Videolarni saqlashda xatolik:", err)
+      console.error(tr("Videolarni saqlashda xatolik:"), err)
     } finally {
       setSavingSelected(false)
     }
@@ -854,7 +854,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               <div className="mb-2 flex items-center justify-between rounded-lg bg-green/10 px-3 py-2">
                 <span className="text-[11px] font-semibold text-green">{selectedVids.size} ta tanlandi</span>
                 <button onClick={saveSelectedVideos} disabled={savingSelected} className="rounded-md bg-green px-2.5 py-1 text-[10px] font-bold text-white disabled:opacity-60">
-                  {savingSelected ? "Saqlanmoqda..." : "Profilga qo'shish"}
+                  {savingSelected ? "Saqlanmoqda..." : tr("Profilga qo'shish")}
                 </button>
               </div>
             )}
@@ -943,7 +943,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
               <div className="mb-2 flex items-center justify-between rounded-lg bg-pink-50 px-3 py-2">
                 <span className="text-[11px] font-semibold text-pink-600">{selectedIgPosts.size} ta tanlandi</span>
                 <button onClick={saveSelectedIgPosts} disabled={savingIg} className="rounded-md bg-pink-500 px-2.5 py-1 text-[10px] font-bold text-white disabled:opacity-60">
-                  {savingIg ? "Saqlanmoqda..." : "Profilga qo'shish"}
+                  {savingIg ? "Saqlanmoqda..." : tr("Profilga qo'shish")}
                 </button>
               </div>
             )}
@@ -1070,7 +1070,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                 </span>
               )}
               <h3 className="mt-4 font-display text-lg font-extrabold">{deleting ? "O'chirilmoqda..." : "Videoni o'chirish"}</h3>
-              <p className="mt-2 text-sm text-muted">{deleting ? "Iltimos kuting..." : "Bu videoni o'chirishni xohlaysizmi?"}</p>
+              <p className="mt-2 text-sm text-muted">{deleting ? tr("Iltimos kuting...") : tr("Bu videoni o'chirishni xohlaysizmi?")}</p>
               {!deleting && linkError && (
                 <p className="mt-3 w-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{linkError}</p>
               )}
@@ -1105,8 +1105,8 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
   const videoCount = me.videos?.length || 0
   const statCards = [
     { icon: I.link2, t: "Ijtimoiy tarmoqlar", v: String(socialCount), delta: `${socialCount} ta ulangan` },
-    { icon: I.media, t: "Joylangan videolar", v: String(videoCount), delta: videoCount ? `${videoCount} ta video` : "Hali yo'q" },
-    { icon: I.chart, t: "Profil holati", v: me.status === "active" ? "Faol" : "Yangi", delta: me.status === "active" ? "Tasdiqlangan" : "Kutilmoqda" },
+    { icon: I.media, t: tr("Joylangan videolar"), v: String(videoCount), delta: videoCount ? `${videoCount} ta video` : tr("Hali yo'q") },
+    { icon: I.chart, t: tr("Profil holati"), v: me.status === "active" ? "Faol" : "Yangi", delta: me.status === "active" ? tr("Tasdiqlangan") : "Kutilmoqda" },
   ]
 
   return (
@@ -1144,7 +1144,7 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
                     <span className="grid h-7 w-7 place-items-center rounded-lg bg-white text-green shadow-sm">
                       {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-green border-t-transparent" /> : <Icon d={a.icon} className="h-3.5 w-3.5" />}
                     </span>
-                    {busy ? "Yangilanmoqda..." : a.t}
+                    {busy ? tr("Yangilanmoqda...") : a.t}
                     <Icon d={I.chevRight} className="ml-auto h-3.5 w-3.5 text-muted" />
                   </button>
                 )
@@ -1226,13 +1226,13 @@ function ServicesTab() {
     if (!title.trim()) return
     setBusy(true)
     try { await api("/me/services", { method: "POST", body: JSON.stringify({ title: title.trim(), description: desc.trim() }) }); setTitle(""); setDesc(""); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("Qo'shib bo'lmadi")) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/services/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1277,7 +1277,7 @@ type MeTask = {
   title: string; description: string | null; priority: string; deadline: string | null; created_at: string
   file_url?: string | null; file_name?: string | null
 }
-const tzPrioLabel: Record<string, string> = { low: "Past", normal: "O'rta", high: "Yuqori" }
+const tzPrioLabel: Record<string, string> = { low: tr("Past"), normal: tr("O'rta"), high: tr("Yuqori") }
 const tzPrioColor: Record<string, string> = {
   low: "bg-gray-100 text-gray-600", normal: "bg-blue-100 text-blue-700", high: "bg-red-100 text-red-600",
 }
@@ -1349,7 +1349,7 @@ function TasksTab() {
                 </a>
               )}
               <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted">
-                <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : "Muddatsiz"}</span>
+                <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : tr("Muddatsiz")}</span>
                 <span>{new Date(t.created_at).toLocaleDateString()}</span>
               </div>
               {/* Holatni o'zgartirish */}
@@ -1401,13 +1401,13 @@ function RegionsTab() {
     if (!region.trim()) return
     setBusy(true)
     try { await api("/me/regions", { method: "POST", body: JSON.stringify({ region: region.trim() }) }); setRegion(""); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("Qo'shib bo'lmadi")) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/regions/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1479,13 +1479,13 @@ function SpecializationsTab() {
     if (!key.trim()) return
     setBusy(true)
     try { await api("/me/specializations", { method: "POST", body: JSON.stringify({ specialization_key: key.trim() }) }); setKey(""); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("Qo'shib bo'lmadi")) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/specializations/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1555,13 +1555,13 @@ function AchievementsTab() {
     if (!title.trim()) return
     setBusy(true)
     try { await api("/me/achievements", { method: "POST", body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() }) }); setTitle(""); setSubtitle(""); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("Qo'shib bo'lmadi")) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/achievements/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1641,7 +1641,7 @@ function ImagesTab() {
       setCaption("")
       load(true)
     } catch (err) {
-      setActionErr(err instanceof Error ? err.message : "Rasmni saqlab bo'lmadi")
+      setActionErr(err instanceof Error ? err.message : tr("Rasmni saqlab bo'lmadi"))
     } finally {
       setUploading(false)
     }
@@ -1650,7 +1650,7 @@ function ImagesTab() {
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/images/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1724,13 +1724,13 @@ function BrandsTab() {
     if (!name.trim()) return
     setBusy(true)
     try { await api("/me/brands", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "Qo'shib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("Qo'shib bo'lmadi")) }
     finally { setBusy(false) }
   }
   const remove = async (id: string) => {
     setDeleting((prev) => new Set(prev).add(id))
     try { await api(`/me/brands/${id}`, { method: "DELETE" }); load(true); setActionErr("") }
-    catch (err) { setActionErr(err instanceof Error ? err.message : "O'chirib bo'lmadi") }
+    catch (err) { setActionErr(err instanceof Error ? err.message : tr("O'chirib bo'lmadi")) }
     finally { setDeleting((prev) => { const n = new Set(prev); n.delete(id); return n }) }
   }
 
@@ -1934,7 +1934,7 @@ export default function BloggerDashboard() {
   const initials = (user?.name || "FE").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
   return (
-    <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: "Blogger", initials }}>
+    <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: tr("Blogger"), initials }}>
       {meFailed ? <ErrorState onRetry={reload} message="Profil ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring." />
         : !me ? (
           <div className="space-y-6">

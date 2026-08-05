@@ -14,10 +14,10 @@ type DirectionItem = { icon: string; t: string; d: string }
 type BenefitItem = { icon: string; t: string; d: string }
 
 const benefits: BenefitItem[] = [
-  { icon: I.handshake, t: "O'zaro manfaatli", d: tr("Win-win strategiyasiga asoslangan hamkorlik.") },
+  { icon: I.handshake, t: tr("O'zaro manfaatli"), d: tr("Win-win strategiyasiga asoslangan hamkorlik.") },
   { icon: I.shield, t: tr("Ishonch va sifat"), d: tr("Yuqori standartlar va ishonchli aloqalar.") },
   { icon: I.globe, t: "Keng qamrov", d: tr("Katta auditoriya va keng imkoniyatlar.") },
-  { icon: I.sprout, t: "Innovatsion yondashuv", d: "Yangi g'oyalar va zamonaviy yechimlar bilan ishlash." },
+  { icon: I.sprout, t: "Innovatsion yondashuv", d: tr("Yangi g'oyalar va zamonaviy yechimlar bilan ishlash.") },
 ]
 
 const iconMap: Record<string, string> = { sprout: I.sprout, shield: I.shield, tractor: I.tractor, cap: I.cap, megaphone: I.megaphone, handshake: I.handshake, globe: I.globe, users: I.users, building: I.building, star: I.star }
@@ -83,7 +83,7 @@ function BrandCarousel() {
 
 function Hero() {
   const hero = useHomeSection("partners_hero", {
-    title: "BIRGA O'SAYLIK, BIRGA YUTAYLIK!",
+    title: tr("BIRGA O'SAYLIK, BIRGA YUTAYLIK!"),
     subtitle: tr("Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli hamkor platformasi."),
   })
   // Sarlavhani "so'z1 so'z2, so'z3 so'z4" formatida ikki rangда ko'rsatish uchun bo'lamiz
@@ -161,7 +161,7 @@ function StatsRow() {
         setLiveStats([
           { icon: I.users, v: `${partners.length}+`, l: "Faol hamkorlar" },
           { icon: I.building, v: `${spheres}+`, l: "Yo'nalishlar" },
-          { icon: I.handshake, v: `${partners.length}+`, l: "Strategik hamkorlar" },
+          { icon: I.handshake, v: `${partners.length}+`, l: tr("Strategik hamkorlar") },
           { icon: I.globe, v: "1M+", l: "Birgalikda qamrov" },
           { icon: I.star, v: "5+", l: "Yillik tajriba" },
         ])
@@ -199,8 +199,8 @@ function Directions() {
   const [items, setItems] = useState<DirectionItem[]>([])
   const [dirLoading, setDirLoading] = useState(true)
   const [head, setHead] = useState<{ title: string; subtitle: string }>({
-    title: "HAMKORLIK YO'NALISHLARI",
-    subtitle: "Biz turli yo'nalishlarda yetakchi kompaniya va tashkilotlar bilan hamkorlik qilamiz. Quyidagi sohalarda o'zaro manfaatli hamkorlikni yo'lga qo'yganmiz.",
+    title: tr("HAMKORLIK YO'NALISHLARI"),
+    subtitle: tr("Biz turli yo'nalishlarda yetakchi kompaniya va tashkilotlar bilan hamkorlik qilamiz. Quyidagi sohalarda o'zaro manfaatli hamkorlikni yo'lga qo'yganmiz."),
   })
   useEffect(() => {
     api<{ sections: { section_key: string; title?: string; subtitle?: string; items: { icon: string; title: string; description: string }[] }[] }>("/public/homepage-sections").then((d) => {

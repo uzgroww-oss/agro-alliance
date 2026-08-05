@@ -49,7 +49,7 @@ function faylniOqi(f: File): Promise<string> {
   return new Promise((res, rej) => {
     const r = new FileReader()
     r.onload = () => res(String(r.result))
-    r.onerror = () => rej(new Error("Faylni o'qib bo'lmadi"))
+    r.onerror = () => rej(new Error(tr("Faylni o'qib bo'lmadi")))
     r.readAsDataURL(f)
   })
 }
@@ -75,7 +75,7 @@ export default function YoutubeStudio() {
       setVideos(d.videos || [])
       if (d.xato) setXato(d.xato)
     } catch (e) {
-      setXato(e instanceof Error ? e.message : "Yuklab bo'lmadi")
+      setXato(e instanceof Error ? e.message : tr("Yuklab bo'lmadi"))
     } finally {
       setYuklanmoqda(false)
     }
@@ -105,9 +105,9 @@ export default function YoutubeStudio() {
       await api(`/youtube/manage?action=delete&id=${v.id}`, { method: "DELETE" })
       setVideos((prev) => prev.filter((x) => x.id !== v.id))
       setOchirilyapti(null)
-      setXabar("✅ Video o'chirildi")
+      setXabar(tr("✅ Video o'chirildi"))
     } catch (e) {
-      setXabar(`❌ ${e instanceof Error ? e.message : "O'chirilmadi"}`)
+      setXabar(`❌ ${e instanceof Error ? e.message : tr("O'chirilmadi")}`)
     }
   }
 
@@ -288,8 +288,8 @@ function UploadForm({ turkumlar, onDone }: { turkumlar: Turkum[]; onDone: () => 
   }
 
   const yukla = async () => {
-    if (!fayl) { setHolat("❌ Video faylni tanlang"); return }
-    if (!form.title.trim()) { setHolat("❌ Sarlavha kiriting"); return }
+    if (!fayl) { setHolat(tr("❌ Video faylni tanlang")); return }
+    if (!form.title.trim()) { setHolat(tr("❌ Sarlavha kiriting")); return }
     setBand(true); setHolat(""); setFoiz(0)
 
     try {
@@ -330,8 +330,8 @@ function UploadForm({ turkumlar, onDone }: { turkumlar: Turkum[]; onDone: () => 
             rej(new Error(m))
           }
         }
-        xhr.onerror = () => rej(new Error("Tarmoq uzildi"))
-        xhr.onabort = () => rej(new Error("Bekor qilindi"))
+        xhr.onerror = () => rej(new Error(tr("Tarmoq uzildi")))
+        xhr.onabort = () => rej(new Error(tr("Bekor qilindi")))
         xhr.send(fayl)
       })
 
@@ -351,12 +351,12 @@ function UploadForm({ turkumlar, onDone }: { turkumlar: Turkum[]; onDone: () => 
         }
       }
 
-      setHolat("✅ Video yuklandi. YouTube uni bir necha daqiqada qayta ishlaydi.")
+      setHolat(tr("✅ Video yuklandi. YouTube uni bir necha daqiqada qayta ishlaydi."))
       tozala()
       setOchiq(false)
       onDone()
     } catch (e) {
-      setHolat(`❌ ${e instanceof Error ? e.message : "Yuklanmadi"}`)
+      setHolat(`❌ ${e instanceof Error ? e.message : tr("Yuklanmadi")}`)
     } finally {
       setBand(false)
       xhrRef.current = null
@@ -474,7 +474,7 @@ function EditModal({ v, turkumlar, onClose, onSaved }: {
   const [xabar, setXabar] = useState("")
 
   const saqla = async () => {
-    if (!form.title.trim()) { setXabar("❌ Sarlavha bo'sh bo'lishi mumkin emas"); return }
+    if (!form.title.trim()) { setXabar(tr("❌ Sarlavha bo'sh bo'lishi mumkin emas")); return }
     setBand(true); setXabar("")
     try {
       await api("/youtube/manage?action=update", {
@@ -496,7 +496,7 @@ function EditModal({ v, turkumlar, onClose, onSaved }: {
       }
       onSaved()
     } catch (e) {
-      setXabar(`❌ ${e instanceof Error ? e.message : "Saqlanmadi"}`)
+      setXabar(`❌ ${e instanceof Error ? e.message : tr("Saqlanmadi")}`)
     } finally {
       setBand(false)
     }

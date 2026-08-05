@@ -22,7 +22,7 @@ export default function NewsDetail() {
     let alive = true
     loadNewsDetail(slug)
       .then((a) => { if (alive) setArticle(a) })
-      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Yuklashda xatolik") })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : tr("Yuklashda xatolik")) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [slug])

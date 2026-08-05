@@ -107,8 +107,8 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
 }
 
 const PLATFORM_LABEL: Record<string, string> = {
-  telegram: "Telegram", instagram: "Instagram", facebook: "Facebook",
-  linkedin: "LinkedIn", youtube: "YouTube",
+  telegram: "Telegram", instagram: tr("Instagram"), facebook: tr("Facebook"),
+  linkedin: tr("LinkedIn"), youtube: tr("YouTube"),
 }
 
 /** Kalendar ikonkasi — ui.tsx da yo'q, shuning uchun shu yerda */
@@ -134,17 +134,17 @@ const PLATFORM_ICON: Record<string, string> = {
  *   hortidaily 28, gazeta.uz 20, kun.uz 15, modernfarmer 10
  */
 const SAMPLE_SOURCES: { name: string; url: string }[] = [
-  { name: "Gazeta.uz", url: "https://www.gazeta.uz/uz/rss/" },
-  { name: "Kun.uz", url: "https://kun.uz/uz/news/rss" },
-  { name: "FreshPlaza (jahon savdosi)", url: "https://www.freshplaza.com/rss.xml" },
-  { name: "HortiDaily (issiqxona)", url: "https://www.hortidaily.com/rss.xml" },
-  { name: "AgFunder (agrotexnologiya)", url: "https://agfundernews.com/feed" },
-  { name: "Farm Progress", url: "https://www.farmprogress.com/rss.xml" },
+  { name: tr("Gazeta.uz"), url: "https://www.gazeta.uz/uz/rss/" },
+  { name: tr("Kun.uz"), url: "https://kun.uz/uz/news/rss" },
+  { name: tr("FreshPlaza (jahon savdosi)"), url: "https://www.freshplaza.com/rss.xml" },
+  { name: tr("HortiDaily (issiqxona)"), url: "https://www.hortidaily.com/rss.xml" },
+  { name: tr("AgFunder (agrotexnologiya)"), url: "https://agfundernews.com/feed" },
+  { name: tr("Farm Progress"), url: "https://www.farmprogress.com/rss.xml" },
 ]
 
 const MONTHS = [
-  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
-  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+  tr("Yanvar"), tr("Fevral"), tr("Mart"), tr("Aprel"), tr("May"), tr("Iyun"),
+  tr("Iyul"), tr("Avgust"), tr("Sentabr"), tr("Oktabr"), tr("Noyabr"), tr("Dekabr"),
 ]
 
 /** Yuqoridagi raqamli plitka (topilgan yangilik, rejalashtirilgan post…) */
@@ -212,7 +212,7 @@ export default function MarketPanel({ onCreatePost }: {
 
   const addSource = () => runSrc(async () => {
     setSrcErr(""); setSrcMsg("")
-    if (!newSrc.url.trim()) { setSrcErr("Havolani kiriting"); return }
+    if (!newSrc.url.trim()) { setSrcErr(tr("Havolani kiriting")); return }
     try {
       const r = await api<{ found: number; warning?: string }>("/smm/ai?action=source_add", {
         method: "POST", body: JSON.stringify(newSrc),
@@ -224,7 +224,7 @@ export default function MarketPanel({ onCreatePost }: {
         : `✅ Qo'shildi — ${r.found} ta yozuv topildi`)
       loadSources()
     } catch (e) {
-      setSrcErr(e instanceof Error ? e.message : "Manba qo'shilmadi")
+      setSrcErr(e instanceof Error ? e.message : tr("Manba qo'shilmadi"))
     }
   })
 
@@ -248,7 +248,7 @@ export default function MarketPanel({ onCreatePost }: {
       if (bad.length) setSrcErr(bad.map((b) => `${b.name}: ${b.error}`).join(" · "))
       loadSources()
     } catch (e) {
-      setSrcErr(e instanceof Error ? e.message : "Qo'shilmadi")
+      setSrcErr(e instanceof Error ? e.message : tr("Qo'shilmadi"))
     }
   })
 
@@ -273,7 +273,7 @@ export default function MarketPanel({ onCreatePost }: {
       await api("/smm/ai?action=source_delete", { method: "POST", body: JSON.stringify({ id: s.id }) })
       loadSources()
     } catch (e) {
-      setSrcErr(e instanceof Error ? e.message : "O'chirilmadi")
+      setSrcErr(e instanceof Error ? e.message : tr("O'chirilmadi"))
     }
   })
 
@@ -325,7 +325,7 @@ export default function MarketPanel({ onCreatePost }: {
           })
         } catch { /* saqlanmasa keyingi safar qayta yoziladi */ }
       } catch (e) {
-        setDetailErr(e instanceof Error ? e.message : "Reja yozilmadi")
+        setDetailErr(e instanceof Error ? e.message : tr("Reja yozilmadi"))
       }
     })
   }
@@ -374,7 +374,7 @@ export default function MarketPanel({ onCreatePost }: {
       setDone([]) // yangi reja — belgilar nolga qaytadi
       detailCache.current = {} // eski tafsilotlar yangi rejaga to'g'ri kelmaydi
       setPlanAt(new Date().toISOString())
-    } catch (e) { setErr(e instanceof Error ? e.message : "Tahlil qilinmadi") }
+    } catch (e) { setErr(e instanceof Error ? e.message : tr("Tahlil qilinmadi")) }
   })
 
   /**
@@ -388,7 +388,7 @@ export default function MarketPanel({ onCreatePost }: {
     try {
       await api("/smm/ai?action=plan_update", { method: "POST", body: JSON.stringify(patch) })
     } catch {
-      setErr("O'zgarish saqlanmadi — qayta urining")
+      setErr(tr("O'zgarish saqlanmadi — qayta urining"))
       load()
     }
   }
@@ -451,7 +451,7 @@ export default function MarketPanel({ onCreatePost }: {
   /** Tahrirni saqlash */
   const saveEdit = () => {
     if (!plan || editKun === null) return
-    if (!editVal.mavzu.trim()) { setErr("Mavzu bo'sh bo'lmasin"); return }
+    if (!editVal.mavzu.trim()) { setErr(tr("Mavzu bo'sh bo'lmasin")); return }
     const reja = plan.reja.map((r) => r.kun === editKun ? { ...r, ...editVal } : r)
     setPlan({ ...plan, reja })
     setEditKun(null)
@@ -533,8 +533,8 @@ export default function MarketPanel({ onCreatePost }: {
             <h3 className="font-display font-bold">{tr("Tahlil va kontent reja")}</h3>
             <p className={`mt-0.5 text-sm ${planFailed ? "text-red-600" : "text-muted"}`}>
               {planFailed
-                ? "Rejani yuklab bo'lmadi — mavjud reja yo'qolgani anglatmaydi"
-                : planAt ? `Oxirgi yangilanish: ${fmtDate(planAt)}` : "Hali tahlil qilinmagan"}
+                ? tr("Rejani yuklab bo'lmadi — mavjud reja yo'qolgani anglatmaydi")
+                : planAt ? `Oxirgi yangilanish: ${fmtDate(planAt)}` : tr("Hali tahlil qilinmagan")}
             </p>
             {planFailed && (
               <button onClick={load} className="mt-1 text-xs font-bold text-green underline">
@@ -618,7 +618,7 @@ export default function MarketPanel({ onCreatePost }: {
           <button onClick={addSource} disabled={srcBusy}
             className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
             <Icon d={srcBusy ? I.refresh : I.globe} className={`h-4 w-4 ${srcBusy ? "animate-spin" : ""}`} />
-            {srcBusy ? "Tekshirilmoqda…" : "Qo'shish"}
+            {srcBusy ? tr("Tekshirilmoqda…") : "Qo'shish"}
           </button>
         </div>
 
@@ -711,7 +711,7 @@ export default function MarketPanel({ onCreatePost }: {
                       ? <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</>
                       : n.avgLikes !== null
                         ? <><strong className="text-ink">{n.avgLikes}</strong> layk</>
-                        : "ma'lumot yo'q"}
+                        : tr("ma'lumot yo'q")}
                   </p>
                 )}
               </div>
@@ -798,7 +798,7 @@ export default function MarketPanel({ onCreatePost }: {
                     <Icon d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6" className="h-3 w-3" />
                     {done.length > 0 && done.length < plan.reja.length
                       ? `Belgilanganni o'chirish (${done.length})`
-                      : "Hammasini o'chirish"}
+                      : tr("Hammasini o'chirish")}
                   </button>
                 </div>
               )}
@@ -863,7 +863,7 @@ export default function MarketPanel({ onCreatePost }: {
                     {/* Hammasini belgilash */}
                     <th className="w-8 pb-2 pr-2">
                       <button onClick={toggleAll}
-                        title={allDone ? "Hamma belgini olib tashlash" : "Hammasini bajarildi deb belgilash"}
+                        title={allDone ? tr("Hamma belgini olib tashlash") : tr("Hammasini bajarildi deb belgilash")}
                         className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
                           allDone ? "border-green bg-green text-white" : "border-green/30 hover:border-green"
                         }`}>
@@ -923,7 +923,7 @@ export default function MarketPanel({ onCreatePost }: {
                         {/* stopPropagation: qator bosilib modal ochilmasin */}
                         <td className="py-3 pr-2" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => toggleDone(it.kun)}
-                            title={isDone ? "Bajarilmadi deb belgilash" : "Bajarildi deb belgilash"}
+                            title={isDone ? tr("Bajarilmadi deb belgilash") : tr("Bajarildi deb belgilash")}
                             className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
                               isDone ? "border-green bg-green text-white" : "border-green/30 hover:border-green"
                             }`}>

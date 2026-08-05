@@ -2,7 +2,7 @@ import { Link } from "react-router-dom"
 import { logoWhite, Icon, I } from "../lib/ui"
 import { usePublicSettings, useContactInfo } from "../lib/settings"
 import { useHomeSections } from "../lib/sections"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const cols = [
   { h: "Platforma", links: [["Blogerlar", "/blogerlar"], ["Yangiliklar", "/yangiliklar"], ["Hamkorlar", "/hamkorlar"], ["Aloqa", "/aloqa"]] },
@@ -32,7 +32,7 @@ export default function Footer() {
     | { subtitle?: string; items?: FItem[] }
     | undefined
 
-  const brandText = fsec?.subtitle || "Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi."
+  const brandText = fsec?.subtitle || tr("Agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli media platformasi.")
   const contactRows = [
     { icon: I.phone, v: contact.phone },
     { icon: I.mail, v: contact.email },

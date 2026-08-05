@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode, useRef, useCallback } from "react"
+import { tr } from "./i18n"
 import { supabase } from "./supabase"
 import { getToken, setToken, clearToken, api, type User } from "./api"
 import { dbProfileToUser, type DbProfile } from "./db-types"
@@ -146,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const profile = await fetchProfile(data.user.id)
-    if (!profile) throw new Error("Profil topilmadi")
+    if (!profile) throw new Error(tr("Profil topilmadi"))
 
     setUser(profile)
     setLoading(false)

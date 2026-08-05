@@ -95,7 +95,7 @@ export default function MediaUpload({
           setUploaded(result)
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Yuklashda xatolik"
+        const msg = err instanceof Error ? err.message : tr("Yuklashda xatolik")
         setItems((prev) =>
           prev.map((item, idx) =>
             idx === i ? { ...item, status: "error" as const, error: msg } : item,
@@ -147,7 +147,7 @@ export default function MediaUpload({
               </span>
               <span className="text-center">
                 <span className="block text-sm font-bold text-ink">
-                  {multiple ? "Fayllarni tanlang" : tr("Faylni tanlang")}
+                  {multiple ? tr("Fayllarni tanlang") : tr("Faylni tanlang")}
                 </span>
                 {hint && <span className="mt-0.5 block text-[11px] text-muted">{hint}</span>}
               </span>

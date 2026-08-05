@@ -132,7 +132,7 @@ function Bloggers() {
     e.preventDefault()
     if (!editTarget) return
     setEditErr("")
-    if (!editForm.name.trim()) { setEditErr("Bloger ismi majburiy"); return }
+    if (!editForm.name.trim()) { setEditErr(tr("Bloger ismi majburiy")); return }
     return runMutation(async () => {
       try {
         await api(`/bloggers/${editTarget.id}`, {
@@ -147,7 +147,7 @@ function Bloggers() {
         setEditTarget(null)
         await reload(true)
       } catch (err: unknown) {
-        setEditErr(err instanceof Error ? err.message : "Saqlashda xatolik")
+        setEditErr(err instanceof Error ? err.message : tr("Saqlashda xatolik"))
       }
     })
   }
@@ -214,7 +214,7 @@ function Bloggers() {
                 <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={registering} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {registering && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {registering ? "Ro'yxatdan o'tkazilmoqda…" : "Ro'yxatdan o'tkazish"}
+                  {registering ? tr("Ro'yxatdan o'tkazilmoqda…") : tr("Ro'yxatdan o'tkazish")}
                 </button>
               </div>
             </form>
@@ -236,7 +236,7 @@ function Bloggers() {
             <input value={socialLink} onChange={(e) => setSocialLink(e.target.value)} placeholder={tr("Ijtimoiy tarmoq linki — YouTube, Instagram, Telegram...")} className="flex-1 min-w-[200px] rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <button onClick={addSocialLink} disabled={addingSocial || !socialLink.trim()} className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               {addingSocial && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-              {addingSocial ? "Olinmoqda…" : "Qo'shish"}
+              {addingSocial ? tr("Olinmoqda…") : "Qo'shish"}
             </button>
           </div>
           {socialResults.length > 0 && (
@@ -384,7 +384,7 @@ function Bloggers() {
             <div className="mt-6 flex items-center justify-center gap-3">
               <button type="button" onClick={() => setDeleteTarget(null)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
               <button type="button" onClick={() => remove(deleteTarget)} disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-500/30 transition-transform hover:scale-105 disabled:opacity-60">
-                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> {mutating ? "O'chirilmoqda…" : "O'chirish"}
+                <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" className="h-4 w-4" /> {mutating ? tr("O'chirilmoqda…") : "O'chirish"}
               </button>
             </div>
           </div>
@@ -402,7 +402,7 @@ type Partner = { id: number; name: string; sphere: string; logo?: string | null;
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
   done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
   progress: { label: "Jarayonda", cls: "bg-orange-100 text-orange-600", dot: "bg-orange-500" },
-  pending: { label: "Kutilayotgan", cls: "bg-slate-100 text-slate-500", dot: "bg-slate-400" },
+  pending: { label: tr("Kutilayotgan"), cls: "bg-slate-100 text-slate-500", dot: "bg-slate-400" },
 }
 const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
   active: { label: "Faol", cls: "bg-green/10 text-green" },
@@ -494,7 +494,7 @@ function AdminPartners() {
     e.preventDefault()
     if (!editTarget) return
     setEditErr("")
-    if (!editForm.name.trim()) { setEditErr("Tashkilot nomi majburiy"); return }
+    if (!editForm.name.trim()) { setEditErr(tr("Tashkilot nomi majburiy")); return }
     return runMutation(async () => {
       try {
         await api(`/partners/${editTarget.id}`, {
@@ -511,7 +511,7 @@ function AdminPartners() {
         setEditTarget(null)
         await reload(true)
       } catch (err: unknown) {
-        setEditErr(err instanceof Error ? err.message : "Saqlashda xatolik")
+        setEditErr(err instanceof Error ? err.message : tr("Saqlashda xatolik"))
       }
     })
   }
@@ -560,15 +560,15 @@ function AdminPartners() {
     })
   }
   const removeClient = (pid: number) => {
-    if (!confirm("Hamkor loginini o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("Hamkor loginini o'chirishni tasdiqlaysizmi?"))) return
     return runMutation(async () => { await api(`/partners/${pid}/client`, { method: "DELETE" }); await reload(true) })
   }
 
   const stats = [
-    { icon: I.handshake, t: "Jami hamkorlar", v: String(totals.count) },
-    { icon: I.wallet, t: "Umumiy shartnoma", v: fmtSom(totals.sum) + " so'm" },
-    { icon: I.shield, t: "Faol shartnomalar", v: String(totals.active) },
-    { icon: I.chart, t: "Vazifalar bajarilishi", v: totals.progressPct + "%" },
+    { icon: I.handshake, t: tr("Jami hamkorlar"), v: String(totals.count) },
+    { icon: I.wallet, t: tr("Umumiy shartnoma"), v: fmtSom(totals.sum) + " so'm" },
+    { icon: I.shield, t: tr("Faol shartnomalar"), v: String(totals.active) },
+    { icon: I.chart, t: tr("Vazifalar bajarilishi"), v: totals.progressPct + "%" },
   ]
 
   return (
@@ -641,7 +641,7 @@ function AdminPartners() {
                 <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {saving ? "Qo'shilmoqda…" : "Qo'shish"}
+                  {saving ? tr("Qo'shilmoqda…") : "Qo'shish"}
                 </button>
               </div>
             </form>
@@ -663,7 +663,7 @@ function AdminPartners() {
         {!loading && list.length > 0 && (
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
             <input type="checkbox" checked={selectedIds.size === list.length} onChange={toggleAll} className="h-4 w-4 rounded border-green/30 text-green accent-green" />
-            Hammasini tanlash
+            {tr("Hammasini tanlash")}
           </label>
         )}
         {!loading && list.length === 0 && <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">Hamkor yo'q. "Yangi hamkor qo'shish" orqali qo'shing.</div>}
@@ -739,7 +739,7 @@ function AdminPartners() {
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-green/10 text-green"><Icon d={I.building} className="h-5 w-5" /></span>
                     <div>
                       <div className="text-sm font-bold">{tr("Hamkor kabineti (login)")}</div>
-                      <div className="text-xs text-muted">{p.client ? "Hamkor o'z kabinetiga kira oladi" : "Login yarating — hamkor o'z kabinetiga kiradi"}</div>
+                      <div className="text-xs text-muted">{p.client ? tr("Hamkor o'z kabinetiga kira oladi") : tr("Login yarating — hamkor o'z kabinetiga kiradi")}</div>
                     </div>
                   </div>
                   {p.client ? (
@@ -759,7 +759,7 @@ function AdminPartners() {
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <input value={clientDrafts[p.id]?.email || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), email: e.target.value } }))} placeholder={tr("Hamkor emaili")} type="email" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
                       <input value={clientDrafts[p.id]?.password || ""} onChange={(e) => setClientDrafts((d) => ({ ...d, [p.id]: { ...(d[p.id] || { email: "", password: "" }), password: e.target.value } }))} placeholder={tr("Boshlang'ich parol")} type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
-                      <button onClick={() => createClient(p)} disabled={mutating} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{mutating ? "..." : "Yaratish"}</button>
+                      <button onClick={() => createClient(p)} disabled={mutating} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{mutating ? "..." : tr("Yaratish")}</button>
                     </div>
                   </div>
                 )}
@@ -866,7 +866,7 @@ function Overview() {
   }, [])
 
   const stats = [
-    { icon: I.users, t: "Jami bloggerlar", v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
+    { icon: I.users, t: tr("Jami bloggerlar"), v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
     { icon: I.handshake, t: "Hamkorlar", v: partnerCount === null ? "…" : String(partnerCount), delta: "real-time" },
     { icon: I.doc, t: "Yangiliklar", v: newsCount === null ? "…" : String(newsCount), delta: "real-time" },
     { icon: I.send, t: "Obunachilar", v: subscribers === null ? "…" : String(subscribers), delta: "real-time" },
@@ -896,7 +896,7 @@ function Overview() {
               {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
               <LineChart
                 points={[bloggerCount || 0, partnerCount || 0, newsCount || 0, (bloggerCount || 0) + (partnerCount || 0), (bloggerCount || 0) + (newsCount || 0), (partnerCount || 0) + (newsCount || 0)]}
-                labels={["Blogerlar", "Hamkorlar", "Yangiliklar", "Blog+Hamkor", "Blog+Yangilik", "Hamk+Yangilik"]}
+                labels={["Blogerlar", "Hamkorlar", "Yangiliklar", tr("Blog+Hamkor"), tr("Blog+Yangilik"), tr("Hamk+Yangilik")]}
               />
             ) : (
               <SkeletonCard />
@@ -1046,7 +1046,7 @@ function AdminTeam() {
 
   const [mutating, runMutation] = useBusy()
   const remove = (id: string) => {
-    if (!confirm("O'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("O'chirishni tasdiqlaysizmi?"))) return
     return runMutation(async () => {
       try {
         await api(`/team/${id}`, { method: "DELETE" })
@@ -1063,13 +1063,13 @@ function AdminTeam() {
           <p className="mt-1 text-sm text-muted">"Bizning jamoa" bo'limidagi a'zolarni boshqarish.</p>
         </div>
         <button onClick={openNew} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
-          <Icon d={I.plus} className="h-4 w-4" /> Yangi a'zo
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi a'zo")}
         </button>
       </div>
 
       {showForm && (
         <div className="mt-5 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-          <h3 className="font-display text-lg font-bold">{editing ? "Tahrirlash" : "Yangi a'zo"}</h3>
+          <h3 className="font-display text-lg font-bold">{editing ? "Tahrirlash" : tr("Yangi a'zo")}</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-muted">{tr("Ism *")}</label>
@@ -1220,8 +1220,8 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
 
   const save = (status: string) => runSave(async () => {
     setErr("")
-    if (!form.title.trim()) { setErr("Sarlavha majburiy"); return }
-    if (!form.content.trim()) { setErr("Matn majburiy"); return }
+    if (!form.title.trim()) { setErr(tr("Sarlavha majburiy")); return }
+    if (!form.content.trim()) { setErr(tr("Matn majburiy")); return }
     const body = { ...form, status, category_id: form.category_id || null }
     try {
       const saqlangan = isNew
@@ -1245,7 +1245,7 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
       onSaved()
       onClose()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Saqlab bo'lmadi")
+      setErr(e instanceof Error ? e.message : tr("Saqlab bo'lmadi"))
     }
   })
 
@@ -1256,7 +1256,7 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="my-8 w-full max-w-4xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-green/10 px-6 py-4">
-          <h3 className="font-display text-lg font-extrabold">{isNew ? "Yangi yangilik" : "Yangilikni tahrirlash"}</h3>
+          <h3 className="font-display text-lg font-extrabold">{isNew ? "Yangi yangilik" : tr("Yangilikni tahrirlash")}</h3>
           <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-soft">
             <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
           </button>
@@ -1587,7 +1587,7 @@ function AdminSettings() {
           : `${r.qilindi} ta yozuv tarjima qilindi. Hammasi tayyor.`,
       )
     } catch (e) {
-      setTrErr(e instanceof Error ? e.message : "Tarjima qilib bo'lmadi")
+      setTrErr(e instanceof Error ? e.message : tr("Tarjima qilib bo'lmadi"))
     }
   })
 
@@ -1627,7 +1627,7 @@ function AdminSettings() {
     try {
       const res = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
       if (res.authUrl) window.open(res.authUrl, "_blank", "width=600,height=700")
-      else setIgError("Ulanish havolasi olinmadi")
+      else setIgError(tr("Ulanish havolasi olinmadi"))
     } catch (e) {
       setIgError(e instanceof Error ? e.message : "Xatolik yuz berdi")
     }
@@ -1677,11 +1677,11 @@ function AdminSettings() {
             className="inline-flex items-center gap-2 rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60"
           >
             <Icon d={I.refresh} className={`h-4 w-4 ${trBusy ? "animate-spin" : ""}`} />
-            {trBusy ? "Tarjima qilinmoqda…" : "Tarjima qilinmaganlarni tarjima qilish"}
+            {trBusy ? "Tarjima qilinmoqda…" : tr("Tarjima qilinmaganlarni tarjima qilish")}
           </button>
           <button
             onClick={() => {
-              if (confirm("Mavjud tarjimalar o'chiriladi va hammasi boshidan qilinadi. Davom etamizmi?")) retranslate(true)
+              if (confirm(tr("Mavjud tarjimalar o'chiriladi va hammasi boshidan qilinadi. Davom etamizmi?"))) retranslate(true)
             }}
             disabled={trBusy}
             className="rounded-xl border-2 border-green/25 px-4 py-2.5 text-sm font-bold hover:border-green hover:text-green disabled:opacity-50"
@@ -1718,12 +1718,12 @@ function AdminSettings() {
                 o'zgarganda eski token eskiligicha qoladi va faqat yangi
                 rozilik uni almashtiradi. Ilgari bu tugma yo'q edi. */}
             <button onClick={startIgOauth} disabled={igStarting} className="inline-flex items-center gap-1.5 rounded-lg border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-600 hover:bg-pink-50 disabled:opacity-60">
-              <Icon d={I.external} className="h-3.5 w-3.5" /> {igStarting ? "Ochilmoqda…" : "Qayta ulash"}
+              <Icon d={I.external} className="h-3.5 w-3.5" /> {igStarting ? tr("Ochilmoqda…") : "Qayta ulash"}
             </button>
           </div>
         ) : !igChecking && !igConnected ? (
           <button onClick={startIgOauth} disabled={igStarting} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-pink-500/25 transition-transform hover:scale-105 disabled:opacity-60">
-            <Icon d={I.external} className="h-4 w-4" /> {igStarting ? "Ochilmoqda…" : "Facebook bilan kirish"}
+            <Icon d={I.external} className="h-4 w-4" /> {igStarting ? tr("Ochilmoqda…") : tr("Facebook bilan kirish")}
           </button>
         ) : null}
       </div>
@@ -1799,9 +1799,9 @@ function AdminTasks() {
 
   const send = async () => {
     setMsg("")
-    if (!form.title.trim()) { setMsg("❌ Sarlavha majburiy"); return }
+    if (!form.title.trim()) { setMsg(tr("❌ Sarlavha majburiy")); return }
     const blogger_ids = target === "all" ? "all" : Array.from(selected)
-    if (target === "selected" && (blogger_ids as string[]).length === 0) { setMsg("❌ Kamida bitta bloger tanlang"); return }
+    if (target === "selected" && (blogger_ids as string[]).length === 0) { setMsg(tr("❌ Kamida bitta bloger tanlang")); return }
     setSending(true)
     try {
       const r = await api<{ assigned: number }>("/tasks", { method: "POST", body: JSON.stringify({ ...form, file_url: file?.url || null, file_name: file?.name || null, blogger_ids }) })
@@ -1862,7 +1862,7 @@ function AdminTasks() {
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs text-muted">{selected.size} ta tanlandi</span>
                   <button type="button" onClick={() => setSelected(selected.size === bloggers.length ? new Set() : new Set(bloggers.map((b) => b.id)))} className="text-xs font-bold text-green hover:underline">
-                    {selected.size === bloggers.length ? "Bekor qilish" : "Hammasini tanlash"}
+                    {selected.size === bloggers.length ? "Bekor qilish" : tr("Hammasini tanlash")}
                   </button>
                 </div>
                 <div className="grid gap-1.5 sm:grid-cols-2">
@@ -1879,7 +1879,7 @@ function AdminTasks() {
 
           {msg && <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg}</div>}
           <button onClick={send} disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-            <Icon d={I.send} className="h-4 w-4" /> {sending ? "Yuborilmoqda…" : tr("Topshiriqni yuborish")}
+            <Icon d={I.send} className="h-4 w-4" /> {sending ? tr("Yuborilmoqda…") : tr("Topshiriqni yuborish")}
           </button>
         </div>
       </div>
@@ -1907,7 +1907,7 @@ function AdminTasks() {
                       </a>
                     )}
                     <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted">
-                      <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : "Muddatsiz"}</span>
+                      <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : tr("Muddatsiz")}</span>
                       <span>Yuborildi: {new Date(t.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -1924,7 +1924,7 @@ function AdminTasks() {
                       onClick={() => setOpenTask((o) => (o === t.id ? null : t.id))}
                       className="ml-auto rounded-lg border border-green/25 px-3 py-1 font-bold text-green transition-colors hover:bg-green hover:text-white"
                     >
-                      {openTask === t.id ? "Yopish" : "Kim bajaryapti?"}
+                      {openTask === t.id ? "Yopish" : tr("Kim bajaryapti?")}
                     </button>
                   )}
                 </div>
@@ -2230,7 +2230,7 @@ function AdminNewsSources() {
     })
   }
   const remove = (id: string) => {
-    if (!confirm("Manbani o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("Manbani o'chirishni tasdiqlaysizmi?"))) return
     return runSave(async () => { await api(`/news-sources/${id}`, { method: "DELETE" }); await reload(true) })
   }
 
@@ -2244,7 +2244,7 @@ function AdminNewsSources() {
           <p className="mt-1 text-sm text-muted">{tr("RSS, Telegram va veb-saytlardan yangiliklar yig'ish manbalari.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.plus} className="h-4 w-4" /> Yangi manba qo'shish
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi manba qo'shish")}
         </button>
       </div>
 
@@ -2356,7 +2356,7 @@ function AdminUsers() {
       setChangingRole(null)
       load()
     } catch (err) {
-      setRoleError(err instanceof Error ? err.message : "Rolni o'zgartirib bo'lmadi")
+      setRoleError(err instanceof Error ? err.message : tr("Rolni o'zgartirib bo'lmadi"))
     }
   })
 
@@ -2432,7 +2432,7 @@ function AdminUsers() {
                     <td className="py-3 pr-3">
                       <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${u.status === "active" ? "bg-green/10 text-green" : "bg-red-100 text-red-500"}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${u.status === "active" ? "bg-green" : "bg-red-500"}`} />
-                        {u.status === "active" ? "Faol" : "To'xtatilgan"}
+                        {u.status === "active" ? "Faol" : tr("To'xtatilgan")}
                       </span>
                     </td>
                     <td className="py-3 pr-3 text-muted text-xs">{u.created_at ? new Date(u.created_at).toLocaleDateString("uz") : "—"}</td>
@@ -2444,7 +2444,7 @@ function AdminUsers() {
                           </button>
                         )}
                         <button onClick={() => toggleStatus(u)} disabled={mutating} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${u.status === "active" ? "border-red-200 text-red-500 hover:bg-red-50" : "border-green/20 text-green hover:bg-green hover:text-white"}`}>
-                          {u.status === "active" ? "To'xtatish" : "Faollashtirish"}
+                          {u.status === "active" ? tr("To'xtatish") : tr("Faollashtirish")}
                         </button>
                       </div>
                     </td>
@@ -2497,7 +2497,7 @@ function AdminContacts() {
 
   const [mutating, runMutation] = useBusy()
   const remove = (id: string) => {
-    if (!confirm("Xabarni o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("Xabarni o'chirishni tasdiqlaysizmi?"))) return
     return runMutation(async () => {
       await api(`/messages/${id}`, { method: "DELETE" })
       setSelected(null)
@@ -2538,7 +2538,7 @@ function AdminContacts() {
                     <td className="py-3 pr-3"><span className="font-semibold">{m.name}</span> <span className="text-xs text-muted">({m.email})</span></td>
                     <td className="py-3 pr-3 text-muted">{m.subject || "—"}</td>
                     <td className="py-3 pr-3">
-                      <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${m.is_read ? "bg-slate-100 text-slate-500" : "bg-green/10 text-green"}`}>{m.is_read ? "O'qilgan" : "Yangi"}</span>
+                      <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${m.is_read ? "bg-slate-100 text-slate-500" : "bg-green/10 text-green"}`}>{m.is_read ? tr("O'qilgan") : "Yangi"}</span>
                     </td>
                     <td className="py-3 pr-3 text-muted text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString("uz") : "—"}</td>
                     <td className="py-3 flex gap-1.5">
@@ -2591,7 +2591,7 @@ function AdminSubscribers() {
 
   const [mutating, runMutation] = useBusy()
   const remove = (id: string) => {
-    if (!confirm("Obunachini o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("Obunachini o'chirishni tasdiqlaysizmi?"))) return
     return runMutation(async () => { await api(`/subscribers/${id}`, { method: "DELETE" }); load() })
   }
 
@@ -2681,7 +2681,7 @@ function AdminCategories() {
   }
   const [mutating, runMutation] = useBusy()
   const remove = (id: string) => {
-    if (!confirm("Kategoriyani o'chirishni tasdiqlaysizmi?")) return
+    if (!confirm(tr("Kategoriyani o'chirishni tasdiqlaysizmi?"))) return
     return runMutation(async () => { await api(`/categories/${id}`, { method: "DELETE" }); load() })
   }
   const toggleSelect = (id: string) => {
@@ -2801,7 +2801,7 @@ function AdminCategories() {
                 <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {saving ? "Qo'shilmoqda…" : "Qo'shish"}
+                  {saving ? tr("Qo'shilmoqda…") : "Qo'shish"}
                 </button>
               </div>
             </form>
@@ -2854,14 +2854,14 @@ function AdminHomepage() {
   const saveSec = async (id: string) => {
     setSaving(true); setSaveErr("")
     try { await api(`/homepage/sections/${id}`, { method: "PATCH", body: JSON.stringify(secForm) }); setEditSec(null); load() }
-    catch (err) { setSaveErr(err instanceof Error ? err.message : "Saqlab bo'lmadi") }
+    catch (err) { setSaveErr(err instanceof Error ? err.message : tr("Saqlab bo'lmadi")) }
     finally { setSaving(false) }
   }
   const startEditItem = (item: HomepageItem) => { setEditItem(item.id); setItemForm({ title: item.title || "", description: item.description || "", icon: item.icon || "", link: item.link || "" }); setEditSec(null) }
   const saveItem = async (id: string) => {
     setSaving(true); setSaveErr("")
     try { await api(`/homepage/items/${id}`, { method: "PATCH", body: JSON.stringify(itemForm) }); setEditItem(null); load() }
-    catch (err) { setSaveErr(err instanceof Error ? err.message : "Saqlab bo'lmadi") }
+    catch (err) { setSaveErr(err instanceof Error ? err.message : tr("Saqlab bo'lmadi")) }
     finally { setSaving(false) }
   }
   const inp = "w-full rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green"
@@ -3008,7 +3008,7 @@ function AdminRoles() {
       const d = await api<{ permission_ids: string[] }>(`/role-permissions?role_id=${roleId}`)
       setRolePermIds(new Set(d.permission_ids || []))
     } catch (err) {
-      setPermsError(err instanceof Error ? err.message : "Ruxsatlarni yuklab bo'lmadi")
+      setPermsError(err instanceof Error ? err.message : tr("Ruxsatlarni yuklab bo'lmadi"))
     } finally {
       setPermsLoading(false)
     }
@@ -3040,7 +3040,7 @@ function AdminRoles() {
         method: "PUT",
         body: JSON.stringify({ role_id: expandedRole, permission_ids: Array.from(rolePermIds) }),
       })
-    } catch { setError("Ruxsatlarni saqlashda xatolik") }
+    } catch { setError(tr("Ruxsatlarni saqlashda xatolik")) }
     finally { setSavingPerms(false) }
   }
 
@@ -3073,10 +3073,10 @@ function AdminRoles() {
   }
 
   const roleInfo: Record<string, string> = {
-    super_admin: "To'liq boshqaruv — barcha ruxsatlar, rollar, foydalanuvchilar",
-    admin: "Kundalik boshqaruv — bloggerlar, hamkorlar, yangiliklar, kategoriyalar",
+    super_admin: tr("To'liq boshqaruv — barcha ruxsatlar, rollar, foydalanuvchilar"),
+    admin: tr("Kundalik boshqaruv — bloggerlar, hamkorlar, yangiliklar, kategoriyalar"),
     editor: tr("Faqat kontent — yangiliklar yozish va tahrirlash"),
-    company: "Hamkor kabineti — o'z hamkorlik ma'lumotlarini ko'rish",
+    company: tr("Hamkor kabineti — o'z hamkorlik ma'lumotlarini ko'rish"),
   }
 
   const [mutating, runMutation] = useBusy()
@@ -3113,8 +3113,8 @@ function AdminRoles() {
   }
 
   const resourceLabel: Record<string, string> = {
-    auth: "Auth",
-    profiles: "Profillar",
+    auth: tr("Auth"),
+    profiles: tr("Profillar"),
     bloggers: "Blogerlar",
     partners: "Hamkorlar",
     news: "Yangiliklar",
@@ -3122,21 +3122,21 @@ function AdminRoles() {
     socials: "Ijtimoiy tarmoqlar",
     videos: "Videolar",
     contact: "Aloqa",
-    newsletter: "Newsletter",
-    media: "Media",
-    storage: "Storage",
+    newsletter: tr("Newsletter"),
+    media: tr("Media"),
+    storage: tr("Storage"),
     settings: "Sozlamalar",
-    "feature-flags": "Feature Flaglar",
+    "feature-flags": tr("Feature Flaglar"),
     system: "Tizim",
     ai: "AI",
-    workers: "Workerlar",
-    queue: "Navbat",
+    workers: tr("Workerlar"),
+    queue: tr("Navbat"),
     monitoring: "Monitoring",
-    analytics: "Analitika",
-    social: "Social",
-    cron: "Cron",
-    functions: "Funksiyalar",
-    deployment: "Deployment",
+    analytics: tr("Analitika"),
+    social: tr("Social"),
+    cron: tr("Cron"),
+    functions: tr("Funksiyalar"),
+    deployment: tr("Deployment"),
     notifications: "Bildirishnomalar",
   }
 
@@ -3305,7 +3305,7 @@ function AdminRoles() {
                 <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={savingUser} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {savingUser && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {savingUser ? "Yaratilmoqda…" : "Yaratish"}
+                  {savingUser ? tr("Yaratilmoqda…") : tr("Yaratish")}
                 </button>
               </div>
             </form>
@@ -3318,7 +3318,7 @@ function AdminRoles() {
 
 const EDITOR_SECTIONS = ["Yangiliklar", "Kategoriyalar", "Bosh sahifa", "Manbalar", "Statistika", "Monitoring", "Topshiriqlar", "Bloger holatlari", "SMM / AI", "Marketing"]
 const ADMIN_HIDDEN = ["Rollar", "Foydalanuvchilar"]
-const roleLabels: Record<string, string> = { super_admin: "Super Admin", admin: "Administrator", editor: "Muharrir" }
+const roleLabels: Record<string, string> = { super_admin: tr("Super Admin"), admin: tr("Administrator"), editor: tr("Muharrir") }
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth()

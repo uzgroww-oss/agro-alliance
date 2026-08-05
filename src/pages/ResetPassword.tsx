@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { tr } from "../lib/i18n"
 import { Link } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 
@@ -17,7 +18,7 @@ export default function ResetPassword() {
       if (error) throw error
       setSent(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Parolni tiklashda xatolik")
+      setError(err instanceof Error ? err.message : tr("Parolni tiklashda xatolik"))
     } finally {
       setBusy(false)
     }

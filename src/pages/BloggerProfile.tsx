@@ -205,10 +205,10 @@ function StatsRow({ b }: { b: LiveBlogger }) {
   const items = [
     { icon: I.users, v: fmtNum(b.stats.subscribers), l: "Obunachilar" },
     { icon: I.play, v: fmtNum(b.stats.views), l: "Ko'rishlar" },
-    { icon: I.chart, v: b.stats.engagement > 0 ? `${b.stats.engagement}%` : "—", l: "Engagement" },
-    { icon: I.users, v: String(b.brands.length || 0), l: "Hamkorliklar" },
+    { icon: I.chart, v: b.stats.engagement > 0 ? `${b.stats.engagement}%` : "—", l: tr("Engagement") },
+    { icon: I.users, v: String(b.brands.length || 0), l: tr("Hamkorliklar") },
     { icon: I.star, v: bloggerRating(b), l: "Reyting" },
-    { icon: I.trophy, v: `${b.experienceYears || 0} yil`, l: "Faoliyat tajribasi" },
+    { icon: I.trophy, v: `${b.experienceYears || 0} yil`, l: tr("Faoliyat tajribasi") },
   ]
   return (
     <Reveal>
@@ -330,7 +330,7 @@ function About({ b }: { b: LiveBlogger }) {
 
   // YouTube kanal
   if (youtubeChannel) {
-    socialLinks.push({ platform: "YouTube", url: youtubeChannel, icon: I.youtube })
+    socialLinks.push({ platform: tr("YouTube"), url: youtubeChannel, icon: I.youtube })
   }
 
   // Boshqa ijtimoiy tarmoqlar
@@ -458,13 +458,13 @@ function Reviews({ slug }: { slug: string }) {
 
   const submit = async () => {
     setErr("")
-    if (!form.author_name.trim()) { setErr("Ismingizni kiriting"); return }
+    if (!form.author_name.trim()) { setErr(tr("Ismingizni kiriting")); return }
     setBusy(true)
     try {
       await api("/blogger-reviews", { method: "POST", body: JSON.stringify({ slug, ...form }) })
       setDone(true); setForm({ author_name: "", rating: 5, comment: "" }); load()
       setTimeout(() => setDone(false), 3000)
-    } catch (e) { setErr(e instanceof Error ? e.message : "Xatolik") } finally { setBusy(false) }
+    } catch (e) { setErr(e instanceof Error ? e.message : tr("Xatolik")) } finally { setBusy(false) }
   }
 
   return (
@@ -524,7 +524,7 @@ function Reviews({ slug }: { slug: string }) {
             </div>
             <textarea value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} rows={3} placeholder={tr("Fikringiz (ixtiyoriy)")} className="w-full resize-none rounded-lg border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green" />
             {err && <p className="text-xs text-red-500">{err}</p>}
-            <button onClick={submit} disabled={busy} className="w-full rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">{busy ? "Yuborilmoqda..." : tr("Yuborish")}</button>
+            <button onClick={submit} disabled={busy} className="w-full rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">{busy ? tr("Yuborilmoqda...") : tr("Yuborish")}</button>
           </div>
         )}
       </div>
@@ -539,9 +539,9 @@ function Content({ b }: { b: LiveBlogger }) {
 
   const statsData = [
     { label: "Ko'rishlar", value: b.stats.views, max: 1_000_000 },
-    { label: "Engagement", value: b.stats.engagement, max: 100 },
-    { label: "Obunachilar o'sishi", value: Math.round(b.stats.subscribers * 0.12), max: b.stats.subscribers },
-    { label: "Kontent faolligi", value: b.videos.length * 15, max: 100 },
+    { label: tr("Engagement"), value: b.stats.engagement, max: 100 },
+    { label: tr("Obunachilar o'sishi"), value: Math.round(b.stats.subscribers * 0.12), max: b.stats.subscribers },
+    { label: tr("Kontent faolligi"), value: b.videos.length * 15, max: 100 },
   ]
 
   return (
@@ -701,9 +701,9 @@ function PartnershipEfficiency({ b }: { b: LiveBlogger }) {
   const rawMultiplier = engagement > 0 ? engagement / INDUSTRY_AVG : 0
   const multiplier = rawMultiplier >= 10 ? "10x+" : `${Math.round(rawMultiplier * 10) / 10}x`
   const bars = [
-    { l: `${INDUSTRY_AVG}%`, v: INDUSTRY_AVG, sub: "Soha o'rtachasi", hl: false },
-    { l: `${GOOD_LEVEL}%`, v: GOOD_LEVEL, sub: "Yaxshi bloger", hl: false },
-    { l: `${engagement}%`, v: engagement, sub: "Bu bloger", hl: true },
+    { l: `${INDUSTRY_AVG}%`, v: INDUSTRY_AVG, sub: tr("Soha o'rtachasi"), hl: false },
+    { l: `${GOOD_LEVEL}%`, v: GOOD_LEVEL, sub: tr("Yaxshi bloger"), hl: false },
+    { l: `${engagement}%`, v: engagement, sub: tr("Bu bloger"), hl: true },
   ]
   const maxBar = Math.max(...bars.map((x) => x.v), 1)
   const barPx = (v: number) => Math.max(6, Math.round((v / maxBar) * 128))
@@ -747,7 +747,7 @@ function PartnershipEfficiency({ b }: { b: LiveBlogger }) {
               {subscribers > 0 ? `${fmtNum(reachLow)} – ${fmtNum(reachHigh)}` : "—"}
             </div>
             <div className="text-white/70">{tr("Har bir post uchun")}</div>
-            <div className="mt-3 text-xs text-white/40">{subscribers > 0 ? `${fmtNum(subscribers)} obunachi asosida` : "Ma'lumot yig'ilmoqda"}</div>
+            <div className="mt-3 text-xs text-white/40">{subscribers > 0 ? `${fmtNum(subscribers)} obunachi asosida` : tr("Ma'lumot yig'ilmoqda")}</div>
           </div>
         </div>
       </div>

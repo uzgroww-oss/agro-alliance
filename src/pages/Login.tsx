@@ -24,7 +24,7 @@ function GoogleMark() {
 const features = [
   { icon: I.sprout, t: tr("Ishonchli hamkorlik"), d: tr("Platforma orqali xavfsiz va shaffof hamkorlik qiling.") },
   { icon: I.chart, t: "Keng imkoniyatlar", d: tr("AI vositalari, tahlillar va marketing yechimlaridan foydalaning.") },
-  { icon: I.shield, t: "Natijaga yo'naltirilgan", d: "Maqsadli hamkorlik va samarali natijalarga erishing." },
+  { icon: I.shield, t: tr("Natijaga yo'naltirilgan"), d: tr("Maqsadli hamkorlik va samarali natijalarga erishing.") },
 ]
 
 export default function Login() {

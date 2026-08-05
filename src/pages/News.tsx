@@ -64,7 +64,7 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 /* ---------- Hero ---------- */
 function Hero() {
   const t = useT()
-  const heroSec = useHomeSection("news_hero", { title: "YANGILIKLAR", subtitle: "Qishloq xo'jaligi, agro texnologiyalar va sohadagi so'nggi yangiliklar bilan tanishing." })
+  const heroSec = useHomeSection("news_hero", { title: "YANGILIKLAR", subtitle: tr("Qishloq xo'jaligi, agro texnologiyalar va sohadagi so'nggi yangiliklar bilan tanishing.") })
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">

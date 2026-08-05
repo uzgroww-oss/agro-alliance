@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { tr } from "../lib/i18n"
 
 /**
  * OAUTH ROZILIGIDAN KEYINGI KICHIK SAHIFA.
@@ -54,16 +55,16 @@ export default function OauthYakun() {
         </span>
 
         <h1 className="mt-4 font-display text-xl font-extrabold">
-          {ok ? "Ulandi" : "Ulanmadi"}
+          {ok ? tr("Ulandi") : tr("Ulanmadi")}
         </h1>
         <p className="mt-1 text-sm text-muted">
           {ok
-            ? (kanal ? `YouTube kanali: ${kanal}` : "YouTube kanali ulandi")
+            ? (kanal ? `YouTube kanali: ${kanal}` : tr("YouTube kanali ulandi"))
             : xato}
         </p>
 
         <p className="mt-4 text-xs text-muted">
-          {!ok || yopilmadi ? "Bu oynani yopishingiz mumkin." : "Oyna yopilmoqda..."}
+          {!ok || yopilmadi ? tr("Bu oynani yopishingiz mumkin.") : tr("Oyna yopilmoqda...")}
         </p>
       </div>
     </div>

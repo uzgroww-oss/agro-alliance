@@ -54,7 +54,7 @@ function Hero() {
 
   const main = useMemo(() => {
     const fallback = {
-      tagline: "AGRO KELAJAKNI BIRGA KO'RSATAMIZ", title1: "AGRO", title2: "ALLIANCE",
+      tagline: tr("AGRO KELAJAKNI BIRGA KO'RSATAMIZ"), title1: "AGRO", title2: "ALLIANCE",
       subtitle: tr("Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma."),
     }
     const hm = sections.find((s) => s.section_key === "hero_main")

@@ -178,7 +178,7 @@ function hisobla(list: PartnerVideo[]): Korsatkich {
   }
 }
 
-const OY_NOMI = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"]
+const OY_NOMI = [tr("Yan"), tr("Fev"), tr("Mar"), tr("Apr"), tr("May"), tr("Iyn"), tr("Iyl"), tr("Avg"), tr("Sen"), tr("Okt"), tr("Noy"), tr("Dek")]
 const oyYorlig = (oy: string) => {
   const [y, m] = oy.split("-")
   return { nom: OY_NOMI[Number(m) - 1] || m, yil: y }
@@ -333,9 +333,9 @@ function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: {
   }, [])
 
   const statCards = [
-    { icon: I.wallet, t: "Shartnoma summasi", v: `${fmtSom(partner.amount)}`, sub: "so'm" },
-    { icon: I.task, t: "Jami ishlar", v: String(counts.total), sub: `${counts.done} bajarilgan` },
-    { icon: I.target, t: "Bajarilish", v: `${pct}%`, sub: `${counts.progress} jarayonda` },
+    { icon: I.wallet, t: tr("Shartnoma summasi"), v: `${fmtSom(partner.amount)}`, sub: "so'm" },
+    { icon: I.task, t: tr("Jami ishlar"), v: String(counts.total), sub: `${counts.done} bajarilgan` },
+    { icon: I.target, t: tr("Bajarilish"), v: `${pct}%`, sub: `${counts.progress} jarayonda` },
     // Yuklanayotganda "0" emas, "…" — nol real raqamdek ko'rinib qolmasin.
     { icon: I.media, t: "Videolar", v: vs ? String(vs.total) : "…", sub: vs ? `${vs.bloggers} bloger` : "yuklanmoqda" },
   ]
@@ -417,11 +417,11 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
       {saved && <div className="mt-3 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi!")}</div>}
       {error && <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {field("Kompaniya nomi", "name", "Kompaniya nomi")}
-        {field("Yo'nalish / soha", "sphere", "masalan: O'g'itlar")}
-        {field("Veb-sayt", "website", "https://...")}
+        {field(tr("Kompaniya nomi"), "name", tr("Kompaniya nomi"))}
+        {field(tr("Yo'nalish / soha"), "sphere", tr("masalan: O'g'itlar"))}
+        {field(tr("Veb-sayt"), "website", "https://...")}
         {field("Telefon", "phone", "+998 ...")}
-        {field("Instagram", "instagram", tr("@username yoki link"))}
+        {field(tr("Instagram"), "instagram", tr("@username yoki link"))}
         {field("Telegram", "telegram", tr("@username yoki link"))}
       </div>
       <div className="mt-4">
@@ -450,7 +450,7 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
           </div>
         </div>
         <div className="mt-5 space-y-3 text-sm">
-          {[["Kompaniya", partner.name], ["Yo'nalish", partner.sphere || "—"], ["Shartnoma summasi", fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"]].map(([l, v]) => (
+          {[[tr("Kompaniya"), partner.name], ["Yo'nalish", partner.sphere || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"]].map(([l, v]) => (
             <div key={l} className="flex items-center justify-between border-b border-green/8 pb-3 last:border-0">
               <span className="text-muted">{l}</span><span className="font-semibold">{v}</span>
             </div>
@@ -461,7 +461,7 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
         <h3 className="font-display text-lg font-bold">{tr("Bajarilish darajasi")}</h3>
         <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          {[["Bajarilgan", counts.done, "text-green"], ["Jarayonda", counts.progress, "text-orange-600"], ["Kutilayotgan", counts.pending, "text-slate-500"]].map(([l, v, c]) => (
+          {[["Bajarilgan", counts.done, "text-green"], ["Jarayonda", counts.progress, "text-orange-600"], [tr("Kutilayotgan"), counts.pending, "text-slate-500"]].map(([l, v, c]) => (
             <div key={l as string} className="rounded-xl bg-[#fafdf7] p-4">
               <div className={`font-display text-2xl font-extrabold ${c}`}>{v}</div>
               <div className="mt-1 text-xs text-muted">{l}</div>
@@ -503,7 +503,7 @@ function jalbDarajasi(v: PartnerVideo): string {
 function VideoCard({ v, onOpen }: { v: PartnerVideo; onOpen: () => void }) {
   const olcham = [
     { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
-    { icon: I.star, label: "Yoqtirishlar", value: raqam(v.likes) },
+    { icon: I.star, label: tr("Yoqtirishlar"), value: raqam(v.likes) },
     { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
   ]
   return (
@@ -589,21 +589,21 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
     if (!ytId) return
     api<{ comments: VideoComment[]; sabab: string }>(`/me/partner?action=comments&video=${ytId}`)
       .then((d) => { setComments(d.comments || []); setSabab(d.sabab || "") })
-      .catch(() => { setComments([]); setSabab("Izohlarni yuklab bo'lmadi") })
+      .catch(() => { setComments([]); setSabab(tr("Izohlarni yuklab bo'lmadi")) })
   }, [ytId])
 
   const qatorlar: [string, string][] = [
     ["Bloger", v.blogger.name],
-    ["Kanal", v.channel || "—"],
+    [tr("Kanal"), v.channel || "—"],
     ["Platforma", v.plats.join(", ") || "—"],
-    ["Chiqarilgan sana", v.date || "—"],
-    ["Davomiyligi", v.duration || "—"],
+    [tr("Chiqarilgan sana"), v.date || "—"],
+    [tr("Davomiyligi"), v.duration || "—"],
   ]
   const olcham = [
     { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
-    { icon: I.star, label: "Yoqtirishlar", value: raqam(v.likes) },
+    { icon: I.star, label: tr("Yoqtirishlar"), value: raqam(v.likes) },
     { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
-    { icon: I.target, label: "Jalb qilish", value: jalbDarajasi(v) },
+    { icon: I.target, label: tr("Jalb qilish"), value: jalbDarajasi(v) },
   ]
 
   return (
@@ -937,7 +937,7 @@ function PlatformaDonut({ stats }: { stats: Korsatkich }) {
                   opacity={ustida === null || ustida === b.nom ? 1 : 0.4}
                   onMouseEnter={() => setUstida(b.nom)}
                   onMouseLeave={() => setUstida(null)}
-                  style={{ transition: "opacity .15s" }}
+                  style={{ transition: tr("opacity .15s") }}
                 />
               ))}
             </g>
@@ -1091,10 +1091,10 @@ type TahlilJavob = { tahlil: IzohTahlil | null; izohlar?: number; videolar?: num
  * yolg'iz belgi emas: har bo'lak nomi va soni bilan ko'rsatiladi.
  */
 const OHANG: { kalit: keyof Pick<IzohTahlil, "ijobiy" | "savol" | "neytral" | "salbiy">; nom: string; rang: string }[] = [
-  { kalit: "ijobiy", nom: "Ijobiy", rang: "#1e7a4d" },
-  { kalit: "savol", nom: "Savol", rang: "#2a78d6" },
-  { kalit: "neytral", nom: "Neytral", rang: "#9ca3af" },
-  { kalit: "salbiy", nom: "Salbiy", rang: "#c23b3b" },
+  { kalit: "ijobiy", nom: tr("Ijobiy"), rang: "#1e7a4d" },
+  { kalit: "savol", nom: tr("Savol"), rang: "#2a78d6" },
+  { kalit: "neytral", nom: tr("Neytral"), rang: "#9ca3af" },
+  { kalit: "salbiy", nom: tr("Salbiy"), rang: "#c23b3b" },
 ]
 
 const TAHLIL_KESH = "aa_izoh_tahlil_"
@@ -1128,7 +1128,7 @@ function IzohlarTahlili({ partnerId }: { partnerId: string }) {
       setJavob(d); setVaqt(v)
       try { localStorage.setItem(TAHLIL_KESH + partnerId, JSON.stringify({ javob: d, vaqt: v })) } catch { /* joy yo'q */ }
     } catch (e) {
-      setXato(e instanceof Error ? e.message : "Tahlil qilib bo'lmadi")
+      setXato(e instanceof Error ? e.message : tr("Tahlil qilib bo'lmadi"))
     } finally {
       setBand(false)
     }
@@ -1383,8 +1383,8 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { icon: I.media, t: "Videolar", v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} bloger`, n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
-          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: "barcha platformalar", n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
-          { icon: I.star, t: "Yoqtirishlar", v: son(korsatkich.likes), sub: "like", n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
+          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: tr("barcha platformalar"), n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
+          { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: "like", n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
           { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: "komment", n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
         ].map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
@@ -1495,7 +1495,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
           <div className="text-sm text-muted">{partner.sphere || "Hamkor kompaniya"}{extra.website ? ` • ${extra.website}` : ""}</div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[["Shartnoma raqami", partner.contractNo || "—"], ["Shartnoma summasi", fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"], ["Holat", (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], ["Jami ishlar", String(counts.total)], ["Bajarilish", `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
+          {[["Shartnoma raqami", partner.contractNo || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"], ["Holat", (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], [tr("Jami ishlar"), String(counts.total)], [tr("Bajarilish"), `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{l}</div><div className="mt-0.5 font-display font-bold">{v}</div></div>
           ))}
         </div>
@@ -1514,13 +1514,13 @@ function Settings() {
 
   const changePwd = async () => {
     setMsg(null)
-    if (pwd.length < 6) { setMsg({ ok: false, text: "Parol kamida 6 belgi bo'lishi kerak" }); return }
-    if (pwd !== pwd2) { setMsg({ ok: false, text: "Parollar mos kelmadi" }); return }
+    if (pwd.length < 6) { setMsg({ ok: false, text: tr("Parol kamida 6 belgi bo'lishi kerak") }); return }
+    if (pwd !== pwd2) { setMsg({ ok: false, text: tr("Parollar mos kelmadi") }); return }
     setBusy(true)
     try {
       const { error } = await supabase.auth.updateUser({ password: pwd })
       if (error) throw new Error(error.message)
-      setMsg({ ok: true, text: "Parol muvaffaqiyatli o'zgartirildi" }); setPwd(""); setPwd2("")
+      setMsg({ ok: true, text: tr("Parol muvaffaqiyatli o'zgartirildi") }); setPwd(""); setPwd2("")
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "Xatolik" }) } finally { setBusy(false) }
   }
 

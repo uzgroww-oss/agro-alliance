@@ -58,9 +58,9 @@ type Platform = { key: string; label: string; ready: boolean; publish: boolean; 
 // qo'llab-quvvatlanmaydi" xatosini qaytarardi va bekorga joy egallardi.
 const PLATFORMS: Platform[] = [
   { key: "telegram", label: "Telegram", ready: true, publish: true, color: "#229ED9" },
-  { key: "facebook", label: "Facebook", ready: true, publish: true, color: "#1877F2" },
-  { key: "instagram", label: "Instagram", ready: true, publish: true, color: "#E1306C" },
-  { key: "youtube", label: "YouTube", ready: true, publish: true, color: "#FF0000" },
+  { key: "facebook", label: tr("Facebook"), ready: true, publish: true, color: "#1877F2" },
+  { key: "instagram", label: tr("Instagram"), ready: true, publish: true, color: "#E1306C" },
+  { key: "youtube", label: tr("YouTube"), ready: true, publish: true, color: "#FF0000" },
 ]
 
 const STATUS: Record<string, { label: string; cls: string; dot: string }> = {
@@ -103,9 +103,9 @@ type ChatMsg = { role: "user" | "ai"; content: string; at: string }
 
 /** Bo'sh chatda ko'rinadigan tayyor savollar */
 const QUICK_ASKS: { label: string; run?: "analyze" }[] = [
-  { label: "Tarmoqlarimni tahlil qil", run: "analyze" },
-  { label: "Qaysi vaqtda joylayin?" },
-  { label: "Obunachini qanday ko'paytiraman?" },
+  { label: tr("Tarmoqlarimni tahlil qil"), run: "analyze" },
+  { label: tr("Qaysi vaqtda joylayin?") },
+  { label: tr("Obunachini qanday ko'paytiraman?") },
 ]
 
 const nowTime = () => {
@@ -350,7 +350,7 @@ export default function SmmPanel({ seed }: {
   const savePick = () => {
     if (picked.size === 0) { setPickMsg(tr("Kamida bitta tarmoq tanlang")); return }
     localStorage.setItem("smm_platforms", JSON.stringify(Array.from(picked)))
-    setPickMsg("✅ Tanlov saqlandi")
+    setPickMsg(tr("✅ Tanlov saqlandi"))
   }
 
   const connect = (platform: string) => runConn(async () => {
@@ -378,9 +378,9 @@ export default function SmmPanel({ seed }: {
     setPickMsg("")
     try {
       const r = await api<{ authUrl: string }>("/instagram-oauth-start", { method: "POST" })
-      if (!r.authUrl) { setPickMsg("❌ Ulanish manzili olinmadi"); return }
+      if (!r.authUrl) { setPickMsg(tr("❌ Ulanish manzili olinmadi")); return }
       window.open(r.authUrl, "_blank", "width=600,height=700")
-      setPickMsg("Facebook oynasida roziligini bering, keyin \"Yangilash\" tugmasini bosing")
+      setPickMsg(tr("Facebook oynasida roziligini bering, keyin \"Yangilash\" tugmasini bosing"))
     } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Ulanmadi"}`) }
   })
 
@@ -398,9 +398,9 @@ export default function SmmPanel({ seed }: {
     setPickMsg("")
     try {
       const r = await api<{ authUrl: string }>("/youtube/oauth?action=start", { method: "POST" })
-      if (!r.authUrl) { setPickMsg("❌ Ulanish manzili olinmadi"); return }
+      if (!r.authUrl) { setPickMsg(tr("❌ Ulanish manzili olinmadi")); return }
       window.open(r.authUrl, "_blank", "width=600,height=760")
-      setPickMsg("Google oynasida ruxsat bering — keyin holat o'zi yangilanadi")
+      setPickMsg(tr("Google oynasida ruxsat bering — keyin holat o'zi yangilanadi"))
       setConnOpen(null)
       // Oyna yopilganini bilishning yo'li yo'q (boshqa domen) —
       // shuning uchun bir necha marta qayta so'raymiz
@@ -426,7 +426,7 @@ export default function SmmPanel({ seed }: {
     try {
       await api("/smm/posts?action=disconnect", { method: "POST", body: JSON.stringify({ platform }) })
       setPicked((prev) => { const n = new Set(prev); n.delete(platform); return n })
-      setPickMsg("Uzildi")
+      setPickMsg(tr("Uzildi"))
       load()
     } catch (e) { setPickMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
   })
@@ -434,7 +434,7 @@ export default function SmmPanel({ seed }: {
   /* ---------------- 2-bosqich ---------------- */
   const generate = (t?: string) => runGenerate(async () => {
     const useTopic = (t ?? topic).trim()
-    if (!useTopic) { setAiErr("Mavzu yoki havola kiriting"); return }
+    if (!useTopic) { setAiErr(tr("Mavzu yoki havola kiriting")); return }
     setAiErr("")
     try {
       const d = await api<{ generated: { sarlavha: string; matn: string; hashtaglar: string[] } }>(
@@ -448,7 +448,7 @@ export default function SmmPanel({ seed }: {
         hashtaglar: d.generated.hashtaglar || [],
       })
       setGenImg(""); setDrawErr("")
-    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
+    } catch (e) { setAiErr(e instanceof Error ? e.message : tr("AI javob bermadi")) }
   })
 
   /** Qoralamani tahrirlash kartasiga o'tkazish */
@@ -484,7 +484,7 @@ export default function SmmPanel({ seed }: {
    * (u yerda darhol postning rasmi bo'lishi kerak).
    */
   const drawImage = (text: string, toForm: boolean) => runDraw(async () => {
-    if (!text.trim()) { setDrawErr("Avval matn yozdiring"); return }
+    if (!text.trim()) { setDrawErr(tr("Avval matn yozdiring")); return }
     setDrawErr(""); if (!toForm) setGenImg("")
     try {
       // Tanlangan tarmoqqa qarab nisbat: Instagram tik, qolgani keng
@@ -509,7 +509,7 @@ export default function SmmPanel({ seed }: {
         setGenImg(r.signedUrl)
       }
     } catch (e) {
-      setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
+      setDrawErr(e instanceof Error ? e.message : tr("Rasm yaratilmadi"))
     }
   })
 
@@ -560,7 +560,7 @@ export default function SmmPanel({ seed }: {
       // tashlandi — bepul, ishonchli matndan-video AI amalda yo'q.
       // Video formatli post ham rasm oladi; video kerak bo'lsa
       // foydalanuvchi o'zi yuklaydi va muqova yasaydi.)
-      setSeedMsg("Rasm chizilmoqda…")
+      setSeedMsg(tr("Rasm chizilmoqda…"))
       try {
         const aspect = sd.platform === "instagram" ? "4:5" : "16:9"
         const payload = JSON.stringify({
@@ -575,18 +575,18 @@ export default function SmmPanel({ seed }: {
           const file = dataUrlToFile(`data:image/jpeg;base64,${d.image_b64}`, "ai-rasm.jpg")
           const r = await uploadFile(file)
           setForm((f) => ({ ...f, image_url: r.signedUrl }))
-          setSeedMsg("✅ Matn va rasm tayyor — tekshirib saqlang")
+          setSeedMsg(tr("✅ Matn va rasm tayyor — tekshirib saqlang"))
         } else {
-          setSeedMsg("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
+          setSeedMsg(tr("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang"))
         }
       } catch (e) {
         // Rasm chiqmasa ham matn qoladi — bu to'liq muvaffaqiyatsizlik emas
-        setSeedMsg("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang")
-        setDrawErr(e instanceof Error ? e.message : "Rasm yaratilmadi")
+        setSeedMsg(tr("✅ Matn tayyor. Rasm chiqmadi — qo'lda yuklang"))
+        setDrawErr(e instanceof Error ? e.message : tr("Rasm yaratilmadi"))
       }
     } catch (e) {
       setSeedMsg("")
-      setAiErr(e instanceof Error ? e.message : "Matn yozilmadi")
+      setAiErr(e instanceof Error ? e.message : tr("Matn yozilmadi"))
     } finally {
       setSeedBusy(false)
     }
@@ -611,7 +611,7 @@ export default function SmmPanel({ seed }: {
       setAnalysis(d.analysis)
       setNetworks(d.networks || [])
       scrollChat()
-    } catch (e) { setAiErr(e instanceof Error ? e.message : "AI javob bermadi") }
+    } catch (e) { setAiErr(e instanceof Error ? e.message : tr("AI javob bermadi")) }
   })
 
   /* ---------------- 3-bosqich ---------------- */
@@ -651,7 +651,7 @@ export default function SmmPanel({ seed }: {
   }
 
   const addLink = () => {
-    const url = window.prompt("Havola manzili:", "https://")
+    const url = window.prompt(tr("Havola manzili:"), "https://")
     if (!url || url === "https://") return
     wrap("[", `](${url})`)
   }
@@ -674,7 +674,7 @@ export default function SmmPanel({ seed }: {
     } catch {
       // To'g'irlab bo'lmasa (masalan rasm boshqa domendan va CORS yopiq)
       // hech bo'lmasa nima qilish kerakligini aytamiz.
-      setFitErr("Rasmni moslab bo'lmadi — kvadrat (1:1) rasm yuklang")
+      setFitErr(tr("Rasmni moslab bo'lmadi — kvadrat (1:1) rasm yuklang"))
     } finally {
       setFitting(false)
     }
@@ -708,7 +708,7 @@ export default function SmmPanel({ seed }: {
       setChat([...next, { role: "ai", content: d.answer, at: nowTime() }])
       scrollChat()
     } catch (e) {
-      setAiErr(e instanceof Error ? e.message : "AI javob bermadi")
+      setAiErr(e instanceof Error ? e.message : tr("AI javob bermadi"))
     }
   })
 
@@ -734,7 +734,7 @@ export default function SmmPanel({ seed }: {
       setTranscript({ url: videoUrl, text, error: text ? undefined : (r.error || "Ovoz o'qilmadi") })
       return text
     } catch (e) {
-      setTranscript({ url: videoUrl, text: "", error: e instanceof Error ? e.message : "Ovoz o'qilmadi" })
+      setTranscript({ url: videoUrl, text: "", error: e instanceof Error ? e.message : tr("Ovoz o'qilmadi") })
       return ""
     }
   }
@@ -771,7 +771,7 @@ export default function SmmPanel({ seed }: {
       setAiMade(true)
     } catch (e) {
       setSeenDesc(""); setSeenTopic("")
-      setAiErr(e instanceof Error ? e.message : "AI faylni o'qiy olmadi")
+      setAiErr(e instanceof Error ? e.message : tr("AI faylni o'qiy olmadi"))
     }
   })
   const describe = () => describeUrl(form.image_url)
@@ -817,7 +817,7 @@ export default function SmmPanel({ seed }: {
       aiCount = imgs.length
       if (!aiCount) aiErr = c.error || "AI muqova chizmadi"
     } catch (e) {
-      aiErr = e instanceof Error ? e.message : "AI muqova chizmadi"
+      aiErr = e instanceof Error ? e.message : tr("AI muqova chizmadi")
     }
 
     // Videodan KADR OLINMAYDI — muqova faqat AI chizgan rasmdan.
@@ -839,7 +839,7 @@ export default function SmmPanel({ seed }: {
    * Promt bir marta yoziladi va qolgan o'lchamlarga qayta ishlatiladi.
    */
   const makeAllThumbs = async () => {
-    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
+    if (!form.image_url) { setThumbErr(tr("Avval video yuklang")); return }
     setThumbErr(""); setBusySize("all")
     coverPlan.current = null
     try {
@@ -869,7 +869,7 @@ export default function SmmPanel({ seed }: {
 
       if (errs.length) setThumbErr(errs.join(" | "))
     } catch (e) {
-      setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
+      setThumbErr(e instanceof Error ? e.message : tr("Muqova yasab bo'lmadi"))
     } finally {
       setBusySize("")
     }
@@ -877,7 +877,7 @@ export default function SmmPanel({ seed }: {
 
   /** FAQAT bitta o'lchamni qaytadan yasash — qolganlari saqlanadi */
   const remakeSize = async (size: ThumbSize) => {
-    if (!form.image_url) { setThumbErr("Avval video yuklang"); return }
+    if (!form.image_url) { setThumbErr(tr("Avval video yuklang")); return }
     setThumbErr(""); setBusySize(size.key)
     try {
       const { frame, spoken } = await coverInputs()
@@ -885,7 +885,7 @@ export default function SmmPanel({ seed }: {
       if (r.plan) coverPlan.current = r.plan
       if (r.err) setThumbErr(r.err)
     } catch (e) {
-      setThumbErr(e instanceof Error ? e.message : "Muqova yasab bo'lmadi")
+      setThumbErr(e instanceof Error ? e.message : tr("Muqova yasab bo'lmadi"))
     } finally {
       setBusySize("")
     }
@@ -913,7 +913,7 @@ export default function SmmPanel({ seed }: {
       setThumbsBySize((m) => ({ ...m, [size.key]: [] }))
       setMsg(`✅ ${size.label} muqovasi saqlandi`)
     } catch (e) {
-      setThumbErr(e instanceof Error ? e.message : "Muqovani yuklab bo'lmadi")
+      setThumbErr(e instanceof Error ? e.message : tr("Muqovani yuklab bo'lmadi"))
     }
   })
 
@@ -931,8 +931,8 @@ export default function SmmPanel({ seed }: {
 
   const save = () => runSave(async () => {
     setMsg("")
-    if (!form.content.trim()) { setMsg("❌ Post matni bo'sh"); return }
-    if (picked.size === 0) { setMsg("❌ Kamida bitta tarmoq tanlang"); return }
+    if (!form.content.trim()) { setMsg(tr("❌ Post matni bo'sh")); return }
+    if (picked.size === 0) { setMsg(tr("❌ Kamida bitta tarmoq tanlang")); return }
     try {
       // Muqova (thumb_url) backendда cover_url deb saqlanadi
       if (editingId) {
@@ -940,14 +940,14 @@ export default function SmmPanel({ seed }: {
           method: "PATCH",
           body: JSON.stringify({ ...form, cover_url: form.thumb_url || null, platforms: Array.from(picked) }),
         })
-        setMsg("✅ Yangilandi")
+        setMsg(tr("✅ Yangilandi"))
       } else {
         const r = await api<{ id: string }>("/smm/posts", {
           method: "POST",
           body: JSON.stringify({ ...form, cover_url: form.thumb_url || null, platforms: Array.from(picked), ai_generated: aiMade }),
         })
         setEditingId(r.id)
-        setMsg("✅ Saqlandi — endi joylashingiz mumkin")
+        setMsg(tr("✅ Saqlandi — endi joylashingiz mumkin"))
       }
       load()
     } catch (e) {
@@ -956,7 +956,7 @@ export default function SmmPanel({ seed }: {
       // Ro'yxatni yangilaymiz — post saqlangan bo'lsa ko'rinadi va
       // foydalanuvchi uni ikkinchi marta saqlamaydi.
       if (/vaqti tugadi/i.test(why)) {
-        setMsg("⚠️ Javob kechikdi — pastdagi ro'yxatni tekshiring")
+        setMsg(tr("⚠️ Javob kechikdi — pastdagi ro'yxatni tekshiring"))
         load()
       } else {
         setMsg(`❌ ${why}`)
@@ -989,7 +989,7 @@ export default function SmmPanel({ seed }: {
    *   ishlatiladi (undefined qoladi).
    */
   const publish = (id: string | null, overridePlatforms?: string[]) => runAct(async () => {
-    if (!id) { setMsg("❌ Avval postni saqlang"); return }
+    if (!id) { setMsg(tr("❌ Avval postni saqlang")); return }
     try {
       const r = await api<{ success: boolean; results: { platform: string; success: boolean; error?: string }[] }>(
         `/smm/posts/${id}?action=publish`,
@@ -1021,8 +1021,8 @@ export default function SmmPanel({ seed }: {
     const scope = wasPublished ? "?scope=all" : ""
     if (!window.confirm(
       wasPublished
-        ? "Post o'chirilsinmi?\n\nRo'yxatdan va tarmoqlardan (Telegram, Facebook) o'chadi.\nInstagram o'chirishni qo'llamaydi — undan qo'lda o'chirasiz."
-        : "Post o'chirilsinmi?",
+        ? tr("Post o'chirilsinmi?\n\nRo'yxatdan va tarmoqlardan (Telegram, Facebook) o'chadi.\nInstagram o'chirishni qo'llamaydi — undan qo'lda o'chirasiz.")
+        : tr("Post o'chirilsinmi?"),
     )) return
 
     try {
@@ -1038,9 +1038,9 @@ export default function SmmPanel({ seed }: {
          */
         setMsg(`✅ O'chirildi · ${bad.map((b) => b.platform).join(", ")}dan qo'lda o'chiring`)
       } else if (scope) {
-        setMsg("✅ Ro'yxatdan va tarmoqlardan o'chirildi")
+        setMsg(tr("✅ Ro'yxatdan va tarmoqlardan o'chirildi"))
       } else {
-        setMsg("✅ O'chirildi")
+        setMsg(tr("✅ O'chirildi"))
       }
     } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
     if (editingId === p.id) clearForm()
@@ -1136,7 +1136,7 @@ export default function SmmPanel({ seed }: {
                     <span className="mt-1 block h-[18px] w-20 animate-pulse rounded-md bg-gray-100" />
                   ) : (
                     <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${on ? "bg-green/10 text-green" : "bg-gray-100 text-gray-500"}`}>
-                      {on ? "Ulangan" : "Ulanmagan"}
+                      {on ? tr("Ulangan") : tr("Ulanmagan")}
                     </span>
                   )}
                   {connLoading ? (
@@ -1195,7 +1195,7 @@ export default function SmmPanel({ seed }: {
             <div className="mt-2 flex flex-wrap gap-2">
               <input value={connForm.chat_id} onChange={(e) => setConnForm((f) => ({ ...f, chat_id: e.target.value }))} placeholder={tr("@kanal_nomi yoki -1001234567890")} className="min-w-[220px] flex-1 rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
               <button onClick={() => connect("telegram")} disabled={connBusy} className="rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
-                {connBusy ? "Tekshirilmoqda…" : "Ulash"}
+                {connBusy ? tr("Tekshirilmoqda…") : tr("Ulash")}
               </button>
             </div>
           </div>
@@ -1209,7 +1209,7 @@ export default function SmmPanel({ seed }: {
               <input value={connForm.page_token} onChange={(e) => setConnForm((f) => ({ ...f, page_token: e.target.value }))} placeholder={tr("Page Access Token")} type="password" className="rounded-lg border border-green/20 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
             </div>
             <button onClick={() => connect("facebook")} disabled={connBusy} className="mt-2 rounded-lg bg-green px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
-              {connBusy ? "Tekshirilmoqda…" : "Ulash"}
+              {connBusy ? tr("Tekshirilmoqda…") : tr("Ulash")}
             </button>
           </div>
         )}
@@ -1219,7 +1219,7 @@ export default function SmmPanel({ seed }: {
         {connOpen === "youtube" && !conns.youtube?.connected && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
             <p className="text-xs text-muted">
-              YouTube <strong>{tr("Google hisobi orqali")}</strong> ulanadi. Bitta rozilik
+              {tr("YouTube")} <strong>{tr("Google hisobi orqali")}</strong> ulanadi. Bitta rozilik
               hammasini qamraydi: kanal statistikasi AI tahliliga qo'shiladi va pastdagi
               studiyadan video yuklash, tahrirlash, muqova qo'yish va o'chirish ochiladi.
               Bu yerdan matn post joylanmaydi — YouTube'ga video fayl yuklanadi.
@@ -1227,7 +1227,7 @@ export default function SmmPanel({ seed }: {
             <button onClick={ytConnect} disabled={connBusy}
               className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
               <Brand k="youtube" className="h-4 w-4" color="#fff" />
-              {connBusy ? "Ochilmoqda…" : tr("Google bilan ulash")}
+              {connBusy ? tr("Ochilmoqda…") : tr("Google bilan ulash")}
             </button>
           </div>
         )}
@@ -1262,7 +1262,7 @@ export default function SmmPanel({ seed }: {
                 className="w-full rounded-xl border border-green/15 bg-white py-2.5 pl-9 pr-4 text-sm outline-none focus:border-green" />
             </span>
             <button onClick={() => generate()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-              <Icon d={I.bolt} className="h-4 w-4" /> {generating ? "Yozilmoqda…" : "AI yozsin"}
+              <Icon d={I.bolt} className="h-4 w-4" /> {generating ? tr("Yozilmoqda…") : tr("AI yozsin")}
             </button>
           </div>
 
@@ -1299,7 +1299,7 @@ export default function SmmPanel({ seed }: {
                 <button type="button" onClick={() => drawImage([draft.sarlavha, draft.matn].filter(Boolean).join(". "), false)} disabled={drawing}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
                   <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
-                  {drawing ? "Rasm chizilmoqda…" : "Shu matnga rasm chizdir"}
+                  {drawing ? tr("Rasm chizilmoqda…") : tr("Shu matnga rasm chizdir")}
                 </button>
               )}
 
@@ -1483,7 +1483,7 @@ export default function SmmPanel({ seed }: {
                     <button type="button" onClick={describe} disabled={describing || fitting}
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
                       <Icon d={I.refresh} className="h-3.5 w-3.5" />
-                      {isVideo ? "AI videoni ko'rib matn yozsin" : "Qaytadan yozdirish"}
+                      {isVideo ? tr("AI videoni ko'rib matn yozsin") : "Qaytadan yozdirish"}
                     </button>
 
                     {/* Boshqa AI rasm — joriy rasm yoqmasa, har bosishда
@@ -1495,7 +1495,7 @@ export default function SmmPanel({ seed }: {
                           title={form.content.trim() ? "" : "Avval post matnini yozing"}
                           className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
                           <Icon d={drawing ? I.refresh : I.media} className={`h-3.5 w-3.5 ${drawing ? "animate-spin" : ""}`} />
-                          {drawing ? "Chizilmoqda…" : "Boshqa rasm chizsin"}
+                          {drawing ? tr("Chizilmoqda…") : tr("Boshqa rasm chizsin")}
                         </button>
                         {/* Qaysi model chizgani — provayder almashganini
                             tekshirish uchun */}
@@ -1520,7 +1520,7 @@ export default function SmmPanel({ seed }: {
                         <button type="button" onClick={makeAllThumbs} disabled={Boolean(busySize) || makingThumb}
                           className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
                           <Icon d={busySize === "all" ? I.refresh : I.media} className={`h-3.5 w-3.5 ${busySize === "all" ? "animate-spin" : ""}`} />
-                          {busySize === "all" ? "Hamma o'lcham yasalmoqda…" : "Hamma o'lchamga muqova tayyorlash"}
+                          {busySize === "all" ? tr("Hamma o'lcham yasalmoqda…") : tr("Hamma o'lchamga muqova tayyorlash")}
                         </button>
 
                         {thumbErr && (
@@ -1552,7 +1552,7 @@ export default function SmmPanel({ seed }: {
                                     onClick={() => setZoomImg(chosen)}
                                     className="w-full cursor-zoom-in rounded-lg border-2 border-green object-contain transition-opacity hover:opacity-90" />
                                   <p className="mt-1 text-[10px] font-semibold text-green">
-                                    ✅ Saqlandi{form.thumb_url === chosen ? " — post shu muqova bilan chiqadi" : ""}
+                                    ✅ Saqlandi{form.thumb_url === chosen ? tr(" — post shu muqova bilan chiqadi") : ""}
                                   </p>
                                 </div>
                               )}
@@ -1622,7 +1622,7 @@ export default function SmmPanel({ seed }: {
                       title={form.content.trim() ? "" : "Avval post matnini yozing"}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
                       <Icon d={drawing ? I.refresh : I.media} className={`h-4 w-4 ${drawing ? "animate-spin" : ""}`} />
-                      {drawing ? "Rasm chizilmoqda…" : "Shu matnga AI rasm chizsin"}
+                      {drawing ? tr("Rasm chizilmoqda…") : "Shu matnga AI rasm chizsin"}
                     </button>
 
                     {drawErr && (
@@ -1850,7 +1850,7 @@ export default function SmmPanel({ seed }: {
             <button onClick={analyze} disabled={analyzing}
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green disabled:opacity-50">
               <Icon d={I.brain} className="h-3.5 w-3.5" />
-              {analyzing ? "Tahlil qilinmoqda…" : analysis ? "Qayta tahlil qilish" : "Tarmoqlarni tahlil qilish"}
+              {analyzing ? "Tahlil qilinmoqda…" : analysis ? tr("Qayta tahlil qilish") : tr("Tarmoqlarni tahlil qilish")}
             </button>
           </div>
           </div>
@@ -1879,7 +1879,7 @@ export default function SmmPanel({ seed }: {
           </div>
           <button onClick={() => publish(editingId, Array.from(picked))} disabled={acting || !editingId}
             className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100">
-            <Icon d={I.send} className="h-4 w-4" /> {acting ? "Joylanmoqda…" : "Tanlanganlarga joylash"}
+            <Icon d={I.send} className="h-4 w-4" /> {acting ? tr("Joylanmoqda…") : tr("Tanlanganlarga joylash")}
           </button>
         </div>
       </div>
@@ -1894,7 +1894,7 @@ export default function SmmPanel({ seed }: {
             <button onClick={sync} disabled={syncing || loading}
               className="inline-flex items-center gap-2 rounded-xl border border-green/20 px-3 py-2 text-sm font-bold text-muted transition-colors hover:border-green/40 hover:text-green disabled:opacity-50">
               <Icon d={I.refresh} className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Tekshirilmoqda…" : "Holatni tekshirish"}
+              {syncing ? tr("Tekshirilmoqda…") : tr("Holatni tekshirish")}
             </button>
             <span className="relative">
               <Icon d={I.search} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -1919,7 +1919,7 @@ export default function SmmPanel({ seed }: {
           <div className="mt-4"><ErrorState onRetry={load} message="Postlarni yuklab bo'lmadi." /></div>
         ) : filtered.length === 0 ? (
           <p className="mt-4 rounded-xl border border-green/10 py-10 text-center text-sm text-muted">
-            {posts.length === 0 ? "Hali post yo'q." : tr("Mos post topilmadi.")}
+            {posts.length === 0 ? tr("Hali post yo'q.") : tr("Mos post topilmadi.")}
           </p>
         ) : (
           <>
@@ -1989,7 +1989,7 @@ export default function SmmPanel({ seed }: {
             {filtered.length > 5 && (
               <div className="mt-4 text-center">
                 <button onClick={() => setShowAll((v) => !v)} className="inline-flex items-center gap-2 rounded-xl border border-green/15 px-5 py-2 text-sm font-bold text-muted transition-colors hover:border-green/40 hover:text-green">
-                  {showAll ? "Kamroq ko'rsatish" : `Barchasini ko'rish (${filtered.length})`}
+                  {showAll ? tr("Kamroq ko'rsatish") : `Barchasini ko'rish (${filtered.length})`}
                   <Icon d={I.chevDown} className={`h-4 w-4 transition-transform ${showAll ? "rotate-180" : ""}`} />
                 </button>
               </div>

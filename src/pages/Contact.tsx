@@ -13,14 +13,14 @@ type Office = { name: string; main: boolean; addr: string; phone: string; email:
 type Faq = { q: string; a: string }
 
 const features = [
-  { icon: I.headset, t: "Tezkor javob", d: "24 soat ichida javob berishga harakat qilamiz" },
-  { icon: I.users, t: "Professional jamoa", d: "Sizga tajribali mutaxassislar ko'maklashadi" },
-  { icon: I.shield, t: "Ishonchlilik", d: "Ma'lumotlaringiz maxfiy saqlanadi" },
+  { icon: I.headset, t: tr("Tezkor javob"), d: tr("24 soat ichida javob berishga harakat qilamiz") },
+  { icon: I.users, t: tr("Professional jamoa"), d: tr("Sizga tajribali mutaxassislar ko'maklashadi") },
+  { icon: I.shield, t: tr("Ishonchlilik"), d: tr("Ma'lumotlaringiz maxfiy saqlanadi") },
   { icon: I.handshake, t: tr("Hamkorlik"), d: tr("Uzoq muddatli va samarali hamkorlikni qadrlaymiz") },
 ]
 
 
-const topics = [tr("Tanlang"), tr("Hamkorlik"), "Texnik yordam", "Umumiy savol", tr("Reklama va marketing")]
+const topics = [tr("Tanlang"), tr("Hamkorlik"), tr("Texnik yordam"), tr("Umumiy savol"), tr("Reklama va marketing")]
 
 function Hero() {
   const t = useT()
@@ -28,7 +28,7 @@ function Hero() {
   // Sozlamalarni o'qigani uchun footerni tahrirlaganda shu yer o'zgarmasdi.
   const contact = useContactInfo()
   const sLoading = contact.loading
-  const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: "Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!" })
+  const h = useHomeSection("contact_hero", { title: "Biz bilan bog'laning!", subtitle: tr("Savollaringiz, takliflaringiz yoki hamkorlik bo'yicha murojaatlaringiz uchun biz doimo ochiqmiz. Siz bilan hamkorlik qilishdan mamnunmiz!") })
   const hParts = h.title.split(" ")
 
   // Qattiq yozilgan "namuna" qiymat yo'q — bo'sh bo'lsa qator chizilmaydi.
@@ -131,7 +131,7 @@ function ContactForm() {
       })
       setSent(true)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Yuborishda xatolik")
+      setError(err instanceof Error ? err.message : tr("Yuborishda xatolik"))
     } finally {
       setBusy(false)
     }
@@ -158,7 +158,7 @@ function ContactForm() {
             <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("E-mail manzilingiz")} className={inputCls} />
           </div>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-muted">Mavzu</span>
+            <span className="mb-1.5 block text-xs font-medium text-muted">{tr("Mavzu")}</span>
             <div className="relative">
               <select value={form.topic} onChange={(e) => set("topic", e.target.value)} className={`${inputCls} appearance-none pr-9`}>
                 {topics.map((t) => <option key={t}>{t}</option>)}
@@ -168,7 +168,7 @@ function ContactForm() {
           </label>
           <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder={t("Xabaringiz")} rows={5} className={`${inputCls} resize-none`} />
           <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">
-            {busy ? "YUBORILMOQDA…" : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
+            {busy ? tr("YUBORILMOQDA…") : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
           </button>
         </form>
       )}
