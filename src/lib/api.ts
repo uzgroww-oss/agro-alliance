@@ -235,17 +235,8 @@ function resolveAdminUrl(path: string, method: string): string {
       }
     }
 
-    // Availability (single resource)
-    if (resource === "availability") {
-      const fn = method === "PUT" || method === "PATCH" ? "me-availability-update" : "me-availability-get"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-    }
-
     // Partner
     if (resource === "partner") return `${SUPABASE_FUNCTIONS_URL}/me-partner${qsRaw ? `?${qsRaw}` : ""}`
-
-    // Analytics
-    if (resource === "analytics") return `${SUPABASE_FUNCTIONS_URL}/me-analytics${qsRaw ? `?${qsRaw}` : ""}`
 
     // Notifications
     if (resource === "notifications") return `${SUPABASE_FUNCTIONS_URL}/me-notifications-list${qsRaw ? `?${qsRaw}` : ""}`
@@ -260,57 +251,34 @@ function resolveAdminUrl(path: string, method: string): string {
       }
     }
 
-    // Settings
-    if (resource === "settings") {
-      const fn = method === "PUT" || method === "PATCH" ? "me-settings-update" : "me-settings-get"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-    }
 
     // Fallback
     return `${SUPABASE_FUNCTIONS_URL}/auth-me${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  /**
+   * MIJOZ (hamkor kompaniya) yo'nalishlari.
+   *
+   * Bu yerda ilgari yetti xil yo'nalish bor edi: statistics,
+   * notifications, settings, tasks-update, tasks-delete... Ularning
+   * BIRORTASI ham serverda mavjud emas — funksiyalar hech qachon
+   * yozilmagan. Chaqirilsa 404 qaytarardi, lekin chaqirmasdi ham:
+   * mijoz kodida bu yo'llarga murojaat yo'q edi.
+   *
+   * Yolg'on yo'nalish kodni o'qiyotgan odamni chalg'itadi — "demak
+   * bunday imkoniyat bor" deb o'ylatadi. Shuning uchun faqat
+   * HAQIQATAN mavjudlari qoldirildi.
+   */
   if (segments[0] === "client") {
-    if (segments.length === 1) return `${SUPABASE_FUNCTIONS_URL}/client-statistics${qsRaw ? `?${qsRaw}` : ""}`
-
     const resource = segments[1]
 
-    // Tasks (POST creates via client-tasks-add; GET falls through to statistics)
-    if (resource === "tasks") {
-      if (segments.length === 2 && method === "POST") {
-        return `${SUPABASE_FUNCTIONS_URL}/client-tasks-add${qsRaw ? `?${qsRaw}` : ""}`
-      }
-      if (segments.length === 3) {
-        const qs = new URLSearchParams(qsRaw)
-        qs.set("id", segments[2])
-        const fn = method === "DELETE" ? "client-tasks-delete" : "client-tasks-update"
-        return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
-      }
+    if (resource === "tasks" && segments.length === 2 && method === "POST") {
+      return `${SUPABASE_FUNCTIONS_URL}/client-tasks-add${qsRaw ? `?${qsRaw}` : ""}`
     }
-
-    // Partner profile update
     if (resource === "partner") {
       return `${SUPABASE_FUNCTIONS_URL}/client-partner-update${qsRaw ? `?${qsRaw}` : ""}`
     }
-
-    // Statistics
-    if (resource === "statistics") {
-      return `${SUPABASE_FUNCTIONS_URL}/client-statistics${qsRaw ? `?${qsRaw}` : ""}`
-    }
-
-    // Notifications
-    if (resource === "notifications") {
-      return `${SUPABASE_FUNCTIONS_URL}/client-notifications-list${qsRaw ? `?${qsRaw}` : ""}`
-    }
-
-    // Settings
-    if (resource === "settings") {
-      const fn = method === "PUT" || method === "PATCH" ? "client-settings-update" : "client-settings-get"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
-    }
-
-    // Fallback
-    return `${SUPABASE_FUNCTIONS_URL}/client-statistics${qsRaw ? `?${qsRaw}` : ""}`
+    throw new ApiError(`Noma'lum yo'nalish: /client/${segments.slice(1).join("/")}`, 404)
   }
 
   /**
