@@ -185,9 +185,9 @@ const oyYorlig = (oy: string) => {
 }
 
 const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
-  active: { label: "Faol", cls: "bg-green/10 text-green" },
-  pending: { label: "Kutilmoqda", cls: "bg-orange-100 text-orange-600" },
-  completed: { label: "Yakunlangan", cls: "bg-blue-100 text-blue-600" },
+  active: { label: tr("Faol"), cls: "bg-green/10 text-green" },
+  pending: { label: tr("Kutilmoqda"), cls: "bg-orange-100 text-orange-600" },
+  completed: { label: tr("Yakunlangan"), cls: "bg-blue-100 text-blue-600" },
 }
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
 
@@ -256,7 +256,7 @@ export default function PartnerDashboard() {
       active={active}
       onNav={setActive}
       onLogout={doLogout}
-      user={{ name: user?.name || "Hamkor", role: "Hamkor kompaniya", initials }}
+      user={{ name: user?.name || tr("Hamkor"), role: tr("Hamkor kompaniya"), initials }}
     >
       {loading && (
         <div className="space-y-6">
@@ -300,7 +300,7 @@ export default function PartnerDashboard() {
                   <h1 className="font-display text-2xl font-extrabold tracking-tight">{partner.name}</h1>
                   {ps && <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${ps.cls}`}>{ps.label}</span>}
                 </div>
-                <p className="mt-0.5 text-sm text-muted">{partner.sphere || "Hamkor kompaniya"} • Hamkorlik kabineti</p>
+                <p className="mt-0.5 text-sm text-muted">{partner.sphere || tr("Hamkor kompaniya")} • {tr("Hamkorlik kabineti")}</p>
               </div>
             </div>
           </div>
@@ -310,7 +310,7 @@ export default function PartnerDashboard() {
             extraLoading
               ? <Skeleton className="h-96 w-full rounded-2xl" />
               : extraFailed
-                ? <ErrorState onRetry={reload} message="Kompaniya profilini yuklab bo'lmadi. Saqlash ma'lumotni o'chirib yuborishi mumkin — avval qayta yuklang." />
+                ? <ErrorState onRetry={reload} message={tr("Kompaniya profilini yuklab bo'lmadi. Saqlash ma'lumotni o'chirib yuborishi mumkin — avval qayta yuklang.")} />
                 : <CompanyProfile partner={partner} extra={extra} onSaved={reload} />
           )}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
@@ -334,10 +334,10 @@ function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: {
 
   const statCards = [
     { icon: I.wallet, t: tr("Shartnoma summasi"), v: `${fmtSom(partner.amount)}`, sub: tr("so'm") },
-    { icon: I.task, t: tr("Jami ishlar"), v: String(counts.total), sub: `${counts.done} bajarilgan` },
-    { icon: I.target, t: tr("Bajarilish"), v: `${pct}%`, sub: `${counts.progress} jarayonda` },
+    { icon: I.task, t: tr("Jami ishlar"), v: String(counts.total), sub: `${counts.done} ${tr("bajarilgan")}` },
+    { icon: I.target, t: tr("Bajarilish"), v: `${pct}%`, sub: `${counts.progress} ${tr("jarayonda")}` },
     // Yuklanayotganda "0" emas, "…" — nol real raqamdek ko'rinib qolmasin.
-    { icon: I.media, t: "Videolar", v: vs ? String(vs.total) : "…", sub: vs ? `${vs.bloggers} bloger` : "yuklanmoqda" },
+    { icon: I.media, t: tr("Videolar"), v: vs ? String(vs.total) : "…", sub: vs ? `${vs.bloggers} ${tr("bloger")}` : tr("yuklanmoqda") },
   ]
   return (
     <>
@@ -356,7 +356,7 @@ function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: {
         <h3 className="font-display text-lg font-bold">{tr("Shartnoma qisqacha")}</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Shartnoma raqami")}</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Summa")}</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} so'm</div></div>
+          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Summa")}</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} {tr("so'm")}</div></div>
           <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Imzolangan")}</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
           <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Yo'nalish")}</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
         </div>
@@ -411,7 +411,7 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg font-bold">{tr("Kompaniya ma'lumotlari")}</h3>
         <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.check} className="h-4 w-4" />} Saqlash
+          {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.check} className="h-4 w-4" />} {tr("Saqlash")}
         </button>
       </div>
       {saved && <div className="mt-3 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi!")}</div>}
@@ -420,7 +420,7 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
         {field(tr("Kompaniya nomi"), "name", tr("Kompaniya nomi"))}
         {field(tr("Yo'nalish / soha"), "sphere", tr("masalan: O'g'itlar"))}
         {field(tr("Veb-sayt"), "website", "https://...")}
-        {field("Telefon", "phone", "+998 ...")}
+        {field(tr("Telefon"), "phone", "+998 ...")}
         {field(tr("Instagram"), "instagram", tr("@username yoki link"))}
         {field("Telegram", "telegram", tr("@username yoki link"))}
       </div>
@@ -445,12 +445,12 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-xl bg-soft text-green"><Icon d={I.doc} className="h-6 w-6" /></span>
           <div>
-            <h3 className="font-display text-lg font-bold">Shartnoma № {partner.contractNo || "—"}</h3>
+            <h3 className="font-display text-lg font-bold">{tr("Shartnoma №")} {partner.contractNo || "—"}</h3>
             <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${ps.cls}`}>{ps.label}</span>
           </div>
         </div>
         <div className="mt-5 space-y-3 text-sm">
-          {[[tr("Kompaniya"), partner.name], ["Yo'nalish", partner.sphere || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"]].map(([l, v]) => (
+          {[[tr("Kompaniya"), partner.name], [tr("Yo'nalish"), partner.sphere || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " " + tr("so'm")], [tr("Imzolangan sana"), partner.signedDate || "—"]].map(([l, v]) => (
             <div key={l} className="flex items-center justify-between border-b border-green/8 pb-3 last:border-0">
               <span className="text-muted">{l}</span><span className="font-semibold">{v}</span>
             </div>
@@ -461,7 +461,7 @@ function Contract({ partner, counts }: { partner: Partner; counts: { total: numb
         <h3 className="font-display text-lg font-bold">{tr("Bajarilish darajasi")}</h3>
         <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          {[["Bajarilgan", counts.done, "text-green"], ["Jarayonda", counts.progress, "text-orange-600"], [tr("Kutilayotgan"), counts.pending, "text-slate-500"]].map(([l, v, c]) => (
+          {[[tr("Bajarilgan"), counts.done, "text-green"], [tr("Jarayonda"), counts.progress, "text-orange-600"], [tr("Kutilayotgan"), counts.pending, "text-slate-500"]].map(([l, v, c]) => (
             <div key={l as string} className="rounded-xl bg-[#fafdf7] p-4">
               <div className={`font-display text-2xl font-extrabold ${c}`}>{v}</div>
               <div className="mt-1 text-xs text-muted">{l}</div>
@@ -1382,10 +1382,10 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: "Videolar", v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} bloger`, n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
+          { icon: I.media, t: tr("Videolar"), v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} ${tr("bloger")}`, n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
           { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: tr("barcha platformalar"), n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
-          { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: "like", n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
-          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: "komment", n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
+          { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: tr("like"), n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
+          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: tr("komment"), n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
         ].map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
@@ -1486,7 +1486,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
           <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.")}</p>
         </div>
         <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.doc} className="h-4 w-4" /> Chop etish / PDF
+          <Icon d={I.doc} className="h-4 w-4" /> {tr("Chop etish / PDF")}
         </button>
       </div>
       <div className={`mt-5 ${card}`}>
@@ -1495,7 +1495,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
           <div className="text-sm text-muted">{partner.sphere || "Hamkor kompaniya"}{extra.website ? ` • ${extra.website}` : ""}</div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[["Shartnoma raqami", partner.contractNo || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " so'm"], ["Imzolangan sana", partner.signedDate || "—"], ["Holat", (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], [tr("Jami ishlar"), String(counts.total)], [tr("Bajarilish"), `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
+          {[[tr("Shartnoma raqami"), partner.contractNo || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " " + tr("so'm")], [tr("Imzolangan sana"), partner.signedDate || "—"], [tr("Holat"), (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], [tr("Jami ishlar"), String(counts.total)], [tr("Bajarilish"), `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{l}</div><div className="mt-0.5 font-display font-bold">{v}</div></div>
           ))}
         </div>
@@ -1539,7 +1539,7 @@ function Settings() {
         </div>
         {msg && <div className={`rounded-xl px-4 py-3 text-sm font-medium ${msg.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
         <button onClick={changePwd} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.lock} className="h-4 w-4" />} O'zgartirish
+          {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.lock} className="h-4 w-4" />} {tr("O'zgartirish")}
         </button>
       </div>
     </div>
