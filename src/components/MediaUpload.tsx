@@ -156,7 +156,7 @@ export default function MediaUpload({
         ) : uploading ? (
           <><Icon d={I.refresh} className="h-4 w-4 animate-spin" /> Yuklanmoqda…</>
         ) : (
-          <><Icon d={I.upload} className="h-4 w-4" /> {multiple ? "Fayllarni yuklash" : "Fayl yuklash"}</>
+          <><Icon d={I.upload} className="h-4 w-4" /> {multiple ? tr("Fayllarni yuklash") : "Fayl yuklash"}</>
         )}
       </button>
 

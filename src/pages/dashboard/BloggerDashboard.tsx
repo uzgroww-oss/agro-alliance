@@ -52,7 +52,7 @@ const platIcon: Record<string, { d: string; color: string }> = {
 const catLabel = (k: string) => categories.find((c) => c.key === k)?.label ?? k
 
 const quickActions: { icon: string; t: string; tab?: string; action?: "reload" }[] = [
-  { icon: I.upload, t: "Video yuklash", tab: "Videolar" },
+  { icon: I.upload, t: tr("Video yuklash"), tab: "Videolar" },
   { icon: I.link2, t: tr("Silka biriktirish"), tab: "Ijtimoiy tarmoqlar" },
   { icon: I.refresh, t: tr("Profilni yangilash"), action: "reload" },
   { icon: I.chart, t: tr("Statistikani ko'rish"), tab: "Auditoriya" },
@@ -145,14 +145,14 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
   }
 
   const rows: [string, "name" | "age" | "gender" | "region" | "language" | "niche" | "bio" | "about", string, string][] = [
-    ["Ism", "name", I.user, me.name],
+    [tr("Ism"), "name", I.user, me.name],
     [tr("Yosh"), "age", I.gear, String(p.age || "—")],
     [tr("Jinsi"), "gender", I.users, String(p.gender || "—")],
-    ["Hudud", "region", I.pin, String(p.region || "—")],
+    [tr("Hudud"), "region", I.pin, String(p.region || "—")],
     [tr("Til"), "language", I.globe, String(p.language || "—")],
-    ["Yo'nalish", "niche", I.sprout, catLabel(String(p.niche || ""))],
+    [tr("Yo'nalish"), "niche", I.sprout, catLabel(String(p.niche || ""))],
     [tr("Bio"), "bio", I.doc, String(p.bio || "—")],
-    ["Haqida", "about", I.doc, p.about ? String(p.about).slice(0, 50) + "…" : "—"],
+    [tr("Haqida"), "about", I.doc, p.about ? String(p.about).slice(0, 50) + "…" : "—"],
   ]
 
   return (
@@ -345,7 +345,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
               {edit && key === "region" ? (
                 <select value={form.region} onChange={(e) => setForm((s) => ({ ...s, region: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none focus:border-green">
                   <option value="">{tr("Viloyatni tanlang")}</option>
-                  {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+                  {VILOYATLAR.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
                 </select>
               ) : edit && key !== "niche" ? (
                 <input value={form[key]} onChange={(e) => setForm((s) => ({ ...s, [key]: e.target.value }))} className="flex-1 rounded-lg border border-green/20 px-2 py-1 text-xs outline-none focus:border-green" />
@@ -376,10 +376,10 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button onClick={() => (edit ? save() : setEdit(true))} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
-          {edit ? (saving ? "Saqlanmoqda…" : tr("Saqlash")) : "Tahrirlash"} <Icon d={edit ? "M9 12l2 2 4-4" : "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"} className="h-3.5 w-3.5" />
+          {edit ? (saving ? "Saqlanmoqda…" : tr("Saqlash")) : tr("Tahrirlash")} <Icon d={edit ? "M9 12l2 2 4-4" : "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"} className="h-3.5 w-3.5" />
         </button>
         <button onClick={() => runRefresh(reload)} disabled={refreshing} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
-          {refreshing ? "Yangilanmoqda…" : "Yangilash"} <Icon d={I.refresh} className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? tr("Yangilanmoqda…") : tr("Yangilash")} <Icon d={I.refresh} className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
       {saveError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{saveError}</p>}
@@ -818,7 +818,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           <div>
             <h3 className="font-display text-base font-bold flex items-center gap-2">
               <Icon d={I.youtube} className="h-4 w-4 text-red-500" />
-              YouTube kanal videolari
+              {tr("YouTube kanal videolari")}
             </h3>
             <p className="text-[11px] text-muted">{tr("Kanal videolarini tanlab profilga qo'shing.")}</p>
           </div>
@@ -832,7 +832,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
             ) : (
               <Icon d={I.refresh} className="h-3 w-3" />
             )}
-            {loadingYoutube ? "Yuklanmoqda..." : "Yangilash"}
+            {loadingYoutube ? tr("Yuklanmoqda...") : tr("Yangilash")}
           </button>
         </div>
 
@@ -902,7 +902,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           <div>
             <h3 className="font-display text-base font-bold flex items-center gap-2">
               <Icon d={I.instagram} className="h-4 w-4 text-pink-500" />
-              Instagram postlari
+              {tr("Instagram postlari")}
               {igUsername && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-600">@{igUsername}</span>}
             </h3>
             <p className="text-[11px] text-muted">{tr("Instagram postlaringizni tanlab profilga qo'shing.")}</p>
@@ -917,12 +917,12 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
             ) : (
               <Icon d={I.refresh} className="h-3 w-3" />
             )}
-            {loadingIg ? "Yuklanmoqda..." : "Yangilash"}
+            {loadingIg ? tr("Yuklanmoqda...") : tr("Yangilash")}
           </button>
         </div>
 
         {!igUsername && (
-          <p className="py-4 text-center text-xs text-muted border border-dashed border-pink-300/50 rounded-lg">Instagram akkaunt ulanmagan. "Profilim" bo'limida Instagram linkingizni sinxronlang.</p>
+          <p className="py-4 text-center text-xs text-muted border border-dashed border-pink-300/50 rounded-lg">{tr("Instagram akkaunt ulanmagan. \"Profilim\" bo'limida Instagram linkingizni sinxronlang.")}</p>
         )}
 
         {igUsername && loadingIg && (
@@ -1104,9 +1104,9 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
   const socialCount = me.socials?.length || 0
   const videoCount = me.videos?.length || 0
   const statCards = [
-    { icon: I.link2, t: "Ijtimoiy tarmoqlar", v: String(socialCount), delta: `${socialCount} ta ulangan` },
+    { icon: I.link2, t: "Ijtimoiy tarmoqlar", v: String(socialCount), delta: `${socialCount} ${tr("ta ulangan")}` },
     { icon: I.media, t: tr("Joylangan videolar"), v: String(videoCount), delta: videoCount ? `${videoCount} ta video` : tr("Hali yo'q") },
-    { icon: I.chart, t: tr("Profil holati"), v: me.status === "active" ? "Faol" : "Yangi", delta: me.status === "active" ? tr("Tasdiqlangan") : "Kutilmoqda" },
+    { icon: I.chart, t: tr("Profil holati"), v: me.status === "active" ? tr("Faol") : tr("Yangi"), delta: me.status === "active" ? tr("Tasdiqlangan") : "Kutilmoqda" },
   ]
 
   return (
@@ -1423,7 +1423,7 @@ function RegionsTab() {
             <div className="flex gap-3">
               <select value={region} onChange={(e) => setRegion(e.target.value)} className="flex-1 rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
                 <option value="">{tr("Viloyatni tanlang")}</option>
-                {VILOYATLAR.map((v) => <option key={v} value={v}>{v}</option>)}
+                {VILOYATLAR.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
               </select>
               <button onClick={add} disabled={busy || !region} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Icon d={I.plus} className="h-4 w-4 inline" />{tr("Qo'shish")}</button>
             </div>
@@ -1817,7 +1817,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
       {/* YouTube sinxronlash haqida ma'lumot */}
       <div className="mt-4 rounded-xl border border-green/20 bg-soft p-4">
         <p className="text-sm text-muted">
-          <Icon d={I.youtube} className="inline h-4 w-4 text-red-500" /> YouTube kanalni sinxronlaganingizda analytics avtomatik yangilanadi.
+          <Icon d={I.youtube} className="inline h-4 w-4 text-red-500" /> {tr("YouTube kanalni sinxronlaganingizda analytics avtomatik yangilanadi.")}
         </p>
       </div>
 
@@ -1890,7 +1890,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Object.entries(regions).map(([key, value]) => (
               <div key={key} className="flex items-center gap-3">
-                <span className="flex-1 text-sm text-muted">{key}</span>
+                <span className="flex-1 text-sm text-muted">{tr(key)}</span>
                 <input
                   type="number"
                   min="0"
