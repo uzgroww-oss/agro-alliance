@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../_shared/supabase.ts"
 import { geminiJson } from "../_shared/gemini.ts"
 import { groqJson } from "../_shared/groq.ts"
 import { cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
+import { sarfYoz } from "../_shared/aiKesh.ts"
 
 /**
  * Ko'rishlar soni matn sifatida saqlanadi va manbaga qarab har xil
@@ -292,11 +293,27 @@ async function izohTahlili(izohlar: IzohXom[], kompaniya: string): Promise<Tahli
   for (const { nom, ishla } of zanjir) {
     const qolgan = deadline - Date.now()
     if (qolgan < 6_000) break
+    const boshlandi = Date.now()
     try {
       const t = tahlilniTozala(await ishla(Math.min(25_000, qolgan)), Math.min(izohlar.length, 200))
+      // Sarf hisobi — editor panelidagi "AI kalitlari va kvota" kartasi
+      // shu yozuvlardan hisoblanadi. Bu yerdan yozilmasa hamkor
+      // kabinetidagi tahlil kvotani "ko'rinmasdan" yeb qo'yardi.
+      await sarfYoz({
+        provayder: nom.toLowerCase(), vazifa: "comment-analysis",
+        muvaffaqiyat: Boolean(t), matnUzunligi: prompt.length,
+        davomiylik: Date.now() - boshlandi,
+        xato: t ? undefined : "kutilmagan javob shakli",
+      })
       if (t) return t
     } catch (e) {
-      console.error(`izohTahlili ${nom}:`, e instanceof Error ? e.message : e)
+      const m = e instanceof Error ? e.message : String(e)
+      console.error(`izohTahlili ${nom}:`, m)
+      await sarfYoz({
+        provayder: nom.toLowerCase(), vazifa: "comment-analysis",
+        muvaffaqiyat: false, matnUzunligi: prompt.length,
+        davomiylik: Date.now() - boshlandi, xato: m,
+      })
     }
   }
   return null

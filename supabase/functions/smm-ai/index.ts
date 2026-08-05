@@ -11,6 +11,8 @@ import { cfChat, cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
 import { webTrends, globalAgro, fetchFeed, type WebHit } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
+import { sarfYoz } from "../_shared/aiKesh.ts"
+import { aiKalitBormi } from "../_shared/aiKalit.ts"
 
 /**
  * smm-ai — AI yordamida ijtimoiy tarmoq kontentini tahlil qilish va yaratish.
@@ -37,10 +39,18 @@ import { getFacebookPage } from "../_shared/facebook.ts"
  * Kaliti sozlanmagan provayderni sinash behuda — vaqt yeydi va
  * baribir yiqiladi.
  */
-function hasKey(name: string): boolean {
-  if (name === "Groq") return Boolean(Deno.env.get("GROQ_API_KEY"))
-  if (name === "Gemini") return Boolean(Deno.env.get("GEMINI_API_KEY"))
-  if (name === "NVIDIA") return Boolean(Deno.env.get("NVIDIA_API_KEY"))
+/**
+ * Provayderning kaliti bormi.
+ *
+ * ASINXRON, chunki kalit endi PANELDAN ham qo'shilishi mumkin va u
+ * bazada turadi. Ilgari faqat `Deno.env` ko'rilardi — paneldan
+ * qo'shilgan kalit bu tekshiruvdan o'ta olmasdi va provayder
+ * "kalit yo'q" deb tashlab ketilardi.
+ */
+async function hasKey(name: string): Promise<boolean> {
+  if (name === "Groq") return await aiKalitBormi("groq", "GROQ_API_KEY")
+  if (name === "Gemini") return await aiKalitBormi("gemini", "GEMINI_API_KEY")
+  if (name === "NVIDIA") return await aiKalitBormi("nvidia", "NVIDIA_API_KEY")
   if (name === "Cloudflare") return cfChatAvailable()
   return true
 }
@@ -179,6 +189,21 @@ function unwrap(v: unknown, keys: string[] = [], depth = 0): unknown {
   return v
 }
 
+/**
+ * JORIY VAZIFA — sarf hisobi uchun yorliq.
+ *
+ * `askAi` chaqiruvchilari 11 ta joyda va har birining argumentlari
+ * boshqacha. Hammasiga qo'shimcha parametr qo'shish katta va xatoga
+ * moyil o'zgarish bo'lardi, shuning uchun yorliq so'rov boshida bir
+ * marta qo'yiladi.
+ *
+ * CHEKLOV: bitta izolyat bir vaqtda ikkita so'rovni bajarsa, yorliq
+ * aralashib ketishi mumkin. Bu FAQAT "nimaga ishlatildi" ro'yxatiga
+ * ta'sir qiladi — provayder va chaqiruvlar SONI baribir to'g'ri
+ * qoladi, kvota hisobi esa aynan shunga tayanadi.
+ */
+let joriyVazifa = "smm"
+
 async function askAi<T>(
   prompt: string,
   validate: (v: unknown) => boolean,
@@ -207,12 +232,13 @@ async function askAi<T>(
   for (const name of (order && order.length ? order : providerOrder())) {
     const fn = JSON_FN[name]
     if (!fn) continue
-    if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
+    if (!(await hasKey(name))) { errs.push(`${name}: kalit yo'q`); continue }
 
     // Umumiy byudjet tugadi — qolganini sinamaymiz
     const qolgan = deadline - Date.now()
     if (qolgan < MIN_SLICE_MS) { errs.push(`${name}: umumiy vaqt tugadi`); break }
 
+    const boshlandi = Date.now()
     try {
       // retries: 0 — bir provayderni qayta sinash o'rniga darhol
       // keyingisiga o'tamiz. Zanjirning o'zi zaxira vazifasini bajaradi
@@ -229,12 +255,23 @@ async function askAi<T>(
       // MUHIM: AI javob bergani yetarli emas — kutilgan maydonlar bormi?
       // Ilgari tekshirilmasdi, shuning uchun noto'g'ri shakl kelsa ekranda
       // xatosiz BO'SH quti chiqardi va sabab noma'lum bo'lardi.
-      if (validate(raw)) return raw as T
+      const yaroqli = validate(raw)
+      await sarfYoz({
+        provayder: name, vazifa: joriyVazifa, muvaffaqiyat: yaroqli,
+        matnUzunligi: prompt.length, davomiylik: Date.now() - boshlandi,
+        xato: yaroqli ? undefined : "kutilmagan javob shakli",
+      })
+      if (yaroqli) return raw as T
       if (!softHit && soft?.(raw)) softHit = raw
       const peek = JSON.stringify(raw).slice(0, 200)
       errs.push(`${name}: kutilmagan javob — ${peek}`)
     } catch (e) {
-      errs.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
+      const m = e instanceof Error ? e.message : String(e)
+      await sarfYoz({
+        provayder: name, vazifa: joriyVazifa, muvaffaqiyat: false,
+        matnUzunligi: prompt.length, davomiylik: Date.now() - boshlandi, xato: m,
+      })
+      errs.push(`${name}: ${m}`)
     }
   }
   if (softHit) return softHit as T
@@ -254,11 +291,12 @@ async function askText(prompt: string): Promise<string> {
   for (const name of providerOrder()) {
     const fn = CHAT_FN[name]
     if (!fn) continue
-    if (!hasKey(name)) { errs.push(`${name}: kalit yo'q`); continue }
+    if (!(await hasKey(name))) { errs.push(`${name}: kalit yo'q`); continue }
 
     const qolgan = deadline - Date.now()
     if (qolgan < MIN_SLICE_MS) { errs.push(`${name}: umumiy vaqt tugadi`); break }
 
+    const boshlandi = Date.now()
     try {
       const { text } = await fn(prompt, {
         retries: 0,
@@ -266,10 +304,21 @@ async function askText(prompt: string): Promise<string> {
         timeoutMs: Math.min(TIMEOUT_FOR(name), qolgan),
         deadline,
       })
-      if (text && text.trim()) return text.trim()
+      const bor = Boolean(text && text.trim())
+      await sarfYoz({
+        provayder: name, vazifa: joriyVazifa, muvaffaqiyat: bor,
+        matnUzunligi: prompt.length, davomiylik: Date.now() - boshlandi,
+        xato: bor ? undefined : "bo'sh javob",
+      })
+      if (bor) return text.trim()
       errs.push(`${name}: bo'sh javob`)
     } catch (e) {
-      errs.push(`${name}: ${e instanceof Error ? e.message : "xatolik"}`)
+      const m = e instanceof Error ? e.message : "xatolik"
+      await sarfYoz({
+        provayder: name, vazifa: joriyVazifa, muvaffaqiyat: false,
+        matnUzunligi: prompt.length, davomiylik: Date.now() - boshlandi, xato: m,
+      })
+      errs.push(`${name}: ${m}`)
     }
   }
   throw new Error(errs.join(" | "))
@@ -990,6 +1039,8 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url)
     const action = url.searchParams.get("action") || "analyze"
+    // Sarf hisobi shu yorliq bilan yoziladi — qarang: joriyVazifa
+    joriyVazifa = action
     const body = await req.json().catch(() => ({}))
 
     /* ================================================================
@@ -1613,7 +1664,7 @@ FAQAT JSON: { "sarlavha": "…", "afzalliklar": ["…","…","…"] }`,
     if (action === "transcribe") {
       const videoUrl = String(body.video_url || "").trim()
       if (!videoUrl) return errorResponse("Video manzili yo'q", 400)
-      if (!transcribeAvailable()) return jsonResponse({ transcript: "", error: "Groq kaliti sozlanmagan" })
+      if (!(await transcribeAvailable())) return jsonResponse({ transcript: "", error: "Groq kaliti sozlanmagan" })
       try {
         const transcript = await transcribeVideo(videoUrl)
         return jsonResponse({ transcript })

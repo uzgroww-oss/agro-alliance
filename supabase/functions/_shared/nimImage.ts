@@ -9,10 +9,13 @@
  * turadi va kodni qayta yozmasdan almashtira olish kerak.
  */
 
+import { aiKalit } from "./aiKalit.ts";
+
 const GENAI_BASE = "https://ai.api.nvidia.com/v1/genai";
 
-function getApiKey(): string {
-  const key = Deno.env.get("NVIDIA_API_KEY");
+/** Panel kaliti ustun, muhit o'zgaruvchisi zaxira — qarang: aiKalit.ts */
+async function getApiKey(): Promise<string> {
+  const key = await aiKalit("nvidia", "NVIDIA_API_KEY");
   if (!key) throw new Error("NVIDIA_API_KEY sozlanmagan");
   return key;
 }
@@ -121,7 +124,7 @@ export async function nimImage(
    */
   deadline?: number,
 ): Promise<{ data: string; model: string }> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   const errs: string[] = [];
 
   for (const model of models()) {

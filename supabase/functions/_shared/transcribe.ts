@@ -18,14 +18,17 @@ const GROQ_BASE = "https://api.groq.com/openai/v1";
 // Groq bepul tarifida fayl chegarasi ~25 MB. Xavfsizlik uchun pastroq.
 // Undan katta video uchun ovozni o'qiy olmaymiz — muqova xom kadrdan
 // yasaladi.
+import { aiKalit, aiKalitBormi } from "./aiKalit.ts";
+
 const MAX_BYTES = 24 * 1024 * 1024;
 
-export function transcribeAvailable(): boolean {
-  return Boolean(Deno.env.get("GROQ_API_KEY"));
+/** Panel kaliti ustun, muhit o'zgaruvchisi zaxira — qarang: aiKalit.ts */
+export async function transcribeAvailable(): Promise<boolean> {
+  return await aiKalitBormi("groq", "GROQ_API_KEY");
 }
 
 export async function transcribeVideo(videoUrl: string): Promise<string> {
-  const key = Deno.env.get("GROQ_API_KEY");
+  const key = await aiKalit("groq", "GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY sozlanmagan");
 
   const vid = await fetch(videoUrl, { signal: AbortSignal.timeout(30_000) });
