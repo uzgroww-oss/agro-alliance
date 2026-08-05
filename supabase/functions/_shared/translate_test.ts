@@ -1,5 +1,18 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts"
-import { guruhniAjrat } from "./translate.ts"
+
+/**
+ * `translate.ts` -> `supabase.ts` zanjiri modul yuklanishida Supabase
+ * mijozini yaratadi va muhit o'zgaruvchisi bo'lmasa YIQILADI. Sinovga
+ * baza kerak emas, shuning uchun soxta qiymat qo'yib, modulni
+ * DINAMIK import qilamiz — statik import bundan oldin bajarilardi.
+ */
+Deno.env.set("SUPABASE_URL", Deno.env.get("SUPABASE_URL") || "http://localhost:54321")
+Deno.env.set(
+  "SUPABASE_SERVICE_ROLE_KEY",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "sinov-kaliti",
+)
+
+const { guruhniAjrat } = await import("./translate.ts")
 
 /**
  * Guruhlab tarjimaning ENG XAVFLI qismi — javobni yozuvlarga qaytarib

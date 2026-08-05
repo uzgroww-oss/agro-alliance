@@ -46,12 +46,15 @@ type Kalit = {
   created_at: string
 }
 
+type Korsatma = { kalit: string; nom: string; izoh: string; matn: string }
+
 type Holat = {
   provayderlar: Provayder[]
   kalitlar: Kalit[]
   vazifalar: { nom: string; soni: number; xato: number }[]
   kesh: { yozuvlar: number }
   jami: { hafta: number; xato: number; tokenlar: number }
+  korsatmalar: Korsatma[]
 }
 
 const VAZIFA_NOM: Record<string, string> = {
@@ -81,6 +84,11 @@ export default function AiTokens() {
   const [yangiNom, setYangiNom] = useState("")
   const [band, setBand] = useState(false)
   const [ochirilyapti, setOchirilyapti] = useState<string | null>(null)
+
+  // Qo'shimcha ko'rsatmalar: bo'lim yopiq turadi (kundalik ish emas),
+  // tahrir esa saqlanmaguncha faqat qoralamada qoladi
+  const [korsatmaOchiq, setKorsatmaOchiq] = useState(false)
+  const [qoralama, setQoralama] = useState<Record<string, string>>({})
 
   const yukla = useCallback(async () => {
     try {
@@ -123,6 +131,21 @@ export default function AiTokens() {
       setOchirilyapti(null)
     } catch (e) {
       setXato(e instanceof Error ? e.message : tr("Kalitni o'chirib bo'lmadi"))
+    } finally { setBand(false) }
+  }
+
+  const korsatmaSaqla = async (vazifa: string, matn: string) => {
+    setBand(true)
+    try {
+      setXato("")
+      const d = await api<Holat>("/smm/ai?action=ai_korsatma_saqla", {
+        method: "POST", body: JSON.stringify({ vazifa, matn }),
+      })
+      setHolat(d)
+      // Saqlangach qoralama keraksiz — serverdagi qiymat ko'rsatiladi
+      setQoralama((q) => { const n = { ...q }; delete n[vazifa]; return n })
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("Ko'rsatmani saqlab bo'lmadi"))
     } finally { setBand(false) }
   }
 
@@ -293,6 +316,60 @@ export default function AiTokens() {
       <p className="mt-3 text-[11px] text-muted">
         {tr("Kunlik chegara — bepul tarifning e'lon qilingan qiymati. Biz o'zimiz yuborgan so'rovlarni sanaymiz, shuning uchun bu taxminiy raqam.")}
       </p>
+
+      {/* ---- AI ga qo'shimcha ko'rsatma ---- */}
+      {/* Kodagi ko'rsatma ALMASHTIRILMAYDI, faqat oxiriga qo'shiladi:
+          asosiy ko'rsatmada javob shakli belgilangan va uni buzish AI ni
+          butunlay ishdan chiqarardi. */}
+      {holat && holat.korsatmalar.length > 0 && (
+        <div className="mt-5 border-t border-green/10 pt-5">
+          <button type="button" onClick={() => setKorsatmaOchiq((v) => !v)}
+            className="flex w-full items-center justify-between gap-2 text-left">
+            <span>
+              <span className="block font-display font-bold">{tr("AI ga qo'shimcha ko'rsatma")}</span>
+              <span className="mt-0.5 block text-sm text-muted">
+                {tr("Har vazifa uchun o'z talabingizni yozing — AI shuni ham bajaradi")}
+              </span>
+            </span>
+            <Icon d={korsatmaOchiq ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} className="h-4 w-4 shrink-0 text-muted" />
+          </button>
+
+          {korsatmaOchiq && (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              {holat.korsatmalar.map((k) => {
+                const joriy = qoralama[k.kalit] ?? k.matn
+                const ozgargan = joriy !== k.matn
+                return (
+                  <div key={k.kalit} className="rounded-xl border border-green/10 p-3">
+                    {/* Nom va izoh SERVERDAN keladi — tarjima shu yerda,
+                        render paytida bo'ladi (lug'at kaliti o'zbekcha) */}
+                    <p className="text-xs font-bold text-ink">{tr(k.nom)}</p>
+                    <p className="text-[11px] text-muted">{tr(k.izoh)}</p>
+                    <textarea
+                      value={joriy} rows={3} maxLength={2000}
+                      onChange={(e) => setQoralama((q) => ({ ...q, [k.kalit]: e.target.value }))}
+                      placeholder={tr("Masalan: har postda Telegram botimizni eslatib o't")}
+                      className="mt-2 w-full resize-y rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-green" />
+                    {ozgargan && (
+                      <div className="mt-1.5 flex gap-1.5">
+                        <button type="button" onClick={() => void korsatmaSaqla(k.kalit, joriy)} disabled={band}
+                          className="rounded-lg bg-green px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-60">
+                          {band ? tr("Saqlanmoqda…") : tr("Saqlash")}
+                        </button>
+                        <button type="button"
+                          onClick={() => setQoralama((q) => { const n = { ...q }; delete n[k.kalit]; return n })}
+                          className="rounded-lg px-2 py-1.5 text-[11px] font-bold text-muted hover:text-ink">
+                          {tr("Bekor")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

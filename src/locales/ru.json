@@ -1113,5 +1113,18 @@
  "Global narxlar, texnologiya va bozor holati": "Мировые цены, технологии и состояние рынка",
  "Sotuvni oshirish": "Рост продаж",
  "Sotuvni oshirish uchun aniq qadamlar": "Конкретные шаги для роста продаж",
- "Manbalar bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi": "Сайты, добавленные в разделе «Источники» — ИИ учился прежде всего на них"
+ "Manbalar bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi": "Сайты, добавленные в разделе «Источники» — ИИ учился прежде всего на них",
+ "AI ga qo'shimcha ko'rsatma": "Дополнительная инструкция для ИИ",
+ "Har vazifa uchun o'z talabingizni yozing — AI shuni ham bajaradi": "Впишите своё требование для каждой задачи — ИИ выполнит и его",
+ "Ko'rsatmani saqlab bo'lmadi": "Не удалось сохранить инструкцию",
+ "Masalan: har postda Telegram botimizni eslatib o't": "Например: в каждом посте упоминай наш Telegram-бот",
+ "Marketing rejasi": "Маркетинговый план",
+ "Rasmdan post": "Пост по изображению",
+ "To'liq kun rejasi": "Подробный план дня",
+ "Post matni yozilganda": "Когда пишется текст поста",
+ "Reja va strategiya tuzilganda": "Когда составляется план и стратегия",
+ "Tavsiyalar berilganda": "Когда даются рекомендации",
+ "Rasm asosida matn yozilganda": "Когда текст пишется по изображению",
+ "Suhbatda javob berilganda": "Когда даётся ответ в чате",
+ "Kunning batafsil rejasi yozilganda": "Когда пишется подробный план дня"
 }

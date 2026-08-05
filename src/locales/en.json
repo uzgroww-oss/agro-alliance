@@ -1113,5 +1113,18 @@
  "Global narxlar, texnologiya va bozor holati": "Global prices, technology and market conditions",
  "Sotuvni oshirish": "Growing sales",
  "Sotuvni oshirish uchun aniq qadamlar": "Concrete steps to grow sales",
- "Manbalar bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi": "Sites added in the Sources section — the AI learned from these first"
+ "Manbalar bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi": "Sites added in the Sources section — the AI learned from these first",
+ "AI ga qo'shimcha ko'rsatma": "Extra instruction for the AI",
+ "Har vazifa uchun o'z talabingizni yozing — AI shuni ham bajaradi": "Write your own requirement for each task — the AI will follow it too",
+ "Ko'rsatmani saqlab bo'lmadi": "The instruction could not be saved",
+ "Masalan: har postda Telegram botimizni eslatib o't": "For example: mention our Telegram bot in every post",
+ "Marketing rejasi": "Marketing plan",
+ "Rasmdan post": "Post from an image",
+ "To'liq kun rejasi": "Full day plan",
+ "Post matni yozilganda": "When the post text is written",
+ "Reja va strategiya tuzilganda": "When the plan and strategy are built",
+ "Tavsiyalar berilganda": "When recommendations are given",
+ "Rasm asosida matn yozilganda": "When text is written from an image",
+ "Suhbatda javob berilganda": "When answering in the chat",
+ "Kunning batafsil rejasi yozilganda": "When the detailed day plan is written"
 }

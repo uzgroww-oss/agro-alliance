@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "postbuild": "node scripts/generate-seo.mjs"
+    "postbuild": "node scripts/generate-seo.mjs",
+    "test": "npx deno test --allow-net --allow-env supabase/functions/_shared/"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

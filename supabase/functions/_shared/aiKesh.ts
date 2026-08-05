@@ -86,6 +86,40 @@ export async function keshgaYoz(
   } catch { /* kesh ixtiyoriy */ }
 }
 
+/* ==========================================================================
+ * QO'SHIMCHA KO'RSATMA
+ * ========================================================================== */
+
+const qoshimchaKesh = new Map<string, { matn: string; vaqt: number }>()
+const QOSHIMCHA_KESH_MS = 60_000
+
+/**
+ * Vazifa uchun paneldan yozilgan qo'shimcha ko'rsatma.
+ *
+ * Kodagi asosiy ko'rsatmaning OXIRIGA qo'shiladi — almashtirmaydi.
+ * Sabab: asosiy ko'rsatmada javob shakli (JSON maydonlari) belgilangan,
+ * uni paneldan buzish AI ni butunlay ishdan chiqarardi.
+ *
+ * Bo'sh bo'lsa bo'sh satr qaytadi va so'rov o'zgarmaydi.
+ */
+export async function qoshimchaOl(vazifa: string): Promise<string> {
+  const bor = qoshimchaKesh.get(vazifa)
+  if (bor && Date.now() - bor.vaqt < QOSHIMCHA_KESH_MS) return bor.matn
+
+  let matn = ""
+  try {
+    const { data } = await supabaseAdmin
+      .from("ai_qoshimcha")
+      .select("matn, faol")
+      .eq("vazifa", vazifa)
+      .maybeSingle()
+    if (data?.faol && typeof data.matn === "string") matn = data.matn.trim().slice(0, 2000)
+  } catch { /* ko'rsatma ixtiyoriy — AI to'xtamasin */ }
+
+  qoshimchaKesh.set(vazifa, { matn, vaqt: Date.now() })
+  return matn
+}
+
 /**
  * Har bir AI chaqiruvini yozadi.
  *
