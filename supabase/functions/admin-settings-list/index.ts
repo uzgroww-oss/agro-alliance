@@ -46,7 +46,13 @@ Deno.serve(async (req) => {
 
     for (const { table, fields } of KONTENT) {
       if (reset) {
-        await supabaseAdmin.from(table).update({ translations: {} }).neq("id", "00000000-0000-0000-0000-000000000000")
+        // Qo'lda tarjima qilinganlari tozalanmaydi: "hammasini
+        // boshidan" tugmasi ham tekshirilgan tarjimani yo'q qilmasligi
+        // kerak. Aks holda bitta bosish bilan qo'lda qilingan ish
+        // yo'qolib, o'rniga model varianti kelardi.
+        await supabaseAdmin.from(table).update({ translations: {} })
+          .neq("id", "00000000-0000-0000-0000-000000000000")
+          .is("translations->_manual", null)
       }
 
       const { data } = await supabaseAdmin
@@ -62,6 +68,10 @@ Deno.serve(async (req) => {
         // JORIY versiyada bo'lsa tegilmaydi — tarjimasi bo'lmasa ham.
         // Ba'zi yozuvlar ATAYLAB tarjima qilinmaydi (brend nomi kabi),
         // ular ham "tayyor" hisoblanadi va qayta urinilmaydi.
+        // Qo'lda tarjima qilingan yozuvga AI tegmaydi — hatto
+        // "qayta tarjima" tugmasi bosilganda ham. Tekshirilgan
+        // tarjimani model varianti bilan almashtirish yo'qotish.
+        if (tr?._manual) continue
         const tayyor = tr && Number(tr._v ?? 0) >= TR_VERSION
         if (tayyor) continue
         if (!fields.some((f) => typeof r[f] === "string" && (r[f] as string).trim())) continue

@@ -58,6 +58,26 @@ export const BOSH_TAYYOR: Translations = Object.freeze(
   { _v: TR_VERSION } as unknown as Translations,
 );
 
+/**
+ * QO'LDA TARJIMA QILINGAN YOZUV — AI UNGA TEGMAYDI.
+ *
+ * Saytdagi mavjud kontent qo'lda, sinchiklab tarjima qilingan.
+ * AI ni har safar shu matnlarga qo'yib yuborish bir necha zarar
+ * keltirardi:
+ *   - tayyor, tekshirilgan tarjima har versiya o'zgarganda
+ *     yomonroq variant bilan almashardi;
+ *   - kvota bekorga sarflanardi;
+ *   - "AGRICULTURE Partnership" kabi nuqsonlar qaytib kelardi.
+ *
+ * Endi AI faqat YANGI qo'shilgan yoki o'zgartirilgan kontentni
+ * tarjima qiladi. Admin kontentni tahrirlasa, `translations` tozalanadi
+ * va belgi ham yo'qoladi — ya'ni o'zgargan matn qaytadan tarjima
+ * bo'ladi, bu to'g'ri.
+ */
+export function qoldaTarjimami(tr: unknown): boolean {
+  return Boolean((tr as Record<string, unknown> | null)?._manual)
+}
+
 /** Natijada nechta TIL bor (xizmat maydonlari `_v`, `_p` sanalmaydi) */
 function tillarSoni(t: unknown): number {
   const o = (t || {}) as Record<string, unknown>;
@@ -535,6 +555,8 @@ export async function fondaTarjima(
 
   const kerak = rows.filter((r) => {
     const tr = r.translations as (Translations & { _v?: number }) | undefined
+    // Qo'lda tarjima qilingan — AI tegmaydi
+    if (qoldaTarjimami(tr)) return false
     // Eski versiyadagi tarjima — qayta qilinadi
     if (tr?.[lang as TargetLang] && (tr._v ?? 1) >= TR_VERSION) return false
     // Tarjima qilinadigan matni bormi
