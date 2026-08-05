@@ -343,6 +343,99 @@ Deno.serve(async (req) => {
       return jsonResponse({ partner: null })
     }
 
+    /* ================================================================
+     * TZ SO'ROVLARI (hamkor -> admin)
+     *
+     * Ilgari hamkor "menga shunaqa reklama kerak" deb telefon yoki
+     * Telegram orqali aytardi va bu tizimda iz qoldirmasdi: kim nima
+     * so'raganini, qachon so'raganini va u qay bosqichda ekanini
+     * keyin tiklab bo'lmasdi.
+     *
+     * XAVFSIZLIK: `partner` yuqorida AYNAN shu foydalanuvchining
+     * hisobidan topilgan. Hamkor tashqaridan boshqa `partner_id`
+     * bera olmaydi — u so'rovda umuman qabul qilinmaydi.
+     * ================================================================ */
+    if (new URL(req.url).searchParams.get("action") === "briefs") {
+      const { data, error } = await supabaseAdmin
+        .from("partner_briefs")
+        .select("id, title, description, priority, deadline, file_url, file_name, status, admin_note, task_id, created_at")
+        .eq("partner_id", partner.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(100)
+      if (error) {
+        console.error("briefs:", error.message)
+        return errorResponse("Topshiriqlarni yuklab bo'lmadi", 500)
+      }
+
+      /**
+       * Blogerlarga yuborilgan TZ ning BAJARILISHI ham qaytadi.
+       * Hamkor uchun eng muhim savol shu: "so'rovim qabul qilindi"
+       * emas, "nechta bloger boshladi va nechtasi tugatdi".
+       */
+      const taskIds = (data || []).map((b) => b.task_id).filter(Boolean) as string[]
+      const holat: Record<string, { jami: number; boshlandi: number; bajarildi: number }> = {}
+      if (taskIds.length) {
+        const { data: biriktirilgan } = await supabaseAdmin
+          .from("blogger_task_assignments")
+          .select("task_id, status")
+          .in("task_id", taskIds)
+          .is("deleted_at", null)
+        for (const a of (biriktirilgan || []) as { task_id: string; status: string }[]) {
+          const h = holat[a.task_id] || { jami: 0, boshlandi: 0, bajarildi: 0 }
+          h.jami++
+          if (a.status === "in_progress") h.boshlandi++
+          if (a.status === "done") h.bajarildi++
+          holat[a.task_id] = h
+        }
+      }
+
+      return jsonResponse({
+        briefs: (data || []).map((b) => ({
+          ...b,
+          bajarilish: b.task_id ? (holat[b.task_id as string] || { jami: 0, boshlandi: 0, bajarildi: 0 }) : null,
+        })),
+      })
+    }
+
+    if (req.method === "POST" && new URL(req.url).searchParams.get("action") === "brief-create") {
+      const body = await req.json().catch(() => ({}))
+      const title = String(body.title || "").trim().slice(0, 255)
+      if (!title) return errorResponse("Sarlavha yozing", 400)
+
+      const description = String(body.description || "").trim().slice(0, 5000)
+      if (description.length < 20) {
+        // Bo'sh TZ adminga hech narsa bermaydi — u baribir qayta
+        // so'rashga majbur bo'lardi
+        return errorResponse("Talablarni batafsilroq yozing (kamida 20 belgi)", 400)
+      }
+
+      const priority = ["low", "normal", "high"].includes(body.priority) ? body.priority : "normal"
+      const deadline = /^\d{4}-\d{2}-\d{2}$/.test(String(body.deadline || "")) ? String(body.deadline) : null
+
+      // Havola faqat http(s): boshqa sxemalar (javascript:, data:) adminning
+      // brauzerida ochilganda xavfli bo'lardi
+      const xomHavola = String(body.file_url || "").trim().slice(0, 500)
+      const file_url = /^https?:\/\//i.test(xomHavola) ? xomHavola : null
+
+      const { data, error } = await supabaseAdmin
+        .from("partner_briefs")
+        .insert({
+          partner_id: partner.id,
+          created_by: auth.user.id,
+          title, description, priority, deadline,
+          file_url,
+          file_name: file_url ? String(body.file_name || "").trim().slice(0, 160) || null : null,
+        })
+        .select("id")
+        .single()
+      if (error) {
+        console.error("brief-create:", error.message)
+        return errorResponse("Topshiriqni yuborib bo'lmadi", 500)
+      }
+      return jsonResponse({ success: true, id: data.id })
+    }
+
     /**
      * VIDEO IZOHLARINI O'QISH.
      *

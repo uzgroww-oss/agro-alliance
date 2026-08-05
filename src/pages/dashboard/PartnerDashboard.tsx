@@ -17,6 +17,7 @@ const nav = [
   { label: "Kompaniya profili", icon: I.building },
   { label: "Shartnoma", icon: I.doc },
   { label: "Videolar", icon: I.media },
+  { label: "Topshiriqlar", icon: I.task },
   { label: "Hisobot", icon: I.fileText },
   { label: "Sozlamalar", icon: I.gear },
 ]
@@ -315,6 +316,7 @@ export default function PartnerDashboard() {
           )}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
           {active === "Videolar" && <PartnerVideos partnerId={String(partner.id)} />}
+          {active === "Topshiriqlar" && <Briefs />}
           {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
           {active === "Sozlamalar" && <Settings />}
         </>
@@ -1476,24 +1478,412 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
 }
 
 
+/* ---------- Topshiriqlar (TZ) ---------- */
+
+type Brief = {
+  id: string; title: string; description: string | null
+  priority: string; deadline: string | null
+  file_url: string | null; file_name: string | null
+  status: string; admin_note: string | null; task_id: string | null
+  created_at: string
+  bajarilish: { jami: number; boshlandi: number; bajarildi: number } | null
+}
+
+/**
+ * TZ SO'ROVI HOLATLARI.
+ *
+ * Hamkor uchun eng muhim savol — "so'rovim qayerda qoldi?". Shuning
+ * uchun har holatga TUSHUNARLI izoh berilgan: "new" yoki "seen" kabi
+ * texnik so'zlar foydalanuvchiga hech narsa aytmaydi.
+ */
+const BRIEF_HOLAT: Record<string, { nom: string; izoh: string; cls: string }> = {
+  new: { nom: "Yuborildi", izoh: "Administrator hali ko'rmagan", cls: "bg-soft text-muted" },
+  seen: { nom: "Ko'rib chiqilmoqda", izoh: "Administrator so'rovingizni o'qidi", cls: "bg-blue-100 text-blue-600" },
+  sent: { nom: "Blogerlarga yuborildi", izoh: "Topshiriq blogerlarga biriktirildi", cls: "bg-green/10 text-green" },
+  rejected: { nom: "Qabul qilinmadi", izoh: "Sababi quyida yozilgan", cls: "bg-red-50 text-red-600" },
+}
+
+const BRIEF_MUHIM: Record<string, { nom: string; cls: string }> = {
+  low: { nom: "Past", cls: "bg-soft text-muted" },
+  normal: { nom: "O'rtacha", cls: "bg-blue-50 text-blue-600" },
+  high: { nom: "Shoshilinch", cls: "bg-orange-100 text-orange-600" },
+}
+
+function Briefs() {
+  const [list, setList] = useState<Brief[]>([])
+  const [yuklanmoqda, setYuklanmoqda] = useState(true)
+  const [xato, setXato] = useState(false)
+
+  const [ochiq, setOchiq] = useState(false)
+  const [forma, setForma] = useState({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+  const [band, setBand] = useState(false)
+  const [xabar, setXabar] = useState<{ ok: boolean; matn: string } | null>(null)
+
+  const yukla = useCallback(() => {
+    setYuklanmoqda(true); setXato(false)
+    api<{ briefs: Brief[] }>("/me/partner?action=briefs")
+      .then((d) => setList(d.briefs || []))
+      .catch(() => setXato(true))
+      .finally(() => setYuklanmoqda(false))
+  }, [])
+  useEffect(() => { yukla() }, [yukla])
+
+  const yubor = async () => {
+    setXabar(null)
+    if (!forma.title.trim()) { setXabar({ ok: false, matn: tr("Sarlavha yozing") }); return }
+    if (forma.description.trim().length < 20) {
+      setXabar({ ok: false, matn: tr("Talablarni batafsilroq yozing (kamida 20 belgi)") }); return
+    }
+    setBand(true)
+    try {
+      await api("/me/partner?action=brief-create", { method: "POST", body: JSON.stringify(forma) })
+      setXabar({ ok: true, matn: tr("Topshiriq administratorga yuborildi") })
+      setForma({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+      setOchiq(false)
+      yukla()
+    } catch (e) {
+      setXabar({ ok: false, matn: e instanceof Error ? e.message : tr("Topshiriqni yuborib bo'lmadi") })
+    } finally { setBand(false) }
+  }
+
+  return (
+    <div className="mt-6 space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-lg font-bold">{tr("Topshiriqlar (TZ)")}</h3>
+          <p className="mt-1 text-sm text-muted">
+            {tr("Qanday reklama kerakligini yozing — administrator ko'rib chiqib blogerlarga yuboradi.")}
+          </p>
+        </div>
+        <button onClick={() => { setOchiq((v) => !v); setXabar(null) }}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+          <Icon d={ochiq ? "M18 6L6 18 M6 6l12 12" : "M12 5v14 M5 12h14"} className="h-4 w-4" />
+          {ochiq ? tr("Bekor qilish") : tr("Yangi topshiriq")}
+        </button>
+      </div>
+
+      {xabar && (
+        <div className={`rounded-xl px-4 py-3 text-sm font-semibold ${xabar.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>
+          {xabar.matn}
+        </div>
+      )}
+
+      {ochiq && (
+        <div className={card}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label>
+              <input value={forma.title} maxLength={255}
+                onChange={(e) => setForma((f) => ({ ...f, title: e.target.value }))}
+                placeholder={tr("Masalan: Yangi o'g'it liniyasi uchun reklama")}
+                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-muted">{tr("Talablar")}</label>
+              <textarea value={forma.description} rows={6} maxLength={5000}
+                onChange={(e) => setForma((f) => ({ ...f, description: e.target.value }))}
+                placeholder={tr("Mahsulot nima, kimga qaratilgan, qanday format kerak (video/post), nimani ta'kidlash kerak, nimani aytmaslik kerak…")}
+                className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              {/* Bo'sh TZ adminga hech narsa bermaydi — u baribir qayta
+                  so'rashga majbur bo'ladi va vaqt yo'qoladi */}
+              <p className="mt-1 text-[11px] text-muted">
+                {forma.description.trim().length} / 20 {tr("belgi (kamida)")}
+              </p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted">{tr("Muhimligi")}</label>
+              <select value={forma.priority}
+                onChange={(e) => setForma((f) => ({ ...f, priority: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                <option value="low">{tr("Past")}</option>
+                <option value="normal">{tr("O'rtacha")}</option>
+                <option value="high">{tr("Shoshilinch")}</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted">{tr("Muddat")}</label>
+              <input type="date" value={forma.deadline}
+                onChange={(e) => setForma((f) => ({ ...f, deadline: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-muted">{tr("Havola (ixtiyoriy)")}</label>
+              <input value={forma.file_url} maxLength={500}
+                onChange={(e) => setForma((f) => ({ ...f, file_url: e.target.value }))}
+                placeholder={tr("Mahsulot sahifasi yoki brief fayliga havola")}
+                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+            </div>
+          </div>
+          <button onClick={yubor} disabled={band}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
+            {band
+              ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              : <Icon d={I.send} className="h-4 w-4" />}
+            {band ? tr("Yuborilmoqda…") : tr("Administratorga yuborish")}
+          </button>
+        </div>
+      )}
+
+      {yuklanmoqda ? (
+        <Skeleton className="h-64 w-full rounded-2xl" />
+      ) : xato ? (
+        <div className={card}><ErrorState onRetry={yukla} message={tr("Topshiriqlarni yuklab bo'lmadi.")} /></div>
+      ) : list.length === 0 ? (
+        <div className={`${card} text-center`}>
+          <Icon d={I.task} className="mx-auto h-8 w-8 text-green/40" />
+          <p className="mt-2 text-sm text-muted">
+            {tr("Hali topshiriq yubormagansiz. \"Yangi topshiriq\" tugmasini bosing.")}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {list.map((b) => {
+            const h = BRIEF_HOLAT[b.status] || BRIEF_HOLAT.new
+            const m = BRIEF_MUHIM[b.priority] || BRIEF_MUHIM.normal
+            return (
+              <div key={b.id} className={card}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-display font-bold">{b.title}</h4>
+                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${m.cls}`}>{tr(m.nom)}</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {new Date(b.created_at).toLocaleDateString("ru-RU")}
+                      {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-right">
+                    <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-bold ${h.cls}`}>{tr(h.nom)}</span>
+                    <span className="mt-1 block text-[11px] text-muted">{tr(h.izoh)}</span>
+                  </span>
+                </div>
+
+                {b.description && (
+                  <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{b.description}</p>
+                )}
+
+                {b.file_url && (
+                  <a href={b.file_url} target="_blank" rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
+                    <Icon d={I.doc} className="h-3.5 w-3.5" /> {b.file_name || b.file_url}
+                  </a>
+                )}
+
+                {/* Adminning javobi — ayniqsa rad etilganda MUHIM:
+                    sababsiz "qabul qilinmadi" hech narsa bermaydi */}
+                {b.admin_note && (
+                  <div className="mt-3 rounded-xl border border-green/15 bg-[#fafdf7] p-3">
+                    <p className="text-[11px] font-bold text-muted">{tr("Administrator javobi")}</p>
+                    <p className="mt-0.5 text-sm">{b.admin_note}</p>
+                  </div>
+                )}
+
+                {/* Blogerlarga yuborilgach — ish qay darajada bajarilgani.
+                    Hamkor uchun "qabul qilindi" emas, AYNAN shu muhim. */}
+                {b.bajarilish && b.bajarilish.jami > 0 && (
+                  <div className="mt-3 rounded-xl bg-soft p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold">
+                        {b.bajarilish.jami} {tr("blogerga yuborildi")}
+                      </span>
+                      <span className="font-bold text-green">
+                        {b.bajarilish.bajarildi} / {b.bajarilish.jami} {tr("bajarildi")}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                      <div className="h-full rounded-full bg-green transition-all"
+                        style={{ width: `${Math.round((b.bajarilish.bajarildi / b.bajarilish.jami) * 100)}%` }} />
+                    </div>
+                    {b.bajarilish.boshlandi > 0 && (
+                      <p className="mt-1 text-[11px] text-muted">
+                        {b.bajarilish.boshlandi} {tr("ta bloger ishni boshladi")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ---------- Hisobot ---------- */
+
+/** `YYYY-MM-DD` — sana kiritish maydonlari va solishtirish uchun */
+const kunGa = (d: Date) => d.toISOString().slice(0, 10)
+
+/**
+ * Tayyor davrlar.
+ *
+ * NEGA KERAK: hisobot doim BIR DAVR uchun tuziladi — chorak, oy, yil.
+ * Ilgari hisobot faqat "boshidan beri" edi va rahbariyatga "avgust
+ * oyida nima qildik?" degan savolga javob bera olmasdi.
+ */
+function davrOraliq(kalit: string): { dan: string; gacha: string } {
+  const hozir = new Date()
+  const oxiri = kunGa(hozir)
+  const y = hozir.getFullYear(), m = hozir.getMonth()
+  if (kalit === "shu-oy") return { dan: kunGa(new Date(y, m, 1)), gacha: oxiri }
+  if (kalit === "otgan-oy") {
+    return { dan: kunGa(new Date(y, m - 1, 1)), gacha: kunGa(new Date(y, m, 0)) }
+  }
+  if (kalit === "chorak") return { dan: kunGa(new Date(y, m - 2, 1)), gacha: oxiri }
+  if (kalit === "yarim-yil") return { dan: kunGa(new Date(y, m - 5, 1)), gacha: oxiri }
+  if (kalit === "yil") return { dan: kunGa(new Date(y, m - 11, 1)), gacha: oxiri }
+  return { dan: "", gacha: "" }   // butun davr
+}
+
+const DAVRLAR = [
+  { kalit: "hammasi", nom: "Butun davr" },
+  { kalit: "shu-oy", nom: "Shu oy" },
+  { kalit: "otgan-oy", nom: "O'tgan oy" },
+  { kalit: "chorak", nom: "3 oy" },
+  { kalit: "yarim-yil", nom: "6 oy" },
+  { kalit: "yil", nom: "1 yil" },
+] as const
+
 function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; extra: CompanyExtra }) {
+  const [videos, setVideos] = useState<PartnerVideo[]>([])
+  const [yuklanmoqda, setYuklanmoqda] = useState(true)
+  const [xato, setXato] = useState(false)
+
+  const [davr, setDavr] = useState<string>("hammasi")
+  const [dan, setDan] = useState("")
+  const [gacha, setGacha] = useState("")
+
+  const yukla = useCallback(() => {
+    setYuklanmoqda(true); setXato(false)
+    api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
+      .then((d) => setVideos(d.videos || []))
+      // Xato "video yo'q" degani emas — ikkalasi bir xil ko'rinmasin
+      .catch(() => setXato(true))
+      .finally(() => setYuklanmoqda(false))
+  }, [])
+  useEffect(() => { yukla() }, [yukla])
+
+  const davrniTanla = (kalit: string) => {
+    setDavr(kalit)
+    const o = davrOraliq(kalit)
+    setDan(o.dan); setGacha(o.gacha)
+  }
+
+  /* Sana maydonlari qo'lda o'zgartirilsa tayyor davr belgisi olinadi —
+     aks holda "Shu oy" yozuvi turib, oraliq boshqa bo'lib qolardi */
+  const qolda = (yangiDan: string, yangiGacha: string) => {
+    setDan(yangiDan); setGacha(yangiGacha); setDavr("qolda")
+  }
+
+  const davrVideolari = useMemo(() => videos.filter((v) => {
+    const k = String(v.date || "").slice(0, 10)
+    if (!k) return !dan && !gacha      // sanasi yo'q video faqat "butun davr" da
+    if (dan && k < dan) return false
+    if (gacha && k > gacha) return false
+    return true
+  }), [videos, dan, gacha])
+
+  const k = useMemo(() => hisobla(davrVideolari), [davrVideolari])
+
+  /**
+   * OYLIK GRAFIK BUTUN DAVRNI ko'rsatadi, tanlangan oraliqni emas.
+   *
+   * Sabab: grafik filtrning O'ZI boshqaruvchisi — oy ustiga bosilsa
+   * hisobot shu oyga o'tadi. Agar u ham filtrlangan bo'lsa, bir oy
+   * tanlangach grafikda bitta ustun qolib, qaytish yo'li yo'qolardi.
+   * Videolar bo'limida ham xuddi shunday ishlaydi.
+   */
+  const oylik = useMemo(() => {
+    const xarita = new Map<string, { oy: string; views: number; videos: number }>()
+    for (const v of videos) {
+      const oy = String(v.date || "").slice(0, 7)
+      if (!oy) continue
+      const bor = xarita.get(oy) || { oy, views: 0, videos: 0 }
+      bor.views += songa(v.views); bor.videos += 1
+      xarita.set(oy, bor)
+    }
+    return [...xarita.values()].sort((a, b) => a.oy.localeCompare(b.oy))
+  }, [videos])
+
+  /** Oraliq AYNAN bitta to'liq oyga tengmi — grafikda shu oy belgilanadi */
+  const tanlanganOy = useMemo(() => {
+    if (!dan || !gacha || dan.slice(0, 7) !== gacha.slice(0, 7)) return null
+    const [y, m] = dan.split("-").map(Number)
+    const boshi = kunGa(new Date(y, m - 1, 1))
+    const oxiri = kunGa(new Date(y, m, 0))
+    return dan === boshi && gacha === oxiri ? dan.slice(0, 7) : null
+  }, [dan, gacha])
+
+  /** Grafikdan oy tanlash — hisobot davri shu oyga o'tadi */
+  const oyniTanla = (oy: string | null) => {
+    if (!oy) { davrniTanla("hammasi"); return }
+    const [y, m] = oy.split("-").map(Number)
+    setDan(kunGa(new Date(y, m - 1, 1)))
+    setGacha(kunGa(new Date(y, m, 0)))
+    setDavr("qolda")
+  }
+
+  const son = (n: number) => n.toLocaleString("ru-RU")
+  const davrNomi = dan || gacha
+    ? `${dan || "…"} — ${gacha || "…"}`
+    : tr("Butun hamkorlik davri")
+
   return (
     <div className="mt-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="font-display text-lg font-bold">{tr("Hamkorlik hisoboti")}</h3>
           <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.")}</p>
         </div>
-        <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+        {/* Chop etishda tugmaning o'zi qog'ozga tushmasin */}
+        <button onClick={() => window.print()} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 print:hidden">
           <Icon d={I.doc} className="h-4 w-4" /> {tr("Chop etish / PDF")}
         </button>
       </div>
-      <div className={`mt-5 ${card}`}>
-        <div className="border-b border-green/10 pb-4">
-          <div className="font-display text-xl font-extrabold">{partner.name}</div>
-          <div className="text-sm text-muted">{partner.sphere || "Hamkor kompaniya"}{extra.website ? ` • ${extra.website}` : ""}</div>
+
+      {/* ---- Davr tanlash ---- */}
+      <div className={`mt-5 ${card} print:hidden`}>
+        <div className="flex flex-wrap items-center gap-2">
+          {DAVRLAR.map((d) => (
+            <button key={d.kalit} onClick={() => davrniTanla(d.kalit)}
+              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+                davr === d.kalit ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/50"
+              }`}>
+              {tr(d.nom)}
+            </button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-green/15" />
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            {tr("dan")}
+            <input type="date" value={dan} onChange={(e) => qolda(e.target.value, gacha)}
+              className="rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-green" />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-muted">
+            {tr("gacha")}
+            <input type="date" value={gacha} onChange={(e) => qolda(dan, e.target.value)}
+              className="rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-green" />
+          </label>
         </div>
+      </div>
+
+      {/* ---- Hisobot varag'i ---- */}
+      <div className={`mt-5 ${card}`}>
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-green/10 pb-4">
+          <div className="min-w-0">
+            <div className="font-display text-xl font-extrabold">{partner.name}</div>
+            <div className="text-sm text-muted">{partner.sphere || tr("Hamkor kompaniya")}{extra.website ? ` • ${extra.website}` : ""}</div>
+          </div>
+          {/* Qaysi davr uchun ekani QOG'OZDA ham ko'rinishi shart —
+              aks holda chop etilgan hisobotning raqamlari qaysi
+              oyga tegishli ekani noma'lum qolardi */}
+          <div className="text-right text-xs text-muted">
+            <div>{tr("Hisobot davri")}</div>
+            <div className="font-display text-sm font-bold text-ink">{davrNomi}</div>
+          </div>
+        </div>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {[[tr("Shartnoma raqami"), partner.contractNo || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " " + tr("so'm")], [tr("Imzolangan sana"), partner.signedDate || "—"], [tr("Holat"), (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], [tr("Jami ishlar"), String(counts.total)], [tr("Bajarilish"), `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
             <div key={l} className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{l}</div><div className="mt-0.5 font-display font-bold">{v}</div></div>
@@ -1501,6 +1891,62 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
         </div>
         {extra.description && <div className="mt-4 rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Kompaniya haqida")}</div><div className="mt-1 text-sm">{extra.description}</div></div>}
       </div>
+
+      {/* ============ REKLAMA NATIJALARI ============
+          Ilgari hisobotda faqat shartnoma ma'lumotlari bor edi va
+          "shu pulga nima oldik?" degan savolga javob yo'q edi.
+          Raqamlar Videolar bo'limida turardi, hisobotga tushmasdi. */}
+      {yuklanmoqda ? (
+        <div className="mt-6"><SkeletonStatGrid /></div>
+      ) : xato ? (
+        <div className={`mt-6 ${card}`}>
+          <ErrorState onRetry={yukla} message={tr("Reklama natijalarini yuklab bo'lmadi.")} />
+        </div>
+      ) : (
+        <div className="mt-6 space-y-6">
+          <h4 className="font-display text-base font-bold">
+            {tr("Reklama natijalari")}
+            <span className="ml-2 text-sm font-normal text-muted">{davrNomi}</span>
+          </h4>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: I.media, t: "Videolar", v: son(k.total), sub: `${son(k.bloggers)} ${tr("bloger")}` },
+              { icon: I.eye, t: "Ko'rishlar", v: son(k.views), sub: tr("barcha platformalar") },
+              { icon: I.star, t: "Yoqtirishlar", v: son(k.likes), sub: tr("like") },
+              { icon: I.message, t: "Izohlar", v: son(k.comments), sub: tr("komment") },
+            ].map((s) => (
+              <div key={s.t} className="min-w-0 break-inside-avoid rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
+                <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
+                <div className="mt-1 truncate font-display text-2xl font-extrabold">{s.v}</div>
+                <div className="mt-0.5 text-[11px] font-semibold text-green">{s.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {k.total === 0 ? (
+            <div className={`${card} text-center text-sm text-muted`}>
+              {tr("Tanlangan davrda video yo'q — boshqa oraliqni tanlab ko'ring.")}
+            </div>
+          ) : (
+            <>
+              {/* Oylik grafik faqat bir necha oy bo'lganda ma'noli:
+                  bitta ustunli grafik hech narsa ko'rsatmaydi */}
+              {oylik.length > 1 && (
+                <div className="break-inside-avoid">
+                  <OylikGrafik data={oylik} tanlangan={tanlanganOy} onTanla={oyniTanla} />
+                </div>
+              )}
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="break-inside-avoid"><PlatformaDonut stats={k} /></div>
+                <div className="break-inside-avoid"><TopBloggers list={k.topBloggers.slice(0, 5)} /></div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

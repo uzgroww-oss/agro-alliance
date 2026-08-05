@@ -16,6 +16,70 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url)
+    const op = url.searchParams.get("op")
+
+    /* ================================================================
+     * HAMKORLARDAN KELGAN TZ SO'ROVLARI
+     *
+     * Ilgari hamkor kompaniya "shunaqa reklama kerak" deb telefon
+     * yoki Telegram orqali aytardi — tizimda iz qolmasdi. Endi
+     * so'rov shu yerda ko'rinadi va aynan shundan blogerlarga
+     * topshiriq yaratiladi.
+     *
+     * Alohida edge funksiya EMAS: limit (~100) yaqin, shuning uchun
+     * amallar mavjud funksiyaga `?op=` bilan qo'shildi.
+     * ================================================================ */
+    if (op === "briefs") {
+      const { data, error } = await supabaseAdmin
+        .from("partner_briefs")
+        .select("id, partner_id, title, description, priority, deadline, file_url, file_name, status, admin_note, task_id, created_at")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(200)
+      if (error) return errorResponse(error.message, 500)
+
+      // Kompaniya nomi — TZ kimdan kelganini ko'rsatish uchun
+      const pids = [...new Set((data || []).map((b) => b.partner_id as string))]
+      const nomlar: Record<string, string> = {}
+      if (pids.length) {
+        const { data: ps } = await supabaseAdmin
+          .from("partners").select("id, name").in("id", pids)
+        for (const p of (ps || []) as { id: string; name: string }[]) nomlar[p.id] = p.name || "—"
+      }
+
+      return jsonResponse({
+        briefs: (data || []).map((b) => ({ ...b, partner_name: nomlar[b.partner_id as string] || "—" })),
+      })
+    }
+
+    /* TZ so'rovining holatini o'zgartirish (ko'rildi / rad etildi) */
+    if (op === "brief-update" && (req.method === "POST" || req.method === "PATCH")) {
+      const body = await req.json().catch(() => ({}))
+      const id = String(body.id || "")
+      if (!id) return errorResponse("id talab qilinadi", 400)
+
+      const yangilash: Record<string, unknown> = {}
+      if (["new", "seen", "sent", "rejected"].includes(String(body.status))) {
+        yangilash.status = String(body.status)
+      }
+      if (typeof body.admin_note === "string") {
+        yangilash.admin_note = body.admin_note.trim().slice(0, 2000) || null
+      }
+      if (!Object.keys(yangilash).length) return errorResponse("O'zgartirish yo'q", 400)
+
+      const { error } = await supabaseAdmin.from("partner_briefs").update(yangilash).eq("id", id)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
+    }
+
+    if (op === "brief-delete" && req.method === "DELETE") {
+      const id = url.searchParams.get("id")
+      if (!id) return errorResponse("id talab qilinadi", 400)
+      const { error } = await supabaseAdmin.from("partner_briefs")
+        .update({ deleted_at: new Date().toISOString() }).eq("id", id)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
+    }
 
     if (req.method === "DELETE") {
       const id = url.searchParams.get("id")

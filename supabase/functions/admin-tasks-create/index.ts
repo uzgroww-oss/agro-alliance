@@ -53,6 +53,27 @@ Deno.serve(async (req) => {
     const { error: assignErr } = await supabaseAdmin.from("blogger_task_assignments").insert(rows)
     if (assignErr) return errorResponse(assignErr.message, 500)
 
+    /**
+     * HAMKOR SO'ROVIDAN YARATILGAN BO'LSA — ZANJIRNI BOG'LAYMIZ.
+     *
+     * Shusiz hamkor o'z so'rovi blogerlarga yuborilganini ko'ra
+     * olmasdi: TZ yaratilardi, lekin u qaysi so'rovdan kelib
+     * chiqqani hech qayerda yozilmasdi va hamkor panelida so'rov
+     * abadiy "yuborildi" holatida qolib ketardi.
+     *
+     * Bog'lash muvaffaqiyatsiz bo'lsa ham TZ ning O'ZI yaratilgan
+     * va blogerlarga yetib borgan — shuning uchun xato qaytarmaymiz,
+     * faqat logga yozamiz.
+     */
+    const briefId = String(body.brief_id || "")
+    if (briefId) {
+      const { error: bErr } = await supabaseAdmin
+        .from("partner_briefs")
+        .update({ status: "sent", task_id: task.id })
+        .eq("id", briefId)
+      if (bErr) console.error("brief bog'lash:", bErr.message)
+    }
+
     return jsonResponse({ success: true, task_id: task.id, assigned: bloggerIds.length })
   } catch (err) {
     return errorResponse(err instanceof Error ? err.message : "Internal error", 500)

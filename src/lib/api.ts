@@ -423,7 +423,16 @@ function resolveAdminUrl(path: string, method: string): string {
 
   if (segments[0] === "tasks") {
     if (segments.length === 1) {
-      const fn = method === "POST" ? "admin-tasks-create" : "admin-tasks-list"
+      /**
+       * Hamkorlardan kelgan TZ so'rovlari (`?op=brief…`) ham shu yo'l
+       * orqali ketadi, lekin ular `admin-tasks-list` ichida — POST
+       * bo'lsa ham. Aks holda "so'rovni ko'rdim" deb belgilash
+       * blogerlarga YANGI topshiriq yaratib yuborardi.
+       */
+      const op = new URLSearchParams(qsRaw).get("op") || ""
+      const fn = method === "POST" && !op.startsWith("brief")
+        ? "admin-tasks-create"
+        : "admin-tasks-list"
       return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
     }
     if (segments.length === 2) {

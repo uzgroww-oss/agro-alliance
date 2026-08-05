@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, Fragment } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import DashboardLayout, { LineChart } from "../../components/DashboardLayout"
 import { Icon, I, statIcon, type StatItem, fmtSom, SkeletonTable, SkeletonStatGrid, SkeletonCard, Skeleton, useBusy, ErrorState, useBodyScrollLock } from "../../lib/ui"
@@ -1765,11 +1765,43 @@ const tzStatus: Record<string, { label: string; cls: string }> = {
   done: { label: "Bajarildi", cls: "bg-green/10 text-green" },
 }
 
+/**
+ * HAMKOR KOMPANIYADAN KELGAN TZ SO'ROVI.
+ *
+ * Ilgari hamkor "shunaqa reklama kerak" deb telefon yoki Telegram
+ * orqali aytardi — tizimda iz qolmasdi va kim nima so'raganini keyin
+ * tiklab bo'lmasdi. Endi so'rov shu yerga tushadi va aynan shundan
+ * blogerlarga topshiriq yaratiladi.
+ */
+type PartnerBrief = {
+  id: string; partner_id: string; partner_name: string
+  title: string; description: string | null
+  priority: string; deadline: string | null
+  file_url: string | null; file_name: string | null
+  status: string; admin_note: string | null; task_id: string | null
+  created_at: string
+}
+
+const briefStatus: Record<string, { label: string; cls: string }> = {
+  new: { label: "Yangi so'rov", cls: "bg-orange-100 text-orange-600" },
+  seen: { label: "Ko'rib chiqilmoqda", cls: "bg-blue-50 text-blue-700" },
+  sent: { label: "Blogerlarga yuborildi", cls: "bg-green/10 text-green" },
+  rejected: { label: "Qabul qilinmadi", cls: "bg-red-50 text-red-600" },
+}
+
 function AdminTasks() {
   const [tasks, setTasks] = useState<AdminTask[]>([])
   const [bloggers, setBloggers] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ title: "", description: "", deadline: "" })
+  const [form, setForm] = useState({ title: "", description: "", deadline: "", priority: "normal" })
+
+  /* Hamkor so'rovlari */
+  const [briefs, setBriefs] = useState<PartnerBrief[]>([])
+  /** Formaga ko'chirilgan so'rov — yuborilgach shu so'rovga bog'lanadi */
+  const [briefId, setBriefId] = useState<string | null>(null)
+  /** Rad etish izohi yozilayotgan so'rov */
+  const [radEtish, setRadEtish] = useState<{ id: string; matn: string } | null>(null)
+  const formRef = useRef<HTMLDivElement>(null)
   const [file, setFile] = useState<{ url: string; name: string } | null>(null)
   const [target, setTarget] = useState<"all" | "selected">("all")
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -1787,9 +1819,42 @@ function AdminTasks() {
     Promise.all([
       api<{ tasks: AdminTask[] }>("/tasks").then((d) => setTasks(d.tasks || [])).catch(() => setFailed(true)),
       api<{ bloggers: { id: string; name: string }[] }>("/bloggers").then((d) => setBloggers(d.bloggers || [])).catch(() => setFailed(true)),
+      // So'rovlar yuklanmasa ham qolgan ish ishlayversin: TZ yuborish
+      // hamkor so'roviga bog'liq emas
+      api<{ briefs: PartnerBrief[] }>("/tasks?op=briefs").then((d) => setBriefs(d.briefs || [])).catch(() => {}),
     ]).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
+
+  /** So'rovni formaga ko'chirish — admin tahrirlab keyin yuboradi */
+  const briefniOl = async (b: PartnerBrief) => {
+    setForm({
+      title: b.title,
+      description: b.description || "",
+      deadline: b.deadline || "",
+      priority: b.priority || "normal",
+    })
+    setBriefId(b.id)
+    setMsg("")
+    // Hamkor "administrator o'qidi" degan holatni ko'rsin
+    if (b.status === "new") {
+      await api("/tasks?op=brief-update", {
+        method: "POST", body: JSON.stringify({ id: b.id, status: "seen" }),
+      }).catch(() => {})
+      setBriefs((prev) => prev.map((x) => x.id === b.id ? { ...x, status: "seen" } : x))
+    }
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const briefniRad = async () => {
+    if (!radEtish) return
+    await api("/tasks?op=brief-update", {
+      method: "POST",
+      body: JSON.stringify({ id: radEtish.id, status: "rejected", admin_note: radEtish.matn }),
+    }).catch(() => {})
+    setRadEtish(null)
+    load()
+  }
 
   const toggle = (id: string) => setSelected((prev) => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
@@ -1802,9 +1867,21 @@ function AdminTasks() {
     if (target === "selected" && (blogger_ids as string[]).length === 0) { setMsg(tr("❌ Kamida bitta bloger tanlang")); return }
     setSending(true)
     try {
-      const r = await api<{ assigned: number }>("/tasks", { method: "POST", body: JSON.stringify({ ...form, file_url: file?.url || null, file_name: file?.name || null, blogger_ids }) })
+      const r = await api<{ assigned: number }>("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          file_url: file?.url || null,
+          file_name: file?.name || null,
+          blogger_ids,
+          // Hamkor so'rovidan kelgan bo'lsa zanjir bog'lanadi — shusiz
+          // hamkor o'z so'rovi yuborilganini ko'ra olmasdi
+          brief_id: briefId,
+        }),
+      })
       setMsg(`✅ Topshiriq ${r.assigned} ta blogerga yuborildi`)
-      setForm({ title: "", description: "", deadline: "" }); setFile(null); setSelected(new Set()); setTarget("all")
+      setForm({ title: "", description: "", deadline: "", priority: "normal" })
+      setFile(null); setSelected(new Set()); setTarget("all"); setBriefId(null)
       load()
     } catch (e) { setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`) }
     finally { setSending(false) }
@@ -1823,16 +1900,136 @@ function AdminTasks() {
         <p className="mt-1 text-sm text-muted">{tr("Blogerlarga topshiriq yuboring va bajarilishini kuzating.")}</p>
       </div>
 
+      {/* ============ HAMKORLARDAN KELGAN SO'ROVLAR ============
+          Formadan YUQORIDA turadi: yangi so'rov kelgan bo'lsa admin
+          uni birinchi ko'rsin, keyin quyida topshiriqqa aylantirsin. */}
+      {briefs.length > 0 && (
+        <div className="mt-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-display font-bold">{tr("Hamkorlardan kelgan so'rovlar")}</h3>
+            {briefs.some((b) => b.status === "new") && (
+              <span className="rounded-lg bg-orange-100 px-2.5 py-1 text-[11px] font-bold text-orange-600">
+                {briefs.filter((b) => b.status === "new").length} {tr("ta yangi")}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            {tr("Hamkor kompaniyalar o'z panelidan yuborgan TZ so'rovlari. Ko'rib chiqing va blogerlarga yuboring.")}
+          </p>
+
+          <div className="mt-3 space-y-3">
+            {briefs.map((b) => {
+              const st = briefStatus[b.status] || briefStatus.new
+              return (
+                <div key={b.id} className={`${card} ${b.status === "new" ? "border-orange-200" : ""}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-display font-bold">{b.title}</h4>
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${st.cls}`}>{tr(st.label)}</span>
+                        {b.priority === "high" && (
+                          <span className="rounded-md bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-600">{tr("Shoshilinch")}</span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted">
+                        <b className="text-ink">{b.partner_name}</b>
+                        {" · "}{new Date(b.created_at).toLocaleDateString("ru-RU")}
+                        {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      {b.status !== "sent" && (
+                        <button onClick={() => briefniOl(b)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white">
+                          <Icon d={I.send} className="h-3.5 w-3.5" /> {tr("Blogerlarga yuborish")}
+                        </button>
+                      )}
+                      {b.status !== "sent" && b.status !== "rejected" && (
+                        <button onClick={() => setRadEtish({ id: b.id, matn: "" })}
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 transition-colors hover:bg-red-50">
+                          {tr("Rad etish")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {b.description && (
+                    <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{b.description}</p>
+                  )}
+                  {b.file_url && (
+                    <a href={b.file_url} target="_blank" rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
+                      <Icon d={I.paperclip} className="h-3.5 w-3.5" /> {b.file_name || b.file_url}
+                    </a>
+                  )}
+                  {b.admin_note && (
+                    <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+                      <b>{tr("Javobingiz")}:</b> {b.admin_note}
+                    </p>
+                  )}
+
+                  {/* Rad etish sababi — hamkor panelida ko'rinadi.
+                      Sababsiz "qabul qilinmadi" unga hech narsa bermaydi. */}
+                  {radEtish?.id === b.id && (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50/50 p-3">
+                      <label className="text-xs font-bold text-muted">{tr("Nega qabul qilinmadi? Hamkor shu izohni ko'radi.")}</label>
+                      <textarea value={radEtish.matn} rows={2} maxLength={2000}
+                        onChange={(e) => setRadEtish({ id: b.id, matn: e.target.value })}
+                        className="mt-1 w-full resize-y rounded-lg border border-red-200 bg-white px-3 py-2 text-sm outline-none focus:border-red-400" />
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={briefniRad} disabled={!radEtish.matn.trim()}
+                          className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">
+                          {tr("Rad etish")}
+                        </button>
+                        <button onClick={() => setRadEtish(null)}
+                          className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted hover:text-ink">
+                          {tr("Bekor")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Yangi TZ formasi */}
-      <div className={`${card} mt-5`}>
+      <div ref={formRef} className={`${card} mt-5`}>
         <h3 className="font-display font-bold">{tr("Yangi topshiriq yuborish")}</h3>
+        {/* Hamkor so'rovidan ko'chirilgani ANIQ ko'rinsin: admin nima
+            yuborayotganini va u kimga bog'lanishini bilishi kerak */}
+        {briefId && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-green/10 px-3 py-2 text-xs">
+            <span className="font-semibold text-green">
+              {tr("Hamkor so'rovi asosida")}: {briefs.find((b) => b.id === briefId)?.partner_name || ""}
+            </span>
+            <button onClick={() => setBriefId(null)} className="font-bold text-muted hover:text-ink">
+              {tr("Bog'lanishni olib tashlash")}
+            </button>
+          </div>
+        )}
         <div className="mt-4 space-y-3">
           <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder={tr("Sarlavha (masalan: Yangi mahsulot haqida video)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
           <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} placeholder={tr("Topshiriq tavsifi / talablar…")} className="w-full resize-none rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-muted">{tr("Muddat (ixtiyoriy)")}</span>
-            <input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted">{tr("Muddat (ixtiyoriy)")}</span>
+              <input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
+            </label>
+            {/* Muhimlik hamkor so'rovidan ko'chib keladi, lekin admin
+                uni o'zgartira olishi kerak — hamkorning "shoshilinch" i
+                har doim ham haqiqiy ustuvorlik degani emas */}
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted">{tr("Muhimligi")}</span>
+              <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className="w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green">
+                <option value="low">{tr("Past")}</option>
+                <option value="normal">{tr("O'rtacha")}</option>
+                <option value="high">{tr("Shoshilinch")}</option>
+              </select>
+            </label>
+          </div>
 
           {/* TZ fayl (ixtiyoriy) */}
           <div>
