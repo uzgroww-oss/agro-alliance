@@ -1272,10 +1272,31 @@ function ServicesTab() {
 }
 
 /* ---------- Topshiriqlar (TZ) Tab ---------- */
+/** TZ bandi — hamkor yozgan bitta talab */
+type TzBand = {
+  id: string; title: string; status: string
+  done_by: string | null; done_at: string | null; note: string | null
+  meniki: boolean
+}
+/** Shu TZ ga biriktirilgan video (raqamlar bilan) */
+type TzVideo = {
+  video_id: string; link: string; name: string | null; thumbnail: string | null
+  platform: string | null; views: string; likes: string; comments: string
+  ochirilgan: boolean; added_at: string
+}
+/** Shu TZ ustida ishlayotgan bloger va uning natijasi */
+type TzJamoa = {
+  id: string; name: string; avatar: string | null; meniki: boolean
+  videos: number; views: number; likes: number; comments: number
+}
+
 type MeTask = {
-  assignment_id: string; status: string; is_read: boolean; note: string | null
+  assignment_id: string; task_id: string; status: string; is_read: boolean; note: string | null
   title: string; description: string | null; priority: string; deadline: string | null; created_at: string
   file_url?: string | null; file_name?: string | null
+  bandlar: TzBand[]
+  videolar: TzVideo[]
+  jamoa: TzJamoa[]
 }
 const tzPrioLabel: Record<string, string> = { low: tr("Past"), normal: tr("O'rta"), high: tr("Yuqori") }
 const tzPrioColor: Record<string, string> = {
@@ -1283,7 +1304,7 @@ const tzPrioColor: Record<string, string> = {
 }
 const tzStatusLabel: Record<string, string> = { new: "Yangi", in_progress: "Bajarilmoqda", done: "Bajarildi" }
 
-function TasksTab() {
+function TasksTab({ me }: { me: User }) {
   const [tasks, setTasks] = useState<MeTask[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -1302,13 +1323,73 @@ function TasksTab() {
   }
   useEffect(() => { load() }, [])
 
+  /** Video biriktirish oynasi qaysi topshiriq uchun ochilgan */
+  const [videoUchun, setVideoUchun] = useState<MeTask | null>(null)
+  /** Band izohi tahrirlanayotgan band id si */
+  const [izohUchun, setIzohUchun] = useState<{ id: string; matn: string } | null>(null)
+  const [xato, setXato] = useState("")
+
   const setStatus = async (id: string, status: string) => {
+    /**
+     * "BAJARILDI" — VIDEOSIZ BO'LMAYDI.
+     *
+     * Ilgari bloger bir bosishda "Bajarildi" qilardi va hech qanday
+     * dalil qolmasdi: hamkor hisobotida "bajarildi" yozuvi turar,
+     * ortida esa hech narsa yo'q edi. Endi avval video biriktiriladi.
+     */
+    const t = tasks.find((x) => x.assignment_id === id)
+    if (status === "done" && t && t.videolar.length === 0) {
+      setVideoUchun(t)
+      setXato(tr("Avval shu topshiriq uchun videoni biriktiring — hamkor natijani shundan ko'radi."))
+      return
+    }
+    setXato("")
     setBusy(id)
-    setTasks((prev) => prev.map((t) => t.assignment_id === id ? { ...t, status, is_read: true } : t))
+    setTasks((prev) => prev.map((x) => x.assignment_id === id ? { ...x, status, is_read: true } : x))
     try { await api(`/me/tasks/${id}`, { method: "PATCH", body: JSON.stringify({ status, is_read: true }) }) }
     finally { setBusy(null) }
   }
 
+  /** TZ bandini bajarildi / bajarilmadi deb belgilash */
+  const bandBelgila = async (band: TzBand, bajarildi: boolean, note?: string) => {
+    setBusy(band.id)
+    setXato("")
+    try {
+      await api("/me/tasks?op=band", {
+        method: "POST",
+        body: JSON.stringify({ band_id: band.id, bajarildi, note }),
+      })
+      load(true)
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("Bandni belgilab bo'lmadi"))
+    } finally { setBusy(null) }
+  }
+
+  const videoBiriktir = async (assignmentId: string, videoId: string) => {
+    setBusy(assignmentId)
+    setXato("")
+    try {
+      await api(`/me/tasks/${assignmentId}?op=video`, {
+        method: "POST", body: JSON.stringify({ video_id: videoId }),
+      })
+      setVideoUchun(null)
+      load(true)
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("Videoni biriktirib bo'lmadi"))
+    } finally { setBusy(null) }
+  }
+
+  const videoOchir = async (assignmentId: string, link: string) => {
+    setBusy(assignmentId)
+    try {
+      await api(`/me/tasks/${assignmentId}?op=video-remove`, {
+        method: "POST", body: JSON.stringify({ video_link: link }),
+      })
+      load(true)
+    } finally { setBusy(null) }
+  }
+
+  const son = (n: number) => n.toLocaleString("ru-RU")
   const unread = tasks.filter((t) => !t.is_read).length
 
   return (
@@ -1320,6 +1401,10 @@ function TasksTab() {
         </div>
         {unread > 0 && <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">{unread} ta yangi</span>}
       </div>
+
+      {xato && (
+        <div className="mt-4 rounded-xl bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700">{xato}</div>
+      )}
 
       {loading ? (
         <div className="mt-5"><SkeletonTable rows={3} cols={1} /></div>
@@ -1352,17 +1437,188 @@ function TasksTab() {
                 <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : tr("Muddatsiz")}</span>
                 <span>{new Date(t.created_at).toLocaleDateString()}</span>
               </div>
+              {/* ---- TZ BANDLARI ----
+                  Hamkor yozgan talablar. Har birini alohida belgilash
+                  hamkor hisobotida "nima qilindi, nima qolmadi" bo'lib
+                  chiqadi — ilgari bunday tafsilot umuman yo'q edi. */}
+              {t.bandlar.length > 0 && (
+                <div className="mt-3 rounded-xl border border-green/15 bg-soft/60 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-ink">{tr("Talablar ro'yxati")}</p>
+                    <span className="text-[11px] font-bold text-green">
+                      {t.bandlar.filter((b) => b.status === "done").length} / {t.bandlar.length}
+                    </span>
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {t.bandlar.map((b) => {
+                      const bajarildi = b.status === "done"
+                      // Boshqa bloger bajargan bandni bu bloger o'zgartira
+                      // olmasin — aks holda birining ishini ikkinchisi
+                      // bekor qilib yuborardi
+                      const boshqaniki = bajarildi && !b.meniki
+                      return (
+                        <li key={b.id} className="flex items-start gap-2">
+                          <button type="button" disabled={busy === b.id || boshqaniki}
+                            title={boshqaniki ? tr("Boshqa bloger bajargan") : (bajarildi ? tr("Belgini olib tashlash") : tr("Bajarildi deb belgilash"))}
+                            onClick={() => bandBelgila(b, !bajarildi)}
+                            className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border-2 transition-colors disabled:opacity-60 ${
+                              bajarildi ? "border-green bg-green text-white" : "border-green/30 hover:border-green"}`}>
+                            {bajarildi && <Icon d={I.check} className="h-2.5 w-2.5" />}
+                          </button>
+                          <span className="min-w-0 flex-1">
+                            <span className={`block text-xs ${bajarildi ? "text-muted line-through" : "text-ink/85"}`}>{b.title}</span>
+                            {b.note && <span className="block text-[11px] text-muted">{b.note}</span>}
+                            {izohUchun?.id === b.id ? (
+                              <span className="mt-1 flex gap-1.5">
+                                <input value={izohUchun.matn} autoFocus maxLength={1000}
+                                  onChange={(e) => setIzohUchun({ id: b.id, matn: e.target.value })}
+                                  placeholder={tr("Qanday qilindi?")}
+                                  className="min-w-0 flex-1 rounded-lg border border-green/25 px-2 py-1 text-[11px] outline-none focus:border-green" />
+                                <button type="button" onClick={() => { bandBelgila(b, true, izohUchun.matn); setIzohUchun(null) }}
+                                  className="rounded-lg bg-green px-2 py-1 text-[11px] font-bold text-white">{tr("Saqlash")}</button>
+                                <button type="button" onClick={() => setIzohUchun(null)}
+                                  className="rounded-lg px-1.5 py-1 text-[11px] font-bold text-muted">{tr("Bekor")}</button>
+                              </span>
+                            ) : (!boshqaniki && (
+                              <button type="button" onClick={() => setIzohUchun({ id: b.id, matn: b.note || "" })}
+                                className="mt-0.5 text-[11px] font-bold text-green hover:underline">
+                                {b.note ? tr("Izohni o'zgartirish") : tr("Qanday qilganingizni yozing")}
+                              </button>
+                            ))}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {/* ---- BIRIKTIRILGAN VIDEOLAR ----
+                  Topshiriq NATIJASI. Hamkor hisobotida aynan shular
+                  ko'rinadi va ko'rish/layk raqamlari shulardan olinadi. */}
+              <div className="mt-3 rounded-xl border border-green/15 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-ink">{tr("Biriktirilgan videolar")}</p>
+                  <button type="button" onClick={() => { setVideoUchun(t); setXato("") }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-green/25 px-2.5 py-1 text-[11px] font-bold text-green transition-colors hover:bg-green/5">
+                    <Icon d="M12 5v14 M5 12h14" className="h-3 w-3" /> {tr("Video biriktirish")}
+                  </button>
+                </div>
+                {t.videolar.length === 0 ? (
+                  <p className="mt-2 text-[11px] text-muted">
+                    {tr("Hali video biriktirilmagan — hamkor natijani ko'ra olmaydi.")}
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {t.videolar.map((v) => (
+                      <li key={v.link} className="flex items-center gap-2.5 rounded-lg bg-soft px-2 py-1.5">
+                        {v.thumbnail && <img src={v.thumbnail} alt="" className="h-8 w-14 shrink-0 rounded object-cover" />}
+                        <span className="min-w-0 flex-1">
+                          <a href={v.link} target="_blank" rel="noreferrer"
+                            className="block truncate text-[11px] font-bold text-green hover:underline">{v.name || v.link}</a>
+                          <span className="block text-[10px] text-muted">
+                            {v.platform || "—"} · {v.views} {tr("ko'rish")} · {v.likes} {tr("layk")}
+                            {v.ochirilgan && <span className="text-orange-600"> · {tr("video o'chirilgan")}</span>}
+                          </span>
+                        </span>
+                        <button type="button" onClick={() => videoOchir(t.assignment_id, v.link)}
+                          disabled={busy === t.assignment_id} title={tr("Biriktirishni olib tashlash")}
+                          className="grid h-6 w-6 shrink-0 place-items-center rounded text-red-400 hover:bg-red-50 disabled:opacity-50">
+                          <Icon d="M18 6L6 18 M6 6l12 12" className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* ---- SHU TZ USTIDA ISHLAYOTGANLAR ----
+                  Faqat AYNAN SHU kampaniya bo'yicha: bloger boshqa
+                  kompaniyalar bilan kim ishlayotganini ko'rmaydi. */}
+              {t.jamoa.length > 1 && (
+                <div className="mt-3 rounded-xl border border-green/15 p-3">
+                  <p className="text-xs font-bold text-ink">{tr("Shu topshiriq bo'yicha natijalar")}</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {t.jamoa.map((j, i) => (
+                      <li key={j.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${j.meniki ? "bg-green/10" : ""}`}>
+                        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md text-[10px] font-bold ${
+                          i === 0 && j.views > 0 ? "bg-green text-white" : "bg-soft text-muted"}`}>{i + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+                          {j.meniki ? tr("Siz") : j.name}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted">
+                          {j.videos} {tr("video")} · <b className="text-ink">{son(j.views)}</b> {tr("ko'rish")} · {son(j.likes)} {tr("layk")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Holatni o'zgartirish */}
               <div className="mt-3 flex flex-wrap gap-2">
                 {[["new", "Yangi"], ["in_progress", "Bajarilmoqda"], ["done", "Bajarildi"]].map(([val, label]) => (
                   <button key={val} disabled={busy === t.assignment_id} onClick={() => setStatus(t.assignment_id, val)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${t.status === val ? "bg-green text-white" : "border border-green/25 text-ink hover:border-green hover:text-green"}`}>
-                    {label}
+                    {tr(label)}
                   </button>
                 ))}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ---- Video tanlash oynasi ---- */}
+      {videoUchun && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          onClick={() => setVideoUchun(null)}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-display font-bold">{tr("Video biriktirish")}</h3>
+                <p className="mt-0.5 truncate text-xs text-muted">{videoUchun.title}</p>
+              </div>
+              <button onClick={() => setVideoUchun(null)} aria-label={tr("Yopish")}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted hover:bg-soft">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+              </button>
+            </div>
+
+            {(() => {
+              const biriktirilgan = new Set(videoUchun.videolar.map((v) => v.link))
+              const royxat = (me.videos || []).filter((v) => !biriktirilgan.has(v.link))
+              if (royxat.length === 0) {
+                return (
+                  <p className="mt-4 rounded-xl bg-soft px-4 py-6 text-center text-sm text-muted">
+                    {tr("Profilingizda biriktirish uchun video yo'q. Avval \"Videolar\" bo'limidan qo'shing.")}
+                  </p>
+                )
+              }
+              return (
+                <ul className="mt-4 space-y-2">
+                  {royxat.map((v) => (
+                    <li key={v.id}>
+                      <button type="button" disabled={busy === videoUchun.assignment_id}
+                        onClick={() => videoBiriktir(videoUchun.assignment_id, v.id)}
+                        className="flex w-full items-center gap-3 rounded-xl border border-green/15 p-2 text-left transition-colors hover:border-green/50 hover:bg-green/5 disabled:opacity-50">
+                        {v.thumbnail
+                          ? <img src={v.thumbnail} alt="" className="h-10 w-16 shrink-0 rounded object-cover" />
+                          : <span className="grid h-10 w-16 shrink-0 place-items-center rounded bg-soft text-green"><Icon d={I.media} className="h-4 w-4" /></span>}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-bold">{v.name}</span>
+                          <span className="block text-[11px] text-muted">
+                            {(v.plats || []).join(", ") || "—"} · {v.views} {tr("ko'rish")}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            })()}
+          </div>
         </div>
       )}
     </div>
@@ -1946,7 +2202,7 @@ export default function BloggerDashboard() {
           </div>
         )
         : active === "Dashboard" ? <Overview me={me} reload={reload} onNav={setActive} />
-        : active === "Topshiriqlar" ? <TasksTab />
+        : active === "Topshiriqlar" ? <TasksTab me={me} />
         : active === "Profilim" ? <ProfileTab me={me} reload={reload} />
         : active === "Ijtimoiy tarmoqlar" ? <SocialsTab me={me} reload={reload} />
         : active === "Videolar" ? <VideosTab me={me} reload={reload} />

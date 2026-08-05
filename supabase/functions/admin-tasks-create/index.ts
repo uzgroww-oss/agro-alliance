@@ -22,6 +22,25 @@ Deno.serve(async (req) => {
 
     const priority = ["low", "normal", "high"].includes(body.priority) ? body.priority : "normal"
 
+    /**
+     * BITTA SO'ROV — BITTA TOPSHIRIQ.
+     *
+     * Ilgari tekshiruv yo'q edi: admin bir so'rovni ikki marta
+     * yuborsa, birinchi topshiriq bilan bog'lam JIMGINA o'chib,
+     * hamkor panelidagi "bajarilish" ikkinchi topshiriqning
+     * raqamlarini ko'rsata boshlardi. Endi bazada ham yagona indeks
+     * bor, lekin xatoni foydalanuvchiga tushunarli qilib aytamiz.
+     */
+    const briefIdOldin = String(body.brief_id || "")
+    if (briefIdOldin) {
+      const { data: bor } = await supabaseAdmin
+        .from("partner_briefs").select("task_id")
+        .eq("id", briefIdOldin).is("deleted_at", null).maybeSingle()
+      if (bor?.task_id) {
+        return errorResponse("Bu so'rov allaqachon blogerlarga yuborilgan", 409)
+      }
+    }
+
     // Qabul qiluvchi blogerlarni aniqlash
     let bloggerIds: string[] = []
     if (body.blogger_ids === "all" || (Array.isArray(body.blogger_ids) && body.blogger_ids.length === 0)) {

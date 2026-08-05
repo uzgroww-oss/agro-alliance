@@ -102,3 +102,98 @@ body.modal-open { overflow: hidden; }
   100% { background-position: -200% 0; }
 }
 .animate-shimmer { animation: shimmer 1.8s ease-in-out infinite; }
+
+/* ==========================================================================
+   A4 GA CHOP ETISH / PDF
+   ==========================================================================
+   MUAMMO EDI: "Chop etish / PDF" tugmasi bor edi, lekin hech qanday
+   chop etish uslubi yo'q edi. Natijada qog'ozga BUTUN kabinet
+   tushardi: chap menyu, tepadagi panel, tugmalar, filtrlar. Hisobot
+   varag'i o'ng tomonda siqilib qolar, ranglar esa printerda kulrang
+   nomaqbul dog'larga aylanardi.
+
+   Endi qog'ozga FAQAT hisobotning o'zi tushadi.
+
+   Ishlatilishi: chop etilishi kerak bo'lgan blokka `print-area`
+   sinfini bering. Qog'ozga chiqmasligi kerak bo'lgan har qanday
+   element `no-print` oladi (Tailwind ning `print:hidden` i ham
+   ishlaydi).
+   ========================================================================== */
+@media print {
+  /* Chekka o'lchamlari — chap tomon kengroq: hisobot tikilganda
+     yoki qadalganda matn yopilib qolmasin */
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm 16mm;
+  }
+
+  /* Fon ranglari va soyalari QOG'OZDA ishlatilmaydi: siyoh ko'p
+     ketadi va oq-qora printerda ular kulrang dog'ga aylanib,
+     matnni o'qishni qiyinlashtiradi. Chegara chiziqlari qoladi —
+     ular tuzilmani ko'rsatadi va deyarli siyoh yemaydi. */
+  html, body {
+    background: #fff !important;
+    /* Diagramma va holat belgilarining ranglari SAQLANADI: ular
+       ma'no tashiydi (yashil — bajarilgan, sariq — kutilmoqda) */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Ekran uchun mo'ljallangan hamma narsa yashiriladi */
+  .no-print,
+  header,
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  /* Hisobot varag'i butun kenglikni egallasin: ekranda u ustunning
+     ichida turadi va o'sha kenglik qog'ozda tor bo'lib qolardi */
+  .print-area {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ekran tuzilishidagi cheklovlar qog'ozda kerak emas */
+  .print-area * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Karta va jadval SAHIFA O'RTASIDAN bo'linmasin — yarmi bir
+     varaqda, yarmi ikkinchisida qolgan jadval o'qib bo'lmaydi */
+  .print-block,
+  .print-area table,
+  .print-area tr,
+  .print-area svg,
+  .print-area figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Yangi sahifadan boshlanishi kerak bo'lgan bo'limlar */
+  .print-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Soyalar qog'ozda ma'nosiz — faqat siyoh yeydi */
+  .print-area * {
+    box-shadow: none !important;
+  }
+
+  /* Havolalar qog'ozda bosilmaydi, shuning uchun manzilning o'zi
+     yozib qo'yiladi — aks holda "batafsil" so'zi qog'ozda hech
+     qayerga olib bormaydigan matn bo'lib qoladi */
+  .print-area a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9px;
+    color: #555;
+    word-break: break-all;
+  }
+  /* Ikonka yoki tugma ko'rinishidagi havolalarda manzil ortiqcha */
+  .print-area a.no-print-url::after { content: ""; }
+}

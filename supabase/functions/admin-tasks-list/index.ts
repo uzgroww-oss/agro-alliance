@@ -47,9 +47,99 @@ Deno.serve(async (req) => {
         for (const p of (ps || []) as { id: string; name: string }[]) nomlar[p.id] = p.name || "—"
       }
 
+      /**
+       * TALAB BANDLARI — hamkor yozgan ro'yxat. Admin uni blogerlarga
+       * yuborishdan oldin ko'radi va tahrirlashi mumkin.
+       *
+       * BITTA so'rov bilan olinadi: har brief uchun alohida so'rov
+       * yuborilsa 200 ta brief uchun 200 ta so'rov chiqardi.
+       */
+      const bids = (data || []).map((b) => b.id as string)
+      const bandByBrief: Record<string, { id: string; title: string; status: string }[]> = {}
+      if (bids.length) {
+        const { data: bandlar } = await supabaseAdmin
+          .from("partner_tasks")
+          .select("id, brief_id, title, status, sort_order")
+          .in("brief_id", bids).is("deleted_at", null)
+          .order("sort_order", { ascending: true })
+        for (const b of (bandlar || []) as Record<string, unknown>[]) {
+          const k = b.brief_id as string
+          ;(bandByBrief[k] ||= []).push({
+            id: b.id as string, title: b.title as string, status: b.status as string,
+          })
+        }
+      }
+
       return jsonResponse({
-        briefs: (data || []).map((b) => ({ ...b, partner_name: nomlar[b.partner_id as string] || "—" })),
+        briefs: (data || []).map((b) => ({
+          ...b,
+          partner_name: nomlar[b.partner_id as string] || "—",
+          bandlar: bandByBrief[b.id as string] || [],
+        })),
       })
+    }
+
+    /**
+     * TZ BANDLARINI SAQLASH (admin tahriri).
+     *
+     * Admin hamkorning bandlarini yuborishdan oldin tuzatishi kerak:
+     * hamkor 5 ta band yozib, ularning 2 tasi imkonsiz bo'lishi
+     * mumkin. Agar tuzatib bo'lmasa, hisobotda o'sha bandlar abadiy
+     * "bajarilmagan" bo'lib qolardi va bu yolg'on ko'rsatkich edi.
+     */
+    if (op === "brief-bandlar" && (req.method === "POST" || req.method === "PATCH")) {
+      const body = await req.json().catch(() => ({}))
+      const briefId = String(body.brief_id || "")
+      if (!briefId) return errorResponse("brief_id talab qilinadi", 400)
+
+      const { data: brief } = await supabaseAdmin
+        .from("partner_briefs").select("id, partner_id")
+        .eq("id", briefId).is("deleted_at", null).maybeSingle()
+      if (!brief) return errorResponse("So'rov topilmadi", 404)
+
+      const yangi = (Array.isArray(body.bandlar) ? body.bandlar : [])
+        .map((x: unknown) => String(x || "").trim().slice(0, 500))
+        .filter(Boolean)
+        .slice(0, 50)
+
+      /**
+       * BAJARILGAN BANDLAR O'CHIRILMAYDI.
+       *
+       * Hammasini o'chirib qaytadan yozish oson bo'lardi, lekin unda
+       * blogerlarning bajargan ishi (kim, qachon, qanday izoh bilan)
+       * yo'qolardi. Shuning uchun faqat BAJARILMAGANLARI almashadi.
+       */
+      const { data: mavjud } = await supabaseAdmin
+        .from("partner_tasks").select("id, title, status")
+        .eq("brief_id", briefId).is("deleted_at", null)
+      const bajarilgan = ((mavjud || []) as Record<string, unknown>[])
+        .filter((x) => x.status === "done")
+      const bajarilganMatn = new Set(bajarilgan.map((x) => String(x.title)))
+
+      const ochiriladi = ((mavjud || []) as Record<string, unknown>[])
+        .filter((x) => x.status !== "done")
+        .map((x) => x.id as string)
+      if (ochiriladi.length) {
+        await supabaseAdmin.from("partner_tasks")
+          .update({ deleted_at: new Date().toISOString() })
+          .in("id", ochiriladi)
+      }
+
+      const qoshiladi = yangi.filter((m: string) => !bajarilganMatn.has(m))
+      if (qoshiladi.length) {
+        const { error } = await supabaseAdmin.from("partner_tasks").insert(
+          qoshiladi.map((matn: string, i: number) => ({
+            partner_id: brief.partner_id,
+            brief_id: briefId,
+            title: matn,
+            status: "pending",
+            sort_order: bajarilgan.length + i,
+            created_by: auth.user.id,
+          })),
+        )
+        if (error) return errorResponse(error.message, 500)
+      }
+      return jsonResponse({ success: true, jami: bajarilgan.length + qoshiladi.length })
     }
 
     /* TZ so'rovining holatini o'zgartirish (ko'rildi / rad etildi) */

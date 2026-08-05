@@ -1516,6 +1516,14 @@ function Briefs() {
 
   const [ochiq, setOchiq] = useState(false)
   const [forma, setForma] = useState({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+  /**
+   * TALAB BANDLARI — har qatordan bitta band.
+   *
+   * Hisobotning butun asosi shu: bandsiz TZ da "nima bajarildi, nima
+   * qolmadi" degan savolga javob berib bo'lmaydi — faqat "bloger
+   * tugatdi" deb aytish mumkin, bu esa hech narsani anglatmaydi.
+   */
+  const [bandlar, setBandlar] = useState("")
   const [band, setBand] = useState(false)
   const [xabar, setXabar] = useState<{ ok: boolean; matn: string } | null>(null)
 
@@ -1536,9 +1544,13 @@ function Briefs() {
     }
     setBand(true)
     try {
-      await api("/me/partner?action=brief-create", { method: "POST", body: JSON.stringify(forma) })
+      const royxat = bandlar.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 50)
+      await api("/me/partner?action=brief-create", {
+        method: "POST", body: JSON.stringify({ ...forma, bandlar: royxat }),
+      })
       setXabar({ ok: true, matn: tr("Topshiriq administratorga yuborildi") })
       setForma({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+      setBandlar("")
       setOchiq(false)
       yukla()
     } catch (e) {
@@ -1588,6 +1600,21 @@ function Briefs() {
                   so'rashga majbur bo'ladi va vaqt yo'qoladi */}
               <p className="mt-1 text-[11px] text-muted">
                 {forma.description.trim().length} / 20 {tr("belgi (kamida)")}
+              </p>
+            </div>
+            {/* TALAB BANDLARI — hisobotning asosi.
+                Har qatordan bitta band. Bandsiz TZ da hisobot faqat
+                "bloger tugatdi" deya oladi, bu esa nima qilinganini
+                ko'rsatmaydi. */}
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-muted">{tr("Talab bandlari — har qatordan bittasi")}</label>
+              <textarea value={bandlar} rows={5}
+                onChange={(e) => setBandlar(e.target.value)}
+                placeholder={tr("Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin")}
+                className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+              <p className="mt-1 text-[11px] text-muted">
+                {bandlar.split("\n").filter((x) => x.trim()).length} {tr("ta band")} ·{" "}
+                {tr("hisobotda har biri alohida ko'rinadi: bajarildimi, kim bajardi, qanday qildi")}
               </p>
             </div>
             <div>
@@ -1746,6 +1773,32 @@ const DAVRLAR = [
   { kalit: "yil", nom: "1 yil" },
 ] as const
 
+/* ---- TZ asosidagi hisobot ---- */
+type TzHisobotBand = {
+  id: string; title: string; status: string; note: string | null
+  done_at: string | null; done_by: string | null; done_by_name: string | null
+}
+type TzHisobotVideo = {
+  video_id: string; link: string; name: string; thumbnail: string | null
+  platform: string; views: string; likes: string; comments: string
+  ishonchli: boolean; ochirilgan: boolean; added_at: string
+}
+type TzHisobotBloger = {
+  id: string; name: string; avatar: string | null; slug: string | null
+  status: string; note: string | null
+  videolar: TzHisobotVideo[]
+  views: number; likes: number; comments: number; nomalum: number
+}
+type TzHisobot = {
+  id: string; title: string; description: string | null
+  priority: string; deadline: string | null; status: string
+  admin_note: string | null; created_at: string
+  bandlar: TzHisobotBand[]
+  bandJami: number; bandBajarildi: number
+  blogerlar: TzHisobotBloger[]
+  views: number; likes: number; comments: number; videoJami: number; nomalum: number
+}
+
 function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; extra: CompanyExtra }) {
   const [videos, setVideos] = useState<PartnerVideo[]>([])
   const [yuklanmoqda, setYuklanmoqda] = useState(true)
@@ -1755,10 +1808,22 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
   const [dan, setDan] = useState("")
   const [gacha, setGacha] = useState("")
 
+  /* TZ asosidagi hisobot — bandlar, blogerlar, videolar */
+  const [tz, setTz] = useState<TzHisobot[]>([])
+  const [raqamHolati, setRaqamHolati] = useState<string | null>(null)
+  /** Butun ro'yxatni ochish: sukut bo'yicha faqat yig'indi ko'rinadi */
+  const [toliq, setToliq] = useState(false)
+
   const yukla = useCallback(() => {
     setYuklanmoqda(true); setXato(false)
-    api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
-      .then((d) => setVideos(d.videos || []))
+    Promise.all([
+      api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
+        .then((d) => setVideos(d.videos || [])),
+      // TZ hisoboti yiqilsa ham videolar statistikasi ko'rinsin
+      api<{ hisobot: TzHisobot[]; raqamlarHolati: string | null }>("/me/partner?action=brief-report")
+        .then((d) => { setTz(d.hisobot || []); setRaqamHolati(d.raqamlarHolati) })
+        .catch(() => {}),
+    ])
       // Xato "video yo'q" degani emas — ikkalasi bir xil ko'rinmasin
       .catch(() => setXato(true))
       .finally(() => setYuklanmoqda(false))
@@ -1830,16 +1895,33 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
     ? `${dan || "…"} — ${gacha || "…"}`
     : tr("Butun hamkorlik davri")
 
+  /**
+   * A4 GA CHOP ETISH.
+   *
+   * Tashqi kutubxona QO'SHILMADI: brauzerning o'z chop etish oynasi
+   * "PDF sifatida saqlash" ni beradi va sahifa o'lchami, chekkalar,
+   * varaqlarga bo'linish `@media print` orqali boshqariladi
+   * (qarang: src/index.css). PDF kutubxonasi ~300 KB qo'shardi va
+   * SVG diagrammalarni qaytadan chizishga majbur qilardi.
+   *
+   * `print-area` sinfi shu blokdagina — chap menyu, tepa panel va
+   * tugmalar qog'ozga tushmaydi.
+   */
+  const chopEt = () => {
+    // To'liq ro'yxat ochilmagan bo'lsa qog'ozga ham qisqasi tushadi —
+    // buni foydalanuvchi bilishi kerak emas, chunki ekranda ham shunday
+    window.print()
+  }
+
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="print-area mt-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-bold">{tr("Hamkorlik hisoboti")}</h3>
           <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.")}</p>
         </div>
-        {/* Chop etishda tugmaning o'zi qog'ozga tushmasin */}
-        <button onClick={() => window.print()} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 print:hidden">
-          <Icon d={I.doc} className="h-4 w-4" /> {tr("Chop etish / PDF")}
+        <button onClick={chopEt} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+          <Icon d={I.doc} className="h-4 w-4" /> {tr("A4 ga chop etish / PDF")}
         </button>
       </div>
 
@@ -1869,7 +1951,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
       </div>
 
       {/* ---- Hisobot varag'i ---- */}
-      <div className={`mt-5 ${card}`}>
+      <div className={`mt-5 ${card} print-block`}>
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-green/10 pb-4">
           <div className="min-w-0">
             <div className="font-display text-xl font-extrabold">{partner.name}</div>
@@ -1916,7 +1998,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
               { icon: I.star, t: "Yoqtirishlar", v: son(k.likes), sub: tr("like") },
               { icon: I.message, t: "Izohlar", v: son(k.comments), sub: tr("komment") },
             ].map((s) => (
-              <div key={s.t} className="min-w-0 break-inside-avoid rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
+              <div key={s.t} className="min-w-0 print-block rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
                 <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
                 <div className="mt-1 truncate font-display text-2xl font-extrabold">{s.v}</div>
@@ -1934,17 +2016,185 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
               {/* Oylik grafik faqat bir necha oy bo'lganda ma'noli:
                   bitta ustunli grafik hech narsa ko'rsatmaydi */}
               {oylik.length > 1 && (
-                <div className="break-inside-avoid">
+                <div className="print-block">
                   <OylikGrafik data={oylik} tanlangan={tanlanganOy} onTanla={oyniTanla} />
                 </div>
               )}
 
               <div className="grid gap-6 lg:grid-cols-2">
-                <div className="break-inside-avoid"><PlatformaDonut stats={k} /></div>
-                <div className="break-inside-avoid"><TopBloggers list={k.topBloggers.slice(0, 5)} /></div>
+                <div className="print-block"><PlatformaDonut stats={k} /></div>
+                <div className="print-block"><TopBloggers list={k.topBloggers.slice(0, 5)} /></div>
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ============ TZ BO'YICHA BAJARILISH ============
+          Hamkor TZ da nima yozgan bo'lsa — aynan shu bandlar va
+          ularning holati. Ilgari hisobot faqat "N ta ishdan M tasi"
+          deb ayta olardi: qaysi ish, kim qildi, qanday qildi va qaysi
+          video bilan — hech biri ko'rinmasdi. */}
+      {tz.length > 0 && (
+        <div className="print-page-break mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="font-display text-base font-bold">{tr("Topshiriqlar bo'yicha bajarilish")}</h4>
+              <p className="mt-0.5 text-sm text-muted">
+                {tr("Siz yuborgan har bir TZ va uning natijasi")}
+              </p>
+            </div>
+            {/* Uzun hisobot qog'ozda 20 varaq bo'lib ketadi. Sukut
+                bo'yicha yig'indi, to'liq ro'yxat esa so'ralganda. */}
+            <button type="button" onClick={() => setToliq((v) => !v)}
+              className="shrink-0 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 print:hidden">
+              {toliq ? tr("Qisqartirish") : tr("To'liq ro'yxatni ochish")}
+            </button>
+          </div>
+
+          {/* Raqamlar qachonligini AYTISH shart: bugun 120 000, ertaga
+              145 000 — chop etilgan ikki hisobot bir-biriga zid
+              ko'rinadi va sabab tushunarsiz qoladi. */}
+          {raqamHolati && (
+            <p className="mt-2 text-[11px] text-muted">
+              {tr("Ko'rish va yoqtirish raqamlari oxirgi marta yangilangan")}:{" "}
+              {new Date(Number(raqamHolati) || raqamHolati).toLocaleString("ru-RU")}
+            </p>
+          )}
+
+          <div className="mt-4 space-y-4">
+            {tz.map((b) => {
+              const foiz = b.bandJami ? Math.round((b.bandBajarildi / b.bandJami) * 100) : 0
+              const holat = BRIEF_HOLAT[b.status] || BRIEF_HOLAT.new
+              return (
+                <div key={b.id} className={`${card} print-block`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-green/10 pb-3">
+                    <div className="min-w-0">
+                      <h5 className="font-display font-bold">{b.title}</h5>
+                      <p className="mt-0.5 text-xs text-muted">
+                        {new Date(b.created_at).toLocaleDateString("ru-RU")}
+                        {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${holat.cls}`}>
+                      {tr(holat.nom)}
+                    </span>
+                  </div>
+
+                  {/* Natija raqamlari */}
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { t: "Bandlar", v: `${b.bandBajarildi} / ${b.bandJami}` },
+                      { t: "Videolar", v: String(b.videoJami) },
+                      { t: "Ko'rishlar", v: son(b.views) },
+                      { t: "Yoqtirishlar", v: son(b.likes) },
+                    ].map((s) => (
+                      <div key={s.t} className="rounded-xl bg-[#fafdf7] p-3">
+                        <div className="text-[11px] text-muted">{tr(s.t)}</div>
+                        <div className="mt-0.5 font-display font-bold tabular-nums">{s.v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Raqami noma'lum videolar — jimgina 0 deb sanash
+                      hisobotni yolg'on qilardi */}
+                  {b.nomalum > 0 && (
+                    <p className="mt-2 text-[11px] text-orange-600">
+                      {b.nomalum} {tr("ta videoning ko'rish soni noma'lum (faqat YouTube raqamlari avtomatik olinadi) — ular jamiga qo'shilmagan.")}
+                    </p>
+                  )}
+
+                  {b.bandJami > 0 && (
+                    <div className="mt-3">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-soft">
+                        <div className="h-full rounded-full bg-green" style={{ width: `${foiz}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ---- Bandlar: nima bajarildi, nima yo'q ---- */}
+                  {b.bandlar.length > 0 ? (
+                    <ul className="mt-3 space-y-1.5">
+                      {(toliq ? b.bandlar : b.bandlar.slice(0, 4)).map((x) => {
+                        const ok = x.status === "done"
+                        return (
+                          <li key={x.id} className="flex items-start gap-2">
+                            <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded ${
+                              ok ? "bg-green text-white" : "border-2 border-gray-300"}`}>
+                              {ok && <Icon d={I.check} className="h-2.5 w-2.5" />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block text-xs ${ok ? "text-ink/85" : "text-muted"}`}>{x.title}</span>
+                              {/* "Qanday qilindi" — blogerning izohi */}
+                              {x.note && <span className="block text-[11px] text-muted">↳ {x.note}</span>}
+                              {ok && x.done_by_name && (
+                                <span className="block text-[11px] text-green">
+                                  {x.done_by_name}
+                                  {x.done_at ? ` · ${new Date(x.done_at).toLocaleDateString("ru-RU")}` : ""}
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        )
+                      })}
+                      {!toliq && b.bandlar.length > 4 && (
+                        <li className="text-[11px] text-muted">
+                          + {b.bandlar.length - 4} {tr("ta band — \"To'liq ro'yxatni ochish\"")}
+                        </li>
+                      )}
+                    </ul>
+                  ) : (
+                    /* Bandsiz TZ da 0% ko'rsatish "ish qilinmagan" degan
+                       yolg'on xabar bo'lardi — holatni boshqacha aytamiz */
+                    <p className="mt-3 rounded-xl bg-soft px-3 py-2 text-[11px] text-muted">
+                      {tr("Bu TZ bandlarga bo'linmagan — umumiy holat blogerlar bo'yicha ko'rsatilgan.")}
+                    </p>
+                  )}
+
+                  {/* ---- Kim bajardi va qanday natija ---- */}
+                  {b.blogerlar.length > 0 && (
+                    <div className="mt-3 border-t border-green/10 pt-3">
+                      <p className="text-xs font-bold text-ink">{tr("Kim bajardi")}</p>
+                      <ul className="mt-2 space-y-2">
+                        {b.blogerlar.map((bl) => (
+                          <li key={bl.id} className="rounded-xl bg-[#fafdf7] p-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="min-w-0 flex-1 truncate text-xs font-bold">{bl.name}</span>
+                              <span className="shrink-0 text-[11px] text-muted">
+                                {bl.videolar.length} {tr("video")} · <b className="text-ink tabular-nums">{son(bl.views)}</b> {tr("ko'rish")} · {son(bl.likes)} {tr("layk")}
+                              </span>
+                            </div>
+                            {bl.note && <p className="mt-1 text-[11px] text-muted">{bl.note}</p>}
+                            {(toliq ? bl.videolar : bl.videolar.slice(0, 2)).map((v) => (
+                              <div key={v.link} className="mt-1.5 flex items-center gap-2">
+                                {v.thumbnail && <img src={v.thumbnail} alt="" className="h-7 w-12 shrink-0 rounded object-cover" />}
+                                <span className="min-w-0 flex-1">
+                                  <a href={v.link} target="_blank" rel="noreferrer"
+                                    className="block truncate text-[11px] font-semibold text-green hover:underline">{v.name}</a>
+                                  <span className="block text-[10px] text-muted">
+                                    {v.platform} ·{" "}
+                                    {v.ishonchli ? `${v.views} ${tr("ko'rish")}` : tr("ko'rish ma'lumoti yo'q")}
+                                    {v.ochirilgan && <span className="text-orange-600"> · {tr("video o'chirilgan")}</span>}
+                                  </span>
+                                </span>
+                              </div>
+                            ))}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Rad etilgan bo'lsa sababi */}
+                  {b.admin_note && (
+                    <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-[11px] text-orange-700">
+                      <b>{tr("Administrator javobi")}:</b> {b.admin_note}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

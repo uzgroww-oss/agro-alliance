@@ -247,9 +247,22 @@ function resolveAdminUrl(path: string, method: string): string {
     // Notifications
     if (resource === "notifications") return `${SUPABASE_FUNCTIONS_URL}/me-notifications-list${qsRaw ? `?${qsRaw}` : ""}`
 
-    // Topshiriqlar (TZ): GET /me/tasks (ro'yxat), PATCH /me/tasks/{assignment_id} (holat)
+    // Topshiriqlar (TZ):
+    //   GET   /me/tasks                       — ro'yxat (bandlar, videolar, jamoa bilan)
+    //   PATCH /me/tasks/{assignment_id}       — holat
+    //   POST  /me/tasks/{assignment_id}?op=video — video biriktirish
+    //   POST  /me/tasks?op=band               — TZ bandini belgilash
     if (resource === "tasks") {
-      if (segments.length === 2) return `${SUPABASE_FUNCTIONS_URL}/me-tasks-list${qsRaw ? `?${qsRaw}` : ""}`
+      if (segments.length === 2) {
+        /**
+         * `?op=band` uchun assignment id KERAK EMAS — band o'z
+         * id si bilan topiladi va ruxsat server tomonda tekshiriladi.
+         * Shuning uchun u ham me-tasks-update ga ketadi.
+         */
+        const op = new URLSearchParams(qsRaw).get("op") || ""
+        if (op) return `${SUPABASE_FUNCTIONS_URL}/me-tasks-update${qsRaw ? `?${qsRaw}` : ""}`
+        return `${SUPABASE_FUNCTIONS_URL}/me-tasks-list${qsRaw ? `?${qsRaw}` : ""}`
+      }
       if (segments.length === 3) {
         const qs = new URLSearchParams(qsRaw)
         qs.set("id", segments[2])

@@ -6,6 +6,7 @@ import { geminiJson } from "../_shared/gemini.ts"
 import { groqJson } from "../_shared/groq.ts"
 import { cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { sarfYoz } from "../_shared/aiKesh.ts"
+import { tirikVideolar, raqamIshonchlimi } from "../_shared/tzHisobot.ts"
 
 /**
  * Ko'rishlar soni matn sifatida saqlanadi va manbaga qarab har xil
@@ -398,6 +399,210 @@ Deno.serve(async (req) => {
       })
     }
 
+    /* ================================================================
+     * TZ ASOSIDAGI TO'LIQ HISOBOT
+     *
+     * Hamkor TZ da nima yozgan bo'lsa — aynan shu bandlar, ularning
+     * bajarilishi, kim bajargani, qanday qilingani va qaysi video
+     * bilan. Ustiga har blogerning natijasi (ko'rish, layk, izoh).
+     *
+     * BARCHASI BITTA SO'ROVDA: har TZ uchun alohida so'rov yuborilsa
+     * 40 ta TZ li kompaniya uchun 150 dan ortiq so'rov chiqardi.
+     * ================================================================ */
+    if (new URL(req.url).searchParams.get("action") === "brief-report") {
+      const { data: brieflar } = await supabaseAdmin
+        .from("partner_briefs")
+        .select("id, title, description, priority, deadline, status, admin_note, task_id, created_at")
+        .eq("partner_id", partner.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(100)
+
+      const royxat = (brieflar || []) as Record<string, unknown>[]
+      const briefIds = royxat.map((b) => b.id as string)
+      const taskIds = royxat.map((b) => b.task_id).filter(Boolean) as string[]
+
+      const [bandRes, assignRes] = await Promise.all([
+        briefIds.length
+          ? supabaseAdmin.from("partner_tasks")
+              .select("id, brief_id, title, status, sort_order, done_by, done_at, note")
+              .in("brief_id", briefIds).is("deleted_at", null)
+              .order("sort_order", { ascending: true })
+          : Promise.resolve({ data: [] }),
+        taskIds.length
+          ? supabaseAdmin.from("blogger_task_assignments")
+              .select("id, task_id, blogger_id, status, note")
+              .in("task_id", taskIds).is("deleted_at", null)
+          : Promise.resolve({ data: [] }),
+      ])
+
+      const bandlar = (bandRes.data || []) as Record<string, unknown>[]
+      const biriktirmalar = (assignRes.data || []) as
+        { id: string; task_id: string; blogger_id: string; status: string; note: string | null }[]
+
+      const assignIds = biriktirmalar.map((a) => a.id)
+      const blogerIds = [...new Set(biriktirmalar.map((a) => a.blogger_id))]
+
+      const [videoRes, profRes, blogerRes] = await Promise.all([
+        assignIds.length
+          ? supabaseAdmin.from("blogger_task_videos")
+              .select("assignment_id, blogger_id, video_id, video_link, video_name, video_thumbnail, platform, views_at, likes_at, comments_at, added_at")
+              .in("assignment_id", assignIds)
+          : Promise.resolve({ data: [] }),
+        blogerIds.length
+          ? supabaseAdmin.from("profiles").select("id, name, avatar, metadata")
+              .in("id", blogerIds).is("deleted_at", null)
+          : Promise.resolve({ data: [] }),
+        blogerIds.length
+          ? supabaseAdmin.from("bloggers").select("id, slug").in("id", blogerIds).is("deleted_at", null)
+          : Promise.resolve({ data: [] }),
+      ])
+
+      const profillar = (profRes.data || []) as Record<string, unknown>[]
+      const tirik = tirikVideolar(profillar)
+      const blogerNomi = new Map<string, { name: string; avatar: string | null; slug: string | null }>()
+      for (const p of profillar) {
+        blogerNomi.set(p.id as string, {
+          name: (p.name as string) || "—", avatar: (p.avatar as string) || null, slug: null,
+        })
+      }
+      for (const b of (blogerRes.data || []) as { id: string; slug: string | null }[]) {
+        const bor = blogerNomi.get(b.id)
+        if (bor) bor.slug = b.slug
+      }
+
+      const videolar = (videoRes.data || []) as Record<string, unknown>[]
+
+      /** Video yozuvidan TIRIK raqamlarni oladi, bo'lmasa nusxadan */
+      const videoMalumot = (v: Record<string, unknown>) => {
+        const jonli = tirik.get(String(v.video_id))
+        const plats = jonli?.plats || (v.platform ? [String(v.platform)] : [])
+        const views = jonli ? jonli.views : String(v.views_at || 0)
+        return {
+          video_id: v.video_id,
+          link: v.video_link,
+          name: jonli?.name || v.video_name || "Video",
+          thumbnail: jonli?.thumbnail || v.video_thumbnail || null,
+          platform: plats[0] || v.platform || "—",
+          views,
+          likes: jonli ? jonli.likes : String(v.likes_at || 0),
+          comments: jonli ? jonli.comments : String(v.comments_at || 0),
+          /**
+           * Raqam ishonchlimi. Faqat YouTube API orqali yangilanadi;
+           * Instagram/TikTok/Telegram uchun hech kim raqam yozmaydi va
+           * "0" bo'lib qoladi. Bunday videoni jamiga qo'shish
+           * hisobotni yolg'on qilardi.
+           */
+          ishonchli: raqamIshonchlimi(plats, views),
+          ochirilgan: !jonli,
+          blogger_id: v.blogger_id,
+          added_at: v.added_at,
+        }
+      }
+
+      const videoByAssign = new Map<string, ReturnType<typeof videoMalumot>[]>()
+      for (const v of videolar) {
+        const k = v.assignment_id as string
+        const r = videoByAssign.get(k) || []
+        r.push(videoMalumot(v))
+        videoByAssign.set(k, r)
+      }
+
+      const bandByBrief = new Map<string, Record<string, unknown>[]>()
+      for (const b of bandlar) {
+        const k = b.brief_id as string
+        const r = bandByBrief.get(k) || []
+        r.push(b)
+        bandByBrief.set(k, r)
+      }
+
+      const assignByTask = new Map<string, typeof biriktirmalar>()
+      for (const a of biriktirmalar) {
+        const r = assignByTask.get(a.task_id) || []
+        r.push(a)
+        assignByTask.set(a.task_id, r)
+      }
+
+      /**
+       * RAQAMLAR QACHON YANGILANGANI.
+       *
+       * `yt_at` video yozuvining ichida turadi va `Date.now()` (son)
+       * bo'lib saqlanadi. Eng ESKISINI olamiz: hisobot shu paytdan
+       * beri o'zgarmagan raqamlarni ko'rsatadi.
+       *
+       * Buni aytish SHART: raqam bugun 120 000, ertaga 145 000 bo'ladi
+       * va chop etilgan ikkita PDF bir-biriga zid ko'rinadi. Sanasiz
+       * hamkor qaysi biri to'g'ri ekanini bilmaydi.
+       */
+      let engEskiYangilanish: number | null = null
+      for (const p of profillar) {
+        const meta = (p.metadata as Record<string, unknown>) || {}
+        for (const v of ((meta.videos as Record<string, unknown>[]) || [])) {
+          const vaqt = Number(v.yt_at || 0)
+          if (!vaqt) continue
+          if (engEskiYangilanish === null || vaqt < engEskiYangilanish) engEskiYangilanish = vaqt
+        }
+      }
+
+      const hisobot = royxat.map((b) => {
+        const bandRoyxat = bandByBrief.get(b.id as string) || []
+        const biriktirilgan = b.task_id ? (assignByTask.get(b.task_id as string) || []) : []
+
+        const blogerlar = biriktirilgan.map((a) => {
+          const vs = videoByAssign.get(a.id) || []
+          const ishonchli = vs.filter((v) => v.ishonchli)
+          return {
+            id: a.blogger_id,
+            name: blogerNomi.get(a.blogger_id)?.name || "—",
+            avatar: blogerNomi.get(a.blogger_id)?.avatar || null,
+            slug: blogerNomi.get(a.blogger_id)?.slug || null,
+            status: a.status,
+            note: a.note,
+            videolar: vs,
+            views: ishonchli.reduce((s, v) => s + sonGa(v.views), 0),
+            likes: ishonchli.reduce((s, v) => s + sonGa(v.likes), 0),
+            comments: ishonchli.reduce((s, v) => s + sonGa(v.comments), 0),
+            // Raqami noma'lum videolar soni — hisobotda ochiq aytiladi
+            nomalum: vs.length - ishonchli.length,
+          }
+        }).sort((x, y) => y.views - x.views)
+
+        const bajarildi = bandRoyxat.filter((x) => x.status === "done").length
+        return {
+          id: b.id,
+          title: b.title,
+          description: b.description,
+          priority: b.priority,
+          deadline: b.deadline,
+          status: b.status,
+          admin_note: b.admin_note,
+          created_at: b.created_at,
+          bandlar: bandRoyxat.map((x) => ({
+            id: x.id,
+            title: x.title,
+            status: x.status,
+            note: x.note,
+            done_at: x.done_at,
+            done_by: x.done_by,
+            done_by_name: x.done_by ? (blogerNomi.get(x.done_by as string)?.name || null) : null,
+          })),
+          bandJami: bandRoyxat.length,
+          bandBajarildi: bajarildi,
+          blogerlar,
+          views: blogerlar.reduce((s, x) => s + x.views, 0),
+          likes: blogerlar.reduce((s, x) => s + x.likes, 0),
+          comments: blogerlar.reduce((s, x) => s + x.comments, 0),
+          videoJami: blogerlar.reduce((s, x) => s + x.videolar.length, 0),
+          nomalum: blogerlar.reduce((s, x) => s + x.nomalum, 0),
+        }
+      })
+
+      return jsonResponse({
+        hisobot,
+        raqamlarHolati: engEskiYangilanish,
+      })
+    }
+
     if (req.method === "POST" && new URL(req.url).searchParams.get("action") === "brief-create") {
       const body = await req.json().catch(() => ({}))
       const title = String(body.title || "").trim().slice(0, 255)
@@ -433,7 +638,40 @@ Deno.serve(async (req) => {
         console.error("brief-create:", error.message)
         return errorResponse("Topshiriqni yuborib bo'lmadi", 500)
       }
-      return jsonResponse({ success: true, id: data.id })
+
+      /**
+       * TALAB BANDLARI — hisobotning asosi.
+       *
+       * Bandlar `partner_tasks` ga yoziladi, YANGI jadvalga emas: u
+       * jadval allaqachon hamkor hisobotidagi "Jami ishlar" va
+       * "Bajarilish %" ni beradi. Bandlar uchun alohida jadval
+       * ochilsa, bitta hisobotda ikkita boshqa-boshqa foiz paydo
+       * bo'lardi va hamkor qaysi biriga ishonishni bilmasdi.
+       *
+       * Chegara 50 ta: undan uzun ro'yxat TZ emas, boshqa narsa.
+       */
+      const bandlar = (Array.isArray(body.bandlar) ? body.bandlar : [])
+        .map((x: unknown) => String(x || "").trim().slice(0, 500))
+        .filter(Boolean)
+        .slice(0, 50)
+
+      if (bandlar.length) {
+        const { error: bErr } = await supabaseAdmin.from("partner_tasks").insert(
+          bandlar.map((matn: string, i: number) => ({
+            partner_id: partner.id,
+            brief_id: data.id,
+            title: matn,
+            status: "pending",
+            sort_order: i,
+            created_by: auth.user.id,
+          })),
+        )
+        // Bandlar yozilmasa ham TZ ning O'ZI yuborilgan — butun
+        // amalni bekor qilish foydalanuvchi uchun yomonroq bo'lardi
+        if (bErr) console.error("brief bandlari:", bErr.message)
+      }
+
+      return jsonResponse({ success: true, id: data.id, bandlar: bandlar.length })
     }
 
     /**
