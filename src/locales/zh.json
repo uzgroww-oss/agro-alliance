@@ -1220,5 +1220,9 @@
  "ta videoning ko'rish soni noma'lum (faqat YouTube raqamlari avtomatik olinadi) — ular jamiga qo'shilmagan.": "个视频的浏览量未知（仅自动获取 YouTube 数据）——未计入总数。",
  "video o'chirilgan": "视频已删除",
  "Profilingizda biriktirish uchun video yo'q. Avval \"Videolar\" bo'limidan qo'shing.": "您的个人资料中没有可附加的视频。请先在“视频”板块中添加。",
- "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "近距离展示产品包装\n明确说出价格\n在简介中放上网站链接\n视频不少于 60 秒"
+ "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "近距离展示产品包装\n明确说出价格\n在简介中放上网站链接\n视频不少于 60 秒",
+ "Bandlarga bo'linmagan — hamkor hisobotida faqat umumiy holat ko'rinadi.": "未拆分为条目——合作伙伴的报告将仅显示总体状态。",
+ "Bandlarga bo'lish": "拆分为条目",
+ "Blogerlar allaqachon bajargan bandlar o'chirilmaydi.": "博主已完成的条目不会被删除。",
+ "Talab bandlari": "要求条目"
 }

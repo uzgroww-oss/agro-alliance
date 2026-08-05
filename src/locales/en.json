@@ -1220,5 +1220,9 @@
  "ta videoning ko'rish soni noma'lum (faqat YouTube raqamlari avtomatik olinadi) — ular jamiga qo'shilmagan.": "videos have an unknown view count (only YouTube figures are fetched automatically) — they are not included in the total.",
  "video o'chirilgan": "video deleted",
  "Profilingizda biriktirish uchun video yo'q. Avval \"Videolar\" bo'limidan qo'shing.": "There are no videos in your profile to attach. Add one in the Videos section first.",
- "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "Show the product packaging up close\nState the price clearly\nPut the site link in the description\nThe video should be at least 60 seconds"
+ "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "Show the product packaging up close\nState the price clearly\nPut the site link in the description\nThe video should be at least 60 seconds",
+ "Bandlarga bo'linmagan — hamkor hisobotida faqat umumiy holat ko'rinadi.": "Not split into items — the partner's report will show only the overall status.",
+ "Bandlarga bo'lish": "Split into items",
+ "Blogerlar allaqachon bajargan bandlar o'chirilmaydi.": "Items bloggers have already completed are not removed.",
+ "Talab bandlari": "Requirement items"
 }

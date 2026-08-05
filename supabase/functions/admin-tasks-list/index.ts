@@ -162,14 +162,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true })
     }
 
-    if (op === "brief-delete" && req.method === "DELETE") {
-      const id = url.searchParams.get("id")
-      if (!id) return errorResponse("id talab qilinadi", 400)
-      const { error } = await supabaseAdmin.from("partner_briefs")
-        .update({ deleted_at: new Date().toISOString() }).eq("id", id)
-      if (error) return errorResponse(error.message, 500)
-      return jsonResponse({ success: true })
-    }
+    /* So'rovni O'CHIRISH ataylab yo'q: "Rad etish" so'rovni sababi
+       bilan saqlab qoladi va hamkor javobni ko'radi. O'chirish esa iz
+       qoldirmasdi — hamkor so'rovi shunchaki yo'qolib qolardi. */
 
     if (req.method === "DELETE") {
       const id = url.searchParams.get("id")

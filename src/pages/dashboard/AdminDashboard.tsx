@@ -1780,6 +1780,8 @@ type PartnerBrief = {
   file_url: string | null; file_name: string | null
   status: string; admin_note: string | null; task_id: string | null
   created_at: string
+  /** Hamkor yozgan talab bandlari — hisobotning asosi */
+  bandlar: { id: string; title: string; status: string }[]
 }
 
 const briefStatus: Record<string, { label: string; cls: string }> = {
@@ -1801,6 +1803,15 @@ function AdminTasks() {
   const [briefId, setBriefId] = useState<string | null>(null)
   /** Rad etish izohi yozilayotgan so'rov */
   const [radEtish, setRadEtish] = useState<{ id: string; matn: string } | null>(null)
+  /**
+   * Bandlari tahrirlanayotgan so'rov.
+   *
+   * Hamkor 5 ta band yozib, ularning 2 tasi imkonsiz bo'lishi mumkin.
+   * Tuzatilmasa hisobotda o'sha bandlar abadiy "bajarilmagan" bo'lib
+   * qolardi va bu yolg'on ko'rsatkich edi.
+   */
+  const [bandTahrir, setBandTahrir] = useState<{ id: string; matn: string } | null>(null)
+  const [bandSaqlanmoqda, setBandSaqlanmoqda] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
   const [file, setFile] = useState<{ url: string; name: string } | null>(null)
   const [target, setTarget] = useState<"all" | "selected">("all")
@@ -1844,6 +1855,21 @@ function AdminTasks() {
       setBriefs((prev) => prev.map((x) => x.id === b.id ? { ...x, status: "seen" } : x))
     }
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const bandlarniSaqla = async () => {
+    if (!bandTahrir) return
+    setBandSaqlanmoqda(true)
+    try {
+      const royxat = bandTahrir.matn.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 50)
+      await api("/tasks?op=brief-bandlar", {
+        method: "POST", body: JSON.stringify({ brief_id: bandTahrir.id, bandlar: royxat }),
+      })
+      setBandTahrir(null)
+      load()
+    } catch (e) {
+      setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`)
+    } finally { setBandSaqlanmoqda(false) }
   }
 
   const briefniRad = async () => {
@@ -1961,6 +1987,76 @@ function AdminTasks() {
                       className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
                       <Icon d={I.paperclip} className="h-3.5 w-3.5" /> {b.file_name || b.file_url}
                     </a>
+                  )}
+
+                  {/* ---- TALAB BANDLARI ----
+                      Hamkor hisobotida har biri alohida "bajarildi /
+                      bajarilmadi" bo'lib chiqadi, shuning uchun ular
+                      blogerlarga yuborishdan OLDIN to'g'ri bo'lishi
+                      kerak: imkonsiz bandni olib tashlash, noaniqni
+                      aniqlashtirish adminning ishi. */}
+                  {bandTahrir?.id === b.id ? (
+                    <div className="mt-3 rounded-xl border border-green/20 bg-soft p-3">
+                      <label className="text-xs font-bold text-muted">
+                        {tr("Talab bandlari — har qatordan bittasi")}
+                      </label>
+                      <textarea value={bandTahrir.matn} rows={5} autoFocus
+                        onChange={(e) => setBandTahrir({ id: b.id, matn: e.target.value })}
+                        className="mt-1 w-full resize-y rounded-lg border border-green/25 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      {/* Bajarilgan band o'chirilmaydi — blogerning ishi
+                          yo'qolmasligi kerak */}
+                      {b.bandlar.some((x) => x.status === "done") && (
+                        <p className="mt-1 text-[11px] text-muted">
+                          {tr("Blogerlar allaqachon bajargan bandlar o'chirilmaydi.")}
+                        </p>
+                      )}
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={bandlarniSaqla} disabled={bandSaqlanmoqda}
+                          className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">
+                          {bandSaqlanmoqda ? tr("Saqlanmoqda…") : tr("Saqlash")}
+                        </button>
+                        <button onClick={() => setBandTahrir(null)}
+                          className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted hover:text-ink">
+                          {tr("Bekor")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-ink">
+                          {tr("Talab bandlari")}
+                          <span className="ml-1.5 font-normal text-muted">
+                            {b.bandlar.filter((x) => x.status === "done").length} / {b.bandlar.length}
+                          </span>
+                        </p>
+                        <button onClick={() => setBandTahrir({ id: b.id, matn: b.bandlar.map((x) => x.title).join("\n") })}
+                          className="text-[11px] font-bold text-green hover:underline">
+                          {b.bandlar.length ? tr("Tahrirlash") : tr("Bandlarga bo'lish")}
+                        </button>
+                      </div>
+                      {b.bandlar.length > 0 ? (
+                        <ul className="mt-1.5 space-y-1">
+                          {b.bandlar.map((x) => (
+                            <li key={x.id} className="flex items-start gap-2">
+                              <span className={`mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded ${
+                                x.status === "done" ? "bg-green text-white" : "border-2 border-gray-300"}`}>
+                                {x.status === "done" && <Icon d={I.check} className="h-2 w-2" />}
+                              </span>
+                              <span className={`text-[11px] ${x.status === "done" ? "text-muted line-through" : "text-ink/80"}`}>
+                                {x.title}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        /* Bandsiz TZ da hisobot "bloger tugatdi" dan
+                           boshqa hech narsa ayta olmaydi */
+                        <p className="mt-1 text-[11px] text-muted">
+                          {tr("Bandlarga bo'linmagan — hamkor hisobotida faqat umumiy holat ko'rinadi.")}
+                        </p>
+                      )}
+                    </div>
                   )}
                   {b.admin_note && (
                     <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">

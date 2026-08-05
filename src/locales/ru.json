@@ -1220,5 +1220,9 @@
  "ta videoning ko'rish soni noma'lum (faqat YouTube raqamlari avtomatik olinadi) — ular jamiga qo'shilmagan.": "видео с неизвестным числом просмотров (автоматически берутся только данные YouTube) — они не вошли в итог.",
  "video o'chirilgan": "видео удалено",
  "Profilingizda biriktirish uchun video yo'q. Avval \"Videolar\" bo'limidan qo'shing.": "В вашем профиле нет видео для прикрепления. Сначала добавьте его в разделе «Видео».",
- "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "Показать упаковку продукта крупным планом\nЧётко назвать цену\nДобавить ссылку на сайт в описание\nВидео не короче 60 секунд"
+ "Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin": "Показать упаковку продукта крупным планом\nЧётко назвать цену\nДобавить ссылку на сайт в описание\nВидео не короче 60 секунд",
+ "Bandlarga bo'linmagan — hamkor hisobotida faqat umumiy holat ko'rinadi.": "Не разбито на пункты — в отчёте партнёра будет виден только общий статус.",
+ "Bandlarga bo'lish": "Разбить на пункты",
+ "Blogerlar allaqachon bajargan bandlar o'chirilmaydi.": "Пункты, уже выполненные блогерами, не удаляются.",
+ "Talab bandlari": "Пункты требований"
 }
