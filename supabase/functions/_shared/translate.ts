@@ -2,6 +2,8 @@ import { geminiJson } from "./gemini.ts";
 import { groqJson } from "./groq.ts";
 import { cfJson, cfChatAvailable } from "./cfChat.ts";
 import { supabaseAdmin } from "./supabase.ts";
+import { keshdanOl, keshgaYoz, sarfYoz, xeshla } from "./aiKesh.ts";
+import { aiKalitBormi } from "./aiKalit.ts";
 
 /**
  * KONTENT TARJIMASI: o'zbekcha -> ru / en / zh
@@ -362,6 +364,25 @@ async function translateTo(
   const ok = valid(kalitlar);
 
   /**
+   * KESH — AI CHAQIRILISHIDAN OLDIN.
+   *
+   * Xesh AYNAN yuborilayotgan maydonlardan olinadi (nomlar yashirilgan
+   * holida). Ya'ni matn bir belgiga o'zgarsa xesh boshqa bo'ladi va
+   * qaytadan tarjima qilinadi — eskirgan javob berilmaydi.
+   *
+   * Bu eng katta tejamkorlik: tarjima versiyasi ko'tarilganda ilgari
+   * BUTUN kontent qayta tarjima qilinardi, endi faqat MATNI o'zgarganlari
+   * ketadi. Aynan shu bir necha yuz chaqiruv Gemini kvotasini tugatgan edi.
+   */
+  const keshVazifa = `translate:${lang}`;
+  const keshXesh = await xeshla(JSON.stringify(fields));
+  const keshdagi = await keshdanOl<Record<string, string>>(keshVazifa, keshXesh);
+  if (keshdagi && ok(keshdagi)) {
+    sabab.push(`${lang}:kesh`);
+    return keshdagi;
+  }
+
+  /**
    * TARTIB MUHIM: Gemini BIRINCHI.
    *
    * Ilgari Cloudflare birinchi edi va uning kichik modellari XITOYCHANI
@@ -392,7 +413,7 @@ async function translateTo(
    * Zaxira faqat Gemini kaliti UMUMAN yo'q bo'lsa ishlatiladi —
    * unda hech qanday tarjima bo'lmagandan ko'ra taxminiysi ma'qul.
    */
-  if (!Deno.env.get("GEMINI_API_KEY")) {
+  if (!(await aiKalitBormi("gemini", "GEMINI_API_KEY"))) {
     chain.push({ nom: "Groq", ishla: (ms) => groqJson(prompt, { retries: 0, maxTokens: 3000, timeoutMs: ms }) });
     if (cfChatAvailable()) {
       chain.push({ nom: "Cloudflare", ishla: (ms) => cfJson(prompt, { maxTokens: 3000, timeoutMs: ms, deadline }) });
@@ -402,6 +423,7 @@ async function translateTo(
   for (const { nom, ishla } of chain) {
     const qolgan = deadline - Date.now();
     if (qolgan < 6_000) { sabab.push(`${lang}:vaqt-tugadi`); break; }
+    const boshlandi = Date.now();
     try {
       const raw = await ishla(Math.min(20_000, qolgan));
       if (ok(raw)) {
@@ -411,13 +433,39 @@ async function translateTo(
           if (typeof o[k] === "string" && (o[k] as string).trim()) out[k] = tozala(o[k] as string);
         }
         sabab.push(`${lang}:${nom}`);
+        await sarfYoz({
+          provayder: nom.toLowerCase(),
+          vazifa: keshVazifa,
+          muvaffaqiyat: true,
+          matnUzunligi: prompt.length,
+          davomiylik: Date.now() - boshlandi,
+        });
+        // Keshga faqat MUVAFFAQIYATLI javob tushadi — yiqilgan urinish
+        // saqlansa, xato natija abadiy qotib qolardi.
+        await keshgaYoz(keshVazifa, keshXesh, out, nom.toLowerCase());
         return out;
       }
       sabab.push(`${lang}:${nom}=shaklsiz`);
+      await sarfYoz({
+        provayder: nom.toLowerCase(),
+        vazifa: keshVazifa,
+        muvaffaqiyat: false,
+        matnUzunligi: prompt.length,
+        davomiylik: Date.now() - boshlandi,
+        xato: "shaklsiz javob",
+      });
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e);
       console.error(`translate ${lang} ${nom}:`, m);
       sabab.push(`${lang}:${nom}=${m.slice(0, 70)}`);
+      await sarfYoz({
+        provayder: nom.toLowerCase(),
+        vazifa: keshVazifa,
+        muvaffaqiyat: false,
+        matnUzunligi: prompt.length,
+        davomiylik: Date.now() - boshlandi,
+        xato: m,
+      });
       // Kvota tugagan — keyingi so'rovlar bekorga kutmasin
       if (kvotaXatosimi(m)) aiTanaffusGacha = Date.now() + TANAFFUS_MS;
     }
@@ -493,6 +541,197 @@ export async function translateFields(
   // Tashxis izi — qaysi provayder ishladi / nega yiqildi
   (out as Record<string, unknown>)._p = sabab.join(" | ").slice(0, 300);
   return out;
+}
+
+/* ==========================================================================
+ * GURUHLAB TARJIMA
+ * ========================================================================== */
+
+/** Bir chaqiruvdagi yozuvlar soni chegarasi */
+const GURUH_YOZUV = 8;
+/** Bir chaqiruvdagi jami belgi chegarasi — javob token limitiga sig'sin */
+const GURUH_BELGI = 2_500;
+/** Guruhlangan kalit ajratkichi: "3::title" */
+const AJRATKICH = "::";
+
+/**
+ * Guruh javobini yozuvlarga qaytarib taqsimlaydi.
+ *
+ * Kirish: `{ ru: { "0::title": "…", "1::name": "…" } }`
+ * Chiqish: `[ { ru: { title: "…" } }, { ru: { name: "…" } } ]`
+ *
+ * ALOHIDA funksiya — sinovdan o'tkazish uchun. Bu yerdagi xato bir
+ * yozuvning tarjimasini BOSHQASIGA yozib yuborardi va buni ko'z bilan
+ * sezish qiyin: matn to'g'ri tilda, lekin noto'g'ri joyda bo'lardi.
+ */
+export function guruhniAjrat(
+  tr: Translations,
+  soni: number,
+  langs: readonly TargetLang[],
+): Translations[] {
+  const bosh: Translations[] = Array.from({ length: soni }, () => ({}));
+  for (const l of langs) {
+    const til = tr[l];
+    if (!til) continue;
+    for (const [k, v] of Object.entries(til)) {
+      const p = k.indexOf(AJRATKICH);
+      if (p < 0) continue;
+      const i = Number(k.slice(0, p));
+      // Model kalitni buzsa ("a::title", "99::title") tashlab ketamiz —
+      // noto'g'ri yozuvga yozgandan ko'ra yo'q bo'lgani xavfsizroq
+      if (!Number.isInteger(i) || i < 0 || i >= soni) continue;
+      const maydon = k.slice(p + AJRATKICH.length);
+      if (!maydon) continue;
+      (bosh[i][l] ??= {})[maydon] = v;
+    }
+  }
+  return bosh;
+}
+
+export type TarjimaYozuvi = {
+  id: string;
+  fields: Record<string, string | null | undefined>;
+  langs: readonly TargetLang[];
+};
+
+/**
+ * KO'P YOZUVNI GURUHLAB TARJIMA QILADI.
+ *
+ * MUAMMO EDI: har bir yozuv uchun alohida chaqiruv ketardi — 3 til x 200
+ * yozuv = 600 ta so'rov. Gemini bepul kvotasi daqiqasiga 15 ta; kvota
+ * shundan tugab, tarjima o'rniga o'zbekcha matn qolib ketardi.
+ *
+ * Endi qisqa yozuvlar bitta so'rovga birlashtiriladi: kalitlar
+ * "0::title", "1::name" ko'rinishida beriladi va javob qaytgach
+ * ajratiladi. 8 ta yozuv = 1 ta chaqiruv, ya'ni chaqiruvlar soni
+ * bir necha barobar kamayadi.
+ *
+ * UZUN matn (maqola tanasi) guruhga QO'SHILMAYDI — javob token
+ * chegarasiga sig'masdi va butun guruh yiqilardi. Ular yakka ketadi,
+ * ya'ni avvalgidek ishlaydi.
+ *
+ * Faqat BIR XIL tillar kerak bo'lgan yozuvlar birlashtiriladi: yarim
+ * tarjima qolgan yozuvga faqat yetishmagan til so'raladi.
+ */
+export async function translateRows(
+  yozuvlar: TarjimaYozuvi[],
+  tashqiDeadline?: number,
+): Promise<Map<string, Translations>> {
+  const natija = new Map<string, Translations>();
+  const deadline = tashqiDeadline ?? Date.now() + BUDGET_MS;
+
+  // Tillar to'plami bo'yicha ajratamiz
+  const guruhlar = new Map<string, TarjimaYozuvi[]>();
+  for (const y of yozuvlar) {
+    const kalit = [...y.langs].sort().join(",");
+    if (!kalit) { natija.set(y.id, BOSH_TAYYOR); continue; }
+    const r = guruhlar.get(kalit);
+    if (r) r.push(y); else guruhlar.set(kalit, [y]);
+  }
+
+  for (const [kalit, ro] of guruhlar) {
+    const langs = kalit.split(",") as TargetLang[];
+
+    let joriy: TarjimaYozuvi[] = [];
+    let belgi = 0;
+
+    const yubor = async (to: TarjimaYozuvi[]) => {
+      if (to.length === 0) return;
+      if (to.length === 1) {
+        // Yakka yozuv — guruhlash foydasi yo'q, qo'shimcha kalit
+        // o'zgartirishisiz to'g'ridan-to'g'ri yuboramiz
+        natija.set(to[0].id, await translateFields(to[0].fields, langs, deadline));
+        return;
+      }
+      const birlashgan: Record<string, string | null | undefined> = {};
+      to.forEach((y, i) => {
+        for (const [f, v] of Object.entries(y.fields)) birlashgan[`${i}${AJRATKICH}${f}`] = v;
+      });
+      const tr = await translateFields(birlashgan, langs, deadline);
+
+      /**
+       * BUTUN GURUHDA TARJIMA QILADIGAN MATN YO'Q.
+       *
+       * `translateFields` bu holatda BOSH_TAYYOR qaytaradi: til yo'q,
+       * lekin `_v` bor. Buni yiqilishdan ajratish SHART — aks holda
+       * yozuvlar "yarim" deb belgilanib, har qayta tarjimada abadiy
+       * qayta so'ralardi (masalan matni faqat "AGRO ALLIANCE" bo'lgan
+       * bloklar).
+       */
+      const tilChiqdi = langs.some((l) => tr[l]);
+      if (!tilChiqdi && (tr as Record<string, unknown>)._v !== undefined) {
+        for (const y of to) natija.set(y.id, BOSH_TAYYOR);
+        return;
+      }
+
+      // Javobni yozuvlarga qaytarib taqsimlaymiz
+      const bosh = guruhniAjrat(tr, to.length, langs);
+      const v = (tr as Record<string, unknown>)._v;
+      const p = (tr as Record<string, unknown>)._p;
+
+      /**
+       * GURUHDAN TUSHIB QOLGAN YOZUVLAR.
+       *
+       * Yozuv bo'sh qaytishining IKKI sababi bor va ular teskari
+       * ishlov talab qiladi:
+       *   1) tarjima qilinadigan matni yo'q edi (faqat brend nomi) —
+       *      bunda yozuv TAYYOR deb belgilanishi kerak, aks holda
+       *      har qayta tarjimada abadiy qayta urinilardi;
+       *   2) model uni tashlab ketdi — bunda tayyor deb belgilash
+       *      yozuvni tarjimasiz qoldirib qo'yardi.
+       *
+       * Guruh javobidan bu ikkisini ajratib bo'lmaydi. Shuning uchun
+       * guruh QISMAN ishlagan bo'lsa, tushib qolganlari YAKKA qayta
+       * so'raladi — yakka javobda farq aniq bo'ladi.
+       *
+       * Guruh UMUMAN ishlamagan bo'lsa (provayder yiqilgan, kvota
+       * tugagan) yakka urinish ham bermaydi: shunchaki bo'sh qoldiramiz
+       * va keyingi yugurishda yana ko'riladi.
+       */
+      const chiqqan = bosh.filter((b) => Object.keys(b).length).length;
+      const tushib: number[] = [];
+      to.forEach((_, i) => { if (!Object.keys(bosh[i]).length) tushib.push(i) });
+
+      if (chiqqan > 0 && tushib.length) {
+        for (const i of tushib) {
+          if (Date.now() > deadline) break;
+          natija.set(to[i].id, await translateFields(to[i].fields, langs, deadline));
+        }
+      }
+
+      to.forEach((y, i) => {
+        if (natija.has(y.id)) return;   // yakka qayta so'ralgan
+        const t = bosh[i] as Record<string, unknown>;
+        // Bo'sh chiqqan yozuv "tayyor" deb belgilanmasin — keyingi
+        // urinishda yana ko'riladi. `birlashtir` shu holatni hal qiladi.
+        if (Object.keys(bosh[i]).length && v !== undefined) t._v = v;
+        if (p !== undefined) t._p = p;
+        natija.set(y.id, bosh[i]);
+      });
+    };
+
+    for (const y of ro) {
+      if (Date.now() > deadline) break;
+      const uzunlik = Object.values(y.fields)
+        .reduce((s, v) => s + (typeof v === "string" ? v.length : 0), 0);
+
+      // Uzun yozuv yakka ketadi: guruhga qo'shilsa javob token
+      // chegarasiga sig'may, butun guruh yo'qqa chiqardi
+      if (uzunlik > GURUH_BELGI) {
+        await yubor(joriy); joriy = []; belgi = 0;
+        await yubor([y]);
+        continue;
+      }
+      if (joriy.length >= GURUH_YOZUV || belgi + uzunlik > GURUH_BELGI) {
+        await yubor(joriy); joriy = []; belgi = 0;
+      }
+      joriy.push(y);
+      belgi += uzunlik;
+    }
+    await yubor(joriy);
+  }
+
+  return natija;
 }
 
 /**

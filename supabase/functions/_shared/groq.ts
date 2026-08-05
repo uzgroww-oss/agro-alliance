@@ -5,11 +5,13 @@
  */
 
 import { parseJson } from "./jsonExtract.ts";
+import { aiKalit } from "./aiKalit.ts";
 
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 
-function getApiKey(): string {
-  const key = Deno.env.get("GROQ_API_KEY");
+/** Panel kaliti ustun, muhit o'zgaruvchisi zaxira — qarang: aiKalit.ts */
+async function getApiKey(): Promise<string> {
+  const key = await aiKalit("groq", "GROQ_API_KEY");
   if (!key) throw new Error("GROQ_API_KEY not set");
   return key;
 }
@@ -22,7 +24,7 @@ export async function groqChat(
   prompt: string,
   opts?: { model?: string; temperature?: number; maxTokens?: number; retries?: number; json?: boolean; timeoutMs?: number },
 ): Promise<{ text: string; tokens: number }> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   const model = opts?.model ?? "llama-3.1-8b-instant";
   const maxRetries = opts?.retries ?? 2;
 

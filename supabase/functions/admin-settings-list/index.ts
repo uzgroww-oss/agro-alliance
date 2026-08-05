@@ -2,7 +2,8 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
-import { translateFields, birlashtir, kerakliTillar, TR_VERSION } from "../_shared/translate.ts"
+import { translateRows, birlashtir, kerakliTillar, TR_VERSION } from "../_shared/translate.ts"
+import type { TarjimaYozuvi } from "../_shared/translate.ts"
 
 /**
  * Tarjima qilinadigan jadvallar va ularning matn maydonlari.
@@ -59,11 +60,19 @@ Deno.serve(async (req) => {
         .from(table)
         .select(`id, translations, ${fields.join(", ")}`)
         .is("deleted_at", null)
+        // Tartib BARQAROR bo'lishi kerak: guruhlar har safar bir xil
+        // shakllansa, AI keshi ishga tushadi. Tartibsiz o'qishda har
+        // yugurishda boshqa guruh chiqib, kesh behuda bo'lardi.
+        .order("id", { ascending: true })
         .limit(200)
 
       // Ustunlar ro'yxati o'zgaruvchi (`fields.join`), shuning uchun
       // supabase-js turini aniqlay olmaydi — qo'lda ko'rsatamiz
-      for (const r of (data || []) as unknown as Record<string, unknown>[]) {
+      const qatorlar = (data || []) as unknown as Record<string, unknown>[]
+      const eski = new Map<string, unknown>()
+      const ish: TarjimaYozuvi[] = []
+
+      for (const r of qatorlar) {
         const tr = r.translations as Record<string, unknown> | undefined
         // JORIY versiyada bo'lsa tegilmaydi — tarjimasi bo'lmasa ham.
         // Ba'zi yozuvlar ATAYLAB tarjima qilinmaydi (brend nomi kabi),
@@ -76,24 +85,32 @@ Deno.serve(async (req) => {
         if (tayyor) continue
         if (!fields.some((f) => typeof r[f] === "string" && (r[f] as string).trim())) continue
 
-        if (Date.now() > deadline) { qoldi++; continue }
-
         const fl: Record<string, string | null | undefined> = {}
         for (const f of fields) fl[f] = r[f] as string | undefined
-        const natija = await translateFields(
-          fl,
-          kerakliTillar(r.translations),
-          Math.min(deadline, Date.now() + 20_000),
-        )
+        const id = r.id as string
+        eski.set(id, r.translations)
+        ish.push({ id, fields: fl, langs: kerakliTillar(r.translations) })
+      }
+
+      /**
+       * GURUHLAB yuboriladi: qisqa yozuvlar bitta AI chaqiruviga
+       * birlashadi. Ilgari har yozuv alohida ketardi va 200 ta yozuv
+       * uchun 600 ga yaqin so'rov chiqib, kvota tugardi.
+       */
+      const natijalar = await translateRows(ish, deadline)
+
+      for (const y of ish) {
+        const natija = natijalar.get(y.id)
+        if (!natija) { qoldi++; continue }
 
         // BO'SH NATIJA HAM YOZILADI: eski buzuq tarjima o'chsin va yozuv
         // joriy versiyada deb belgilansin. Aks holda "AGRO ALLIANCE"
         // o'rniga eski "AGRICULTURE Partnership" qolib ketardi —
         // brend endi tarjima qilinmaydi, lekin eskisini hech kim
         // o'chirmasdi. Farqni `birlashtir` hal qiladi.
-        const yoziladi = birlashtir(r.translations, natija)
+        const yoziladi = birlashtir(eski.get(y.id), natija)
 
-        const { error } = await supabaseAdmin.from(table).update({ translations: yoziladi }).eq("id", r.id as string)
+        const { error } = await supabaseAdmin.from(table).update({ translations: yoziladi }).eq("id", y.id)
         if (error) { console.error(`retranslate ${table}:`, error.message); qoldi++; continue }
         qilindi++
       }

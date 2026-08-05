@@ -875,6 +875,109 @@ type Generated = {
   mazmun?: string
 }
 
+/* ==========================================================================
+ * AI HOLATI — panel uchun
+ * ========================================================================== */
+
+/**
+ * KUNLIK CHEGARALAR — bepul tariflarning e'lon qilingan qiymatlari.
+ *
+ * MUHIM: bu TAXMIN. Provayderlar "qancha qoldi" degan raqamni API orqali
+ * bermaydi, shuning uchun biz O'ZIMIZ yuborgan so'rovlarni sanaymiz.
+ * Ya'ni bu "biz bugun qancha ishlatdik" degani; boshqa loyiha ayni
+ * kalitni ishlatsa, haqiqiy qoldiq kamroq bo'ladi.
+ */
+const PROVAYDERLAR = [
+  { kalit: "gemini", nom: "Google Gemini", env: "GEMINI_API_KEY", kunlik: 1_500, olish: "https://aistudio.google.com/apikey" },
+  { kalit: "groq", nom: "Groq", env: "GROQ_API_KEY", kunlik: 14_400, olish: "https://console.groq.com/keys" },
+  { kalit: "nvidia", nom: "NVIDIA NIM", env: "NVIDIA_API_KEY", kunlik: 1_000, olish: "https://build.nvidia.com" },
+  { kalit: "cloudflare", nom: "Cloudflare Workers AI", env: "CF_API_TOKEN", kunlik: 10_000, olish: "https://dash.cloudflare.com/profile/api-tokens" },
+] as const
+
+async function aiHolat(): Promise<Response> {
+  const bugun = new Date(); bugun.setUTCHours(0, 0, 0, 0)
+  const haftaOldin = new Date(Date.now() - 7 * 864e5).toISOString()
+
+  const [kalitlar, sarf, kesh] = await Promise.all([
+    supabaseAdmin.from("ai_keys")
+      .select("id, provayder, nom, oxirgi4, faol, tartib, ishlatilgan, oxirgi_xato, created_at")
+      .order("provayder").order("tartib"),
+    supabaseAdmin.from("ai_usage")
+      .select("provayder, vazifa, muvaffaqiyat, tokenlar, xato, created_at")
+      .gte("created_at", haftaOldin)
+      .order("created_at", { ascending: true })
+      .limit(5000),
+    supabaseAdmin.from("ai_cache").select("id", { count: "exact", head: true }),
+  ])
+
+  const yozuvlar = (sarf.data || []) as {
+    provayder: string; vazifa: string; muvaffaqiyat: boolean
+    tokenlar: number | null; xato: string | null; created_at: string
+  }[]
+
+  const bugunIso = bugun.toISOString()
+  const provayderlar = PROVAYDERLAR.map((p) => {
+    const meniki = yozuvlar.filter((y) => y.provayder === p.kalit)
+    const bugungi = meniki.filter((y) => y.created_at >= bugunIso)
+    const xatolar = meniki.filter((y) => !y.muvaffaqiyat)
+    const panelKalitlari = (kalitlar.data || []).filter((k) => (k as { provayder: string }).provayder === p.kalit)
+
+    return {
+      kalit: p.kalit,
+      nom: p.nom,
+      olish: p.olish,
+      // Kalit paneldan qo'shilganmi yoki muhit o'zgaruvchisidami
+      panelda: panelKalitlari.length > 0,
+      envda: Boolean(Deno.env.get(p.env)),
+      ulangan: panelKalitlari.length > 0 || Boolean(Deno.env.get(p.env)),
+      kunlik: p.kunlik,
+      bugun: bugungi.length,
+      qolgan: Math.max(0, p.kunlik - bugungi.length),
+      hafta: meniki.length,
+      xato: xatolar.length,
+      // Eng oxirgi xato matni — "nega ishlamayapti?" degan savolga javob.
+      // Yozuvlar vaqt bo'yicha o'sish tartibida, ya'ni oxirgisi eng yangisi.
+      oxirgiXato: xatolar.length ? (xatolar[xatolar.length - 1].xato || null) : null,
+      tokenlar: meniki.reduce((s, y) => s + (y.tokenlar || 0), 0),
+    }
+  })
+
+  // Vazifa bo'yicha taqsimot — nima ko'p ishlatilyapti
+  const vazifalar = new Map<string, { soni: number; xato: number }>()
+  for (const y of yozuvlar) {
+    // "translate:ru" -> "translate": tillar alohida ko'rsatilsa ro'yxat
+    // uzayib ketardi va asosiy nisbat ko'rinmasdi
+    const nom = y.vazifa.split(":")[0]
+    const r = vazifalar.get(nom) || { soni: 0, xato: 0 }
+    r.soni++
+    if (!y.muvaffaqiyat) r.xato++
+    vazifalar.set(nom, r)
+  }
+
+  return jsonResponse({
+    provayderlar,
+    kalitlar: (kalitlar.data || []).map((k) => {
+      const o = k as Record<string, unknown>
+      return {
+        id: o.id, provayder: o.provayder, nom: o.nom,
+        // To'liq kalit HECH QACHON qaytmaydi — faqat oxirgi 4 belgi
+        oxirgi4: o.oxirgi4, faol: o.faol,
+        ishlatilgan: o.ishlatilgan, oxirgiXato: o.oxirgi_xato,
+        created_at: o.created_at,
+      }
+    }),
+    vazifalar: [...vazifalar.entries()]
+      .map(([nom, v]) => ({ nom, ...v }))
+      .sort((a, b) => b.soni - a.soni),
+    kesh: { yozuvlar: kesh.count ?? 0 },
+    jami: {
+      hafta: yozuvlar.length,
+      xato: yozuvlar.filter((y) => !y.muvaffaqiyat).length,
+      tokenlar: yozuvlar.reduce((s, y) => s + (y.tokenlar || 0), 0),
+    },
+  })
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
@@ -888,6 +991,50 @@ Deno.serve(async (req) => {
     const url = new URL(req.url)
     const action = url.searchParams.get("action") || "analyze"
     const body = await req.json().catch(() => ({}))
+
+    /* ================================================================
+     * AI HOLATI VA KALITLARI
+     *
+     * MUAMMO EDI: AI ishlamay qolsa sabab ko'rinmasdi — kvota tugadimi,
+     * kalit noto'g'rimi, provayder yiqildimi bilib bo'lmasdi. Kalitni
+     * almashtirish uchun ham terminal kerak edi.
+     *
+     * Endi muharrir shu yerdan ko'radi va boshqaradi.
+     * ================================================================ */
+    if (action === "ai_holat") return await aiHolat()
+
+    if (action === "ai_kalit_qosh") {
+      const provayder = String(body.provayder || "").trim().toLowerCase()
+      const qiymat = String(body.qiymat || "").trim()
+      const nom = String(body.nom || "").trim()
+      if (!PROVAYDERLAR.some((p) => p.kalit === provayder)) {
+        return errorResponse("Noma'lum provayder", 400)
+      }
+      if (qiymat.length < 8) return errorResponse("Kalit juda qisqa", 400)
+
+      const { error } = await supabaseAdmin.rpc("ai_key_qoshish", {
+        p_provayder: provayder,
+        p_nom: nom,
+        p_qiymat: qiymat,
+        p_user: auth.user.id,
+      })
+      if (error) {
+        console.error("ai_kalit_qosh:", error.message)
+        return errorResponse("Kalitni saqlab bo'lmadi", 500)
+      }
+      return await aiHolat()
+    }
+
+    if (action === "ai_kalit_ochir") {
+      const id = String(body.id || "")
+      if (!id) return errorResponse("ID kerak", 400)
+      const { error } = await supabaseAdmin.rpc("ai_key_ochirish", { p_id: id })
+      if (error) {
+        console.error("ai_kalit_ochir:", error.message)
+        return errorResponse("Kalitni o'chirib bo'lmadi", 500)
+      }
+      return await aiHolat()
+    }
 
     /* ---------------- TAHLIL ---------------- */
     if (action === "analyze") {
@@ -1506,7 +1653,7 @@ FAQAT JSON: { "sarlavha": "…", "afzalliklar": ["…","…","…"] }`,
           }).join("\n")
         : "(hech qaysi tarmoq ulanmagan)"
 
-      const dialog = history.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+      const dialog = history.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join("\n\n")
 
       const prompt = `Sen "Agro Alliance" agro-media platformasining SMM maslahatchisisan.
 
@@ -1593,7 +1740,7 @@ Oxirgi savolga javob ber. Qoidalar:
           }).join("\n")
         : "(hech qaysi tarmoq ulanmagan)"
 
-      const dialog = history.map((m) => `${m.role}: ${m.content}`).join("\n\n")
+      const dialog = history.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join("\n\n")
 
       const prompt = `Sen "Agro Alliance" agro-media platformasining SMM maslahatchisisan.
 

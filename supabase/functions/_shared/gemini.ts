@@ -4,11 +4,17 @@
  */
 
 import { parseJson } from "./jsonExtract.ts";
+import { aiKalit } from "./aiKalit.ts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-function getApiKey(): string {
-  const key = Deno.env.get("GEMINI_API_KEY");
+/**
+ * Kalit avval PANELDAN qo'shilganidan olinadi, bo'lmasa Supabase
+ * Secrets'dan. Shu tufayli kvota tugaganda muharrir terminalsiz,
+ * to'g'ridan-to'g'ri paneldan yangi kalit qo'ya oladi.
+ */
+async function getApiKey(): Promise<string> {
+  const key = await aiKalit("gemini", "GEMINI_API_KEY");
   if (!key) throw new Error("GEMINI_API_KEY not set in Supabase Secrets");
   return key;
 }
@@ -90,7 +96,7 @@ export async function geminiChat(
     image?: InlineImage; timeoutMs?: number;
   },
 ): Promise<{ text: string; tokens: number }> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   const model = opts?.model ?? "gemini-2.0-flash";
   const maxRetries = opts?.retries ?? 2;
 

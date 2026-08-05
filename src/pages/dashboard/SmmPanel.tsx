@@ -8,6 +8,7 @@ import { composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "..
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
 import YoutubeStudio from "./YoutubeStudio"
+import AiTokens from "./AiTokens"
 
 /**
  * SMM / AI paneli.
@@ -1244,6 +1245,12 @@ export default function SmmPanel({ seed }: {
           </div>
         )}
       </div>
+
+      {/* ============ AI KALITLARI VA KVOTA ============ */}
+      {/* Tarmoq ulanishlaridan keyin turadi: ikkalasi ham "sozlash",
+          lekin bu AI ning O'ZI haqida — kvota tugasa yuqoridagi
+          hamma narsa ishlamay qoladi. */}
+      <AiTokens />
 
       {/* ============ 2 + 3 + AI (uch ustun) ============ */}
       {/* Chat endi alohida SUZUVCHI panelda — grid ikki ustun */}

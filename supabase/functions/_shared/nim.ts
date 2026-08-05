@@ -12,11 +12,13 @@
  */
 
 import { parseJson } from "./jsonExtract.ts";
+import { aiKalit } from "./aiKalit.ts";
 
 const NIM_BASE = "https://integrate.api.nvidia.com/v1";
 
-function getApiKey(): string {
-  const key = Deno.env.get("NVIDIA_API_KEY");
+/** Panel kaliti ustun, muhit o'zgaruvchisi zaxira — qarang: aiKalit.ts */
+async function getApiKey(): Promise<string> {
+  const key = await aiKalit("nvidia", "NVIDIA_API_KEY");
   if (!key) throw new Error("NVIDIA_API_KEY sozlanmagan");
   return key;
 }
@@ -48,7 +50,7 @@ export async function nimChat(
     imageStyle?: "openai" | "inline"; timeoutMs?: number;
   },
 ): Promise<{ text: string; tokens: number }> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   const model = opts?.model ?? (opts?.image ? visionModel() : textModel());
   const maxRetries = opts?.retries ?? 1;
 
