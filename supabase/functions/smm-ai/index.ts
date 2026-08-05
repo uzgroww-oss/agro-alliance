@@ -11,7 +11,7 @@ import { cfChat, cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { transcribeVideo, transcribeAvailable } from "../_shared/transcribe.ts"
 import { webTrends, globalAgro, fetchFeed, type WebHit } from "../_shared/market.ts"
 import { getFacebookPage } from "../_shared/facebook.ts"
-import { sarfYoz } from "../_shared/aiKesh.ts"
+import { sarfYoz, keshdanOl, keshgaYoz } from "../_shared/aiKesh.ts"
 import { aiKalitBormi } from "../_shared/aiKalit.ts"
 
 /**
@@ -702,6 +702,36 @@ async function gatherYouTube(): Promise<NetworkStat | null> {
     return base
   } catch (e) {
     return { ...base, error: e instanceof Error ? e.message : "Tarmoq xatosi" }
+  }
+}
+
+/**
+ * O'Z TAJRIBAMIZ: qaysi postlar joylangan.
+ *
+ * Reja tuzishda kerak — AI bir xil mavzuni takrorlamasin. Alohida
+ * funksiya, chunki endi qolgan kontekst bilan BIR VAQTDA o'qiladi:
+ * ilgari ular tugagach navbatda turardi va bekorga vaqt yeyardi.
+ */
+async function oxirgiPostlar(): Promise<string> {
+  try {
+    const { data: posts } = await supabaseAdmin
+      .from("smm_posts")
+      .select("title, content, platforms, status, published_at")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("published_at", { ascending: false })
+      .limit(10)
+    const list = (posts || []) as {
+      title: string | null; content: string; platforms: string[]; published_at: string | null
+    }[]
+    if (!list.length) return "(hali post joylanmagan)"
+    return list.map((p) => {
+      const t = (p.title || p.content || "").replace(/\s+/g, " ").slice(0, 70)
+      const when = p.published_at ? p.published_at.slice(0, 10) : ""
+      return `- "${t}" -> ${(p.platforms || []).join(", ") || "?"}${when ? ` (${when})` : ""}`
+    }).join("\n")
+  } catch {
+    return "(ma'lumot olinmadi)"
   }
 }
 
@@ -1819,20 +1849,44 @@ Oxirgi savolga javob ber. Qoidalar:
     if (action === "market") {
       const days = [7, 14, 30].includes(Number(body.days)) ? Number(body.days) : 7
 
-      // Ikki manba parallel: o'z hisoblarimiz va internet yangiliklari.
-      // Raqobatchilarni qidirish olib tashlandi — u sekin edi va
-      // Instagram business_discovery ko'p hisoblarni ko'ra olmasdi.
-      // Uch manba parallel: hisoblarimiz, Google News va FOYDALANUVCHI
-      // qo'shgan manbalar ("Manbalar" bo'limi). Oxirgisi muhim — AI
-      // aynan siz ishonadigan saytlardan o'rganadi.
-      const [nets, hits, worldHits, ownHits] = await Promise.all([
-        gatherNetworks(),
-        webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
-        // BUTUN DUNYO agro sohasi — backendда doim ishlaydi,
-        // foydalanuvchidan hech narsa so'ralmaydi
-        globalAgro(),
-        ownSources(),
-      ])
+      /**
+       * KONTEKST YIG'ISH — ENG SEKIN QISM, SHUNING UCHUN KESHLANADI.
+       *
+       * Bu yerda 12 tagacha RSS manba, Google News, jahon agro
+       * lentalari va to'rtta tarmoq API si o'qiladi. Hammasi parallel
+       * bo'lsa ham eng sekin manba butun so'rovni ushlab turadi —
+       * "reja tuz" tugmasi shundan sekin edi.
+       *
+       * Yangiliklar daqiqada o'zgarmaydi, shuning uchun natija 20
+       * daqiqa keshlanadi. Ikkinchi urinishda (masalan 7 kunlikdan
+       * 30 kunlikka o'tilganda) bu bosqich butunlay o'tkazib
+       * yuboriladi.
+       *
+       * `days` kalitga KIRMAYDI: kontekst kunlar soniga bog'liq emas.
+       */
+      type Kontekst = {
+        nets: NetworkStat[]; hits: WebHit[]; worldHits: WebHit[]
+        ownHits: WebHit[]; pastLine: string
+      }
+      const KONTEKST_TTL = 20 * 60 * 1000
+
+      let kontekst = await keshdanOl<Kontekst>("market-kontekst", "v1", KONTEKST_TTL)
+      if (!kontekst) {
+        // O'tgan postlar ham SHU YERDA — ilgari kontekstdan keyin
+        // alohida o'qilardi va bekorga navbatda turardi.
+        const [nets, hits, worldHits, ownHits, pastLine] = await Promise.all([
+          gatherNetworks(),
+          webTrends("O'zbekiston qishloq xo'jaligi fermerlar 2026 tendensiya narx"),
+          // BUTUN DUNYO agro sohasi — backendда doim ishlaydi,
+          // foydalanuvchidan hech narsa so'ralmaydi
+          globalAgro(),
+          ownSources(),
+          oxirgiPostlar(),
+        ])
+        kontekst = { nets, hits, worldHits, ownHits, pastLine }
+        await keshgaYoz("market-kontekst", "v1", kontekst)
+      }
+      const { nets, hits, worldHits, ownHits } = kontekst
 
       const ownLine = nets.length
         ? nets.map((n) => {
@@ -1865,30 +1919,9 @@ Oxirgi savolga javob ber. Qoidalar:
       // O'Z TAJRIBAMIZ: qaysi postlar chiqdi, qaysi tarmoqda nima
       // yiqildi. Ilgari reja faqat yangiliklarga tayanardi va
       // "umumiy maslahat" bo'lib qolardi.
-      const pastLine = await (async () => {
-        try {
-          const { data: posts } = await supabaseAdmin
-            .from("smm_posts")
-            .select("title, content, platforms, status, published_at")
-            .eq("status", "published")
-            .is("deleted_at", null)
-            .order("published_at", { ascending: false })
-            .limit(10)
-          const list = (posts || []) as {
-            title: string | null; content: string; platforms: string[]; published_at: string | null
-          }[]
-          if (!list.length) return "(hali post joylanmagan)"
-          return list.map((p) => {
-            const t = (p.title || p.content || "").replace(/\s+/g, " ").slice(0, 70)
-            const when = p.published_at ? p.published_at.slice(0, 10) : ""
-            return `- "${t}" -> ${(p.platforms || []).join(", ") || "?"}${when ? ` (${when})` : ""}`
-          }).join("\n")
-        } catch {
-          return "(ma'lumot olinmadi)"
-        }
-      })()
+      const pastLine = kontekst.pastLine
 
-      const prompt = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
+      const umumiy = `Sen O'zbekiston agro bozorida ishlaydigan marketolog va SMM strategisisan.
 
 BIZNING IJTIMOIY TARMOQ HISOBLARIMIZ:
 ${ownLine}
@@ -1904,9 +1937,6 @@ ${webLine}
 
 JAHON AGRO SOHASI (global tendensiyalar, narxlar, texnologiya):
 ${worldLine}
-
-Vazifa: manbalarni o'qib, ${days} kunlik kontent reja tuz va
-tarmoqlarni O'STIRISH bo'yicha aniq yo'l ko'rsat.
 
 QAT'IY QOIDALAR:
 - Har bir maydonga TO'LIQ JUMLA yoz. Raqam, ro'yxat yoki bo'sh
@@ -1925,6 +1955,29 @@ QAT'IY QOIDALAR:
 - Auditoriya: O'zbekistondagi fermerlar, dehqonlar, chorvadorlar va
   agro kompaniyalar
 - Til: o'zbek tili (lotin alifbosi), sodda
+`
+
+      /**
+       * REJA BO'LAKLARGA BO'LINIB, PARALLEL SO'RALADI.
+       *
+       * MUAMMO EDI: bitta so'rov strategiya + 30 kunlik rejani birga
+       * yozardi. Kutish vaqtini CHIQISH tokenlari belgilaydi, ya'ni
+       * 30 kunlik reja 7 kunlikdan taxminan to'rt barobar sekin edi va
+       * foydalanuvchi bir daqiqagacha kutib o'tirardi.
+       *
+       * Endi ish bo'lingan: strategiya alohida, reja esa 10 kunlik
+       * bo'laklarga. Hammasi BIR VAQTDA ketadi, ya'ni umumiy kutish
+       * eng sekin BITTA bo'lakka teng bo'ladi — kunlar sonidan
+       * deyarli qat'i nazar.
+       */
+      const BOLAK = 10
+      const bolaklar: { boshi: number; oxiri: number }[] = []
+      for (let k = 1; k <= days; k += BOLAK) {
+        bolaklar.push({ boshi: k, oxiri: Math.min(days, k + BOLAK - 1) })
+      }
+
+      const strategiyaPrompt = `${umumiy}
+Vazifa: tarmoqlarni O'STIRISH bo'yicha aniq yo'l ko'rsat.
 
 Maydonlar mazmuni:
 - "sotuv": sotuvni oshirish uchun aniq qadamlar
@@ -1939,23 +1992,55 @@ FAQAT JSON qaytar, boshqa matn yozma:
 {
   "sotuv": ["sotuvni oshirish uchun aniq qadam — to'liq jumla bilan"],
   "osish": ["tarmoqni o'stirish uchun aniq amal"],
-  "kontent_turlari": ["qanday kontent ishlaydi va nega"],
+  "kontent_turlari": ["qanday kontent ishlaydi va nega"]
+}`
+
+      const rejaPrompt = (boshi: number, oxiri: number) => `${umumiy}
+Vazifa: ${days} kunlik kontent rejaning ${boshi}-${oxiri} KUNLARINI tuz.
+
+- FAQAT ${boshi} dan ${oxiri} gacha bo'lgan kunlarni yoz, boshqasini emas
+- Har kunga BITTA post. Mavzular bir-birini takrorlamasin
+- Format va platformani almashtirib tur, hammasi bir xil bo'lmasin
+
+FAQAT JSON qaytar, boshqa matn yozma:
+{
   "reja": [
-    { "kun": 1, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
+    { "kun": ${boshi}, "mavzu": "aniq mavzu", "format": "post|video|karusel|storis", "platforma": "telegram|instagram|facebook", "vaqt": "18:00", "maqsad": "bu post nimaga xizmat qiladi" }
   ]
 }
-"reja" ichida ${days} ta element bo'lsin, kun 1 dan ${days} gacha.`
+"reja" ichida ${oxiri - boshi + 1} ta element bo'lsin, kun ${boshi} dan ${oxiri} gacha.`
 
-      const rawPlan = await askAi<unknown>(prompt, (v) => {
-        const o = v as { reja?: unknown }
-        if (!o || typeof o !== "object") return false
-        if (!Array.isArray(o.reja) || !o.reja.length) return false
-        // Tavsiyalar jumla bo'lishi shart. Ilgari AI matn maydonlariga
-        // raqam qaytarardi va ekranda "0. 3. 0. 2. 0" chiqardi.
-        const sotuv = asTextList((o as { sotuv?: unknown }).sotuv)
-        return sotuv.length > 0 && sotuv.some(looksLikeSentence)
-      }, 3500, ["reja", "sotuv"])
-      const result = normalizePlan(rawPlan)
+      const [strategiya, ...rejaBolaklari] = await Promise.all([
+        askAi<unknown>(strategiyaPrompt, (v) => {
+          const o = (v || {}) as { sotuv?: unknown }
+          // Tavsiyalar jumla bo'lishi shart. Ilgari AI matn maydonlariga
+          // raqam qaytarardi va ekranda "0. 3. 0. 2. 0" chiqardi.
+          const sotuv = asTextList(o.sotuv)
+          return sotuv.length > 0 && sotuv.some(looksLikeSentence)
+        }, 1200, ["sotuv", "osish"]).catch(() => null),
+
+        ...bolaklar.map(({ boshi, oxiri }) =>
+          askAi<unknown>(rejaPrompt(boshi, oxiri), (v) => {
+            const o = (v || {}) as { reja?: unknown }
+            return Array.isArray(o.reja) && o.reja.length > 0
+          }, 1800, ["reja"])
+            // Bitta bo'lak yiqilsa qolganlari baribir keladi: 30 kunlik
+            // rejaning 20 kuni bo'sh ekrandan yaxshiroq.
+            .catch(() => null),
+        ),
+      ])
+
+      const rejaJami = rejaBolaklari
+        .filter(Boolean)
+        .flatMap((b) => {
+          const o = (b || {}) as { reja?: unknown }
+          return Array.isArray(o.reja) ? o.reja : []
+        })
+
+      const result = normalizePlan({ ...(strategiya || {}), reja: rejaJami })
+      // Bo'laklar alohida so'ralgani uchun kunlar aralash kelishi
+      // mumkin — panelda tartib bilan chiqsin
+      result.reja.sort((a, b) => a.kun - b.kun)
       if (!result.reja.length) return errorResponse("AI reja tuza olmadi — qaytadan urining", 500)
 
       // Rejani saqlaymiz — panel qayta so'ramasdan ko'rsata olsin

@@ -29,15 +29,31 @@ export async function xeshla(matn: string): Promise<string> {
  * Kesh xatosi ISH TO'XTATMAYDI: baza javob bermasa AI chaqiriladi,
  * ya'ni eng yomon holatda avvalgidek ishlaydi.
  */
-export async function keshdanOl<T>(vazifa: string, xesh: string): Promise<T | null> {
+export async function keshdanOl<T>(
+  vazifa: string,
+  xesh: string,
+  /**
+   * Eng katta yosh (ms). Berilsa undan eski yozuv YO'Q hisoblanadi.
+   *
+   * Tarjimaga kerak emas — matn o'zgarmasa tarjima ham eskirmaydi.
+   * Lekin yangiliklar va tarmoq raqamlari kabi VAQTGA bog'liq
+   * ma'lumot uchun shart: eski kontekstdan tuzilgan reja noto'g'ri
+   * bo'lardi.
+   */
+  engKattaYosh?: number,
+): Promise<T | null> {
   try {
     const { data } = await supabaseAdmin
       .from("ai_cache")
-      .select("id, natija, hits")
+      .select("id, natija, hits, created_at")
       .eq("vazifa", vazifa)
       .eq("xesh", xesh)
       .maybeSingle()
     if (!data) return null
+    if (engKattaYosh !== undefined) {
+      const yosh = Date.now() - new Date(data.created_at as string).getTime()
+      if (!(yosh >= 0) || yosh > engKattaYosh) return null
+    }
     // Ishlatilgan vaqtni yangilaymiz — eskirganini keyin tozalash uchun.
     // Javobni KUTMAYMIZ: bu yozuv natijaga ta'sir qilmaydi.
     supabaseAdmin.from("ai_cache")
@@ -58,8 +74,13 @@ export async function keshgaYoz(
   model?: string,
 ): Promise<void> {
   try {
+    const hozir = new Date().toISOString()
     await supabaseAdmin.from("ai_cache").upsert(
-      { vazifa, xesh, natija, model: model ?? null, used_at: new Date().toISOString() },
+      // `created_at` ATAYLAB qo'lda yoziladi: upsert mavjud qatorni
+      // yangilaganda default ishlamaydi va yosh eskiligicha qolardi —
+      // TTL bilan o'qiydiganlar yangilangan qiymatni ham "eski" deb
+      // rad etib yuborardi.
+      { vazifa, xesh, natija, model: model ?? null, created_at: hozir, used_at: hozir },
       { onConflict: "vazifa,xesh" },
     )
   } catch { /* kesh ixtiyoriy */ }

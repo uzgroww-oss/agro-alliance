@@ -106,6 +106,74 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
   )
 }
 
+/**
+ * Strategiya ro'yxati kartasi — "Sotuv", "O'sish", "Kontent turlari".
+ *
+ * Uchtasi bir xil ko'rinishda va BIR QATORDA turadi. Ilgari har biri
+ * alohida, butun kenglikda va bir-birining ostida edi: sahifa uzun
+ * bo'lib ketardi va uchtasini solishtirib bo'lmasdi.
+ *
+ * `max-h` + skroll shart: AI ba'zan 12 ta band yozadi, boshqasiga esa
+ * 3 ta. Cheklovsiz bo'lsa uzuni butun qatorni cho'zib yuborardi.
+ */
+function StrategiyaKarta({ title, hint, items, belgi }: {
+  title: string; hint: string; items: string[]; belgi?: "check"
+}) {
+  return (
+    <div className={card}>
+      <h3 className="font-display font-bold">{title}</h3>
+      <p className="mt-0.5 text-sm text-muted">{hint}</p>
+      {items.length > 0 ? (
+        <ul className="mt-3 max-h-80 space-y-2.5 overflow-y-auto pr-1">
+          {items.map((r, i) => (
+            <li key={i} className="flex gap-2.5 text-sm text-ink/80">
+              {belgi === "check" ? (
+                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green text-white">
+                  <Icon d={I.check} className="h-2.5 w-2.5" />
+                </span>
+              ) : (
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
+              )}
+              <span>{r}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
+          {tr("Tahlil qilinganda maslahatlar shu yerda chiqadi.")}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Havolalar ro'yxati kartasi — "Jahon bozori", "Sizning manbalaringiz",
+ * "Yangiliklar". Uchtasi ham bir xil: sarlavha, izoh va havolalar.
+ */
+function ManbaKarta({ title, hint, items }: {
+  title: string; hint: string; items: { title?: unknown; url?: unknown; source?: unknown; date?: unknown }[]
+}) {
+  if (!items.length) return null
+  return (
+    <div className={card}>
+      <h3 className="font-display font-bold">{title}</h3>
+      <p className="mt-0.5 text-sm text-muted">{hint}</p>
+      <ul className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
+        {items.map((h, i) => (
+          <li key={i} className="rounded-xl bg-soft px-3 py-2">
+            <a href={txt(h.url)} target="_blank" rel="noreferrer"
+              className="text-sm font-semibold text-green hover:underline">{txt(h.title)}</a>
+            <span className="block text-xs text-muted">
+              {[txt(h.source), txt(h.date)].filter(Boolean).join(" · ")}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 const PLATFORM_LABEL: Record<string, string> = {
   telegram: "Telegram", instagram: tr("Instagram"), facebook: tr("Facebook"),
   linkedin: tr("LinkedIn"), youtube: tr("YouTube"),
@@ -513,18 +581,18 @@ export default function MarketPanel({ onCreatePost }: {
             {tr("AI internetdagi yangiliklarni tahlil qilib, kerakli kontentlarni topadi va reja tuzadi")}
           </p>
         </div>
-        {plan && (
-          <button onClick={analyze} disabled={analyzing}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-            <Icon d={I.refresh} className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
-            Tahlilni yangilash
-          </button>
-        )}
+        {/* Ilgari bu yerda ham "Tahlilni yangilash" tugmasi bor edi va
+            pastdagi "Tahlil qilish" bilan AYNAN bir ishni qilardi.
+            Ikkita bir xil tugma chalkashtiradi — asosiysi kun tanlash
+            tugmalari yonida turishi kerak, chunki natija o'shanga
+            bog'liq. */}
       </div>
 
-      {/* ============ TAHLIL + STATISTIKA ============ */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-      <div className={card}>
+      {/* ============ BOSHQARUV ============ */}
+      {/* Butun kenglikda: ichida kun tanlash tugmalari va katta
+          "Tahlil qilish" tugmasi bor. Ilgari yarim ustunda edi va
+          tugmalar ikki qatorga sinib, karta cho'zilib ketardi. */}
+      <div className={`${card} mt-5`}>
         <div className="flex flex-wrap items-center gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green/10 text-green">
             <Icon d={CALENDAR} className="h-5 w-5" />
@@ -580,28 +648,38 @@ export default function MarketPanel({ onCreatePost }: {
         )}
       </div>
 
-      {/* Reja statistikasi — HAQIQIY raqamlar: qancha manba o'qildi,
-          nechta post rejalashtirildi, nechtasi bajarildi */}
-      <div className={card}>
-        <h3 className="font-display font-bold">{tr("Reja statistikasi")}</h3>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* ============ RAQAMLAR ============ */}
+      {/* To'rt ko'rsatkich BIR QATORDA. Ilgari alohida kartaning ichida
+          edi va yonidagi boshqaruv kartasi bilan balandligi mos
+          kelmasdi — o'ng tomonda katta bo'sh joy qolardi. */}
+      <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={card}>
           <Stat icon={I.globe} tone="bg-purple-100 text-purple-600"
-            value={web.length + world.length + sources.length} label={tr(tr("Topilgan yangilik"))} />
+            value={web.length + world.length + sources.length} label={tr("Topilgan yangilik")} />
+        </div>
+        <div className={card}>
           <Stat icon={I.doc} tone="bg-blue-100 text-blue-600"
-            value={plan?.reja.length || 0} label={tr(tr("Rejalashtirilgan post"))} />
+            value={plan?.reja.length || 0} label={tr("Rejalashtirilgan post")} />
+        </div>
+        <div className={card}>
           <Stat icon={I.check} tone="bg-green/15 text-green"
-            value={done.length} label="Bajarilgan" />
+            value={done.length} label={tr("Bajarilgan")} />
+        </div>
+        <div className={card}>
           <Stat icon={I.clock} tone="bg-orange-100 text-orange-500"
-            value={Math.max(0, (plan?.reja.length || 0) - done.length)} label="Kutilayotgan" />
+            value={Math.max(0, (plan?.reja.length || 0) - done.length)} label={tr("Kutilayotgan")} />
         </div>
       </div>
-      </div>
 
-      {/* ============ MANBALAR + HISOBLAR + MASLAHATLAR ============ */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+      {/* ============ MANBALAR + HISOBLAR ============ */}
+      {/* `items-start` — kartalar bir-birining balandligiga cho'zilmasin.
+          Ilgari qisqa karta uzunining balandligini olib, ichida katta
+          bo'sh joy qolardi. */}
+      <div className="mt-5 grid items-start gap-5 lg:grid-cols-3">
       {/* Manbalar — tahlil sifatini shu belgilaydi, shuning uchun
-          birinchi ustunda */}
-      <div className={card}>
+          birinchi va ikki ustun kengligida: ichida forma, tayyor manba
+          tugmalari va ro'yxat bor */}
+      <div className={`${card} lg:col-span-2`}>
         <h3 className="font-display font-bold">{tr("Manbalar")}</h3>
         <p className="mt-0.5 text-sm text-muted">
           {tr("AI tahlilni birinchi navbatda manbalardan oladi va post yaratish rejasini tuzadi.")}
@@ -695,28 +773,34 @@ export default function MarketPanel({ onCreatePost }: {
         <h3 className="font-display font-bold">{tr("Bizning hisoblar")}</h3>
         <p className="mt-0.5 text-sm text-muted">{tr("Hisoblaringizdan ko'rsatkichlar avtomatik olinadi")}</p>
         {nets.length > 0 ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          /* Har tarmoq — BITTA QATOR: ikonka chapda, nom va raqam
+             yonida. Ilgari markazlashgan baland kartachalar edi va tor
+             ustunda ular ustma-ust tushib, karta yonidagi "Manbalar"
+             dan ikki barobar uzun bo'lib ketardi. */
+          <ul className="mt-3 space-y-2">
             {nets.map((n) => (
-              <div key={n.platform} className="rounded-xl border border-green/10 p-3 text-center">
-                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-green/10 text-green">
-                  <Icon d={PLATFORM_ICON[n.platform] || I.globe} className="h-5 w-5" />
+              <li key={n.platform} className="flex items-center gap-3 rounded-xl border border-green/10 px-3 py-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green/10 text-green">
+                  <Icon d={PLATFORM_ICON[n.platform] || I.globe} className="h-4 w-4" />
                 </span>
-                <p className="mt-2 text-xs font-bold">{PLATFORM_LABEL[n.platform] || n.platform}</p>
-                <p className="truncate text-[11px] text-muted" title={n.name}>{n.name}</p>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold">{PLATFORM_LABEL[n.platform] || n.platform}</span>
+                  <span className="block truncate text-[11px] text-muted" title={n.name}>{n.name}</span>
+                </span>
                 {n.error ? (
-                  <p className="mt-1 text-[11px] font-semibold text-red-600">{n.error}</p>
+                  <span className="shrink-0 text-[11px] font-semibold text-red-600" title={n.error}>{tr("xato")}</span>
                 ) : (
-                  <p className="mt-1 text-[11px] text-muted">
+                  <span className="shrink-0 text-right text-[11px] text-muted">
                     {n.followers !== null
-                      ? <><strong className="text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</>
+                      ? <><strong className="block text-sm text-ink">{n.followers.toLocaleString("uz")}</strong> obunachi</>
                       : n.avgLikes !== null
-                        ? <><strong className="text-ink">{n.avgLikes}</strong> layk</>
+                        ? <><strong className="block text-sm text-ink">{n.avgLikes}</strong> layk</>
                         : tr("ma'lumot yo'q")}
-                  </p>
+                  </span>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
             {tr("Tarmoq ulanmagan — SMM / AI bo'limidan ulang.")}
@@ -724,64 +808,39 @@ export default function MarketPanel({ onCreatePost }: {
         )}
       </div>
 
-      {/* Sotuv maslahatlari — uchinchi ustun */}
-      <div className={card}>
-        <h3 className="font-display font-bold">{tr("Sotuvni oshirish bo'yicha maslahatlar")}</h3>
-        {txtList(plan?.sotuv).length > 0 ? (
-          <ul className="mt-3 space-y-2.5">
-            {txtList(plan?.sotuv).map((r, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-ink/80">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green text-white">
-                  <Icon d={I.check} className="h-2.5 w-2.5" />
-                </span>
-                <span>{r}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
-            {tr("Tahlil qilinganda maslahatlar shu yerda chiqadi.")}
-          </p>
-        )}
-      </div>
       </div>
 
       {/* ============ NATIJA ============ */}
       {plan && (
         <>
+          {/* ---- STRATEGIYA: uchala ro'yxat BIR QATORDA ----
+              Ilgari "Sotuv" yuqorida, "O'sish" va "Kontent turlari" esa
+              pastda alohida-alohida butun kenglikda turardi. Uchtasi bir
+              xil turdagi ro'yxat bo'lgani uchun ularni yonma-yon qo'yish
+              solishtirishni osonlashtiradi va sahifani uch barobar
+              qisqartiradi.
 
-          {/* Sotuv maslahatlari yuqoridagi uchinchi ustunga ko'chdi —
-              bu yerda takrorlanmaydi. */}
-
-          {/* Tarmoqni o'stirish — obunachi va qamrovni oshirish */}
-          {txtList(plan.osish).length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">{tr("Tarmoqni o'stirish")}</h3>
-              <p className="mt-0.5 text-sm text-muted">{tr("Obunachi va qamrovni oshirish uchun aniq amallar")}</p>
-              <ul className="mt-3 space-y-2">
-                {txtList(plan.osish).map((r, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Qanday kontent ishlaydi */}
-          {txtList(plan.kontent_turlari).length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">{tr("Qanday kontent ishlaydi")}</h3>
-              <p className="mt-0.5 text-sm text-muted">{tr("Sizning holatingizda samarali kontent turlari va nega")}</p>
-              <ul className="mt-3 space-y-2">
-                {txtList(plan.kontent_turlari).map((r, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm text-ink/80">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ul>
+              Ro'yxatlar uzunligi har xil: `items-start` kartalarni
+              cho'zmaydi, ichki `max-h` esa bittasi juda uzun bo'lsa
+              qatorni buzmaydi. */}
+          {(txtList(plan.sotuv).length > 0 || txtList(plan.osish).length > 0 || txtList(plan.kontent_turlari).length > 0) && (
+            <div className="mt-5 grid items-start gap-5 lg:grid-cols-3">
+              <StrategiyaKarta
+                title={tr("Sotuvni oshirish")}
+                hint={tr("Sotuvni oshirish uchun aniq qadamlar")}
+                items={txtList(plan.sotuv)}
+                belgi="check"
+              />
+              <StrategiyaKarta
+                title={tr("Tarmoqni o'stirish")}
+                hint={tr("Obunachi va qamrovni oshirish uchun aniq amallar")}
+                items={txtList(plan.osish)}
+              />
+              <StrategiyaKarta
+                title={tr("Qanday kontent ishlaydi")}
+                hint={tr("Sizning holatingizda samarali kontent turlari va nega")}
+                items={txtList(plan.kontent_turlari)}
+              />
             </div>
           )}
 
@@ -1034,58 +1093,31 @@ export default function MarketPanel({ onCreatePost }: {
             )}
           </div>
 
-          {/* Jahon agro sohasi — backendда doim yig'iladi, sozlash
-              kerak emas. Reja global kontekstga ham tayanadi. */}
-          {world.length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">{tr("Jahon agro tendensiyalari")}</h3>
-              <p className="mt-0.5 text-sm text-muted">
-                Global narxlar, texnologiya va bozor holati — reja shularni ham hisobga oldi
-              </p>
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {world.map((h, i) => (
-                  <li key={i} className="rounded-xl bg-soft px-3 py-2">
-                    <a href={h.url} target="_blank" rel="noreferrer"
-                      className="text-sm font-semibold text-green hover:underline">{txt(h.title)}</a>
-                    <span className="block text-xs text-muted">{[txt(h.source), txt(h.date)].filter(Boolean).join(" · ")}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* ---- REJA NIMAGA ASOSLANGAN: uchala manba BIR QATORDA ----
+              Uchtasi ham havolalar ro'yxati. Ilgari uchalasi alohida,
+              butun kenglikda va bir-birining ostida turardi — sahifa
+              oxiri cheksiz bo'lib ketardi va nima qayerdan kelganini
+              solishtirib bo'lmasdi.
 
-          {/* SIZ qo'shgan manbalar — alohida va birinchi, chunki AI
-              ularga ustuvor tayanadi */}
-          {sources.length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">{tr("Sizning manbalaringiz")}</h3>
-              <p className="mt-0.5 text-sm text-muted">
-                "Manbalar" bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi
-              </p>
-              <ul className="mt-3 space-y-2">
-                {sources.map((h, i) => (
-                  <li key={i}>
-                    <a href={h.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-green hover:underline">{txt(h.title)}</a>
-                    <span className="block text-xs text-muted">{[txt(h.source), txt(h.date)].filter(Boolean).join(" · ")}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Manbalar — xulosa nimaga asoslanganini ko'rish uchun */}
-          {web.length > 0 && (
-            <div className={`${card} mt-5`}>
-              <h3 className="font-display font-bold">{tr("Yangiliklar")}</h3>
-              <p className="mt-0.5 text-sm text-muted">{tr("Tahlil shu manbalarni ham hisobga oldi")}</p>
-              <ul className="mt-3 space-y-2">
-                {web.map((h, i) => (
-                  <li key={i}>
-                    <a href={h.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-green hover:underline">{txt(h.title)}</a>
-                    <span className="block text-xs text-muted">{[txt(h.source), txt(h.date)].filter(Boolean).join(" · ")}</span>
-                  </li>
-                ))}
-              </ul>
+              Tartib ATAYLAB shunday: AI birinchi navbatda SIZNING
+              manbalaringizga tayanadi, shuning uchun ular birinchi. */}
+          {(sources.length > 0 || web.length > 0 || world.length > 0) && (
+            <div className="mt-5 grid items-start gap-5 lg:grid-cols-3">
+              <ManbaKarta
+                title={tr("Sizning manbalaringiz")}
+                hint={tr("Manbalar bo'limida kiritilgan saytlar — AI birinchi navbatda shulardan o'rgandi")}
+                items={sources}
+              />
+              <ManbaKarta
+                title={tr("Yangiliklar")}
+                hint={tr("Tahlil shu manbalarni ham hisobga oldi")}
+                items={web}
+              />
+              <ManbaKarta
+                title={tr("Jahon agro tendensiyalari")}
+                hint={tr("Global narxlar, texnologiya va bozor holati")}
+                items={world}
+              />
             </div>
           )}
         </>
