@@ -1109,7 +1109,7 @@ export default function SmmPanel({ seed }: {
           </div>
           <button onClick={savePick} disabled={connLoading}
             className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
-            <Icon d={I.check} className="h-4 w-4" /> Tanlovni saqlash
+            <Icon d={I.check} className="h-4 w-4" /> {tr("Tanlovni saqlash")}
           </button>
         </div>
 
@@ -1235,7 +1235,7 @@ export default function SmmPanel({ seed }: {
         {connOpen === "instagram" && (
           <div className="mt-3 rounded-xl border border-green/15 bg-soft p-4">
             <p className="text-xs text-muted">
-              Instagram Facebook orqali ulanadi. Akkaunt <strong>{tr("Business")}</strong> yoki
+              Instagram Facebook orqali ulanadi. Akkaunt <strong>{tr("Business")}</strong> {tr("yoki")}
               <strong>{tr("Creator")}</strong> bo'lishi va Facebook sahifasiga biriktirilgan bo'lishi shart.
             </p>
             <button onClick={igConnect} disabled={connBusy} className="mt-2 inline-flex items-center gap-2 rounded-lg bg-pink-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
@@ -1326,12 +1326,11 @@ export default function SmmPanel({ seed }: {
             <div className="mt-4 flex gap-3 rounded-xl bg-green/5 p-4">
               <Icon d={I.robot} className="mt-0.5 h-5 w-5 shrink-0 text-green" />
               <p className="text-sm text-ink/75">
-                Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi.
-                Nima yozishni bilmasangiz pastdagi yashil tugmani bosib{" "}
+                {tr("Mavzu yozing — AI o'zbek tilida, fermerlar uchun tayyor post yozib beradi. Nima yozishni bilmasangiz pastdagi yashil tugmani bosib")}{" "}
                 <button onClick={() => setChatOpen(true)} className="font-bold text-green hover:underline">
-                  AI maslahatchi
+                  {tr("AI maslahatchi")}
                 </button>{" "}
-                bilan gaplashing.
+                {tr("bilan gaplashing.")}
               </p>
             </div>
           )}
@@ -1423,9 +1422,7 @@ export default function SmmPanel({ seed }: {
             <div className="min-w-0">
               <span className="text-xs font-semibold text-muted">{tr("Rasm yoki video (ixtiyoriy)")}</span>
               <p className="mt-0.5 text-[11px] text-muted">
-                Rasm yuklasangiz AI uni ko'rib postni o'zi yozadi. Video
-                yuklasangiz "Muqova tayyorlash" tugmasini bosing.
-                Rasm 20 MB, video 100 MB gacha.
+                {tr("Rasm yuklasangiz AI uni ko'rib postni o'zi yozadi. Video yuklasangiz \"Muqova tayyorlash\" tugmasini bosing. Rasm 20 MB, video 100 MB gacha.")}
               </p>
               <div className="mt-1.5">
                 {form.image_url ? (
@@ -1613,7 +1610,7 @@ export default function SmmPanel({ seed }: {
 
                     <div className="my-3 flex items-center gap-2">
                       <span className="h-px flex-1 bg-green/15" />
-                      <span className="text-[11px] font-bold text-muted">yoki</span>
+                      <span className="text-[11px] font-bold text-muted">{tr("yoki")}</span>
                       <span className="h-px flex-1 bg-green/15" />
                     </div>
 
@@ -1622,7 +1619,7 @@ export default function SmmPanel({ seed }: {
                       title={form.content.trim() ? "" : "Avval post matnini yozing"}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-4 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40">
                       <Icon d={drawing ? I.refresh : I.media} className={`h-4 w-4 ${drawing ? "animate-spin" : ""}`} />
-                      {drawing ? tr("Rasm chizilmoqda…") : "Shu matnga AI rasm chizsin"}
+                      {drawing ? tr("Rasm chizilmoqda…") : tr("Shu matnga AI rasm chizsin")}
                     </button>
 
                     {drawErr && (
@@ -1637,7 +1634,7 @@ export default function SmmPanel({ seed }: {
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <div>
-              <span className="text-xs font-semibold text-muted"># Teglar (ixtiyoriy)</span>
+              <span className="text-xs font-semibold text-muted">{tr("# Teglar (ixtiyoriy)")}</span>
               <input value={form.hashtags} onChange={(e) => setForm((f) => ({ ...f, hashtags: e.target.value }))}
                 placeholder="#teg1, #teg2, …"
                 className="mt-1.5 w-full rounded-xl border border-green/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-green" />
@@ -1666,7 +1663,7 @@ export default function SmmPanel({ seed }: {
           </div>
 
           <p className="mt-3 rounded-xl bg-soft px-4 py-2.5 text-xs text-muted">
-            Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "1-bosqichda tarmoq tanlanmagan"}</strong>
+            {tr("Qayerga chiqadi:")} <strong className="text-ink">{targets.length ? targets.join(", ") : "1-bosqichda tarmoq tanlanmagan"}</strong>
           </p>
 
           {msg && (
@@ -1850,7 +1847,7 @@ export default function SmmPanel({ seed }: {
             <button onClick={analyze} disabled={analyzing}
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green disabled:opacity-50">
               <Icon d={I.brain} className="h-3.5 w-3.5" />
-              {analyzing ? "Tahlil qilinmoqda…" : analysis ? tr("Qayta tahlil qilish") : tr("Tarmoqlarni tahlil qilish")}
+              {analyzing ? tr("Tahlil qilinmoqda…") : analysis ? tr("Qayta tahlil qilish") : tr("Tarmoqlarni tahlil qilish")}
             </button>
           </div>
           </div>
@@ -1865,7 +1862,7 @@ export default function SmmPanel({ seed }: {
             <div className="min-w-0">
               <h3 className="font-display font-bold">{tr("Postni nashr etish")}</h3>
               <p className="mt-0.5 text-sm text-muted">
-                Qayerga chiqadi: <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
+                {tr("Qayerga chiqadi:")} <strong className="text-ink">{targets.length ? targets.join(", ") : "tarmoq tanlanmagan"}</strong>
               </p>
               {!editingId && <p className="mt-0.5 text-sm text-muted">{tr("Avval 3-bosqichda saqlang")}</p>}
               {/* Ulanmagan tarmoq tanlangan bo'lsa oldindan ogohlantiramiz —

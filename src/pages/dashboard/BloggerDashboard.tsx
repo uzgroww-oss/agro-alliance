@@ -396,7 +396,7 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
   const [deleting, setDeleting] = useState<Set<string>>(new Set())
 
   // Ro'yxat props'dan bir marta olinardi va qo'shgandan keyin yangilanmasdi:
-  // foydalanuvchi yangi tarmoqni ko'rmay, "Qo'shish" ni yana bosardi (dublikat).
+  // foydalanuvchi yangi tarmoqni ko'rmay, tr("Qo'shish") ni yana bosardi (dublikat).
   useEffect(() => { setSocials(_me.socials || []) }, [_me.socials])
 
   const add = async () => {
@@ -423,14 +423,14 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
       <div className="flex items-center justify-between">
         <h3 className="font-display text-lg font-bold">{tr("Ijtimoiy tarmoqlarim")}</h3>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-2 text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
-          <Icon d={I.plus} className="h-4 w-4" /> Qo'shish
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Qo'shish")}
         </button>
       </div>
       {adding && (
         <div className="mt-3 rounded-xl bg-soft p-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("YouTube, Instagram, TikTok, Telegram...")} className="flex-1 min-w-[180px] rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
-            <button onClick={add} disabled={busy} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
+            <button onClick={add} disabled={busy} className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">{busy ? "..." : tr("Qo'shish")}</button>
           </div>
         </div>
       )}
@@ -997,7 +997,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-base font-bold">{tr("Profilimdagi videolar")}</h3>
           <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-1 rounded-lg bg-green px-2.5 py-1.5 text-[10px] font-bold text-white">
-            <Icon d={I.plus} className="h-3 w-3" /> Qo'shish
+            <Icon d={I.plus} className="h-3 w-3" /> {tr("Qo'shish")}
           </button>
         </div>
 
@@ -1005,7 +1005,7 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
           <div className="mb-3 rounded-lg bg-soft p-2.5">
             <div className="flex items-center gap-2">
               <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={tr("Video linkini joylang...")} className="flex-1 rounded-lg border border-green/20 px-2.5 py-1.5 text-xs outline-none focus:border-green" />
-              <button onClick={add} disabled={busy} className="rounded-md bg-green px-3 py-1.5 text-[10px] font-bold text-white disabled:opacity-60">{busy ? "..." : "Qo'shish"}</button>
+              <button onClick={add} disabled={busy} className="rounded-md bg-green px-3 py-1.5 text-[10px] font-bold text-white disabled:opacity-60">{busy ? "..." : tr("Qo'shish")}</button>
             </div>
             <p className="mt-1 text-[10px] text-muted">{tr("Qo'shishni bosgach hamkor kompaniyani tanlaysiz.")}</p>
             {linkError && <p className="mt-1 text-[10px] text-red-500">{linkError}</p>}
@@ -1116,7 +1116,7 @@ function Overview({ me, reload, onNav }: { me: User; reload: () => void; onNav: 
         {statCards.map((s) => (
           <div key={s.t} className={card.replace("p-6", "p-5")}>
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
-            <div className="mt-3 text-xs text-muted">{s.t}</div>
+            <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
             <div className="mt-1 font-display text-2xl font-extrabold">{s.v}</div>
             <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-green"><Icon d="M5 15l7-7 7 7" className="h-3 w-3" /> {s.delta}</div>
           </div>

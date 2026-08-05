@@ -36,7 +36,9 @@ export default function DashboardLayout({
             className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors ${on ? "bg-green text-white shadow-lg shadow-green/25" : "text-ink/70 hover:bg-soft"}`}
           >
             <Icon d={n.icon} className="h-5 w-5" />
-            {n.label}
+            {/* Yorliq RENDER paytida tarjima qilinadi: massivdagi qiymat
+                kalit bo'lib qoladi va `active` bilan solishtiriladi */}
+            {tr(n.label)}
           </button>
         )
       })}
@@ -85,7 +87,7 @@ export default function DashboardLayout({
               </div>
               <p className="mt-2 text-xs leading-relaxed text-muted">{tr("Savollaringiz bo'lsa, biz bilan bog'laning.")}</p>
               <Link to="/aloqa" className="mt-3 block rounded-lg border-2 border-green/30 bg-white py-2 text-center text-xs font-bold text-green transition-colors hover:bg-green hover:text-white">
-                Yordamga murojaat
+                {tr("Yordamga murojaat")}
               </Link>
             </div>
           )}

@@ -333,7 +333,7 @@ function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: {
   }, [])
 
   const statCards = [
-    { icon: I.wallet, t: tr("Shartnoma summasi"), v: `${fmtSom(partner.amount)}`, sub: "so'm" },
+    { icon: I.wallet, t: tr("Shartnoma summasi"), v: `${fmtSom(partner.amount)}`, sub: tr("so'm") },
     { icon: I.task, t: tr("Jami ishlar"), v: String(counts.total), sub: `${counts.done} bajarilgan` },
     { icon: I.target, t: tr("Bajarilish"), v: `${pct}%`, sub: `${counts.progress} jarayonda` },
     // Yuklanayotganda "0" emas, "…" — nol real raqamdek ko'rinib qolmasin.
@@ -345,7 +345,7 @@ function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: {
         {statCards.map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
-            <div className="mt-3 text-xs text-muted">{s.t}</div>
+            <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
             <div className="mt-1 font-display text-2xl font-extrabold truncate">{s.v}</div>
             <div className="mt-0.5 text-[11px] font-semibold text-green">{s.sub}</div>
           </div>

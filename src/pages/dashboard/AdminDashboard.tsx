@@ -189,7 +189,7 @@ function Bloggers() {
           <p className="mt-1 text-sm text-muted">{tr("Bloggerlar faqat admin tomonidan ro'yxatdan o'tkaziladi.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.plus} className="h-4 w-4" /> Yangi bloger qo'shish
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi bloger qo'shish")}
         </button>
       </div>
 
@@ -236,7 +236,7 @@ function Bloggers() {
             <input value={socialLink} onChange={(e) => setSocialLink(e.target.value)} placeholder={tr("Ijtimoiy tarmoq linki — YouTube, Instagram, Telegram...")} className="flex-1 min-w-[200px] rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             <button onClick={addSocialLink} disabled={addingSocial || !socialLink.trim()} className="inline-flex items-center gap-2 rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
               {addingSocial && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-              {addingSocial ? tr("Olinmoqda…") : "Qo'shish"}
+              {addingSocial ? tr("Olinmoqda…") : tr("Qo'shish")}
             </button>
           </div>
           {socialResults.length > 0 && (
@@ -299,7 +299,7 @@ function Bloggers() {
                 <tr><td colSpan={7} className="py-10 text-center text-red-600">{tr("Blogerlar ro'yxatini yuklab bo'lmadi.")}<button onClick={() => reload()} className="font-bold text-green hover:underline">{tr("Qayta urinish")}</button></td></tr>
               )}
               {!loading && !failed && list.length === 0 && (
-                <tr><td colSpan={7} className="py-10 text-center text-muted">Bloger yo'q. "Yangi bloger qo'shish" orqali qo'shing.</td></tr>
+                <tr><td colSpan={7} className="py-10 text-center text-muted">{tr("Bloger yo'q. \"Yangi bloger qo'shish\" orqali qo'shing.")}</td></tr>
               )}
               {!loading && !failed && list.map((r) => (
                 <tr key={r.id} className="border-t border-green/8 text-sm">
@@ -400,7 +400,7 @@ type PartnerClient = { id: number; name: string; email: string }
 type Partner = { id: number; name: string; sphere: string; logo?: string | null; contractNo: string; amount: number | null; signedDate: string; status: string; tasks: Task[]; client: PartnerClient | null }
 
 const taskMeta: Record<string, { label: string; cls: string; dot: string }> = {
-  done: { label: "Bajarilgan", cls: "bg-green/10 text-green", dot: "bg-green" },
+  done: { label: tr("Bajarilgan"), cls: "bg-green/10 text-green", dot: "bg-green" },
   progress: { label: "Jarayonda", cls: "bg-orange-100 text-orange-600", dot: "bg-orange-500" },
   pending: { label: tr("Kutilayotgan"), cls: "bg-slate-100 text-slate-500", dot: "bg-slate-400" },
 }
@@ -566,7 +566,7 @@ function AdminPartners() {
 
   const stats = [
     { icon: I.handshake, t: tr("Jami hamkorlar"), v: String(totals.count) },
-    { icon: I.wallet, t: tr("Umumiy shartnoma"), v: fmtSom(totals.sum) + " so'm" },
+    { icon: I.wallet, t: tr("Umumiy shartnoma"), v: fmtSom(totals.sum) + " " + tr("so'm") },
     { icon: I.shield, t: tr("Faol shartnomalar"), v: String(totals.active) },
     { icon: I.chart, t: tr("Vazifalar bajarilishi"), v: totals.progressPct + "%" },
   ]
@@ -579,7 +579,7 @@ function AdminPartners() {
           <p className="mt-1 text-sm text-muted">{tr("Hamkor tashkilotlar, shartnomalar va rejadagi ishlar.")}</p>
         </div>
         <button onClick={() => setAdding((a) => !a)} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.plus} className="h-4 w-4" /> Yangi hamkor qo'shish
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi hamkor qo'shish")}
         </button>
       </div>
 
@@ -592,7 +592,7 @@ function AdminPartners() {
         {stats.map((s) => (
           <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
-            <div className="mt-3 text-xs text-muted">{s.t}</div>
+            <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
             <div className="mt-1 font-display text-xl font-extrabold">{s.v}</div>
           </div>
         ))}
@@ -614,7 +614,7 @@ function AdminPartners() {
                 <label className="mb-1.5 block text-xs font-semibold text-muted">{tr("Logo (ixtiyoriy)")}</label>
                 <input value={form.logo} onChange={(e) => setForm((f) => ({ ...f, logo: e.target.value }))} placeholder={tr("Rasm havolasi (URL)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
                 <div className="mt-2 flex items-center gap-3">
-                  <span className="text-xs text-muted">yoki</span>
+                  <span className="text-xs text-muted">{tr("yoki")}</span>
                   <MediaUpload accept="image/*" onUpload={(r) => setForm((f) => ({ ...f, logo: r.signedUrl }))} />
                 </div>
                 {form.logo.trim() && (
@@ -641,7 +641,7 @@ function AdminPartners() {
                 <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {saving ? tr("Qo'shilmoqda…") : "Qo'shish"}
+                  {saving ? tr("Qo'shilmoqda…") : tr("Qo'shish")}
                 </button>
               </div>
             </form>
@@ -784,7 +784,7 @@ function AdminPartners() {
                 <label className="mb-1.5 block text-xs font-semibold text-muted">{tr("Logo")}</label>
                 <input value={editForm.logo} onChange={(e) => setEditForm((f) => ({ ...f, logo: e.target.value }))} placeholder={tr("Rasm havolasi (URL)")} className="w-full rounded-xl border border-green/15 bg-white px-4 py-3 text-sm outline-none focus:border-green" />
                 <div className="mt-2 flex items-center gap-3">
-                  <span className="text-xs text-muted">yoki</span>
+                  <span className="text-xs text-muted">{tr("yoki")}</span>
                   <MediaUpload accept="image/*" onUpload={(r) => setEditForm((f) => ({ ...f, logo: r.signedUrl }))} />
                 </div>
                 {editForm.logo.trim() && (
@@ -866,7 +866,7 @@ function Overview() {
   }, [])
 
   const stats = [
-    { icon: I.users, t: tr("Jami bloggerlar"), v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
+    { icon: I.users, t: "Jami bloggerlar", v: bloggerCount === null ? "…" : String(bloggerCount), delta: "real-time" },
     { icon: I.handshake, t: "Hamkorlar", v: partnerCount === null ? "…" : String(partnerCount), delta: "real-time" },
     { icon: I.doc, t: "Yangiliklar", v: newsCount === null ? "…" : String(newsCount), delta: "real-time" },
     { icon: I.send, t: "Obunachilar", v: subscribers === null ? "…" : String(subscribers), delta: "real-time" },
@@ -883,7 +883,7 @@ function Overview() {
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
               <span className="rounded-md bg-green/10 px-2 py-1 text-[11px] font-bold text-green">{s.delta}</span>
             </div>
-            <div className="mt-3 text-xs text-muted">{s.t}</div>
+            <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
             <div className="mt-1 font-display text-2xl font-extrabold">{s.v}</div>
           </div>
         ))}
@@ -896,7 +896,7 @@ function Overview() {
               {bloggerCount !== null || partnerCount !== null || newsCount !== null ? (
               <LineChart
                 points={[bloggerCount || 0, partnerCount || 0, newsCount || 0, (bloggerCount || 0) + (partnerCount || 0), (bloggerCount || 0) + (newsCount || 0), (partnerCount || 0) + (newsCount || 0)]}
-                labels={["Blogerlar", "Hamkorlar", "Yangiliklar", tr("Blog+Hamkor"), tr("Blog+Yangilik"), tr("Hamk+Yangilik")]}
+                labels={[tr("Blogerlar"), tr("Hamkorlar"), tr("Yangiliklar"), tr("Blog+Hamkor"), tr("Blog+Yangilik"), tr("Hamk+Yangilik")]}
               />
             ) : (
               <SkeletonCard />
@@ -1060,7 +1060,7 @@ function AdminTeam() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Jamoa a'zolari")}</h2>
-          <p className="mt-1 text-sm text-muted">"Bizning jamoa" bo'limidagi a'zolarni boshqarish.</p>
+          <p className="mt-1 text-sm text-muted">{tr("\"Bizning jamoa\" bo'limidagi a'zolarni boshqarish.")}</p>
         </div>
         <button onClick={openNew} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105">
           <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi a'zo")}
@@ -1256,7 +1256,7 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="my-8 w-full max-w-4xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-green/10 px-6 py-4">
-          <h3 className="font-display text-lg font-extrabold">{isNew ? "Yangi yangilik" : tr("Yangilikni tahrirlash")}</h3>
+          <h3 className="font-display text-lg font-extrabold">{isNew ? tr("Yangi yangilik") : tr("Yangilikni tahrirlash")}</h3>
           <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-soft">
             <Icon d="M18 6L6 18 M6 6l12 12" className="h-5 w-5" />
           </button>
@@ -1422,7 +1422,7 @@ function AdminNews() {
           <p className="mt-1 text-sm text-muted">{tr("Platformadagi barcha yangiliklar.")}</p>
         </div>
         <button onClick={() => setEditing("new")} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.plus} className="h-4 w-4" /> Yangi yangilik
+          <Icon d={I.plus} className="h-4 w-4" /> {tr("Yangi yangilik")}
         </button>
       </div>
 
@@ -1666,9 +1666,7 @@ function AdminSettings() {
           <span className="font-display text-base font-bold">{tr("Kontent tarjimasi")}</span>
         </div>
         <p className="mt-1 text-xs text-muted">
-          Bosh sahifa bloklari, yangiliklar, hamkorlar va jamoa ma'lumotlari rus,
-          ingliz va xitoy tillariga AI orqali tarjima qilinadi. Odatda bu
-          o'z-o'zidan bajariladi — bu tugmalar jarayonni tezlashtiradi.
+          {tr("Bosh sahifa bloklari, yangiliklar, hamkorlar va jamoa ma'lumotlari rus, ingliz va xitoy tillariga AI orqali tarjima qilinadi. Odatda bu o'z-o'zidan bajariladi — bu tugmalar jarayonni tezlashtiradi.")}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
@@ -1686,7 +1684,7 @@ function AdminSettings() {
             disabled={trBusy}
             className="rounded-xl border-2 border-green/25 px-4 py-2.5 text-sm font-bold hover:border-green hover:text-green disabled:opacity-50"
           >
-            Boshidan qayta tarjima
+            {tr("Boshidan qayta tarjima")}
           </button>
         </div>
         {trMsg && <p className="mt-3 rounded-lg bg-green/10 px-3 py-2 text-sm font-medium text-green">{trMsg}</p>}
@@ -1706,7 +1704,7 @@ function AdminSettings() {
             </span>
           )}
         </div>
-        <p className="mt-1 text-xs text-muted">Facebook orqali Instagram Business akkauntni ulang. Bu bir martalik sozlama — barcha bloggerlar Instagram ma'lumotlarini olish imkoniga ega bo'ladi.</p>
+        <p className="mt-1 text-xs text-muted">{tr("Facebook orqali Instagram Business akkauntni ulang. Bu bir martalik sozlama — barcha bloggerlar Instagram ma'lumotlarini olish imkoniga ega bo'ladi.")}</p>
         {!igChecking && igConnected && igUsername ? (
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-green/20 bg-green/5 p-3">
             <Icon d={I.instagram} className="h-5 w-5 text-pink-500" />
@@ -2037,7 +2035,7 @@ function BloggerTaskStatus() {
         <div className="mt-5"><ErrorState onRetry={load} message="Ma'lumotni yuklab bo'lmadi." /></div>
       ) : rows.length === 0 ? (
         <p className="mt-5 rounded-xl border border-green/10 bg-white py-10 text-center text-sm text-muted">
-          Hali topshiriq yuborilmagan.
+          {tr("Hali topshiriq yuborilmagan.")}
         </p>
       ) : (
         <>
@@ -2259,7 +2257,7 @@ function AdminNewsSources() {
               <option value="telegram">{tr("Telegram")}</option>
             </select>
             <input value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} placeholder="URL" className="rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            <button type="submit" disabled={saving} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? "..." : "Qo'shish"}</button>
+            <button type="submit" disabled={saving} className="rounded-lg bg-green px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? "..." : tr("Qo'shish")}</button>
           </div>
         </form>
       )}
@@ -2801,7 +2799,7 @@ function AdminCategories() {
                 <button type="button" onClick={() => { setAdding(false); setError(""); setForm(blank) }} className="rounded-xl border-2 border-green/30 px-6 py-2.5 text-sm font-bold text-ink transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
                   {saving && <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                  {saving ? tr("Qo'shilmoqda…") : "Qo'shish"}
+                  {saving ? tr("Qo'shilmoqda…") : tr("Qo'shish")}
                 </button>
               </div>
             </form>

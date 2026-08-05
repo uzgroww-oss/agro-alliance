@@ -510,7 +510,7 @@ export default function MarketPanel({ onCreatePost }: {
         <div className="min-w-0">
           <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Marketing tahlili")}</h2>
           <p className="mt-1 text-sm text-muted">
-            AI internetdagi yangiliklarni tahlil qilib, kerakli kontentlarni topadi va reja tuzadi
+            {tr("AI internetdagi yangiliklarni tahlil qilib, kerakli kontentlarni topadi va reja tuzadi")}
           </p>
         </div>
         {plan && (
@@ -554,7 +554,7 @@ export default function MarketPanel({ onCreatePost }: {
             <button onClick={analyze} disabled={analyzing}
               className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100">
               <Icon d={analyzing ? I.refresh : I.brain} className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
-              {analyzing ? "Tahlil qilinmoqda…" : "Tahlil qilish"}
+              {analyzing ? tr("Tahlil qilinmoqda…") : tr("Tahlil qilish")}
             </button>
           </div>
         </div>
@@ -604,7 +604,7 @@ export default function MarketPanel({ onCreatePost }: {
       <div className={card}>
         <h3 className="font-display font-bold">{tr("Manbalar")}</h3>
         <p className="mt-0.5 text-sm text-muted">
-          AI tahlilni birinchi navbatda manbalardan oladi va post yaratish rejasini tuzadi.
+          {tr("AI tahlilni birinchi navbatda manbalardan oladi va post yaratish rejasini tuzadi.")}
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -618,7 +618,7 @@ export default function MarketPanel({ onCreatePost }: {
           <button onClick={addSource} disabled={srcBusy}
             className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60">
             <Icon d={srcBusy ? I.refresh : I.globe} className={`h-4 w-4 ${srcBusy ? "animate-spin" : ""}`} />
-            {srcBusy ? tr("Tekshirilmoqda…") : "Qo'shish"}
+            {srcBusy ? tr("Tekshirilmoqda…") : tr("Qo'shish")}
           </button>
         </div>
 
@@ -634,7 +634,7 @@ export default function MarketPanel({ onCreatePost }: {
               {/* Hammasi bitta so'rovda — birma-bir qo'shish sekin */}
               <button onClick={addAllSamples} disabled={srcBusy}
                 className="text-[11px] font-bold text-green hover:underline disabled:opacity-50">
-                Hammasini qo'shish
+                {tr("Hammasini qo'shish")}
               </button>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -719,7 +719,7 @@ export default function MarketPanel({ onCreatePost }: {
           </div>
         ) : (
           <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
-            Tarmoq ulanmagan — SMM / AI bo'limidan ulang.
+            {tr("Tarmoq ulanmagan — SMM / AI bo'limidan ulang.")}
           </p>
         )}
       </div>
@@ -740,7 +740,7 @@ export default function MarketPanel({ onCreatePost }: {
           </ul>
         ) : (
           <p className="mt-3 rounded-xl bg-soft py-6 text-center text-sm text-muted">
-            Tahlil qilinganda maslahatlar shu yerda chiqadi.
+            {tr("Tahlil qilinganda maslahatlar shu yerda chiqadi.")}
           </p>
         )}
       </div>
