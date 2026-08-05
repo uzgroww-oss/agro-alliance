@@ -480,7 +480,7 @@ function Reviews({ slug }: { slug: string }) {
         {loading ? (
           <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-soft" />)}</div>
         ) : failed ? (
-          <ErrorState onRetry={load} message="Sharhlarni yuklab bo'lmadi." />
+          <ErrorState onRetry={load} message={tr(tr("Sharhlarni yuklab bo'lmadi."))} />
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-green/10 bg-white py-12 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.message} className="h-7 w-7" /></span>
@@ -820,7 +820,7 @@ export default function BloggerProfile() {
 
   if (failed) return (
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">
-      <ErrorState onRetry={() => window.location.reload()} message="Bloger ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring." />
+      <ErrorState onRetry={() => window.location.reload()} message={tr(tr("Bloger ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring."))} />
     </div>
   )
 

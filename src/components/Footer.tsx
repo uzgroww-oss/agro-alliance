@@ -111,7 +111,7 @@ export default function Footer() {
           <div className="flex items-center gap-6">
             <Link to="/aloqa" className="transition-colors hover:text-green">Sayt xaritasi</Link>
             <span className="flex items-center gap-1.5">
-              <Icon d={I.globe} className="h-4 w-4" /> O'zbek tili
+              <Icon d={I.globe} className="h-4 w-4" /> {tr("O'zbek tili")}
             </span>
           </div>
         </div>

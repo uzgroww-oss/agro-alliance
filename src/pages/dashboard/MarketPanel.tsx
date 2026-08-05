@@ -586,9 +586,9 @@ export default function MarketPanel({ onCreatePost }: {
         <h3 className="font-display font-bold">{tr("Reja statistikasi")}</h3>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat icon={I.globe} tone="bg-purple-100 text-purple-600"
-            value={web.length + world.length + sources.length} label="Topilgan yangilik" />
+            value={web.length + world.length + sources.length} label={tr(tr("Topilgan yangilik"))} />
           <Stat icon={I.doc} tone="bg-blue-100 text-blue-600"
-            value={plan?.reja.length || 0} label="Rejalashtirilgan post" />
+            value={plan?.reja.length || 0} label={tr(tr("Rejalashtirilgan post"))} />
           <Stat icon={I.check} tone="bg-green/15 text-green"
             value={done.length} label="Bajarilgan" />
           <Stat icon={I.clock} tone="bg-orange-100 text-orange-500"

@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 const FALLBACK: AuthCtx = {
   user: null,
   loading: false,
-  login: () => Promise.reject(new Error("AuthProvider topilmadi")),
+  login: () => Promise.reject(new Error(tr("AuthProvider topilmadi"))),
   logout: () => {},
   setLoading: () => {},
 }

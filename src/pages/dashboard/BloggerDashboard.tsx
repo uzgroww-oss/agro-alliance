@@ -1324,7 +1324,7 @@ function TasksTab() {
       {loading ? (
         <div className="mt-5"><SkeletonTable rows={3} cols={1} /></div>
       ) : failed ? (
-        <div className="mt-5"><ErrorState onRetry={() => load()} message="Topshiriqlarni yuklab bo'lmadi." /></div>
+        <div className="mt-5"><ErrorState onRetry={() => load()} message={tr(tr("Topshiriqlarni yuklab bo'lmadi."))} /></div>
       ) : tasks.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-green/10 bg-white py-12 text-center">
           <Icon d={I.task} className="mx-auto h-10 w-10 text-green/30" />
@@ -1935,7 +1935,7 @@ export default function BloggerDashboard() {
   const doLogout = () => { logout(); nav2("/kirish") }
   return (
     <DashboardLayout nav={nav} active={active} onNav={setActive} onLogout={doLogout} user={{ name: user?.name || "Bloger", role: tr("Blogger"), initials }}>
-      {meFailed ? <ErrorState onRetry={reload} message="Profil ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring." />
+      {meFailed ? <ErrorState onRetry={reload} message={tr(tr("Profil ma'lumotini yuklab bo'lmadi. Internet aloqasini tekshiring."))} />
         : !me ? (
           <div className="space-y-6">
             <SkeletonStatGrid />

@@ -168,7 +168,7 @@ function ContactForm() {
           </label>
           <textarea required value={form.message} onChange={(e) => set("message", e.target.value)} placeholder={t("Xabaringiz")} rows={5} className={`${inputCls} resize-none`} />
           <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-green px-6 py-3.5 font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">
-            {busy ? tr("YUBORILMOQDA…") : <>XABARNI YUBORISH <Icon d={I.send} className="h-5 w-5" /></>}
+            {busy ? tr("YUBORILMOQDA…") : <>{tr("XABARNI YUBORISH")} <Icon d={I.send} className="h-5 w-5" /></>}
           </button>
         </form>
       )}
@@ -218,7 +218,7 @@ function Offices({ offices, loading, failed, onRetry }: { offices: Office[] | nu
                 <Skeleton className="mt-3 h-4 w-48" />
               </div>
             ))}
-            {!loading && failed && <ErrorState onRetry={onRetry} message="Ofis ma'lumotlarini yuklab bo'lmadi." />}
+            {!loading && failed && <ErrorState onRetry={onRetry} message={tr(tr("Ofis ma'lumotlarini yuklab bo'lmadi."))} />}
             {!loading && !failed && (offices ?? []).map((o, i) => (
               <Reveal key={o.name} delay={i * 80}>
                 <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
@@ -255,7 +255,7 @@ function MapEmbed() {
       className="relative h-full min-h-[360px] overflow-hidden rounded-3xl border border-green/10 shadow-[0_8px_30px_rgba(91,180,32,0.08)]"
     >
       <iframe
-        title="Xarita"
+        title={tr(tr("Xarita"))}
         className={`h-full w-full ${active ? "" : "pointer-events-none"}`}
         style={{ border: 0, minHeight: 360 }}
         loading="lazy"

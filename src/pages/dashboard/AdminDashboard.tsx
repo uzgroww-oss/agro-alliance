@@ -583,7 +583,7 @@ function AdminPartners() {
         </button>
       </div>
 
-      {failed && <div className="mt-5"><ErrorState onRetry={() => reload()} message="Hamkorlarni yuklab bo'lmadi." /></div>}
+      {failed && <div className="mt-5"><ErrorState onRetry={() => reload()} message={tr(tr("Hamkorlarni yuklab bo'lmadi."))} /></div>}
 
       {/* stat cards — xato bo'lsa umuman ko'rsatilmaydi, aks holda
           nollar haqiqiy raqamdek ko'rinadi */}
@@ -1265,7 +1265,7 @@ function NewsEditor({ id, onClose, onSaved }: { id: string | null; onClose: () =
         {loading ? (
           <div className="p-6"><SkeletonTable rows={6} cols={2} /></div>
         ) : loadFailed ? (
-          <div className="p-6"><ErrorState onRetry={load} message="Yangilikni yuklab bo'lmadi." /></div>
+          <div className="p-6"><ErrorState onRetry={load} message={tr(tr("Yangilikni yuklab bo'lmadi."))} /></div>
         ) : (
           <div className="grid gap-5 p-6 lg:grid-cols-[1fr_300px]">
             {/* Asosiy matn */}
@@ -1730,7 +1730,7 @@ function AdminSettings() {
 
       {loading && <SkeletonStatGrid />}
 
-      {!loading && failed && <ErrorState onRetry={load} message="Sozlamalarni yuklab bo'lmadi." />}
+      {!loading && failed && <ErrorState onRetry={load} message={tr(tr("Sozlamalarni yuklab bo'lmadi."))} />}
 
       {!loading && !failed && settings.length === 0 && (
         <div className="py-8 text-center text-muted">{tr("Sozlamalar topilmadi.")}</div>
@@ -1890,7 +1890,7 @@ function AdminTasks() {
         {loading ? (
           <div className="mt-3"><SkeletonCard /></div>
         ) : failed ? (
-          <div className="mt-3"><ErrorState onRetry={load} message="Topshiriqlarni yuklab bo'lmadi." /></div>
+          <div className="mt-3"><ErrorState onRetry={load} message={tr(tr("Topshiriqlarni yuklab bo'lmadi."))} /></div>
         ) : tasks.length === 0 ? (
           <p className="mt-3 rounded-xl border border-green/10 bg-white py-8 text-center text-sm text-muted">{tr("Hali topshiriq yuborilmagan.")}</p>
         ) : (
