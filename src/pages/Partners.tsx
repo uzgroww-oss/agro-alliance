@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { tr } from "../lib/i18n"
 import { Link } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { useHomeSection } from "../lib/sections"
@@ -13,9 +14,9 @@ type DirectionItem = { icon: string; t: string; d: string }
 type BenefitItem = { icon: string; t: string; d: string }
 
 const benefits: BenefitItem[] = [
-  { icon: I.handshake, t: "O'zaro manfaatli", d: "Win-win strategiyasiga asoslangan hamkorlik." },
-  { icon: I.shield, t: "Ishonch va sifat", d: "Yuqori standartlar va ishonchli aloqalar." },
-  { icon: I.globe, t: "Keng qamrov", d: "Katta auditoriya va keng imkoniyatlar." },
+  { icon: I.handshake, t: "O'zaro manfaatli", d: tr("Win-win strategiyasiga asoslangan hamkorlik.") },
+  { icon: I.shield, t: tr("Ishonch va sifat"), d: tr("Yuqori standartlar va ishonchli aloqalar.") },
+  { icon: I.globe, t: "Keng qamrov", d: tr("Katta auditoriya va keng imkoniyatlar.") },
   { icon: I.sprout, t: "Innovatsion yondashuv", d: "Yangi g'oyalar va zamonaviy yechimlar bilan ishlash." },
 ]
 
@@ -83,7 +84,7 @@ function BrandCarousel() {
 function Hero() {
   const hero = useHomeSection("partners_hero", {
     title: "BIRGA O'SAYLIK, BIRGA YUTAYLIK!",
-    subtitle: "Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli hamkor platformasi.",
+    subtitle: tr("Agro Alliance — agro sohadagi innovatsion yechimlar va imkoniyatlarni birlashtiruvchi ishonchli hamkor platformasi."),
   })
   // Sarlavhani "so'z1 so'z2, so'z3 so'z4" formatida ikki rangда ko'rsatish uchun bo'lamiz
   const parts = hero.title.split(" ")
@@ -104,7 +105,7 @@ function Hero() {
             <Link to="/" className="flex items-center gap-1.5 hover:text-green">
               <Icon d="M3 12l9-9 9 9 M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" className="h-4 w-4" /> Bosh sahifa
             </Link>
-            <span>/</span><span className="font-semibold text-green">Hamkorlar</span>
+            <span>/</span><span className="font-semibold text-green">{tr("Hamkorlar")}</span>
           </nav>
         </Reveal>
         <div className="grid items-center gap-8 py-8 lg:grid-cols-2">
@@ -273,10 +274,10 @@ function PartnerLogos() {
       <Reveal>
         <div className="mb-10 text-center">
           <h2 className="font-display text-[clamp(1.8rem,5vw,2.8rem)] font-extrabold tracking-tight">
-            BIZNING <span className="text-green">HAMKORLARIMIZ</span>
+            BIZNING <span className="text-green">{tr("HAMKORLARIMIZ")}</span>
           </h2>
           <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-green/40" />
-          <p className="mx-auto mt-4 max-w-xl text-muted">Biz bilan birga ishlayotgan ba'zi hamkorlarimiz.</p>
+          <p className="mx-auto mt-4 max-w-xl text-muted">{tr("Biz bilan birga ishlayotgan ba'zi hamkorlarimiz.")}</p>
         </div>
       </Reveal>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -296,7 +297,7 @@ function PartnerLogos() {
 }
 
 function CtaBanner() {
-  const cta = useHomeSection("partners_cta", { title: "Hamkorlikka tayyormisiz?", subtitle: "Biz bilan hamkorlik qilib, agro sohada yangi imkoniyatlarni birga yarating!" })
+  const cta = useHomeSection("partners_cta", { title: "Hamkorlikka tayyormisiz?", subtitle: tr("Biz bilan hamkorlik qilib, agro sohada yangi imkoniyatlarni birga yarating!") })
   return (
     <section className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8">
       <Reveal>

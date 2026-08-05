@@ -376,7 +376,7 @@ function ProfileCard({ me, reload }: { me: User; reload: () => void }) {
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button onClick={() => (edit ? save() : setEdit(true))} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white shadow transition-transform hover:scale-105 disabled:opacity-60">
-          {edit ? (saving ? "Saqlanmoqda…" : "Saqlash") : "Tahrirlash"} <Icon d={edit ? "M9 12l2 2 4-4" : "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"} className="h-3.5 w-3.5" />
+          {edit ? (saving ? "Saqlanmoqda…" : tr("Saqlash")) : "Tahrirlash"} <Icon d={edit ? "M9 12l2 2 4-4" : "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"} className="h-3.5 w-3.5" />
         </button>
         <button onClick={() => runRefresh(reload)} disabled={refreshing} className="inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-2 text-xs font-bold transition-colors hover:border-green hover:text-green disabled:opacity-60">
           {refreshing ? "Yangilanmoqda…" : "Yangilash"} <Icon d={I.refresh} className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
@@ -1912,7 +1912,7 @@ function AudienceTab({ me, reload: _reload }: { me: User; reload: () => void }) 
           disabled={saving}
           className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60"
         >
-          {saving ? "Saqlanmoqda..." : "Saqlash"}
+          {saving ? "Saqlanmoqda..." : tr("Saqlash")}
         </button>
       </div>
     </div>

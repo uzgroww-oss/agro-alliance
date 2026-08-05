@@ -94,8 +94,8 @@ function Bloggers() {
     e.preventDefault()
     setError("")
     setRegistering(true)
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setError("Ism, email va parol majburiy"); setRegistering(false); return }
-    if (!form.region) { setError("Viloyatni tanlang"); setRegistering(false); return }
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setError(tr("Ism, email va parol majburiy")); setRegistering(false); return }
+    if (!form.region) { setError(tr("Viloyatni tanlang")); setRegistering(false); return }
     try {
       const res = await api<{ success: boolean; blogger: { id: string; slug: string; name: string } }>("/bloggers", { method: "POST", body: JSON.stringify({ name: form.name, email: form.email, password: form.password, region: form.region, niche: form.cat }) })
       setForm(blank); setAdding(false)
@@ -362,7 +362,7 @@ function Bloggers() {
               <div className="flex justify-end gap-3 pt-1">
                 <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
-                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
+                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : tr("Saqlash")}
                 </button>
               </div>
             </form>
@@ -457,7 +457,7 @@ function AdminPartners() {
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setSaving(true)
-    if (!form.name.trim() || !form.contractNo.trim()) { setError("Tashkilot nomi va shartnoma raqami majburiy"); setSaving(false); return }
+    if (!form.name.trim() || !form.contractNo.trim()) { setError(tr("Tashkilot nomi va shartnoma raqami majburiy")); setSaving(false); return }
     try {
       await api("/partners", { method: "POST", body: JSON.stringify({
         name: form.name,
@@ -548,7 +548,7 @@ function AdminPartners() {
   })
   const createClient = (p: Partner) => {
     const draft = clientDrafts[p.id] || { email: "", password: "" }
-    if (!draft.email.trim() || !draft.password.trim()) { setClientErr((e) => ({ ...e, [p.id]: "Email va parol majburiy" })); return }
+    if (!draft.email.trim() || !draft.password.trim()) { setClientErr((e) => ({ ...e, [p.id]: tr("Email va parol majburiy") })); return }
     return runMutation(async () => {
       try {
         await api(`/partners/${p.id}/client`, { method: "POST", body: JSON.stringify({ name: p.name, email: draft.email, password: draft.password }) })
@@ -810,7 +810,7 @@ function AdminPartners() {
               <div className="flex justify-end gap-3 pt-1">
                 <button type="button" onClick={() => setEditTarget(null)} className="rounded-xl border-2 border-green/30 px-5 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">{tr("Bekor qilish")}</button>
                 <button type="submit" disabled={mutating} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/30 transition-transform hover:scale-105 disabled:opacity-60">
-                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : "Saqlash"}
+                  <Icon d={I.check} className="h-4 w-4" /> {mutating ? "Saqlanmoqda…" : tr("Saqlash")}
                 </button>
               </div>
             </form>
@@ -967,7 +967,7 @@ function StatsEditor() {
           <p className="mt-1 text-sm text-muted">{tr("Bosh sahifadagi raqamlar (120+, 5M+ …) — bu yerdan tahrirlanadi.")}</p>
         </div>
         <button onClick={save} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          <Icon d={I.check} className="h-4 w-4" /> {busy ? "Saqlanmoqda…" : "Saqlash"}
+          <Icon d={I.check} className="h-4 w-4" /> {busy ? "Saqlanmoqda…" : tr("Saqlash")}
         </button>
       </div>
 
@@ -1095,7 +1095,7 @@ function AdminTeam() {
           </div>
           <div className="mt-5 flex items-center gap-3">
             <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-              <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
+              <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : tr("Saqlash")}
             </button>
             <button onClick={() => setShowForm(false)} className="rounded-xl border border-green/20 bg-white px-5 py-2.5 text-sm font-bold text-muted transition-colors hover:bg-soft">{tr("Bekor qilish")}</button>
           </div>
@@ -1652,7 +1652,7 @@ function AdminSettings() {
           <p className="mt-1 text-sm text-muted">{tr("Platforma sozlamalarini boshqarish.")}</p>
         </div>
         <button onClick={save} disabled={loading || saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : "Saqlash"}
+          <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : tr("Saqlash")}
         </button>
       </div>
 
@@ -1879,7 +1879,7 @@ function AdminTasks() {
 
           {msg && <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${msg.startsWith("✅") ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg}</div>}
           <button onClick={send} disabled={sending} className="inline-flex items-center gap-2 rounded-xl bg-green px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-            <Icon d={I.send} className="h-4 w-4" /> {sending ? "Yuborilmoqda…" : "Topshiriqni yuborish"}
+            <Icon d={I.send} className="h-4 w-4" /> {sending ? "Yuborilmoqda…" : tr("Topshiriqni yuborish")}
           </button>
         </div>
       </div>
@@ -2220,7 +2220,7 @@ function AdminNewsSources() {
 
   const add = (e: React.FormEvent) => {
     e.preventDefault(); setError("")
-    if (!form.name.trim() || !form.url.trim()) { setError("Nomi va URL majburiy"); return }
+    if (!form.name.trim() || !form.url.trim()) { setError(tr("Nomi va URL majburiy")); return }
     // Pending holati bo'lmagani uchun ikki marta yuborilsa dublikat manba yaratilardi.
     return runSave(async () => {
       try {
@@ -2663,7 +2663,7 @@ function AdminCategories() {
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setSaving(true)
-    if (!form.key.trim() || !form.name_uz.trim()) { setError("Kalit va nomi majburiy"); setSaving(false); return }
+    if (!form.key.trim() || !form.name_uz.trim()) { setError(tr("Kalit va nomi majburiy")); setSaving(false); return }
     // ILGARI: modal so'rovdan OLDIN yopilardi (setAdding(false)), xato esa
     // faqat modal ichida chizilardi — ya'ni xato hech qachon ko'rinmasdi.
     // Optimistik qo'shilgan kategoriya load() dan keyin sababsiz yo'qolardi.
@@ -2906,7 +2906,7 @@ function AdminHomepage() {
                 <div><label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label><input value={secForm.title} onChange={(e) => setSecForm((f) => ({ ...f, title: e.target.value }))} className={inp} /></div>
                 <div><label className="text-xs font-semibold text-muted">{tr("Tavsif / matn")}</label><textarea value={secForm.subtitle} onChange={(e) => setSecForm((f) => ({ ...f, subtitle: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
                 <div className="flex gap-2">
-                  <button onClick={() => saveSec(s.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
+                  <button onClick={() => saveSec(s.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : tr("Saqlash")}</button>
                   <button onClick={() => setEditSec(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">{tr("Bekor")}</button>
                 </div>
               </div>
@@ -2936,7 +2936,7 @@ function AdminHomepage() {
                         <div><label className="text-xs font-semibold text-muted">{tr("Ikon")}</label><input value={itemForm.icon} onChange={(e) => setItemForm((f) => ({ ...f, icon: e.target.value }))} placeholder={tr("masalan: phone, mail")} className={inp} /></div>
                         <div><label className="text-xs font-semibold text-muted">{tr("Link")}</label><input value={itemForm.link} onChange={(e) => setItemForm((f) => ({ ...f, link: e.target.value }))} placeholder="https://..." className={inp} /></div>
                         <div className="sm:col-span-2 flex gap-2">
-                          <button onClick={() => saveItem(item.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : "Saqlash"}</button>
+                          <button onClick={() => saveItem(item.id)} disabled={saving} className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{saving ? "Saqlanmoqda..." : tr("Saqlash")}</button>
                           <button onClick={() => setEditItem(null)} className="rounded-lg border border-green/25 px-4 py-2 text-xs font-bold">{tr("Bekor")}</button>
                         </div>
                       </div>
@@ -3056,7 +3056,7 @@ function AdminRoles() {
   const saveUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    if (!userName.trim() || !userEmail.trim() || !userPassword.trim()) { setError("Ism, email va parol majburiy"); return }
+    if (!userName.trim() || !userEmail.trim() || !userPassword.trim()) { setError(tr("Ism, email va parol majburiy")); return }
     setSavingUser(true)
     try {
       await api("/users/create", {
@@ -3075,7 +3075,7 @@ function AdminRoles() {
   const roleInfo: Record<string, string> = {
     super_admin: "To'liq boshqaruv — barcha ruxsatlar, rollar, foydalanuvchilar",
     admin: "Kundalik boshqaruv — bloggerlar, hamkorlar, yangiliklar, kategoriyalar",
-    editor: "Faqat kontent — yangiliklar yozish va tahrirlash",
+    editor: tr("Faqat kontent — yangiliklar yozish va tahrirlash"),
     company: "Hamkor kabineti — o'z hamkorlik ma'lumotlarini ko'rish",
   }
 
@@ -3223,7 +3223,7 @@ function AdminRoles() {
                               {/* permsError bo'lsa saqlash TO'SILADI: bo'sh ro'yxatni
                                   saqlash rolning haqiqiy ruxsatlarini o'chirib yuboradi. */}
                               <button onClick={savePerms} disabled={savingPerms || permsLoading || !!permsError} className="inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-green-deep disabled:opacity-60">
-                                {savingPerms ? "Saqlanmoqda..." : "Ruxsatlarni saqlash"}
+                                {savingPerms ? "Saqlanmoqda..." : tr("Ruxsatlarni saqlash")}
                               </button>
                             </div>
                             {permsError && (

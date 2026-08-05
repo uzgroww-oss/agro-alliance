@@ -5,7 +5,7 @@ import { api } from "../lib/api"
 import { useContactInfo } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const mascot = "/mascot-contact.webp"
 
@@ -16,11 +16,11 @@ const features = [
   { icon: I.headset, t: "Tezkor javob", d: "24 soat ichida javob berishga harakat qilamiz" },
   { icon: I.users, t: "Professional jamoa", d: "Sizga tajribali mutaxassislar ko'maklashadi" },
   { icon: I.shield, t: "Ishonchlilik", d: "Ma'lumotlaringiz maxfiy saqlanadi" },
-  { icon: I.handshake, t: "Hamkorlik", d: "Uzoq muddatli va samarali hamkorlikni qadrlaymiz" },
+  { icon: I.handshake, t: tr("Hamkorlik"), d: tr("Uzoq muddatli va samarali hamkorlikni qadrlaymiz") },
 ]
 
 
-const topics = ["Tanlang", "Hamkorlik", "Texnik yordam", "Umumiy savol", "Reklama va marketing"]
+const topics = [tr("Tanlang"), tr("Hamkorlik"), "Texnik yordam", "Umumiy savol", tr("Reklama va marketing")]
 
 function Hero() {
   const t = useT()
@@ -33,10 +33,10 @@ function Hero() {
 
   // Qattiq yozilgan "namuna" qiymat yo'q — bo'sh bo'lsa qator chizilmaydi.
   const contactInfo = [
-    { icon: I.phone, t: "Telefon", v: contact.phone },
+    { icon: I.phone, t: tr("Telefon"), v: contact.phone },
     { icon: I.mail, t: "Email", v: contact.email },
-    { icon: I.pin, t: "Manzil", v: contact.address },
-    { icon: I.clock, t: "Ish vaqti", v: contact.hours },
+    { icon: I.pin, t: tr("Manzil"), v: contact.address },
+    { icon: I.clock, t: tr("Ish vaqti"), v: contact.hours },
   ].filter((c): c is { icon: string; t: string; v: string } => Boolean(c.v))
   return (
     <section className="relative overflow-hidden">
@@ -116,7 +116,7 @@ function ContactForm() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const [form, setForm] = useState({ name: "", email: "", topic: "Tanlang", message: "" })
+  const [form, setForm] = useState({ name: "", email: "", topic: tr("Tanlang"), message: "" })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = async (e: React.FormEvent) => {
@@ -141,15 +141,15 @@ function ContactForm() {
   return (
     <div className="rounded-3xl border border-green/10 bg-white p-7 shadow-[0_12px_44px_rgba(91,180,32,0.10)]">
       <h2 className="font-display text-xl font-extrabold tracking-tight">{t("Bizga xabar yuboring")}</h2>
-      <p className="mt-2 text-sm text-muted">Quyidagi formani to'ldirib, bizga xabar yuboring. Tez orada siz bilan bog'lanamiz.</p>
+      <p className="mt-2 text-sm text-muted">{tr("Quyidagi formani to'ldirib, bizga xabar yuboring. Tez orada siz bilan bog'lanamiz.")}</p>
 
   {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">{error}</div>}
   {sent ? (
     <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-soft py-12 text-center">
       <span className="grid h-14 w-14 place-items-center rounded-full bg-green text-white"><Icon d="M9 12l2 2 4-4" className="h-7 w-7" sw={2.5} /></span>
-      <h3 className="font-display text-lg font-bold">Xabaringiz yuborildi!</h3>
+      <h3 className="font-display text-lg font-bold">{tr("Xabaringiz yuborildi!")}</h3>
       <p className="max-w-xs text-sm text-muted">Rahmat, {form.name || "do'st"}! Tez orada siz bilan bog'lanamiz.</p>
-      <button onClick={() => { setSent(false); setForm({ name: "", email: "", topic: "Tanlang", message: "" }) }} className="mt-2 text-sm font-bold text-green hover:underline">Yana xabar yuborish</button>
+      <button onClick={() => { setSent(false); setForm({ name: "", email: "", topic: tr("Tanlang"), message: "" }) }} className="mt-2 text-sm font-bold text-green hover:underline">{tr("Yana xabar yuborish")}</button>
     </div>
   ) : (
         <form onSubmit={submit} className="mt-6 space-y-4">
@@ -225,7 +225,7 @@ function Offices({ offices, loading, failed, onRetry }: { offices: Office[] | nu
                   <div className="flex items-center gap-3">
                     <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={I.building} className="h-5 w-5" /></span>
                     <h3 className="font-display font-bold">{o.name}</h3>
-                    {o.main && <span className="rounded-md bg-green/10 px-2 py-0.5 text-[11px] font-bold text-green">Asosiy ofis</span>}
+                    {o.main && <span className="rounded-md bg-green/10 px-2 py-0.5 text-[11px] font-bold text-green">{tr("Asosiy ofis")}</span>}
                   </div>
                   <p className="mt-3 text-sm text-muted">{o.addr}</p>
                   <div className="mt-3 flex flex-col gap-1.5 text-sm">
@@ -283,7 +283,7 @@ function Faq({ faqs, loading }: { faqs: Faq[] | null; loading: boolean }) {
   return (
     <div>
       <Reveal>
-        <h2 className="font-display text-2xl font-extrabold tracking-tight">Ko'p so'raladigan savollar</h2>
+        <h2 className="font-display text-2xl font-extrabold tracking-tight">{tr("Ko'p so'raladigan savollar")}</h2>
       </Reveal>
       <div className="mt-6 space-y-3">
         {loading && Array.from({ length: 4 }).map((_, i) => (

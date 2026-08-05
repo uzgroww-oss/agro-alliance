@@ -1,4 +1,5 @@
 import { useState, useRef } from "react"
+import { tr } from "../lib/i18n"
 import { Icon, I } from "../lib/ui"
 import { uploadFile, type UploadResult } from "../lib/upload"
 
@@ -146,7 +147,7 @@ export default function MediaUpload({
               </span>
               <span className="text-center">
                 <span className="block text-sm font-bold text-ink">
-                  {multiple ? "Fayllarni tanlang" : "Faylni tanlang"}
+                  {multiple ? "Fayllarni tanlang" : tr("Faylni tanlang")}
                 </span>
                 {hint && <span className="mt-0.5 block text-[11px] text-muted">{hint}</span>}
               </span>

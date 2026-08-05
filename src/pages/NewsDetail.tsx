@@ -4,7 +4,7 @@ import DOMPurify from "dompurify"
 import { Reveal, Icon, I, Skeleton } from "../lib/ui"
 import { newsCatLabel as catLabel, loadNewsDetail, loadRelatedNews, newsImg, type News } from "../lib/news"
 import { useSeo, newsSeo, SITE_URL } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 export default function NewsDetail() {
   const t = useT()
@@ -182,7 +182,7 @@ export default function NewsDetail() {
             ))}
           </div>
         ) : more.length === 0 ? (
-          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">{t("O'xshash yangiliklar topilmadi")}</div>
+          <div className="rounded-2xl border border-green/10 bg-white py-12 text-center text-muted">{t(tr("O'xshash yangiliklar topilmadi"))}</div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {more.map((n, i) => (

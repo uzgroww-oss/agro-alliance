@@ -2,7 +2,7 @@ import { Link } from "react-router-dom"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const mascot = "/mascot.webp"
 
@@ -39,7 +39,7 @@ function Hero() {
             <Reveal>
               <h1 className="font-display text-[clamp(2.2rem,5vw,3.6rem)] font-extrabold leading-[1.05] tracking-[-0.02em]">
                 BARCHA AGRO IMKONIYATLAR<br />
-                <span className="text-ink">BIR </span><span className="text-green">PLATFORMADA</span>
+                <span className="text-ink">BIR </span><span className="text-green">{tr("PLATFORMADA")}</span>
               </h1>
             </Reveal>
             <Reveal delay={90}>
@@ -88,7 +88,7 @@ function Capabilities({ capabilities, loading }: { capabilities: { icon: string;
       <Reveal>
         <div className="mb-12 text-center">
           <h2 className="font-display text-[clamp(1.8rem,5vw,2.8rem)] font-extrabold tracking-tight">
-            PLATFORMA <span className="text-green">IMKONIYATLARI</span>
+            PLATFORMA <span className="text-green">{tr("IMKONIYATLARI")}</span>
           </h2>
           <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-green/40" />
           <p className="mx-auto mt-4 max-w-xl text-muted">

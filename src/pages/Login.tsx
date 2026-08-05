@@ -6,7 +6,7 @@ import { setRememberPref } from "../lib/api"
 import { useAuth } from "../lib/auth"
 import { supabase } from "../lib/supabase"
 import { useStaticSeo } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const mascot = "/mascot.webp"
 
@@ -22,8 +22,8 @@ function GoogleMark() {
 }
 
 const features = [
-  { icon: I.sprout, t: "Ishonchli hamkorlik", d: "Platforma orqali xavfsiz va shaffof hamkorlik qiling." },
-  { icon: I.chart, t: "Keng imkoniyatlar", d: "AI vositalari, tahlillar va marketing yechimlaridan foydalaning." },
+  { icon: I.sprout, t: tr("Ishonchli hamkorlik"), d: tr("Platforma orqali xavfsiz va shaffof hamkorlik qiling.") },
+  { icon: I.chart, t: "Keng imkoniyatlar", d: tr("AI vositalari, tahlillar va marketing yechimlaridan foydalaning.") },
   { icon: I.shield, t: "Natijaga yo'naltirilgan", d: "Maqsadli hamkorlik va samarali natijalarga erishing." },
 ]
 
@@ -86,7 +86,7 @@ export default function Login() {
 
             <div className="mt-10">
               <h1 className="font-display text-[clamp(2.2rem,4vw,3.2rem)] font-extrabold leading-[1.05] tracking-tight">AGRO ALLIANCE<br /><span className="text-green">Platform</span></h1>
-              <p className="mt-4 max-w-sm leading-relaxed text-muted">Agro bloggerlar, fermerlar va kompaniyalarni birlashtiruvchi innovatsion ekotizim.</p>
+              <p className="mt-4 max-w-sm leading-relaxed text-muted">{tr("Agro bloggerlar, fermerlar va kompaniyalarni birlashtiruvchi innovatsion ekotizim.")}</p>
             </div>
 
             <div className="mt-8 flex flex-col gap-5">
@@ -105,7 +105,7 @@ export default function Login() {
 
             <div className="mt-auto flex items-center gap-3 rounded-2xl bg-ink/90 p-4 text-white backdrop-blur">
               <Icon d={I.users} className="h-5 w-5 shrink-0 text-green" />
-              <p className="text-sm">Allaqachon platformada bo'lsangiz, hozir kirib imkoniyatlardan foydalaning!</p>
+              <p className="text-sm">{tr("Allaqachon platformada bo'lsangiz, hozir kirib imkoniyatlardan foydalaning!")}</p>
             </div>
           </div>
         </div>
@@ -118,9 +118,9 @@ export default function Login() {
 
           <div className="mx-auto mt-6 w-full max-w-sm">
             <div className="text-center">
-              <h2 className="font-display text-3xl font-extrabold tracking-tight">Platformaga kirish</h2>
+              <h2 className="font-display text-3xl font-extrabold tracking-tight">{tr("Platformaga kirish")}</h2>
               <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-green" />
-              <p className="mx-auto mt-4 max-w-xs leading-relaxed text-muted">Xush kelibsiz! Hisobingizga kiring va imkoniyatlardan foydalanishni davom eting.</p>
+              <p className="mx-auto mt-4 max-w-xs leading-relaxed text-muted">{tr("Xush kelibsiz! Hisobingizga kiring va imkoniyatlardan foydalanishni davom eting.")}</p>
             </div>
 
             <form onSubmit={submit} className="mt-8 space-y-5">

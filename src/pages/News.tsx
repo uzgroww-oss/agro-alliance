@@ -4,7 +4,7 @@ import { Reveal, Icon, I, Skeleton, useDebounced } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const iconMap: Record<string, string> = {
   grid: I.grid, cpu: I.cpu, sprout: I.sprout, chart: I.chart, doc: I.doc,
@@ -84,7 +84,7 @@ function Hero() {
           <div>
             <Reveal>
               <h1 className="font-display text-[clamp(2.6rem,7vw,4.4rem)] font-extrabold leading-[0.95] tracking-[-0.03em]">
-                YANGI<span className="text-green">LIKLAR</span>
+                YANGI<span className="text-green">{tr("LIKLAR")}</span>
               </h1>
             </Reveal>
             <Reveal delay={90}>
@@ -190,7 +190,7 @@ const side = page === 1 && newsList.slice(1, 3)
           {/* Sidebar */}
           <aside className="flex min-w-0 flex-col gap-6">
             <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-              <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">KATEGORIYALAR</h3>
+              <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("KATEGORIYALAR")}</h3>
               <ul className="mt-4 space-y-1">
                 {apiCategories.map((c) => {
                   const active = c.key === cat
@@ -207,7 +207,7 @@ const side = page === 1 && newsList.slice(1, 3)
             </div>
 
             <div className="rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-              <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">ENG KO'P O'QILGAN</h3>
+              <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("ENG KO'P O'QILGAN")}</h3>
               <ul className="mt-4 space-y-3">
                 {popularLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
@@ -230,9 +230,9 @@ const side = page === 1 && newsList.slice(1, 3)
                     </Link>
                   </li>
                 )) : popularFailed ? (
-                  <li className="py-4 text-center text-sm text-red-600">Yuklab bo'lmadi.</li>
+                  <li className="py-4 text-center text-sm text-red-600">{tr("Yuklab bo'lmadi.")}</li>
                 ) : (
-                  <li className="py-4 text-center text-sm text-muted">Hozircha mashhur yangiliklar yo'q</li>
+                  <li className="py-4 text-center text-sm text-muted">{tr("Hozircha mashhur yangiliklar yo'q")}</li>
                 )}
               </ul>
             </div>
@@ -292,7 +292,7 @@ const side = page === 1 && newsList.slice(1, 3)
                 )}
                 {/* Grid */}
                 {newsList.length === 0 ? (
-                  <div className="rounded-2xl border border-green/10 bg-white py-20 text-center text-muted">Hech narsa topilmadi.</div>
+                  <div className="rounded-2xl border border-green/10 bg-white py-20 text-center text-muted">{tr("Hech narsa topilmadi.")}</div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     {newsList

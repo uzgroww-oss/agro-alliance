@@ -421,8 +421,8 @@ function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: 
         {field("Yo'nalish / soha", "sphere", "masalan: O'g'itlar")}
         {field("Veb-sayt", "website", "https://...")}
         {field("Telefon", "phone", "+998 ...")}
-        {field("Instagram", "instagram", "@username yoki link")}
-        {field("Telegram", "telegram", "@username yoki link")}
+        {field("Instagram", "instagram", tr("@username yoki link"))}
+        {field("Telegram", "telegram", tr("@username yoki link"))}
       </div>
       <div className="mt-4">
         <label className="text-xs font-semibold text-muted">{tr("Manzil")}</label>

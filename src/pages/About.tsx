@@ -4,7 +4,7 @@ import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 
 import { api } from "../lib/api"
 import { useStaticSeo } from "../lib/seo"
-import { useT } from "../lib/i18n"
+import { useT, tr } from "../lib/i18n"
 
 const mascot = "/mascot2.webp"
 
@@ -43,7 +43,7 @@ function Hero() {
           <div className="flex flex-col justify-center">
             <Reveal>
               <h1 className="font-display text-[clamp(2.6rem,6.5vw,4.6rem)] font-extrabold leading-[0.95] tracking-[-0.03em]">
-                BIZ <span className="text-green">HAQIMIZDA</span>
+                BIZ <span className="text-green">{tr("HAQIMIZDA")}</span>
               </h1>
             </Reveal>
             <Reveal delay={90}>

@@ -348,7 +348,7 @@ export default function SmmPanel({ seed }: {
   }
 
   const savePick = () => {
-    if (picked.size === 0) { setPickMsg("Kamida bitta tarmoq tanlang"); return }
+    if (picked.size === 0) { setPickMsg(tr("Kamida bitta tarmoq tanlang")); return }
     localStorage.setItem("smm_platforms", JSON.stringify(Array.from(picked)))
     setPickMsg("✅ Tanlov saqlandi")
   }
@@ -740,7 +740,7 @@ export default function SmmPanel({ seed }: {
   }
 
   const describeUrl = (mediaUrl: string) => runDescribe(async () => {
-    if (!mediaUrl) { setAiErr("Avval rasm yoki video yuklang"); return }
+    if (!mediaUrl) { setAiErr(tr("Avval rasm yoki video yuklang")); return }
     setAiErr("")
     try {
       let payload: Record<string, unknown> = { image_url: mediaUrl, platform: effOrigin }
@@ -1227,7 +1227,7 @@ export default function SmmPanel({ seed }: {
             <button onClick={ytConnect} disabled={connBusy}
               className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">
               <Brand k="youtube" className="h-4 w-4" color="#fff" />
-              {connBusy ? "Ochilmoqda…" : "Google bilan ulash"}
+              {connBusy ? "Ochilmoqda…" : tr("Google bilan ulash")}
             </button>
           </div>
         )}
@@ -1351,7 +1351,7 @@ export default function SmmPanel({ seed }: {
                 </button>
               )}
               <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-60">
-                <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : editingId ? "Yangilash" : "Faylni saqlash"}
+                <Icon d={I.check} className="h-4 w-4" /> {saving ? "Saqlanmoqda…" : editingId ? "Yangilash" : tr("Faylni saqlash")}
               </button>
             </div>
           </div>
@@ -1919,7 +1919,7 @@ export default function SmmPanel({ seed }: {
           <div className="mt-4"><ErrorState onRetry={load} message="Postlarni yuklab bo'lmadi." /></div>
         ) : filtered.length === 0 ? (
           <p className="mt-4 rounded-xl border border-green/10 py-10 text-center text-sm text-muted">
-            {posts.length === 0 ? "Hali post yo'q." : "Mos post topilmadi."}
+            {posts.length === 0 ? "Hali post yo'q." : tr("Mos post topilmadi.")}
           </p>
         ) : (
           <>

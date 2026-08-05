@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../lib/ui"
 import { api } from "../lib/api"
 import { useSeo, bloggerSeo } from "../lib/seo"
+import { tr } from "../lib/i18n"
 
 const platIconMap: Record<string, string> = {
   YouTube: I.youtube, Instagram: I.instagram, TikTok: I.tiktok,
@@ -146,7 +147,7 @@ function Header({ b }: { b: LiveBlogger }) {
       <img src="/mascot3.webp" alt="" className="animate-float pointer-events-none absolute bottom-0 left-1/2 z-10 hidden h-[12.5rem] -translate-x-1/2 object-contain drop-shadow-2xl xl:block" />
       <div className="absolute right-5 top-5 z-20 hidden w-52 rounded-2xl border border-green/10 bg-white/95 p-5 shadow-[0_10px_30px_rgba(91,180,32,0.18)] backdrop-blur lg:block">
         <div className="flex items-center gap-2 text-green">
-          <Icon d={I.trophy} className="h-5 w-5" /><span className="font-display text-sm font-bold tracking-wide">REYTING</span>
+          <Icon d={I.trophy} className="h-5 w-5" /><span className="font-display text-sm font-bold tracking-wide">{tr("REYTING")}</span>
         </div>
         <div className="mt-3 flex items-end gap-1">
           <span className="font-display text-4xl font-extrabold text-green leading-none">{bloggerRating(b)}</span>
@@ -161,7 +162,7 @@ function Header({ b }: { b: LiveBlogger }) {
         </div>
         <div className="mt-4 border-t border-green/10 pt-3">
           <div className="font-display text-lg font-extrabold">{bloggerTop(b)}</div>
-          <div className="text-xs text-muted">Agro bloggerlar orasida</div>
+          <div className="text-xs text-muted">{tr("Agro bloggerlar orasida")}</div>
         </div>
       </div>
       <div className="relative px-6 pb-5 pt-16 lg:px-8 lg:pr-[15rem]">
@@ -251,7 +252,7 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
   return (
     <Reveal>
       <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">AUDITORIYA ANALITIKASI</h3>
+        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("AUDITORIYA ANALITIKASI")}</h3>
 
         {/* Gender donut with center text */}
         {hasGender && (
@@ -272,12 +273,12 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="font-display text-3xl font-extrabold leading-none" style={{ color: maleColor }}>{male}%</span>
-              <span className="text-xs text-muted mt-1">Erkaklar</span>
+              <span className="text-xs text-muted mt-1">{tr("Erkaklar")}</span>
             </div>
           </div>
           <div className="text-center">
             <div className="font-display text-3xl font-extrabold" style={{ color: femaleColor }}>{female}%</div>
-            <div className="text-xs text-muted mt-1">Ayollar</div>
+            <div className="text-xs text-muted mt-1">{tr("Ayollar")}</div>
           </div>
         </div>
         )}
@@ -302,7 +303,7 @@ function AudienceAnalytics({ b }: { b: LiveBlogger }) {
         {/* Top regions */}
         {regionEntries.length > 0 && (
         <div className="mt-6">
-          <h4 className="font-display text-xs font-bold tracking-wide text-ink/60 mb-3">Top hududlar</h4>
+          <h4 className="font-display text-xs font-bold tracking-wide text-ink/60 mb-3">{tr("Top hududlar")}</h4>
           <ul className="space-y-2">
             {regionEntries.map(([region, pct]) => (
               <li key={region} className="flex justify-between text-sm">
@@ -347,22 +348,22 @@ function About({ b }: { b: LiveBlogger }) {
 
   return (
     <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">HAQIDA</h3>
+      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("HAQIDA")}</h3>
       {b.profile.region && (
         <dl className="mt-4 space-y-2.5 text-sm">
           <div className="flex gap-2">
-            <dt className="font-semibold text-ink/80">Joylashuv:</dt>
+            <dt className="font-semibold text-ink/80">{tr("Joylashuv:")}</dt>
             <dd className="text-muted">{b.profile.region}</dd>
           </div>
           {(b.specializations.length > 0) && (
             <div className="flex gap-2">
-              <dt className="font-semibold text-ink/80">Yo'nalish:</dt>
+              <dt className="font-semibold text-ink/80">{tr("Yo'nalish:")}</dt>
               <dd className="text-muted">{b.specializations.join(", ")}</dd>
             </div>
           )}
           {socialLinks.length > 0 && (
             <div className="flex gap-2">
-              <dt className="font-semibold text-ink/80">Ijtimoiy tarmoqlar:</dt>
+              <dt className="font-semibold text-ink/80">{tr("Ijtimoiy tarmoqlar:")}</dt>
               <dd className="flex flex-wrap gap-2">
                 {socialLinks.map((sl) => (
                   <a
@@ -407,7 +408,7 @@ function QuickContact({ b }: { b: LiveBlogger }) {
   if (items.length === 0) return null
   return (
     <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">TEZ ALOQA</h3>
+      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("TEZ ALOQA")}</h3>
       <div className="mt-4 space-y-2.5">
         {items.map((x) => (
           <a key={x.label} href={x.href} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl bg-soft px-4 py-3 text-sm font-semibold text-ink transition-colors hover:bg-green hover:text-white">
@@ -483,8 +484,8 @@ function Reviews({ slug }: { slug: string }) {
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-green/10 bg-white py-12 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.message} className="h-7 w-7" /></span>
-            <h3 className="mt-4 font-display text-lg font-bold">Hali sharhlar yo'q</h3>
-            <p className="mt-2 text-sm text-muted">Birinchi bo'lib sharh qoldiring!</p>
+            <h3 className="mt-4 font-display text-lg font-bold">{tr("Hali sharhlar yo'q")}</h3>
+            <p className="mt-2 text-sm text-muted">{tr("Birinchi bo'lib sharh qoldiring!")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -505,12 +506,12 @@ function Reviews({ slug }: { slug: string }) {
       </div>
       {/* Sharh yozish */}
       <div className="h-fit rounded-2xl border border-green/10 bg-white p-5">
-        <h3 className="font-display text-base font-bold">Sharh qoldiring</h3>
+        <h3 className="font-display text-base font-bold">{tr("Sharh qoldiring")}</h3>
         {done ? (
-          <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> Sharhingiz uchun rahmat!</p>
+          <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" /> {tr("Sharhingiz uchun rahmat!")}</p>
         ) : (
           <div className="mt-4 space-y-3">
-            <input value={form.author_name} onChange={(e) => setForm((f) => ({ ...f, author_name: e.target.value }))} placeholder="Ismingiz" className="w-full rounded-lg border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <input value={form.author_name} onChange={(e) => setForm((f) => ({ ...f, author_name: e.target.value }))} placeholder={tr("Ismingiz")} className="w-full rounded-lg border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green" />
             <div>
               <div className="mb-1 text-xs text-muted">Baho</div>
               <div className="flex gap-1">
@@ -521,9 +522,9 @@ function Reviews({ slug }: { slug: string }) {
                 ))}
               </div>
             </div>
-            <textarea value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} rows={3} placeholder="Fikringiz (ixtiyoriy)" className="w-full resize-none rounded-lg border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green" />
+            <textarea value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} rows={3} placeholder={tr("Fikringiz (ixtiyoriy)")} className="w-full resize-none rounded-lg border border-green/20 px-3 py-2.5 text-sm outline-none focus:border-green" />
             {err && <p className="text-xs text-red-500">{err}</p>}
-            <button onClick={submit} disabled={busy} className="w-full rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">{busy ? "Yuborilmoqda..." : "Yuborish"}</button>
+            <button onClick={submit} disabled={busy} className="w-full rounded-xl bg-green px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">{busy ? "Yuborilmoqda..." : tr("Yuborish")}</button>
           </div>
         )}
       </div>
@@ -561,7 +562,7 @@ function Content({ b }: { b: LiveBlogger }) {
           {/* Videolar */}
           {b.videos.length > 0 && (
             <div className="mb-6">
-              <h4 className="mb-3 font-display text-sm font-bold text-ink/70">Videolar</h4>
+              <h4 className="mb-3 font-display text-sm font-bold text-ink/70">{tr("Videolar")}</h4>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {b.videos.map((v) => (
                   <button key={v.id} onClick={() => setViewer({ url: v.link, name: cleanTitle(v.name), caption: v.views ? `${v.views} ko'rish` : undefined })} className="group text-left">
@@ -586,7 +587,7 @@ function Content({ b }: { b: LiveBlogger }) {
           {/* Rasmlar */}
           {b.images.length > 0 && (
             <div>
-              <h4 className="mb-3 font-display text-sm font-bold text-ink/70">Rasmlar</h4>
+              <h4 className="mb-3 font-display text-sm font-bold text-ink/70">{tr("Rasmlar")}</h4>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {b.images.map((img) => (
                   <button key={img.id} onClick={() => setViewer({ url: img.url, name: img.caption || "Rasm", caption: img.caption })} className="group text-left overflow-hidden rounded-xl">
@@ -599,7 +600,7 @@ function Content({ b }: { b: LiveBlogger }) {
           )}
 
           {b.videos.length === 0 && b.images.length === 0 && (
-            <div className="py-12 text-center text-muted">Hali kontent qo'shilmagan.</div>
+            <div className="py-12 text-center text-muted">{tr("Hali kontent qo'shilmagan.")}</div>
           )}
         </div>
       )}
@@ -635,7 +636,7 @@ function Content({ b }: { b: LiveBlogger }) {
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-muted">Hali hamkorlik qo'shilmagan.</p>
+            <p className="py-8 text-center text-muted">{tr("Hali hamkorlik qo'shilmagan.")}</p>
           )}
         </div>
       )}
@@ -651,7 +652,7 @@ function AchievementsAndServices({ b }: { b: LiveBlogger }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">YUTUQLARI</h3>
+        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("YUTUQLARI")}</h3>
         {b.achievements.length > 0 ? (
           <div className="mt-4 grid grid-cols-3 gap-3">
             {b.achievements.map((a) => (
@@ -663,11 +664,11 @@ function AchievementsAndServices({ b }: { b: LiveBlogger }) {
             ))}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-muted">Hali yutuq qo'shilmagan.</p>
+          <p className="mt-4 text-sm text-muted">{tr("Hali yutuq qo'shilmagan.")}</p>
         )}
       </div>
       <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">XIZMATLARI</h3>
+        <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("XIZMATLARI")}</h3>
         {b.services.length > 0 ? (
           <ul className="mt-4 space-y-3">
             {b.services.map((s) => (
@@ -678,7 +679,7 @@ function AchievementsAndServices({ b }: { b: LiveBlogger }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-4 text-sm text-muted">Hali xizmat qo'shilmagan.</p>
+          <p className="mt-4 text-sm text-muted">{tr("Hali xizmat qo'shilmagan.")}</p>
         )}
       </div>
     </div>
@@ -718,9 +719,9 @@ function PartnershipEfficiency({ b }: { b: LiveBlogger }) {
         <img src={mascotPoint} alt="" className="animate-float absolute bottom-0 right-6 hidden h-40 object-contain drop-shadow-2xl lg:block" />
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
           <div>
-            <h3 className="font-display text-sm font-bold tracking-widest text-white/70">HAMKORLIK SAMARADORLIGI</h3>
+            <h3 className="font-display text-sm font-bold tracking-widest text-white/70">{tr("HAMKORLIK SAMARADORLIGI")}</h3>
             <div className="mt-3 font-display text-5xl font-extrabold text-green">{engagement > 0 ? `${engagement}%` : "—"}</div>
-            <div className="text-white/70">O'rtacha Engagement</div>
+            <div className="text-white/70">{tr("O'rtacha Engagement")}</div>
             {rawMultiplier > 1 && (
               <p className="mt-3 text-sm text-white/50">Soha o'rtachasidan <span className="font-bold text-green">{multiplier} yuqori</span></p>
             )}
@@ -741,11 +742,11 @@ function PartnershipEfficiency({ b }: { b: LiveBlogger }) {
             </div>
           </div>
           <div className="self-center rounded-2xl border border-white/10 bg-white/5 p-6">
-            <div className="text-sm text-white/60">Kutilayotgan qamrov</div>
+            <div className="text-sm text-white/60">{tr("Kutilayotgan qamrov")}</div>
             <div className="mt-1 font-display text-3xl font-extrabold text-green">
               {subscribers > 0 ? `${fmtNum(reachLow)} – ${fmtNum(reachHigh)}` : "—"}
             </div>
-            <div className="text-white/70">Har bir post uchun</div>
+            <div className="text-white/70">{tr("Har bir post uchun")}</div>
             <div className="mt-3 text-xs text-white/40">{subscribers > 0 ? `${fmtNum(subscribers)} obunachi asosida` : "Ma'lumot yig'ilmoqda"}</div>
           </div>
         </div>
@@ -759,7 +760,7 @@ function Brands({ b }: { b: LiveBlogger }) {
   if (b.brands.length === 0) return null
   return (
     <div className="rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.06)]">
-      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">HAMKOR BO'LGAN BRENDLAR</h3>
+      <h3 className="font-display text-sm font-bold tracking-widest text-ink/80">{tr("HAMKOR BO'LGAN BRENDLAR")}</h3>
       <div className="mt-4 grid grid-cols-3 gap-3">
         {b.brands.map((br) => (
           <div key={br.id} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-green/10 bg-soft p-3 text-center">
@@ -825,7 +826,7 @@ export default function BloggerProfile() {
 
   if (!b) return (
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">
-      <div className="grid min-h-[60vh] place-items-center text-muted">Bloger topilmadi</div>
+      <div className="grid min-h-[60vh] place-items-center text-muted">{tr("Bloger topilmadi")}</div>
     </div>
   )
 
@@ -833,9 +834,9 @@ export default function BloggerProfile() {
     <div className="mx-auto max-w-[1320px] px-5 pt-7 pb-12 lg:px-8">
       <Reveal>
         <nav className="mb-6 flex items-center gap-2 text-sm text-muted">
-          <Link to="/" className="hover:text-green">Bosh sahifa</Link>
+          <Link to="/" className="hover:text-green">{tr("Bosh sahifa")}</Link>
           <span>/</span>
-          <Link to="/blogerlar" className="hover:text-green">Blogerlar</Link>
+          <Link to="/blogerlar" className="hover:text-green">{tr("Blogerlar")}</Link>
           <span>/</span>
           <span className="font-semibold text-green">{b.name}</span>
         </nav>

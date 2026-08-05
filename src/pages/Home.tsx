@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { tr } from "../lib/i18n"
 import { useMemo } from "react"
 import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
@@ -54,7 +55,7 @@ function Hero() {
   const main = useMemo(() => {
     const fallback = {
       tagline: "AGRO KELAJAKNI BIRGA KO'RSATAMIZ", title1: "AGRO", title2: "ALLIANCE",
-      subtitle: "Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma.",
+      subtitle: tr("Agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma."),
     }
     const hm = sections.find((s) => s.section_key === "hero_main")
     if (!hm) return fallback
