@@ -1,80 +1,66 @@
 import { handleCors } from "../_shared/cors.ts"
-import { requireRole } from "../_shared/auth.ts"
-import { jsonResponse, errorResponse } from "../_shared/response.ts"
-import { supabaseAdmin } from "../_shared/supabase.ts"
+import { errorResponse } from "../_shared/response.ts"
 
+import { run as royxat } from "../_shared/partners/list.ts"
+import { run as yaratish } from "../_shared/partners/create.ts"
+import { run as yangilash } from "../_shared/partners/update.ts"
+import { run as ochirish } from "../_shared/partners/delete.ts"
+import { run as vazifaQosh } from "../_shared/partners/tasks-add.ts"
+import { run as vazifaHolat } from "../_shared/partners/tasks-cycle.ts"
+import { run as vazifaOchir } from "../_shared/partners/tasks-delete.ts"
+import { run as mijozYarat } from "../_shared/partners/client-create.ts"
+import { run as mijozOchir } from "../_shared/partners/client-delete.ts"
+
+/**
+ * HAMKORLAR — BARCHA AMALLAR BITTA FUNKSIYADA.
+ *
+ * Ilgari to'qqizta alohida edge funksiya edi: list, create, update,
+ * delete, tasks-add, tasks-cycle, tasks-delete, client-create,
+ * client-delete. Supabase loyihada ~100 ta funksiyaga ruxsat beradi
+ * va biz chegaraga yetgan edik — bitta resurs uchun to'qqiz slot
+ * ketishi isrof.
+ *
+ * MUHIM: amallarning KODI o'zgarmadi. Har biri `_shared/partners/`
+ * ichiga ko'chirildi va shu yerdan chaqiriladi — ya'ni so'rov va
+ * javob shakli, tekshiruvlar, xato matnlari avvalgidek. Bu ataylab:
+ * qayta yozish yangi xato keltirar edi, ko'chirish esa keltirmaydi.
+ * Har bir amal o'z `requireRole` tekshiruvini saqlab qoldi.
+ *
+ * MARSHRUTLASH `op` parametri bo'yicha (mijozda api.ts qo'yadi):
+ *   (yo'q)      GET     -> ro'yxat
+ *   (yo'q)      POST    -> yangi hamkor
+ *   op=item     PATCH   -> tahrirlash        (id)
+ *   op=item     DELETE  -> o'chirish         (id)
+ *   op=tasks    POST    -> vazifa qo'shish   (pid)
+ *   op=task     PATCH   -> vazifa holati     (pid, tid)
+ *   op=task     DELETE  -> vazifa o'chirish  (pid, tid)
+ *   op=client   POST    -> mijoz hisobi      (pid)
+ *   op=client   DELETE  -> hisobni uzish     (pid)
+ */
 Deno.serve(async (req) => {
   const cors = handleCors(req)
   if (cors) return cors
 
-  const auth = await requireRole(req, "super_admin", "admin")
-  if (auth.response) return auth.response
+  const op = new URL(req.url).searchParams.get("op") || ""
+  const m = req.method
 
-  try {
-    const { data: partners, error: partnersError } = await supabaseAdmin
-      .from("partners")
-      .select("id, name, sphere, logo, contract_no, contract_amount, signed_date, status, client_profile_id")
-      .is("deleted_at", null)
-
-    if (partnersError) throw partnersError
-
-    if (!partners || partners.length === 0) {
-      return jsonResponse({ partners: [] })
-    }
-
-    const partnerIds = partners.map((p) => p.id)
-
-    const { data: tasks, error: tasksError } = await supabaseAdmin
-      .from("partner_tasks")
-      .select("id, title, status, partner_id")
-      .in("partner_id", partnerIds)
-      .is("deleted_at", null)
-
-    if (tasksError) throw tasksError
-
-    const clientProfileIds = partners
-      .filter((p) => p.client_profile_id)
-      .map((p) => p.client_profile_id)
-
-    const clientProfiles: Record<string, { id: string; name: string; email: string }> = {}
-    if (clientProfileIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from("profiles")
-        .select("id, name, email")
-        .in("id", clientProfileIds)
-
-      if (profilesError) throw profilesError
-
-      for (const p of profiles ?? []) {
-        clientProfiles[p.id] = p
-      }
-    }
-
-    const tasksByPartner: Record<string, Array<{ id: string; title: string; status: string }>> = {}
-    for (const task of tasks ?? []) {
-      if (!tasksByPartner[task.partner_id]) {
-        tasksByPartner[task.partner_id] = []
-      }
-      tasksByPartner[task.partner_id].push({ id: task.id, title: task.title, status: task.status })
-    }
-
-    const result = partners.map((p) => ({
-      id: p.id,
-      name: p.name,
-      sphere: p.sphere,
-      logo: p.logo,
-      contractNo: p.contract_no,
-      amount: p.contract_amount,
-      signedDate: p.signed_date,
-      status: p.status,
-      tasks: tasksByPartner[p.id] || [],
-      client: p.client_profile_id && clientProfiles[p.client_profile_id]
-        ? clientProfiles[p.client_profile_id]
-        : null,
-    }))
-
-    return jsonResponse({ partners: result })
-  } catch (err) {
-    return errorResponse(err instanceof Error ? err.message : "Xatolik yuz berdi", 500)
+  if (!op) {
+    if (m === "POST") return yaratish(req)
+    return royxat(req)
   }
+  if (op === "item") {
+    if (m === "PATCH") return yangilash(req)
+    if (m === "DELETE") return ochirish(req)
+  }
+  if (op === "tasks" && m === "POST") return vazifaQosh(req)
+  if (op === "task") {
+    if (m === "PATCH") return vazifaHolat(req)
+    if (m === "DELETE") return vazifaOchir(req)
+  }
+  if (op === "client") {
+    if (m === "POST") return mijozYarat(req)
+    if (m === "DELETE") return mijozOchir(req)
+  }
+
+  return errorResponse(`Noma'lum amal: op=${op || "(yo'q)"} ${m}`, 400)
 })

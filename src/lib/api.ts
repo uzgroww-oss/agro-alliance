@@ -112,34 +112,40 @@ function resolveAdminUrl(path: string, method: string): string {
     }
   }
 
+  /**
+   * Hamkorlar — hamma amal `admin-partners-list` funksiyasida,
+   * `op` parametri bilan ajratiladi. Ilgari to'qqizta alohida
+   * funksiya edi va Supabase chegarasi (~100) shu sabab to'lgan edi.
+   */
   if (segments[0] === "partners") {
-    if (segments.length === 1) {
-      const fn = method === "POST" ? "admin-partners-create" : "admin-partners-list"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+    const qs = new URLSearchParams(qsRaw)
+    const yol = (op?: string) => {
+      if (op) qs.set("op", op)
+      const s = qs.toString()
+      return `${SUPABASE_FUNCTIONS_URL}/admin-partners-list${s ? `?${s}` : ""}`
     }
+    // /partners            -> ro'yxat (GET) yoki yangi (POST)
+    if (segments.length === 1) return yol()
+    // /partners/{pid}/tasks/{tid} -> vazifa holati yoki o'chirish
     if (segments.length === 4 && segments[2] === "tasks") {
-      const qs = new URLSearchParams(qsRaw)
       qs.set("pid", segments[1])
       qs.set("tid", segments[3])
-      const fn = method === "DELETE" ? "admin-partners-tasks-delete" : "admin-partners-tasks-cycle"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
+      return yol("task")
     }
+    // /partners/{pid}/tasks -> vazifa qo'shish
     if (segments.length === 3 && segments[2] === "tasks") {
-      const qs = new URLSearchParams(qsRaw)
       qs.set("pid", segments[1])
-      return `${SUPABASE_FUNCTIONS_URL}/admin-partners-tasks-add?${qs.toString()}`
+      return yol("tasks")
     }
+    // /partners/{pid}/client -> mijoz hisobi
     if (segments.length === 3 && segments[2] === "client") {
-      const qs = new URLSearchParams(qsRaw)
       qs.set("pid", segments[1])
-      const fn = method === "DELETE" ? "admin-partners-client-delete" : "admin-partners-client-create"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
+      return yol("client")
     }
+    // /partners/{id} -> tahrirlash yoki o'chirish
     if (segments.length === 2) {
-      const qs = new URLSearchParams(qsRaw)
       qs.set("id", segments[1])
-      const fn = method === "PATCH" ? "admin-partners-update" : "admin-partners-delete"
-      return `${SUPABASE_FUNCTIONS_URL}/${fn}?${qs.toString()}`
+      return yol("item")
     }
   }
 
