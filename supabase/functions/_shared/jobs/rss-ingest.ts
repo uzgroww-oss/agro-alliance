@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../supabase.ts"
 import { slugify } from "../helpers.ts"
+import { badSourceUrl } from "../sourceUrl.ts"
 
 function simpleHash(str: string): string {
   let hash = 0
@@ -81,6 +82,28 @@ export async function run(_req: Request): Promise<Response> {
       .select("id, name, url, language, category_id")
       .eq("id", sourceId)
       .single()
+    /**
+     * MANZIL YUKLASHDAN OLDIN QAYTA TEKSHIRILADI.
+     *
+     * Kiritish paytidagi tekshiruv yetarli emas: bazaga boshqa yo'l
+     * bilan tushgan yoki keyin o'zgartirilgan manzil ham shu yerga
+     * kelib qoladi. Server o'z ichki tarmog'iga so'rov yuborishi
+     * mumkin bo'lgan joy — aynan shu.
+     */
+    if (source) {
+      const manzilXato = badSourceUrl(String((source as Record<string, unknown>).url || ""))
+      if (manzilXato) {
+        await supabaseAdmin.from("news_jobs").update({
+          status: "failed",
+          error_message: `Xavfli manba manzili: ${manzilXato}`,
+          completed_at: new Date().toISOString(),
+        }).eq("id", jobId)
+        return new Response(JSON.stringify({ skipped: true, reason: manzilXato }), {
+          status: 200, headers: { "Content-Type": "application/json" },
+        })
+      }
+    }
+
     if (sourceError || !source) {
       await supabaseAdmin.rpc("log_ingestion", {
         p_job_id: jobId,

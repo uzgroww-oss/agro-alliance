@@ -2,6 +2,8 @@ import { jsonResponse, errorResponse } from "../response.ts"
 import { supabaseAdmin } from "../supabase.ts"
 import { QueueClient } from "../queue.ts"
 import { now } from "../time.ts"
+import { log } from "../logger.ts"
+import { badSourceUrl } from "../sourceUrl.ts"
 
 export async function run(_req: Request): Promise<Response> {
   try {
@@ -10,13 +12,28 @@ export async function run(_req: Request): Promise<Response> {
 
     const { data: sources, error } = await supabaseAdmin
       .from("news_sources")
-      .select("id, name, type, last_fetched_at, fetch_interval_minutes")
+      .select("id, name, url, type, last_fetched_at, fetch_interval_minutes")
       .eq("is_active", true)
       .is("deleted_at", null)
 
     if (error) return errorResponse(error.message, 500)
 
     const dueSources = (sources || []).filter((s: Record<string, unknown>) => {
+      /**
+       * XAVFLI MANZIL NAVBATGA UMUMAN TUSHMAYDI.
+       *
+       * Bazada xavfsizlik sinovidan qolgan manbalar bor edi
+       * (file:///etc/passwd, 169.254.169.254 — bulut metama'lumoti,
+       * ichki tarmoq manzillari). Ular faqat kiritish paytida
+       * tekshirilardi; bazaga tushib qolgani esa hech qachon qayta
+       * ko'rilmasdi. Endi bu yerda ham tekshiriladi — ish yaratilmasa,
+       * ularni hech kim yuklamaydi.
+       */
+      const xato = badSourceUrl(String(s.url || ""))
+      if (xato) {
+        log("warn", `Manba o'tkazib yuborildi: ${s.name} — ${xato}`)
+        return false
+      }
       if (!s.last_fetched_at) return true
       if (!s.fetch_interval_minutes) return false
       const lastFetched = new Date(s.last_fetched_at as string).getTime()
