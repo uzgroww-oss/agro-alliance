@@ -4,22 +4,10 @@ import { logo, Icon, I } from "../lib/ui"
 import { roleHome } from "../lib/roles"
 import { setRememberPref } from "../lib/api"
 import { useAuth } from "../lib/auth"
-import { supabase } from "../lib/supabase"
 import { useStaticSeo } from "../lib/seo"
 import { useT, tr } from "../lib/i18n"
 
 const mascot = "/mascot.webp"
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5">
-      <path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.3h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-8.1z" />
-      <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.8A11 11 0 0 0 12 23z" />
-      <path fill="#FBBC05" d="M5.7 14.1a6.6 6 0 0 1 0-4.2V7.1H2a11 11 0 0 0 0 9.8z" />
-      <path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2 7.1l3.7 2.8C6.6 7.4 9.1 5.4 12 5.4z" />
-    </svg>
-  )
-}
 
 const features = [
   { icon: I.sprout, t: tr("Ishonchli hamkorlik"), d: tr("Platforma orqali xavfsiz va shaffof hamkorlik qiling.") },
@@ -58,22 +46,13 @@ export default function Login() {
     }
   }
 
-  const [googleBusy, setGoogleBusy] = useState(false)
-  const googleSignIn = async () => {
-    // Bir necha marta bosilsa bir necha OAuth redirect boshlanardi.
-    if (googleBusy) return
-    setGoogleBusy(true)
-    try {
-      await supabase.auth.signInWithOAuth({ provider: "google" })
-    } catch (err) {
-      console.error("Google OAuth error", err)
-      setGoogleBusy(false)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-soft p-4 lg:p-6">
-      <div className="mx-auto grid max-w-[1200px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_70px_rgba(91,180,32,0.18)] lg:grid-cols-2">
+      {/* Balandlik ATAYLAB qat'iy: 859px — Google va Telegram tugmalari
+            olib tashlanganda karta 682px gacha kichrayib, chap tomondagi
+            rasm va maskot siqilib qolardi. O'lcham o'sha-o'shaligicha
+            qoldirildi, bo'shagan joyni forma markazlashib egallaydi. */}
+        <div className="mx-auto grid max-w-[1200px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_70px_rgba(91,180,32,0.18)] lg:min-h-[859px] lg:grid-cols-2">
         {/* Left panel */}
         <div className="relative hidden overflow-hidden p-10 text-ink lg:flex lg:flex-col">
           <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -116,7 +95,7 @@ export default function Login() {
             <Link to="/platforma" className="flex items-center gap-1.5 text-muted transition-colors hover:text-green">Platforma haqida <Icon d={I.question} className="h-4 w-4" /></Link>
           </div>
 
-          <div className="mx-auto mt-6 w-full max-w-sm">
+          <div className="mx-auto mt-6 w-full max-w-sm lg:my-auto">
             <div className="text-center">
               <h2 className="font-display text-3xl font-extrabold tracking-tight">{tr("Platformaga kirish")}</h2>
               <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-green" />
@@ -162,25 +141,7 @@ export default function Login() {
                 <Icon d={I.login} className="h-5 w-5" /> {busy ? t("Kirilmoqda...") : t("KIRISH")}
               </button>
 
-              {import.meta.env.DEV && (
-                <button type="button" onClick={() => { setEmail("elyor@agroalliance.uz"); setPassword("elyor123") }} className="w-full text-center text-xs text-muted hover:text-green">
-                  (dev) test hisobi bilan to'ldirish
-                </button>
-              )}
             </form>
-
-            <div className="my-6 flex items-center gap-4 text-xs text-muted">
-              <span className="h-px flex-1 bg-green/15" /> yoki <span className="h-px flex-1 bg-green/15" />
-            </div>
-
-            <div className="space-y-3">
-              <button onClick={googleSignIn} disabled={googleBusy} className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60">
-                <GoogleMark /> {googleBusy ? t("Yo'naltirilmoqda…") : t("Google bilan kirish")}
-              </button>
-              <button disabled className="flex w-full items-center justify-center gap-3 rounded-xl border border-green/15 bg-white py-3.5 text-sm font-semibold transition-colors hover:border-green/40 hover:bg-soft" title="Tez orada">
-                <Icon d={I.telegram} className="h-5 w-5 text-[#229ED9]" /> Telegram bilan kirish (Tez orada)
-              </button>
-            </div>
 
             <p className="mt-6 text-center text-xs text-muted">
               <Icon d={I.shield} className="inline h-4 w-4 text-green" /> Ma'lumotlaringiz xavfsiz va himoyalangan
