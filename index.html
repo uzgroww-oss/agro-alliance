@@ -4,16 +4,38 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/webp" href="/logo.webp" />
     <!--
+      viewport-fit=cover — notch/safe-area uchun (native ilova).
+
+      `maximum-scale=1.0` OLIB TASHLANDI. U inputga bosganda zoom
+      bo'lmasligi uchun qo'yilgan edi, lekin ayni paytda saytni
+      KATTALASHTIRISHNI butunlay taqiqlardi — ko'zi xira odam matnni
+      kattalashtira olmasdi. Zoom muammosini boshqacha hal qilamiz:
+      barcha input larda shrift 16px dan kichik emas (iOS faqat
+      shundan kichik bo'lganda avtomatik yaqinlashtiradi).
+
+      ⚠️ BU QATOR RASM `preload` IDAN OLDIN TURISHI SHART — pastdagi
+      izohga qarang.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--
       LCP RASMI — TO'G'RI NUSXASI OLDINDAN YUKLANADI.
 
       ILGARI shu yerda `href="/hero-bg.webp"` (1536px, 57 KB) turardi,
-      sahifadagi `<img>` esa `srcset` bo'yicha telefonda 1280px lik
+      sahifadagi `<img>` esa `srcset` bo'yicha telefonda kichikroq
       nusxani tanlardi. Ya'ni brauzer IKKITA rasm yuklardi: oldindan
       yuklangan 1536px hech qayerda ishlatilmasdi.
 
       `imagesrcset` va `imagesizes` — `<img>` dagi bilan AYNAN bir xil
       bo'lishi shart, aks holda brauzer boshqa nusxani tanlaydi va
       oldindan yuklash yana bekorga ketadi.
+
+      ⚠️ TARTIB MUHIM: bu qator `<meta name="viewport">` DAN KEYIN
+      turishi shart. Brauzer `100vw` ni shu yerda darhol hisoblaydi,
+      viewport sozlamasi esa hali o'qilmagan bo'lsa ekran kengligini
+      standart 980px deb oladi. O'lchandi (Moto G Power, 412px):
+      preload viewport dan OLDIN turganda 980 x 1.75 = 1715px chiqib,
+      brauzer 1536px lik nusxani tortardi — 56 KB bekorga, ustiga
+      to'g'ri nusxa alohida yuklanardi.
     -->
     <link
       rel="preload"
@@ -23,17 +45,6 @@
       imagesizes="100vw"
       fetchpriority="high"
     />
-    <!--
-      viewport-fit=cover — notch/safe-area uchun (native ilova).
-
-      `maximum-scale=1.0` OLIB TASHLANDI. U inputga bosganda zoom
-      bo'lmasligi uchun qo'yilgan edi, lekin ayni paytda saytni
-      KATTALASHTIRISHNI butunlay taqiqlardi — ko'zi xira odam matnni
-      kattalashtira olmasdi. Zoom muammosini boshqacha hal qilamiz:
-      barcha input larda shrift 16px dan kichik emas (iOS faqat
-      shundan kichik bo'lganda avtomatik yaqinlashtiradi).
-    -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="AGRO ALLIANCE — agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma." />
     <!--
       Supabase'ga ULANISHNI OLDINDAN boshlaymiz.
