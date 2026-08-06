@@ -30,7 +30,13 @@ export default function LangSwitch({ compact = false }: { compact?: boolean }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOchiq((v) => !v)}
-        aria-label="Til / Язык / Language / 语言"
+        /**
+         * Ko'rinadigan matn ("UZ") nomning ICHIDA bo'lishi shart.
+         * Ilgari nom "Til / Язык / Language / 语言" edi va ko'rinadigan
+         * "UZ" unga kirmasdi — ovoz bilan boshqaradigan foydalanuvchi
+         * "UZ tugmasini bos" desa, tizim tugmani topa olmasdi.
+         */
+        aria-label={`${LANG_SHORT[lang]} — Til / Язык / Language / 语言`}
         aria-expanded={ochiq}
         className={`inline-flex items-center gap-1.5 rounded-lg border border-green/25 font-bold text-ink transition-colors hover:border-green hover:text-green ${
           compact ? "px-2 py-1.5 text-[11px]" : "px-2.5 py-2 text-xs"

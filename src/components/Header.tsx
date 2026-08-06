@@ -23,7 +23,10 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b border-green/10 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1320px] items-center gap-6 px-5 py-3 lg:px-8">
         <Link to="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
-          <img src={logo} alt="Agro Alliance" width={88} height={88} fetchPriority="high" className="h-11 w-11 object-contain" />
+          {/* alt BO'SH — bu ataylab. Logo yonida "AGRO ALLIANCE" yozuvi
+              turibdi va alt uni takrorlasa, ekran o'quvchi nomni ikki
+              marta o'qib berardi. Bo'sh alt "bu bezak" degani. */}
+          <img src={logo} alt="" width={88} height={88} fetchPriority="high" className="h-11 w-11 object-contain" />
           <span className="font-display text-base font-extrabold leading-none tracking-tight sm:text-lg">
             AGRO <span className="text-green">ALLIANCE</span>
           </span>

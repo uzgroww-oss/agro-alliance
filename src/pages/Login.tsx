@@ -54,7 +54,11 @@ export default function Login() {
         <div className="mx-auto grid max-w-[1200px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_70px_rgba(91,180,32,0.18)] lg:min-h-[859px] lg:grid-cols-2">
         {/* Left panel */}
         <div className="relative hidden overflow-hidden p-10 text-ink lg:flex lg:flex-col">
-          <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+          {/* Fon rasmi: oddiy ekranga 1280px, katta/retina ekranga
+             1536px. Ilgari hammaga 1536px ketardi va oddiy noutbukda
+             piksellarning bir qismi bekorga yuklanardi. Ustidan oq
+             parda tushgani uchun sifat farqi ko'zga ilinmaydi. */}
+        <img src="/hero-bg-1280.webp" srcSet="/hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/92 via-white/85 to-soft/90" />
           <div className="relative flex h-full flex-col">
             <Link to="/" className="flex items-center gap-2.5">
