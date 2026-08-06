@@ -58,7 +58,7 @@ export default function Login() {
              1536px. Ilgari hammaga 1536px ketardi va oddiy noutbukda
              piksellarning bir qismi bekorga yuklanardi. Ustidan oq
              parda tushgani uchun sifat farqi ko'zga ilinmaydi. */}
-        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/92 via-white/85 to-soft/90" />
           <div className="relative flex h-full flex-col">
             <Link to="/" className="flex items-center gap-2.5">

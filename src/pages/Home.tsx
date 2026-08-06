@@ -120,11 +120,19 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        {/* Fon rasmi: oddiy ekranga 1280px, katta/retina ekranga
-             1536px. Ilgari hammaga 1536px ketardi va oddiy noutbukda
-             piksellarning bir qismi bekorga yuklanardi. Ustidan oq
-             parda tushgani uchun sifat farqi ko'zga ilinmaydi. */}
-        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        {/* Fon rasmi — uchta o'lchamda: telefonga 768px (21 KB),
+             noutbukka 1280px, katta/retina ekranga 1536px (57 KB).
+             Ilgari hammaga 1536px ketardi. Ustidan oq parda tushgani
+             uchun sifat farqi ko'zga ilinmaydi.
+
+             `decoding="sync"` — `async` EMAS. Bu sahifadagi ENG KATTA
+             element (LCP), ya'ni sayt "ochildi" deb hisoblanadigan
+             payt aynan shu rasm chizilishiga bog'liq. `async` esa
+             brauzerga "buni kutmasdan davom et" deydi — natijada
+             rasm birinchi kadrdan keyinroq chiqib, LCP kechikardi.
+             `fetchPriority="high"` bilan `decoding="async"` bir-biriga
+             zid ikki ko'rsatma edi. */}
+        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="sync" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         {/* PASTKI PARDA FAQAT MA'LUMOT KELGANDAN KEYIN CHIZILADI.
