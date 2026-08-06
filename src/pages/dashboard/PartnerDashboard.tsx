@@ -1486,6 +1486,7 @@ type Brief = {
   file_url: string | null; file_name: string | null
   status: string; admin_note: string | null; task_id: string | null
   created_at: string
+  takrorlanish: string; boshlanish: string | null; tugash: string | null; keyingi: string | null
   bajarilish: { jami: number; boshlandi: number; bajarildi: number } | null
 }
 
@@ -1503,6 +1504,49 @@ const BRIEF_HOLAT: Record<string, { nom: string; izoh: string; cls: string }> = 
   rejected: { nom: "Qabul qilinmadi", izoh: "Sababi quyida yozilgan", cls: "bg-red-50 text-red-600" },
 }
 
+const TAKROR_NOM: Record<string, string> = {
+  bir_marta: "Bir marta",
+  kunlik: "Har kuni",
+  haftalik: "Har hafta",
+  oylik: "Har oy",
+}
+
+const KECHIKISH_SOAT: Record<string, number> = {
+  darhol: 0, "2soat": 2, "6soat": 6, "1kun": 24, "3kun": 72,
+}
+
+/**
+ * TANLANGAN JADVALNI ODDIY SO'Z BILAN AYTADI.
+ *
+ * "kunlik + 2soat" degan sozlama o'zi hech narsa anglatmaydi.
+ * Foydalanuvchi yuborishdan OLDIN aynan nima bo'lishini ko'rishi
+ * kerak — aks holda noto'g'ri jadval bilan yuborilgan TZ ni keyin
+ * tuzatib bo'lmaydi.
+ */
+function jadvalIzohi(f: { takrorlanish: string; kechikish: string; boshlanish: string; tugash: string }): string {
+  let qachon: string
+  if (f.kechikish === "aniq") {
+    qachon = f.boshlanish
+      ? new Date(f.boshlanish).toLocaleString("ru-RU")
+      : tr("sana tanlanmagan")
+  } else {
+    const soat = KECHIKISH_SOAT[f.kechikish] ?? 0
+    qachon = soat === 0
+      ? tr("darhol")
+      : new Date(Date.now() + soat * 3600_000).toLocaleString("ru-RU")
+  }
+
+  const takror = f.takrorlanish === "bir_marta"
+    ? tr("bir marta bajariladi")
+    : `${tr(TAKROR_NOM[f.takrorlanish] || "")} ${tr("takrorlanadi")}`
+
+  const tugash = f.takrorlanish !== "bir_marta" && f.tugash
+    ? ` · ${tr("gacha")}: ${f.tugash}`
+    : ""
+
+  return `${tr("Boshlanadi")}: ${qachon} · ${takror}${tugash}`
+}
+
 const BRIEF_MUHIM: Record<string, { nom: string; cls: string }> = {
   low: { nom: "Past", cls: "bg-soft text-muted" },
   normal: { nom: "O'rtacha", cls: "bg-blue-50 text-blue-600" },
@@ -1515,7 +1559,10 @@ function Briefs() {
   const [xato, setXato] = useState(false)
 
   const [ochiq, setOchiq] = useState(false)
-  const [forma, setForma] = useState({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+  const [forma, setForma] = useState({
+    title: "", description: "", priority: "normal", deadline: "", file_url: "",
+    takrorlanish: "bir_marta", kechikish: "darhol", boshlanish: "", tugash: "",
+  })
   /**
    * TALAB BANDLARI — har qatordan bitta band.
    *
@@ -1549,7 +1596,10 @@ function Briefs() {
         method: "POST", body: JSON.stringify({ ...forma, bandlar: royxat }),
       })
       setXabar({ ok: true, matn: tr("Topshiriq administratorga yuborildi") })
-      setForma({ title: "", description: "", priority: "normal", deadline: "", file_url: "" })
+      setForma({
+        title: "", description: "", priority: "normal", deadline: "", file_url: "",
+        takrorlanish: "bir_marta", kechikish: "darhol", boshlanish: "", tugash: "",
+      })
       setBandlar("")
       setOchiq(false)
       yukla()
@@ -1567,10 +1617,10 @@ function Briefs() {
             {tr("Qanday reklama kerakligini yozing — administrator ko'rib chiqib blogerlarga yuboradi.")}
           </p>
         </div>
-        <button onClick={() => { setOchiq((v) => !v); setXabar(null) }}
+        <button onClick={() => { setOchiq(true); setXabar(null) }}
           className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={ochiq ? "M18 6L6 18 M6 6l12 12" : "M12 5v14 M5 12h14"} className="h-4 w-4" />
-          {ochiq ? tr("Bekor qilish") : tr("Yangi topshiriq")}
+          <Icon d="M12 5v14 M5 12h14" className="h-4 w-4" />
+          {tr("Yangi topshiriq")}
         </button>
       </div>
 
@@ -1580,8 +1630,28 @@ function Briefs() {
         </div>
       )}
 
+      {/* ---- Yangi topshiriq — MODAL ----
+           Ilgari forma sahifa ichida ochilib, ostidagi ro'yxatni pastga
+           surib yuborardi: foydalanuvchi yozayotganda ham, yopgandan
+           keyin ham sahifa "sakrardi". Modal diqqatni bitta ishga
+           qaratadi va sahifa tuzilishini o'zgartirmaydi. */}
       {ochiq && (
-        <div className={card}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          onClick={() => setOchiq(false)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="font-display text-lg font-bold">{tr("Yangi topshiriq")}</h4>
+                <p className="mt-0.5 text-sm text-muted">
+                  {tr("Qanday reklama kerakligini yozing — administrator ko'rib chiqib blogerlarga yuboradi.")}
+                </p>
+              </div>
+              <button onClick={() => setOchiq(false)} aria-label={tr("Yopish")}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+              </button>
+            </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label>
@@ -1640,14 +1710,75 @@ function Briefs() {
                 placeholder={tr("Mahsulot sahifasi yoki brief fayliga havola")}
                 className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
             </div>
+
+            {/* ---- JADVAL: takrorlanish va qachondan boshlanishi ----
+                TZ yuborilgan zahoti ishga tushishi shart emas: hamkor
+                ko'pincha "2 soatdan keyin" yoki "ertaga" deydi.
+                Takrorlanuvchi TZ da esa har davr uchun alohida
+                topshiriq yaratiladi. */}
+            <div className="sm:col-span-2 rounded-xl border border-green/15 bg-soft/60 p-3">
+              <p className="text-xs font-bold text-ink">{tr("Jadval")}</p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold text-muted">{tr("Takrorlanish")}</label>
+                  <select value={forma.takrorlanish}
+                    onChange={(e) => setForma((f) => ({ ...f, takrorlanish: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                    <option value="bir_marta">{tr("Bir marta")}</option>
+                    <option value="kunlik">{tr("Har kuni")}</option>
+                    <option value="haftalik">{tr("Har hafta")}</option>
+                    <option value="oylik">{tr("Har oy")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted">{tr("Qachondan boshlansin")}</label>
+                  <select value={forma.kechikish}
+                    onChange={(e) => setForma((f) => ({ ...f, kechikish: e.target.value, boshlanish: "" }))}
+                    className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                    <option value="darhol">{tr("Darhol")}</option>
+                    <option value="2soat">{tr("2 soatdan keyin")}</option>
+                    <option value="6soat">{tr("6 soatdan keyin")}</option>
+                    <option value="1kun">{tr("1 kundan keyin")}</option>
+                    <option value="3kun">{tr("3 kundan keyin")}</option>
+                    <option value="aniq">{tr("Aniq sana va vaqt")}</option>
+                  </select>
+                </div>
+                {forma.kechikish === "aniq" && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted">{tr("Boshlanish sanasi va vaqti")}</label>
+                    <input type="datetime-local" value={forma.boshlanish}
+                      onChange={(e) => setForma((f) => ({ ...f, boshlanish: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+                  </div>
+                )}
+                {/* Takrorlanish MUDDATSIZ bo'lsa TZ abadiy yaratilib
+                    turardi — tugash sanasi shuning uchun ko'rinadi */}
+                {forma.takrorlanish !== "bir_marta" && (
+                  <div>
+                    <label className="text-xs font-semibold text-muted">{tr("Qachongacha takrorlansin")}</label>
+                    <input type="date" value={forma.tugash}
+                      onChange={(e) => setForma((f) => ({ ...f, tugash: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+                  </div>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] text-muted">{jadvalIzohi(forma)}</p>
+            </div>
           </div>
-          <button onClick={yubor} disabled={band}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-            {band
-              ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              : <Icon d={I.send} className="h-4 w-4" />}
-            {band ? tr("Yuborilmoqda…") : tr("Administratorga yuborish")}
-          </button>
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-green/10 pt-4">
+            <button onClick={yubor} disabled={band}
+              className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
+              {band
+                ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                : <Icon d={I.send} className="h-4 w-4" />}
+              {band ? tr("Yuborilmoqda…") : tr("Administratorga yuborish")}
+            </button>
+            <button onClick={() => setOchiq(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted transition-colors hover:text-ink">
+              {tr("Bekor qilish")}
+            </button>
+          </div>
+          </div>
         </div>
       )}
 
@@ -1685,6 +1816,35 @@ function Briefs() {
                     <span className="mt-1 block text-[11px] text-muted">{tr(h.izoh)}</span>
                   </span>
                 </div>
+
+                {/* ---- JADVAL ----
+                    Takrorlanuvchi yoki kechiktirilgan TZ da "qachon
+                    boshlanadi, qachon takrorlanadi" eng ko'p so'raladigan
+                    savol. Kartada ko'rinmasa hamkor har safar so'rashi
+                    kerak bo'lardi. */}
+                {(b.takrorlanish !== "bir_marta" || b.boshlanish) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                    {b.takrorlanish !== "bir_marta" && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-green/10 px-2 py-1 font-bold text-green">
+                        <Icon d={I.refresh} className="h-3 w-3" />
+                        {tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}
+                      </span>
+                    )}
+                    {b.boshlanish && (
+                      <span className="text-muted">
+                        {new Date(b.boshlanish).getTime() > Date.now()
+                          ? `${tr("Boshlanadi")}: ${new Date(b.boshlanish).toLocaleString("ru-RU")}`
+                          : `${tr("Boshlangan")}: ${new Date(b.boshlanish).toLocaleDateString("ru-RU")}`}
+                      </span>
+                    )}
+                    {b.keyingi && (
+                      <span className="text-muted">
+                        · {tr("keyingisi")}: {new Date(b.keyingi).toLocaleString("ru-RU")}
+                      </span>
+                    )}
+                    {b.tugash && <span className="text-muted">· {tr("gacha")}: {b.tugash}</span>}
+                  </div>
+                )}
 
                 {b.description && (
                   <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{b.description}</p>
@@ -1793,6 +1953,9 @@ type TzHisobot = {
   id: string; title: string; description: string | null
   priority: string; deadline: string | null; status: string
   admin_note: string | null; created_at: string
+  takrorlanish: string; boshlanish: string | null; tugash: string | null; keyingi: string | null
+  /** Nechta davr yaratilgan (kunlik TZ da kunlar soni) */
+  davrSoni: number
   bandlar: TzHisobotBand[]
   bandJami: number; bandBajarildi: number
   blogerlar: TzHisobotBloger[]
@@ -2074,6 +2237,10 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
                       <p className="mt-0.5 text-xs text-muted">
                         {new Date(b.created_at).toLocaleDateString("ru-RU")}
                         {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
+                        {b.takrorlanish !== "bir_marta" && (
+                          <> · <b className="text-green">{tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}</b>
+                          {b.davrSoni > 1 ? ` · ${b.davrSoni} ${tr("davr")}` : ""}</>
+                        )}
                       </p>
                     </div>
                     <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${holat.cls}`}>

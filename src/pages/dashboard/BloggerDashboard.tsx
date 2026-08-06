@@ -1294,6 +1294,8 @@ type MeTask = {
   assignment_id: string; task_id: string; status: string; is_read: boolean; note: string | null
   title: string; description: string | null; priority: string; deadline: string | null; created_at: string
   file_url?: string | null; file_name?: string | null
+  /** Qachondan boshlanadi. Vaqti kelmagan ish bajarilgan deb belgilanmaydi. */
+  boshlanish: string | null; boshlandi: boolean; takror_raqami: number
   bandlar: TzBand[]
   videolar: TzVideo[]
   jamoa: TzJamoa[]
@@ -1338,6 +1340,15 @@ function TasksTab({ me }: { me: User }) {
      * ortida esa hech narsa yo'q edi. Endi avval video biriktiriladi.
      */
     const t = tasks.find((x) => x.assignment_id === id)
+    /**
+     * VAQTI KELMAGAN ISH. Hamkor "2 soatdan keyin boshlansin" degan
+     * bo'lsa, undan oldin bajarilgan deb belgilash hisobotda ish
+     * boshlanishidan oldin tugagan bo'lib chiqardi.
+     */
+    if (status !== "new" && t && !t.boshlandi) {
+      setXato(tr("Bu topshiriq hali boshlanmagan — boshlanish vaqtini kuting."))
+      return
+    }
     if (status === "done" && t && t.videolar.length === 0) {
       setVideoUchun(t)
       setXato(tr("Avval shu topshiriq uchun videoni biriktiring — hamkor natijani shundan ko'radi."))
@@ -1433,10 +1444,27 @@ function TasksTab({ me }: { me: User }) {
                   <Icon d={I.paperclip} className="h-3.5 w-3.5" /> {t.file_name || "TZ faylini yuklab olish"}
                 </a>
               )}
-              <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted">
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted">
                 <span>📅 {t.deadline ? `Muddat: ${t.deadline}` : tr("Muddatsiz")}</span>
                 <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                {/* Takrorlanuvchi TZ da nechanchi davr ekani ko'rinsin —
+                    aks holda bir xil sarlavhali topshiriqlar ajratib
+                    bo'lmas holda ustma-ust turardi */}
+                {t.takror_raqami > 1 && (
+                  <span className="rounded-md bg-soft px-1.5 py-0.5 font-bold text-green">
+                    {t.takror_raqami}-{tr("davr")}
+                  </span>
+                )}
               </div>
+
+              {/* Hali boshlanmagan ish — nima uchun bloklanganini
+                  aytmasak, bloger tugmalar ishlamayapti deb o'ylardi */}
+              {!t.boshlandi && t.boshlanish && (
+                <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-700">
+                  {tr("Boshlanadi")}: {new Date(t.boshlanish).toLocaleString("ru-RU")} —{" "}
+                  {tr("shu vaqtgacha belgilab bo'lmaydi")}
+                </p>
+              )}
               {/* ---- TZ BANDLARI ----
                   Hamkor yozgan talablar. Har birini alohida belgilash
                   hamkor hisobotida "nima qilindi, nima qolmadi" bo'lib
@@ -1558,7 +1586,10 @@ function TasksTab({ me }: { me: User }) {
               {/* Holatni o'zgartirish */}
               <div className="mt-3 flex flex-wrap gap-2">
                 {[["new", "Yangi"], ["in_progress", "Bajarilmoqda"], ["done", "Bajarildi"]].map(([val, label]) => (
-                  <button key={val} disabled={busy === t.assignment_id} onClick={() => setStatus(t.assignment_id, val)}
+                  <button key={val}
+                    disabled={busy === t.assignment_id || (!t.boshlandi && val !== "new")}
+                    title={!t.boshlandi && val !== "new" ? tr("Topshiriq hali boshlanmagan") : undefined}
+                    onClick={() => setStatus(t.assignment_id, val)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${t.status === val ? "bg-green text-white" : "border border-green/25 text-ink hover:border-green hover:text-green"}`}>
                     {tr(label)}
                   </button>

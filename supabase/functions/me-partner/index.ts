@@ -7,6 +7,7 @@ import { groqJson } from "../_shared/groq.ts"
 import { cfJson, cfChatAvailable } from "../_shared/cfChat.ts"
 import { sarfYoz } from "../_shared/aiKesh.ts"
 import { tirikVideolar, raqamIshonchlimi } from "../_shared/tzHisobot.ts"
+import { takrorYaroqli, boshlanishVaqti } from "../_shared/takrorlash.ts"
 
 /**
  * Ko'rishlar soni matn sifatida saqlanadi va manbaga qarab har xil
@@ -359,7 +360,7 @@ Deno.serve(async (req) => {
     if (new URL(req.url).searchParams.get("action") === "briefs") {
       const { data, error } = await supabaseAdmin
         .from("partner_briefs")
-        .select("id, title, description, priority, deadline, file_url, file_name, status, admin_note, task_id, created_at")
+        .select("id, title, description, priority, deadline, file_url, file_name, status, admin_note, task_id, created_at, takrorlanish, boshlanish, tugash, keyingi")
         .eq("partner_id", partner.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -412,7 +413,7 @@ Deno.serve(async (req) => {
     if (new URL(req.url).searchParams.get("action") === "brief-report") {
       const { data: brieflar } = await supabaseAdmin
         .from("partner_briefs")
-        .select("id, title, description, priority, deadline, status, admin_note, task_id, created_at")
+        .select("id, title, description, priority, deadline, status, admin_note, task_id, created_at, takrorlanish, boshlanish, tugash, keyingi")
         .eq("partner_id", partner.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -420,12 +421,33 @@ Deno.serve(async (req) => {
 
       const royxat = (brieflar || []) as Record<string, unknown>[]
       const briefIds = royxat.map((b) => b.id as string)
-      const taskIds = royxat.map((b) => b.task_id).filter(Boolean) as string[]
+
+      /**
+       * TAKRORLANUVCHI TZ BIR NECHTA TOPSHIRIQ TUG'DIRADI.
+       *
+       * `partner_briefs.task_id` faqat BIRINCHISINI ko'rsatadi.
+       * Kunlik TZ da faqat shunga qarasak, hisobot birinchi kunda
+       * qotib qolardi. Shuning uchun barcha davrlar `brief_id`
+       * bo'yicha olinadi.
+       */
+      const { data: davrlar } = briefIds.length
+        ? await supabaseAdmin.from("blogger_tasks")
+            .select("id, brief_id, takror_raqami, boshlanish, created_at")
+            .in("brief_id", briefIds).is("deleted_at", null)
+            .order("takror_raqami", { ascending: true })
+        : { data: [] }
+
+      const davrRoyxat = (davrlar || []) as Record<string, unknown>[]
+      const taskIds = [...new Set([
+        ...davrRoyxat.map((d) => d.id as string),
+        // Eski so'rovlarda `brief_id` bo'lmasligi mumkin
+        ...royxat.map((b) => b.task_id).filter(Boolean) as string[],
+      ])]
 
       const [bandRes, assignRes] = await Promise.all([
         briefIds.length
           ? supabaseAdmin.from("partner_tasks")
-              .select("id, brief_id, title, status, sort_order, done_by, done_at, note")
+              .select("id, brief_id, task_id, title, status, sort_order, done_by, done_at, note")
               .in("brief_id", briefIds).is("deleted_at", null)
               .order("sort_order", { ascending: true })
           : Promise.resolve({ data: [] }),
@@ -516,11 +538,28 @@ Deno.serve(async (req) => {
         bandByBrief.set(k, r)
       }
 
-      const assignByTask = new Map<string, typeof biriktirmalar>()
+      /** Topshiriq -> qaysi so'rovga tegishli (barcha davrlar bo'yicha) */
+      const taskToBrief = new Map<string, string>()
+      for (const d of davrRoyxat) taskToBrief.set(d.id as string, d.brief_id as string)
+      for (const b of royxat) {
+        if (b.task_id) taskToBrief.set(b.task_id as string, b.id as string)
+      }
+
+      /**
+       * BIRIKTIRMALAR SO'ROV BO'YICHA.
+       *
+       * Takrorlanuvchi TZ da bitta bloger har davr uchun alohida
+       * biriktirmaga ega. Hisobotda ular BIR bloger bo'lib
+       * ko'rinishi kerak — aks holda "har kuni" TZ da bir odam
+       * o'ttiz marta ro'yxatga tushardi.
+       */
+      const assignByBrief = new Map<string, typeof biriktirmalar>()
       for (const a of biriktirmalar) {
-        const r = assignByTask.get(a.task_id) || []
+        const bid = taskToBrief.get(a.task_id)
+        if (!bid) continue
+        const r = assignByBrief.get(bid) || []
         r.push(a)
-        assignByTask.set(a.task_id, r)
+        assignByBrief.set(bid, r)
       }
 
       /**
@@ -544,32 +583,62 @@ Deno.serve(async (req) => {
         }
       }
 
+      type BlogerNatija = {
+        id: string; name: string; avatar: string | null; slug: string | null
+        status: string; note: string | null
+        videolar: ReturnType<typeof videoMalumot>[]
+        views: number; likes: number; comments: number; nomalum: number
+      }
+
       const hisobot = royxat.map((b) => {
         const bandRoyxat = bandByBrief.get(b.id as string) || []
-        const biriktirilgan = b.task_id ? (assignByTask.get(b.task_id as string) || []) : []
+        const biriktirilgan = assignByBrief.get(b.id as string) || []
 
-        const blogerlar = biriktirilgan.map((a) => {
+        /**
+         * BIR BLOGER — BIR QATOR.
+         *
+         * Takrorlanuvchi TZ da bitta bloger har davr uchun alohida
+         * biriktirmaga ega. Ular qo'shib yuborilmasa "har kuni" degan
+         * TZ da bitta odam o'ttiz marta ro'yxatga tushardi.
+         */
+        const blogerXarita = new Map<string, BlogerNatija>()
+        for (const a of biriktirilgan) {
           const vs = videoByAssign.get(a.id) || []
           const ishonchli = vs.filter((v) => v.ishonchli)
-          return {
+          const bor = blogerXarita.get(a.blogger_id) || {
             id: a.blogger_id,
             name: blogerNomi.get(a.blogger_id)?.name || "—",
             avatar: blogerNomi.get(a.blogger_id)?.avatar || null,
             slug: blogerNomi.get(a.blogger_id)?.slug || null,
             status: a.status,
             note: a.note,
-            videolar: vs,
-            views: ishonchli.reduce((s, v) => s + sonGa(v.views), 0),
-            likes: ishonchli.reduce((s, v) => s + sonGa(v.likes), 0),
-            comments: ishonchli.reduce((s, v) => s + sonGa(v.comments), 0),
-            // Raqami noma'lum videolar soni — hisobotda ochiq aytiladi
-            nomalum: vs.length - ishonchli.length,
+            videolar: [] as ReturnType<typeof videoMalumot>[],
+            views: 0, likes: 0, comments: 0, nomalum: 0,
           }
-        }).sort((x, y) => y.views - x.views)
+          bor.videolar.push(...vs)
+          bor.views += ishonchli.reduce((s, v) => s + sonGa(v.views), 0)
+          bor.likes += ishonchli.reduce((s, v) => s + sonGa(v.likes), 0)
+          bor.comments += ishonchli.reduce((s, v) => s + sonGa(v.comments), 0)
+          // Raqami noma'lum videolar soni — hisobotda ochiq aytiladi
+          bor.nomalum += vs.length - ishonchli.length
+          // Eng ilgarilagan holat ko'rsatiladi: bir davrda tugatgan
+          // bloger "yangi" bo'lib turmasin
+          if (a.status === "done" || (a.status === "in_progress" && bor.status === "new")) bor.status = a.status
+          blogerXarita.set(a.blogger_id, bor)
+        }
+        const blogerlar = [...blogerXarita.values()].sort((x, y) => y.views - x.views)
 
         const bajarildi = bandRoyxat.filter((x) => x.status === "done").length
+        const davrSoni = davrRoyxat.filter((d) => d.brief_id === b.id).length
         return {
           id: b.id,
+          /** Takrorlanish — hisobotda "har kuni" deb ko'rinadi */
+          takrorlanish: b.takrorlanish || "bir_marta",
+          boshlanish: b.boshlanish,
+          tugash: b.tugash,
+          keyingi: b.keyingi,
+          /** Nechta davr yaratilgan (kunlik TZ da kunlar soni) */
+          davrSoni: davrSoni || (b.task_id ? 1 : 0),
           title: b.title,
           description: b.description,
           priority: b.priority,
@@ -618,6 +687,17 @@ Deno.serve(async (req) => {
       const priority = ["low", "normal", "high"].includes(body.priority) ? body.priority : "normal"
       const deadline = /^\d{4}-\d{2}-\d{2}$/.test(String(body.deadline || "")) ? String(body.deadline) : null
 
+      /**
+       * TAKRORLANISH VA BOSHLANISH.
+       *
+       * TZ yuborilgan zahoti ishga tushishi shart emas: hamkor
+       * ko'pincha "2 soatdan keyin" yoki "ertaga ertalab" deydi.
+       * Vaqt yo'q bo'lsa buni faqat og'zaki kelishuv hal qilardi.
+       */
+      const takror = takrorYaroqli(body.takrorlanish) ? body.takrorlanish : "bir_marta"
+      const boshlanish = boshlanishVaqti(body.kechikish, body.boshlanish)
+      const tugash = /^\d{4}-\d{2}-\d{2}$/.test(String(body.tugash || "")) ? String(body.tugash) : null
+
       // Havola faqat http(s): boshqa sxemalar (javascript:, data:) adminning
       // brauzerida ochilganda xavfli bo'lardi
       const xomHavola = String(body.file_url || "").trim().slice(0, 500)
@@ -631,6 +711,14 @@ Deno.serve(async (req) => {
           title, description, priority, deadline,
           file_url,
           file_name: file_url ? String(body.file_name || "").trim().slice(0, 160) || null : null,
+          takrorlanish: takror,
+          boshlanish: boshlanish.toISOString(),
+          tugash,
+          /**
+           * `keyingi` ATAYLAB hozir qo'yilmaydi. U faqat admin
+           * blogerlarga yuborganda to'ladi — aks holda hali hech kimga
+           * yuborilmagan so'rov uchun takrorlar yaratilib ketardi.
+           */
         })
         .select("id")
         .single()

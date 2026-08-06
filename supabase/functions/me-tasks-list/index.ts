@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   try {
     const { data: assigns, error } = await supabaseAdmin
       .from("blogger_task_assignments")
-      .select("id, status, is_read, note, created_at, task:blogger_tasks!task_id(id, title, description, priority, deadline, file_url, file_name, created_at)")
+      .select("id, status, is_read, note, created_at, task:blogger_tasks!task_id(id, title, description, priority, deadline, file_url, file_name, created_at, brief_id, boshlanish, takror_raqami)")
       .eq("blogger_id", auth.user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -46,14 +46,10 @@ Deno.serve(async (req) => {
      * HAMMASI BITTA SO'ROVDA.
      *
      * Har TZ uchun alohida so'rov yuborilsa 20 ta topshiriqli bloger
-     * uchun 60 dan ortiq so'rov chiqardi (N+1). Bu yerda uchta so'rov
-     * bilan hammasi olinadi.
+     * uchun 60 dan ortiq so'rov chiqardi (N+1). Bu yerda bir necha
+     * so'rov bilan hammasi olinadi.
      */
-    const [briefRes, videoRes, hamkasbRes] = await Promise.all([
-      taskIds.length
-        // ATAYLAB faqat uchta ustun: `admin_note` blogerga ko'rinmasin
-        ? supabaseAdmin.from("partner_briefs").select("id, task_id, partner_id").in("task_id", taskIds).is("deleted_at", null)
-        : Promise.resolve({ data: [] }),
+    const [videoRes, hamkasbRes] = await Promise.all([
       assignIds.length
         ? supabaseAdmin.from("blogger_task_videos")
             .select("assignment_id, video_id, video_link, video_name, video_thumbnail, platform, views_at, likes_at, comments_at, added_at")
@@ -66,28 +62,30 @@ Deno.serve(async (req) => {
         : Promise.resolve({ data: [] }),
     ])
 
-    const brieflar = (briefRes.data || []) as { id: string; task_id: string; partner_id: string }[]
-    const briefByTask = new Map(brieflar.map((b) => [b.task_id, b]))
-
-    // TZ bandlari — brief bo'yicha
-    const briefIds = brieflar.map((b) => b.id)
+    /**
+     * BANDLAR TAKROR BO'YICHA.
+     *
+     * Kunlik TZ da har davr O'Z bandlar nusxasiga ega: 1-kuni
+     * belgilangan band 2-kuni ham bajarilgan bo'lib turmasligi kerak.
+     * Shuning uchun `brief_id` emas, `task_id` bo'yicha olinadi.
+     */
     let bandlar: Record<string, unknown>[] = []
-    if (briefIds.length) {
+    if (taskIds.length) {
       const { data } = await supabaseAdmin
         .from("partner_tasks")
-        .select("id, brief_id, title, status, sort_order, done_by, done_at, note")
-        .in("brief_id", briefIds)
+        .select("id, brief_id, task_id, title, status, sort_order, done_by, done_at, note")
+        .in("task_id", taskIds)
         .is("deleted_at", null)
         .order("sort_order", { ascending: true })
       bandlar = (data || []) as Record<string, unknown>[]
     }
 
-    const bandByBrief = new Map<string, Record<string, unknown>[]>()
+    const bandByTask = new Map<string, Record<string, unknown>[]>()
     for (const b of bandlar) {
-      const k = b.brief_id as string
-      const r = bandByBrief.get(k) || []
+      const k = b.task_id as string
+      const r = bandByTask.get(k) || []
       r.push(b)
-      bandByBrief.set(k, r)
+      bandByTask.set(k, r)
     }
 
     const videolar = (videoRes.data || []) as Record<string, unknown>[]
@@ -156,8 +154,7 @@ Deno.serve(async (req) => {
     const tasks = qatorlar.map((a: Record<string, unknown>) => {
       const t = vazifa(a)
       const taskId = t.id as string
-      const brief = briefByTask.get(taskId)
-      const bandRoyxat = brief ? (bandByBrief.get(brief.id) || []) : []
+      const bandRoyxat = bandByTask.get(taskId) || []
 
       const jamoa = [...(natija.get(taskId) || new Map()).entries()]
         .map(([bid, r]) => ({
@@ -195,6 +192,18 @@ Deno.serve(async (req) => {
         file_url: t.file_url,
         file_name: t.file_name,
         created_at: t.created_at,
+
+        /**
+         * QACHONDAN BOSHLANADI va NECHANCHI DAVR.
+         *
+         * Hamkor "2 soatdan keyin" yoki "har hafta" degan bo'lsa,
+         * bloger vaqti kelmagan ishni bajarilgan deb belgilay
+         * olmasligi kerak — aks holda hisobotda ish boshlanishidan
+         * oldin tugagan bo'lib chiqardi.
+         */
+        boshlanish: t.boshlanish,
+        boshlandi: !t.boshlanish || new Date(String(t.boshlanish)).getTime() <= Date.now(),
+        takror_raqami: t.takror_raqami,
 
         /** TZ bandlari — hamkor yozgan talablar */
         bandlar: bandRoyxat.map((b) => ({

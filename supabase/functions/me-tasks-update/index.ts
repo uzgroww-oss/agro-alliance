@@ -179,6 +179,27 @@ Deno.serve(async (req) => {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (body.status !== undefined) {
       if (!["new", "in_progress", "done"].includes(body.status)) return errorResponse("Noto'g'ri status", 400)
+
+      /**
+       * VAQTI KELMAGAN ISHNI BAJARIB BO'LMAYDI.
+       *
+       * Hamkor "2 soatdan keyin boshlansin" degan bo'lsa, undan
+       * oldin "bajarildi" bosilishi hisobotda ish boshlanishidan
+       * oldin tugagan bo'lib chiqardi — bu hujjat sifatida ishonchni
+       * yo'qotardi. Tekshiruv SERVERDA: interfeysdagi bloklash
+       * so'rovni to'g'ridan-to'g'ri yuborishdan saqlamaydi.
+       */
+      if (body.status !== "new") {
+        const { data: vaqt } = await supabaseAdmin
+          .from("blogger_task_assignments")
+          .select("task:blogger_tasks!task_id(boshlanish)")
+          .eq("id", id).eq("blogger_id", auth.user.id).is("deleted_at", null)
+          .maybeSingle()
+        const bosh = (vaqt?.task as unknown as { boshlanish?: string } | null)?.boshlanish
+        if (bosh && new Date(bosh).getTime() > Date.now()) {
+          return errorResponse("Bu topshiriq hali boshlanmagan", 409)
+        }
+      }
       updates.status = body.status
     }
     if (body.is_read !== undefined) updates.is_read = !!body.is_read

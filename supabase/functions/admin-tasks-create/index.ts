@@ -2,6 +2,7 @@ import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { takrorYaroqli, keyingiVaqt } from "../_shared/takrorlash.ts"
 
 /**
  * admin-tasks-create — Blogerlarga TZ (topshiriq) yuborish.
@@ -51,6 +52,24 @@ Deno.serve(async (req) => {
     }
     if (bloggerIds.length === 0) return errorResponse("Hech bo'lmaganda bitta bloger tanlang", 400)
 
+    /**
+     * SO'ROVNING BOSHLANISH VAQTI VA TAKRORLANISHI.
+     *
+     * Hamkor "2 soatdan keyin boshlansin" yoki "har hafta" degan
+     * bo'lsa, topshiriq aynan shunday yaratilishi kerak. Bu
+     * ma'lumot so'rovda turadi — admin uni qayta kiritmaydi.
+     */
+    type BriefJadval = { takrorlanish?: string; boshlanish?: string; tugash?: string }
+    let boshlanish: string | null = null
+    let brief: BriefJadval | null = null
+    if (briefIdOldin) {
+      const { data } = await supabaseAdmin
+        .from("partner_briefs").select("takrorlanish, boshlanish, tugash")
+        .eq("id", briefIdOldin).is("deleted_at", null).maybeSingle()
+      brief = (data || null) as unknown as BriefJadval | null
+      boshlanish = brief?.boshlanish || null
+    }
+
     // TZ yaratish
     const { data: task, error: taskErr } = await supabaseAdmin
       .from("blogger_tasks")
@@ -62,6 +81,9 @@ Deno.serve(async (req) => {
         file_url: body.file_url ? String(body.file_url) : null,
         file_name: body.file_name ? String(body.file_name) : null,
         created_by: auth.user.id,
+        brief_id: briefIdOldin || null,
+        boshlanish,
+        takror_raqami: 1,
       })
       .select("id")
       .single()
@@ -84,13 +106,43 @@ Deno.serve(async (req) => {
      * va blogerlarga yetib borgan — shuning uchun xato qaytarmaymiz,
      * faqat logga yozamiz.
      */
-    const briefId = String(body.brief_id || "")
-    if (briefId) {
+    if (briefIdOldin) {
+      /**
+       * TAKRORLANISHNI ISHGA TUSHIRAMIZ.
+       *
+       * `keyingi` shu paytgacha bo'sh edi: hali blogerlarga
+       * yuborilmagan so'rov uchun takrorlar yaratilib ketmasligi
+       * kerak edi. Endi birinchi topshiriq bor, demak jadval
+       * boshlanadi.
+       */
+      const takror = String(brief?.takrorlanish || "bir_marta")
+      const bosh = boshlanish ? new Date(boshlanish) : new Date()
+      const keyingi = takrorYaroqli(takror) ? keyingiVaqt(bosh, takror) : null
+
       const { error: bErr } = await supabaseAdmin
         .from("partner_briefs")
-        .update({ status: "sent", task_id: task.id })
-        .eq("id", briefId)
+        .update({
+          status: "sent",
+          task_id: task.id,
+          keyingi: keyingi ? keyingi.toISOString() : null,
+        })
+        .eq("id", briefIdOldin)
       if (bErr) console.error("brief bog'lash:", bErr.message)
+
+      /**
+       * BANDLARNI SHU TAKRORGA BIRIKTIRAMIZ.
+       *
+       * Shu paytgacha bandlar `task_id` siz edi (so'rovning namunasi).
+       * Endi ular birinchi davrga tegishli bo'ladi; keyingi davrlarda
+       * rejalashtiruvchi ularning yangi nusxasini yaratadi.
+       */
+      const { error: pErr } = await supabaseAdmin
+        .from("partner_tasks")
+        .update({ task_id: task.id })
+        .eq("brief_id", briefIdOldin)
+        .is("task_id", null)
+        .is("deleted_at", null)
+      if (pErr) console.error("bandlarni biriktirish:", pErr.message)
     }
 
     return jsonResponse({ success: true, task_id: task.id, assigned: bloggerIds.length })
