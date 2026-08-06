@@ -1,9 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
-import ru from "../locales/ru.json"
-import en from "../locales/en.json"
-import zh from "../locales/zh.json"
 import { LANGS, LANG_STORAGE_KEY, currentLang, barchaKeshniTozala, type Lang } from "./lang"
 import { clearApiCache } from "./api"
 
@@ -39,11 +36,70 @@ export const LANG_SHORT: Record<Lang, string> = {
 }
 
 type Dict = Record<string, string>
+
+/**
+ * LUG'ATLAR TALAB BO'YICHA YUKLANADI.
+ *
+ * MUAMMO EDI: uchala tilning lug'ati (jami 239 KB, siqilganda 81 KB)
+ * HAR bir tashrifchiga yuklanardi — hatto o'zbek tilida kirgan odamga
+ * ham, garchi unga lug'at UMUMAN kerak bo'lmasa ham. O'zbekcha manba
+ * til: kalitning o'zi tarjima.
+ *
+ * Endi faqat JORIY til yuklanadi. O'zbek tilida kirgan foydalanuvchi
+ * hech narsa yuklamaydi, boshqalar esa bittasini oladi.
+ *
+ * `tr()` va `t()` SINXRON bo'lib qoladi — bu shart, chunki ular
+ * komponent tashqarisida ham chaqiriladi. Sinxronlikni saqlash uchun
+ * lug'at ILOVA ISHGA TUSHISHIDAN OLDIN yuklanadi (qarang: main.tsx
+ * va `lugatniTayyorla`).
+ */
 const DICTS: Record<Lang, Dict> = {
   uz: {},            // o'zbekcha — manba til, tarjima kerak emas
-  ru: ru as Dict,
-  en: en as Dict,
-  zh: zh as Dict,
+  ru: {},
+  en: {},
+  zh: {},
+}
+
+/** Qaysi tillar allaqachon yuklangan */
+const yuklangan = new Set<Lang>(["uz"])
+/** Ayni paytda yuklanayotganlar — bir xil so'rov ikki marta ketmasin */
+const yuklanmoqda = new Map<Lang, Promise<void>>()
+
+/**
+ * Tilning lug'atini yuklaydi. O'zbekcha uchun darhol tugaydi.
+ *
+ * Yuklab bo'lmasa (tarmoq uzilgan) XATO OTMAYDI: lug'at bo'sh qoladi
+ * va sayt o'zbekcha matn bilan ishlayveradi. Bu "hech narsa
+ * ko'rinmaydi" dan ancha yaxshi.
+ */
+export async function lugatniTayyorla(lang: Lang): Promise<void> {
+  if (yuklangan.has(lang)) return
+  const bor = yuklanmoqda.get(lang)
+  if (bor) return bor
+
+  const ish = (async () => {
+    try {
+      /**
+       * Vite dinamik importni tahlil qila olishi uchun yo'l ANIQ
+       * yozilgan. `import(\`../locales/${lang}.json\`)` deb yozilsa
+       * u BARCHA json fayllarni bitta bo'lakka yig'ib qo'yardi va
+       * butun foyda yo'qolardi.
+       */
+      const mod = lang === "ru" ? await import("../locales/ru.json")
+        : lang === "en" ? await import("../locales/en.json")
+        : lang === "zh" ? await import("../locales/zh.json")
+        : null
+      if (mod) DICTS[lang] = (mod.default || mod) as Dict
+    } catch {
+      // Lug'atsiz qolamiz — o'zbekcha matn chiqadi
+    } finally {
+      yuklangan.add(lang)
+      yuklanmoqda.delete(lang)
+    }
+  })()
+
+  yuklanmoqda.set(lang, ish)
+  return ish
 }
 
 const STORAGE_KEY = LANG_STORAGE_KEY
@@ -78,7 +134,18 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [lang])
 
   const setLang = useCallback((l: Lang) => {
-    setLangState(l)
+    /**
+     * LUG'AT AVVAL YUKLANADI, KEYIN TIL ALMASHADI.
+     *
+     * Tartib muhim: `setLangState` daraxtni qayta mount qiladi va
+     * shu zahoti `tr()` chaqiriladi. Lug'at hali yetib kelmagan
+     * bo'lsa, barcha matn o'zbekcha chiqib, keyin ikkinchi marta
+     * almashardi — ekranda ko'rinadigan "sakrash" bo'lardi.
+     *
+     * Lug'at odatda keshdan keladi (bir marta yuklangach), shuning
+     * uchun kutish sezilmaydi.
+     */
+    void lugatniTayyorla(l).then(() => setLangState(l))
     try { localStorage.setItem(STORAGE_KEY, l) } catch { /* ahamiyatsiz */ }
     // MUHIM: keshlangan javoblar ESKI tilda. Tozalamasak, til
     // almashtirilgach yangiliklar 30 soniya davomida eski tilda turadi.
