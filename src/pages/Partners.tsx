@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { tr } from "../lib/i18n"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, Mascot } from "../lib/ui"
 import { useHomeSection } from "../lib/sections"
 import { api } from "../lib/api"
 import { useStaticSeo } from "../lib/seo"
 
 type LivePartner = { name: string; slug: string; sphere: string; logo: string | null; direction: string }
 
-const mascot = "/mascot-partners.webp"
 
 type DirectionItem = { icon: string; t: string; d: string }
 type BenefitItem = { icon: string; t: string; d: string }
@@ -132,7 +131,7 @@ function Hero() {
             </Reveal>
           </div>
           <div className="relative hidden items-center justify-center lg:flex">
-            <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[360px] object-contain drop-shadow-2xl" />
+            <Mascot nom="mascot-partners" alt="Agro Alliance" eager className="animate-float relative w-full max-w-[360px] object-contain drop-shadow-2xl" />
           </div>
         </div>
       </div>
@@ -314,7 +313,7 @@ function CtaBanner() {
             <div className="grid gap-6 sm:grid-cols-2">
               {benefits.map((b) => (
                 <div key={b.t} className="flex gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-green"><Icon d={b.icon} className="h-5 w-5" /></span>
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/10 text-green-light"><Icon d={b.icon} className="h-5 w-5" /></span>
                   <div>
                     <h4 className="font-display font-bold">{b.t}</h4>
                     <p className="mt-1 text-sm leading-snug text-white/60">{b.d}</p>

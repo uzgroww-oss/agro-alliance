@@ -54,7 +54,7 @@ export default function DashboardLayout({
           <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-white shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4">
               <span className="flex items-center gap-2.5">
-                <img src={logo} alt="" className="h-8 w-8 object-contain" />
+                <img src={logo} alt="" width={88} height={88} className="h-8 w-8 object-contain" />
                 <span className="font-display text-base font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
               </span>
               <button onClick={() => setMenuOpen(false)} aria-label="Yopish" className="grid h-11 w-11 place-items-center rounded-xl text-muted hover:bg-soft">
@@ -75,7 +75,7 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-green/10 bg-white lg:flex">
           <Link to="/" className="flex items-center gap-2.5 px-6 py-5">
-            <img src={logo} alt="" className="h-9 w-9 object-contain" />
+            <img src={logo} alt="" width={88} height={88} className="h-9 w-9 object-contain" />
             <span className="font-display text-base font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
           </Link>
           {navList()}
@@ -96,7 +96,7 @@ export default function DashboardLayout({
         {/* Main */}
         <div className="min-w-0 flex-1">
           {/* Topbar */}
-          <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-green/10 bg-white/90 px-5 py-3 backdrop-blur lg:px-8">
+          <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-green/10 bg-white/95 px-5 py-3 backdrop-blur lg:px-8">
             {/* Mobil menyu tugmasi — telefonda navigatsiyani ochadi */}
             <button
               onClick={() => setMenuOpen(true)}

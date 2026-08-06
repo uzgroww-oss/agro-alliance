@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { logo, Icon, I } from "../lib/ui"
+import { logo, Icon, I, Mascot } from "../lib/ui"
 import { roleHome } from "../lib/roles"
 import { setRememberPref } from "../lib/api"
 import { useAuth } from "../lib/auth"
 import { useStaticSeo } from "../lib/seo"
 import { useT, tr } from "../lib/i18n"
 
-const mascot = "/mascot.webp"
 
 const features = [
   { icon: I.sprout, t: tr("Ishonchli hamkorlik"), d: tr("Platforma orqali xavfsiz va shaffof hamkorlik qiling.") },
@@ -55,11 +54,11 @@ export default function Login() {
         <div className="mx-auto grid max-w-[1200px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_70px_rgba(91,180,32,0.18)] lg:min-h-[859px] lg:grid-cols-2">
         {/* Left panel */}
         <div className="relative hidden overflow-hidden p-10 text-ink lg:flex lg:flex-col">
-          <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-white/92 via-white/85 to-soft/90" />
           <div className="relative flex h-full flex-col">
             <Link to="/" className="flex items-center gap-2.5">
-              <img src={logo} alt="" className="h-11 w-11 object-contain" />
+              <img src={logo} alt="" width={88} height={88} className="h-11 w-11 object-contain" />
               <span className="font-display text-lg font-extrabold tracking-tight">AGRO <span className="text-green">ALLIANCE</span></span>
             </Link>
 
@@ -80,7 +79,7 @@ export default function Login() {
               ))}
             </div>
 
-            <img src={mascot} alt="" className="animate-float absolute bottom-20 right-2 hidden h-56 object-contain drop-shadow-2xl lg:block" />
+            <Mascot className="animate-float absolute bottom-20 right-2 hidden h-56 w-auto object-contain drop-shadow-2xl lg:block" />
 
             <div className="mt-auto flex items-center gap-3 rounded-2xl bg-ink/90 p-4 text-white backdrop-blur">
               <Icon d={I.users} className="h-5 w-5 shrink-0 text-green" />

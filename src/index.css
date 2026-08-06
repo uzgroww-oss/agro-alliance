@@ -1,7 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  --color-green: #5bb420;
+  /**
+   * ASOSIY YASHIL — OQ FONDA O'QILADIGAN QILIB TO'QLASHTIRILDI.
+   *
+   * Ilgari #5bb420 edi va oq fonda kontrasti 2.63:1 chiqardi. WCAG
+   * talabi 4.5:1 — ya'ni yorqin quyoshda yoki ko'zi xira odam uchun
+   * yashil yozuvlar deyarli ko'rinmasdi. Xuddi shu muammo yashil
+   * tugmalarda ham bor edi: oq yozuv yashil fonda 2.63:1.
+   *
+   * Yangi qiymat #418017 — AYNAN o'sha ohang, faqat 71% yorqinlikda.
+   * Oq fonda 4.86:1, ochiq yashil (soft) fonda 4.53:1, yashil tugmada
+   * oq yozuv 4.86:1 — uchalasi ham talabga javob beradi. Brend rangi
+   * o'zgarmadi, shunchaki to'qroq bo'ldi.
+   */
+  --color-green: #418017;
+  /**
+   * TO'Q FON UCHUN ochiq yashil (footer, to'q kartochkalar).
+   * U yerda vaziyat teskari: to'q yashil ko'rinmay qoladi, shuning
+   * uchun avvalgi yorqin rang aynan shu joylarda ishlatiladi.
+   */
+  --color-green-light: #6ec428;
   --color-green-deep: #2f7d1f;
   --color-green-dark: #1f5e16;
   --color-leaf: #8bc34a;

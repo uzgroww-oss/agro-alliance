@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton, ErrorState, useDebounced } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, ErrorState, useDebounced, Mascot } from "../lib/ui"
 import { categories, catLabel, regions, sorts, platforms, cover, loadBloggers, loadTopBlogger, type Blogger } from "../lib/bloggers"
 import { useStaticSeo } from "../lib/seo"
 import { useT } from "../lib/i18n"
 
 
-const mascot = "/mascot3.webp"
 
 type HeroStat = { icon: string; v: string; l: string }
 
@@ -60,7 +59,7 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -108,7 +107,7 @@ function Hero({ topBlogger, topLoading, totalBloggers }: { topBlogger: Blogger |
           </div>
 
           <div className="relative hidden items-center justify-center xl:flex">
-            <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
+            <Mascot nom="mascot3" alt="Agro Alliance" eager className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
           </div>
 
           {/* Yuklab bo'lgach bloger topilmasa kartani umuman chizmaymiz:

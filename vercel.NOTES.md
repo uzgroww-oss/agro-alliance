@@ -26,14 +26,19 @@ sahifa ochilishida serverdan so'rab, `304 Not Modified` olardi.
 O'lchandi: har fayl uchun alohida ~0.48 s bekorga ketardi
 (Toshkentdan ko'proq).
 
-## Rasm va shriftlar — bir kunlik kesh + fon yangilash
+## Rasm va shriftlar — bir yillik `immutable` kesh
 
-Bu fayllar nomi mazmun bilan bog'lanmagan: `logo.webp` o'zgarsa ham
-nomi o'sha bo'lib qoladi. Shuning uchun `immutable` EMAS.
+⚠️ **QOIDA: rasmni o'zgartirsangiz FAYL NOMINI ham o'zgartiring.**
+(masalan `logo.webp` → `logo-v2.webp`)
 
-`stale-while-revalidate=604800` — brauzer eski nusxani darhol
-ko'rsatadi va yangisini fonda oladi. Foydalanuvchi kutmaydi, rasm esa
-bir haftada yangilanadi.
+Bu fayllar nomi mazmun bilan bog'lanmagan, ya'ni `logo.webp` ichi
+o'zgarsa ham nomi o'sha qoladi. `immutable` esa brauzerga "bu fayl
+hech qachon o'zgarmaydi" deydi — nomi o'zgarmasa foydalanuvchi bir
+yilgacha eski rasmni ko'rib yuraveradi.
+
+Ilgari bu yerda bir kunlik kesh turardi. PageSpeed uni kamchilik deb
+ko'rsatdi: har kuni 98 KB rasm qaytadan yuklanardi, holbuki ular
+yillar davomida o'zgarmaydi.
 
 ## `/` — HECH QACHON keshlanmaydi
 

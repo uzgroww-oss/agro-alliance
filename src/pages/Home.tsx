@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom"
 import { tr } from "../lib/i18n"
 import { useMemo } from "react"
-import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
+import { Reveal, Icon, I, StatsBar, Skeleton, Mascot } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
 
-const mascot = "/mascot.webp"
 
 type HeroCard = { icon: string; t: string; d: string; link?: string }
 type FeatureCard = { icon: string; t: string; d: string }
@@ -29,7 +28,12 @@ function HeroCardBox({ card }: { card: HeroCard }) {
       </span>
       <div className="min-w-0">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[13px] font-bold tracking-wide">{card.t}</h3>
+          {/* h2, h3 EMAS: bu kartochkalar sahifadagi h1 dan keyin
+              darhol keladi va oralarida h2 yo'q edi. Sarlavhalar
+              darajasi sakrab ketsa ekran o'quvchi bilan sahifa
+              bo'ylab yurish buziladi — foydalanuvchi qaysi bo'lim
+              ichida ekanini bilmay qoladi. */}
+          <h2 className="font-display text-[13px] font-bold tracking-wide">{card.t}</h2>
           {card.link && <Icon d={I.arrow} className="h-4 w-4 text-green opacity-0 transition-opacity group-hover:opacity-100" />}
         </div>
         <p className="mt-1 text-xs leading-snug text-muted">{card.d}</p>
@@ -75,7 +79,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -111,7 +115,7 @@ function Hero() {
 
         <div className="relative hidden items-center justify-center xl:flex">
           <div className="absolute h-72 w-72 rounded-full bg-white/40 blur-2xl" />
-          <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[400px] object-contain drop-shadow-2xl" />
+          <Mascot alt="Agro Alliance" eager className="animate-float relative w-full max-w-[400px] object-contain drop-shadow-2xl" />
         </div>
 
         <div className="flex flex-col gap-3">

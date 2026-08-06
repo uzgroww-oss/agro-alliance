@@ -265,10 +265,23 @@ export const navLinks: { label: string; to: string }[] = [
 ]
 
 /* ---------- Shared Stats bar (qiymatlar admin panel yoki default) ---------- */
-function StatsBarSkeleton() {
+/**
+ * SKELET VA BO'SH HOLAT — BIR XIL BALANDLIKDA.
+ *
+ * MUAMMO EDI (PageSpeed CLS = 0.103, sahifadagi eng katta siljish):
+ * statistika yuklanmasa yoki bo'sh kelsa, butun blok YO'QOLARDI va
+ * ostidagi hamma narsa yuqoriga sakrardi. Foydalanuvchi o'qiyotgan
+ * matn ko'z oldida siljib ketardi.
+ *
+ * Endi blok HAR DOIM bir xil joy egallaydi: ma'lumot bo'lmasa
+ * skeletning o'zi ko'rinmas holda qoladi. Balandlik qo'lda
+ * yozilmagan — u aynan shu tuzilmadan kelib chiqadi, ya'ni kelajakda
+ * qator qo'shilsa ham mos bo'lib qolaveradi.
+ */
+function StatsBarSkeleton({ korinmas = false }: { korinmas?: boolean }) {
   return (
-    <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8">
-      <div className="grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] lg:grid-cols-4">
+    <section className="mx-auto max-w-[1320px] px-5 pb-4 lg:px-8" aria-hidden={korinmas || undefined}>
+      <div className={`grid grid-cols-2 gap-y-7 rounded-3xl border border-green/10 bg-white px-6 py-8 shadow-[0_10px_40px_rgba(91,180,32,0.08)] lg:grid-cols-4 ${korinmas ? "invisible" : ""}`}>
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="flex items-center gap-3 px-2">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-green/10 bg-gray-100">
@@ -300,9 +313,13 @@ export function StatsBar() {
   }, [])
 
   if (!loaded) return <StatsBarSkeleton />
-  // Xato yoki bo'sh javob bo'lsa — "0" larni real raqamdek ko'rsatgandan ko'ra
-  // blokni butunlay chizmaymiz (yolg'on statistika ishonchni buzadi).
-  if (!items) return null
+  /**
+   * Xato yoki bo'sh javob bo'lsa "0" larni real raqamdek ko'rsatmaymiz
+   * — yolg'on statistika ishonchni buzadi. Lekin blokni butunlay
+   * olib tashlash ham to'g'ri emas edi: sahifa sakrab ketardi.
+   * Shuning uchun joy saqlanadi, mazmuni esa ko'rinmaydi.
+   */
+  if (!items) return <StatsBarSkeleton korinmas />
   const display = items
 
   return (
@@ -323,5 +340,68 @@ export function StatsBar() {
         </div>
       </Reveal>
     </section>
+  )
+}
+
+/* ==========================================================================
+   MASKOT RASMI
+   ==========================================================================
+   MUAMMO EDI (PageSpeed o'lchagan): maskot 559x820 yuklanardi, ekranda
+   esa 391x574 bo'lib chizilardi — oddiy ekranda piksellarning yarmi
+   bekorga yuklanardi.
+
+   Oddiygina kichraytirish to'g'ri emas: retina ekranda rasm xira
+   bo'lib qolardi. Shuning uchun IKKI o'lcham beriladi va brauzer
+   o'z ekraniga mosini tanlaydi.
+
+   `width`/`height` ATRIBUTLARI SHART: usiz brauzer rasm yuklanmaguncha
+   uning joyini bilmaydi va yuklangach sahifa siljib ketadi. Aynan shu
+   CLS (maket siljishi) ning sababi edi.
+   ========================================================================== */
+
+/**
+ * Har maskotning nisbati har xil: hammasi 820px bo'yida, lekin
+ * kengligi turlicha. Noto'g'ri nisbat berilsa brauzer noto'g'ri
+ * o'lchamda joy ajratadi va siljish yana takrorlanadi.
+ */
+const MASKOT_OLCHAM: Record<string, [number, number]> = {
+  "mascot": [400, 587],
+  "mascot2": [400, 549],
+  "mascot3": [400, 450],
+  "mascot-news": [400, 567],
+  "mascot-partners": [400, 612],
+  "mascot-contact": [400, 663],
+}
+
+export function Mascot({ nom = "mascot", alt = "", className = "", eager = false }: {
+  /** Fayl nomi kengaytmasiz: mascot, mascot2, mascot-news … */
+  nom?: string
+  alt?: string
+  className?: string
+  /**
+   * Birinchi ekranda ko'rinadigan rasm uchun `true`. Qolganlari
+   * kechiktirilib yuklanadi — sahifaning ochilishiga to'sqinlik
+   * qilmasin.
+   */
+  eager?: boolean
+}) {
+  const [w, h] = MASKOT_OLCHAM[nom] || MASKOT_OLCHAM.mascot
+  return (
+    <img
+      src={`/${nom}-400.webp`}
+      /**
+       * `1x` / `2x` — ekran zichligi bo'yicha. Rasm kengligini CSS
+       * belgilaydi, shuning uchun `sizes` bilan piksel hisoblashning
+       * hojati yo'q: oddiy ekran kichigini, retina kattasini oladi.
+       */
+      srcSet={`/${nom}-400.webp 1x, /${nom}.webp 2x`}
+      width={w}
+      height={h}
+      alt={alt}
+      loading={eager ? "eager" : "lazy"}
+      fetchPriority={eager ? "high" : "auto"}
+      decoding="async"
+      className={className}
+    />
   )
 }

@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/webp" href="/logo.webp" />
     <link rel="preload" as="image" href="/hero-bg.webp" />
-    <!-- viewport-fit=cover — notch/safe-area uchun (native ilova); maximum-scale — inputga bosganda zoom bo'lmasin -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+    <!--
+      viewport-fit=cover — notch/safe-area uchun (native ilova).
+
+      `maximum-scale=1.0` OLIB TASHLANDI. U inputga bosganda zoom
+      bo'lmasligi uchun qo'yilgan edi, lekin ayni paytda saytni
+      KATTALASHTIRISHNI butunlay taqiqlardi — ko'zi xira odam matnni
+      kattalashtira olmasdi. Zoom muammosini boshqacha hal qilamiz:
+      barcha input larda shrift 16px dan kichik emas (iOS faqat
+      shundan kichik bo'lganda avtomatik yaqinlashtiradi).
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="AGRO ALLIANCE — agro blogerlar, fermerlar, kompaniyalar va texnologiyalarni birlashtiruvchi innovatsion media platforma." />
     <!--
       Supabase'ga ULANISHNI OLDINDAN boshlaymiz.

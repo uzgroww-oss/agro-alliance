@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, SkeletonStatGrid, ErrorState, Mascot } from "../lib/ui"
 import { api } from "../lib/api"
 import { useSeo, bloggerSeo } from "../lib/seo"
 import { tr } from "../lib/i18n"
@@ -141,10 +141,10 @@ function Header({ b }: { b: LiveBlogger }) {
       {b.cover ? (
         <img src={b.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
       )}
       <div className="absolute inset-0 bg-gradient-to-tr from-white/92 via-white/55 to-white/15" />
-      <img src="/mascot3.webp" alt="" className="animate-float pointer-events-none absolute bottom-0 left-1/2 z-10 hidden h-[12.5rem] -translate-x-1/2 object-contain drop-shadow-2xl xl:block" />
+      <Mascot nom="mascot3" className="animate-float pointer-events-none absolute bottom-0 left-1/2 z-10 hidden h-[12.5rem] w-auto -translate-x-1/2 object-contain drop-shadow-2xl xl:block" />
       <div className="absolute right-5 top-5 z-20 hidden w-52 rounded-2xl border border-green/10 bg-white/95 p-5 shadow-[0_10px_30px_rgba(91,180,32,0.18)] backdrop-blur lg:block">
         <div className="flex items-center gap-2 text-green">
           <Icon d={I.trophy} className="h-5 w-5" /><span className="font-display text-sm font-bold tracking-wide">{tr("REYTING")}</span>
@@ -613,7 +613,7 @@ function Content({ b }: { b: LiveBlogger }) {
               <div key={s.label}>
                 <div className="flex justify-between text-sm mb-1.5">
                   <span className="font-medium text-ink/80">{s.label}</span>
-                  <span className="font-bold text-green">{fmtNum(s.value)}</span>
+                  <span className="font-bold text-green-light">{fmtNum(s.value)}</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-soft">
                   <div className="h-full rounded-full bg-gradient-to-r from-green to-leaf transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -720,7 +720,7 @@ function PartnershipEfficiency({ b }: { b: LiveBlogger }) {
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
           <div>
             <h3 className="font-display text-sm font-bold tracking-widest text-white/70">{tr("HAMKORLIK SAMARADORLIGI")}</h3>
-            <div className="mt-3 font-display text-5xl font-extrabold text-green">{engagement > 0 ? `${engagement}%` : "—"}</div>
+            <div className="mt-3 font-display text-5xl font-extrabold text-green-light">{engagement > 0 ? `${engagement}%` : "—"}</div>
             <div className="text-white/70">{tr("O'rtacha Engagement")}</div>
             {rawMultiplier > 1 && (
               <p className="mt-3 text-sm text-white/50">Soha o'rtachasidan <span className="font-bold text-green">{multiplier} yuqori</span></p>

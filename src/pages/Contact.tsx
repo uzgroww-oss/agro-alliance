@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton, ErrorState } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, ErrorState, Mascot } from "../lib/ui"
 import { api } from "../lib/api"
 import { useContactInfo } from "../lib/settings"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
 import { useT, tr } from "../lib/i18n"
 
-const mascot = "/mascot-contact.webp"
 
 type Office = { name: string; main: boolean; addr: string; phone: string; email: string }
 type Faq = { q: string; a: string }
@@ -41,7 +40,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/60" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/50" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -73,7 +72,7 @@ function Hero() {
 
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
               <div className="relative hidden sm:block">
-                <img src={mascot} alt="Agro Alliance" className="animate-float w-full max-w-[180px] object-contain drop-shadow-2xl" />
+                <Mascot nom="mascot-contact" alt="Agro Alliance" className="animate-float w-full max-w-[180px] object-contain drop-shadow-2xl" />
               </div>
               <div className="flex flex-col gap-5">
                 {sLoading

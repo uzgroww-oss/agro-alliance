@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, StatsBar, Skeleton } from "../lib/ui"
+import { Reveal, Icon, I, StatsBar, Skeleton, Mascot } from "../lib/ui"
 
 import { api } from "../lib/api"
 import { useStaticSeo } from "../lib/seo"
 import { useT, tr } from "../lib/i18n"
 
-const mascot = "/mascot2.webp"
 
 type Pillar = { icon: string; t: string; type: "text" | "list"; body?: string; items?: string[] }
 type TeamMember = { id: string; name: string; role: string; image_url: string | null; sort_order: number }
@@ -21,7 +20,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <img src="/hero-bg.webp" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg.webp" alt="" width={1536} height={1024} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
@@ -63,7 +62,7 @@ function Hero() {
 
           <div className="relative hidden items-center justify-center xl:flex">
             <div className="absolute h-72 w-72 rounded-full bg-white/40 blur-2xl" />
-            <img src={mascot} alt="Agro Alliance" className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
+            <Mascot nom="mascot2" alt="Agro Alliance" eager className="animate-float relative w-full max-w-[380px] object-contain drop-shadow-2xl" />
           </div>
 
           <Reveal delay={160}>

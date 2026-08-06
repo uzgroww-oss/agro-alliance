@@ -12,11 +12,18 @@ export default function Header() {
   const { user, loading } = useAuth()
   const t = useT()
 
+  /**
+   * `bg-white/95` — 90 EMAS. Header sahifa ustida suzadi va ostidan
+   * to'q rasm o'tishi mumkin. 90% shaffoflikda fon qoraya boshlaydi
+   * va yashil yozuvlarning kontrasti WCAG chegarasidan tushib
+   * ketardi. 95% da eng yomon holatda ham 4.5:1 saqlanadi, muzli
+   * shisha ta'siri esa ko'zga bilinmaydigan darajada o'zgaradi.
+   */
   return (
-    <header className="sticky top-0 z-50 border-b border-green/10 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-green/10 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1320px] items-center gap-6 px-5 py-3 lg:px-8">
         <Link to="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
-          <img src={logo} alt="Agro Alliance" className="h-11 w-11 object-contain" />
+          <img src={logo} alt="Agro Alliance" width={88} height={88} fetchPriority="high" className="h-11 w-11 object-contain" />
           <span className="font-display text-base font-extrabold leading-none tracking-tight sm:text-lg">
             AGRO <span className="text-green">ALLIANCE</span>
           </span>

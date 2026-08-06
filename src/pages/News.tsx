@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { Reveal, Icon, I, Skeleton, useDebounced } from "../lib/ui"
+import { Reveal, Icon, I, Skeleton, useDebounced, Mascot } from "../lib/ui"
 import { cats, newsCatLabel as catLabel, loadNews, loadPopularNews, type NewsListResponse, themes, dates, newsImg, type News } from "../lib/news"
 import { useHomeSection } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
@@ -13,7 +13,6 @@ const iconMap: Record<string, string> = {
 }
 const getIcon = (key: string) => iconMap[key] || I.grid
 
-const mascot = "/mascot-news.webp"
 
 /* ---------- Small components ---------- */
 function CatTag({ k }: { k: string }) {
@@ -91,7 +90,7 @@ function Hero() {
               <p className={`mt-4 max-w-md leading-relaxed text-muted ${heroSec.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"}`}>{heroSec.subtitle}</p>
             </Reveal>
           </div>
-          <img src={mascot} alt="" className="animate-float hidden h-52 object-contain drop-shadow-2xl lg:block" />
+          <Mascot nom="mascot-news" className="animate-float hidden h-52 w-auto object-contain drop-shadow-2xl lg:block" />
         </div>
       </div>
     </section>
