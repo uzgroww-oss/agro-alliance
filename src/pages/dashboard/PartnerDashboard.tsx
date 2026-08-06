@@ -1916,7 +1916,7 @@ type Shikoyat = {
  * narsa bermaydi. Sabab turi esa adminga ham kerak — qaysi muammo
  * tez-tez takrorlanayotganini shundan ko'radi.
  */
-export const SHIKOYAT_SABAB: Record<string, string> = {
+const SHIKOYAT_SABAB: Record<string, string> = {
   tz_bajarilmagan: "TZ bo'yicha bajarilmagan",
   sifat: "Video sifati past",
   notogri_malumot: "Noto'g'ri ma'lumot aytilgan",
@@ -1925,7 +1925,7 @@ export const SHIKOYAT_SABAB: Record<string, string> = {
   boshqa: "Boshqa sabab",
 }
 
-export const SHIKOYAT_HOLAT: Record<string, { nom: string; cls: string }> = {
+const SHIKOYAT_HOLAT: Record<string, { nom: string; cls: string }> = {
   yangi: { nom: "Yangi", cls: "bg-orange-100 text-orange-600" },
   korildi: { nom: "Bloger javob berdi", cls: "bg-blue-50 text-blue-700" },
   tuzatildi: { nom: "Tuzatildi", cls: "bg-green/10 text-green" },
@@ -2263,6 +2263,386 @@ type TzHisobot = {
   views: number; likes: number; comments: number; videoJami: number; nomalum: number
 }
 
+/* ==========================================================================
+   HUJJAT — A4 formatidagi rasmiy hisobot
+   ==========================================================================
+   NEGA ALOHIDA: paneldagi hisobot EKRAN uchun — kartochkalar, ranglar,
+   bosiladigan diagrammalar. Qog'ozda bularning hech biri kerak emas va
+   ular hujjatni chalkashtiradi.
+
+   Hujjat esa RASMIY: sarlavha, raqamlangan bo'limlar, jadvallar va
+   imzo joyi. Uni rahbariyatga yoki buxgalteriyaga berish mumkin.
+
+   PDF: brauzerning O'Z "PDF sifatida saqlash" imkoniyati ishlatiladi.
+   Tashqi kutubxona qo'shilmadi va buning sababi bor — jsPDF kabi
+   kutubxonalar kirill va xitoy shriftlarini o'zi bilan olib yurishi
+   kerak (megabaytlar), matn esa rasmga aylanib, nusxa olib bo'lmaydigan
+   va qidirib bo'lmaydigan bo'lib qolardi. Brauzer eksporti esa haqiqiy
+   matn beradi.
+   ========================================================================== */
+
+/** Jadval katakchalari — hujjat bo'ylab bir xil */
+const th = "border border-gray-300 px-2 py-1.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-600"
+const td = "border border-gray-300 px-2 py-1.5 text-[11px] align-top"
+
+type HujjatBloger = {
+  id: string; name: string
+  tzSoni: number; videolar: number
+  views: number; likes: number; comments: number
+  bandlar: number; etirozlar: number
+}
+
+function Hujjat({ partner, extra, tz, shikoyatlar, davrNomi, raqamHolati, videoStat }: {
+  partner: Partner
+  extra: CompanyExtra
+  tz: TzHisobot[]
+  shikoyatlar: Shikoyat[]
+  davrNomi: string
+  raqamHolati: string | null
+  videoStat: Korsatkich
+}) {
+  const son = (n: number) => n.toLocaleString("ru-RU")
+  const bugun = new Date().toLocaleDateString("ru-RU")
+
+  /** Blogerlar bo'yicha yig'indi — barcha TZ lar bo'ylab */
+  const blogerlar = useMemo(() => {
+    const x = new Map<string, HujjatBloger>()
+    for (const b of tz) {
+      for (const bl of b.blogerlar) {
+        const bor = x.get(bl.id) || {
+          id: bl.id, name: bl.name, tzSoni: 0, videolar: 0,
+          views: 0, likes: 0, comments: 0, bandlar: 0, etirozlar: 0,
+        }
+        bor.tzSoni += 1
+        bor.videolar += bl.videolar.length
+        bor.views += bl.views
+        bor.likes += bl.likes
+        bor.comments += bl.comments
+        x.set(bl.id, bor)
+      }
+      // Bandlarni KIM bajargani — "kim qancha qildi" savoliga javob
+      for (const band of b.bandlar) {
+        if (band.status !== "done" || !band.done_by) continue
+        const bor = x.get(band.done_by)
+        if (bor) bor.bandlar += 1
+      }
+    }
+    for (const s of shikoyatlar) {
+      const bor = x.get(s.blogger_id)
+      if (bor) bor.etirozlar += 1
+    }
+    return [...x.values()].sort((a, b) => b.views - a.views)
+  }, [tz, shikoyatlar])
+
+  /** Bajarilmagan bandlar — aynan nima qilinmagani */
+  const bajarilmagan = useMemo(
+    () => tz.flatMap((b) => b.bandlar
+      .filter((x) => x.status !== "done")
+      .map((x) => ({ tz: b.title, band: x.title }))),
+    [tz],
+  )
+
+  const bandJami = tz.reduce((s, b) => s + b.bandJami, 0)
+  const bandBajarildi = tz.reduce((s, b) => s + b.bandBajarildi, 0)
+  const umumiyFoiz = bandJami ? Math.round((bandBajarildi / bandJami) * 100) : 0
+
+  /**
+   * ENG YAXSHI BLOGER.
+   *
+   * Faqat ko'rish soni bo'yicha emas: bandlarni bajarish va e'tiroz
+   * olmaslik ham muhim. Aks holda "ko'p ko'rilgan, lekin TZ ni
+   * bajarmagan" bloger birinchi chiqardi.
+   */
+  const eng = useMemo(() => {
+    if (!blogerlar.length) return null
+    const maxViews = Math.max(1, ...blogerlar.map((b) => b.views))
+    const maxBand = Math.max(1, ...blogerlar.map((b) => b.bandlar))
+    return [...blogerlar].sort((a, b) => {
+      const ball = (x: HujjatBloger) =>
+        (x.views / maxViews) * 0.6 + (x.bandlar / maxBand) * 0.4 - x.etirozlar * 0.15
+      return ball(b) - ball(a)
+    })[0]
+  }, [blogerlar])
+
+  const holatNomi = (b: TzHisobot) => {
+    if (b.status === "rejected") return tr("Qabul qilinmadi")
+    if (!b.bandJami) return b.status === "sent" ? tr("Yuborilgan") : tr("Kutilmoqda")
+    if (b.bandBajarildi >= b.bandJami) return tr("To'liq bajarildi")
+    if (b.bandBajarildi > 0) return tr("Qisman bajarildi")
+    return tr("Bajarilmagan")
+  }
+
+  return (
+    <div className="hujjat mx-auto max-w-[210mm] bg-white p-8 text-ink">
+      {/* ---- Sarlavha ---- */}
+      <div className="border-b-2 border-ink pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-display text-lg font-extrabold tracking-tight">AGRO ALLIANCE</p>
+            <p className="text-[11px] text-gray-600">agroalliance.uz</p>
+          </div>
+          <div className="text-right text-[11px] text-gray-600">
+            <p>{tr("Tuzilgan sana")}: <b className="text-ink">{bugun}</b></p>
+            {raqamHolati && (
+              <p>{tr("Raqamlar holati")}: {new Date(Number(raqamHolati) || raqamHolati).toLocaleString("ru-RU")}</p>
+            )}
+          </div>
+        </div>
+        <h1 className="mt-4 text-center font-display text-xl font-extrabold">{tr("HAMKORLIK HISOBOTI")}</h1>
+        <p className="mt-1 text-center text-sm">
+          <b>{partner.name}</b>
+          {partner.sphere ? ` · ${partner.sphere}` : ""}
+        </p>
+        <p className="text-center text-[11px] text-gray-600">{tr("Hisobot davri")}: {davrNomi}</p>
+      </div>
+
+      {/* ---- 1. Shartnoma ---- */}
+      <section className="mt-5 print-block">
+        <h2 className="font-display text-sm font-bold">1. {tr("SHARTNOMA MA'LUMOTLARI")}</h2>
+        <table className="mt-2 w-full border-collapse">
+          <tbody>
+            {[
+              [tr("Shartnoma raqami"), partner.contractNo || "—"],
+              [tr("Shartnoma summasi"), `${fmtSom(partner.amount)} ${tr("so'm")}`],
+              [tr("Imzolangan sana"), partner.signedDate || "—"],
+              [tr("Holat"), (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label],
+              [tr("Faoliyat sohasi"), partner.sphere || "—"],
+              [tr("Veb-sayt"), extra.website || "—"],
+              [tr("Telefon"), extra.phone || "—"],
+              [tr("Manzil"), extra.address || "—"],
+            ].map(([k, v]) => (
+              <tr key={k}>
+                <td className={`${td} w-1/3 bg-gray-50 font-semibold`}>{k}</td>
+                <td className={td}>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* ---- 2. Umumiy natija ---- */}
+      <section className="mt-5 print-block">
+        <h2 className="font-display text-sm font-bold">2. {tr("UMUMIY NATIJA")}</h2>
+        <table className="mt-2 w-full border-collapse">
+          <tbody>
+            <tr>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Berilgan topshiriqlar (TZ)")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(tz.length)}</td>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Videolar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(videoStat.total)}</td>
+            </tr>
+            <tr>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Reja bo'yicha bandlar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(bandJami)}</td>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Ko'rishlar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(videoStat.views)}</td>
+            </tr>
+            <tr>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Bajarilgan bandlar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(bandBajarildi)}</td>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Yoqtirishlar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(videoStat.likes)}</td>
+            </tr>
+            <tr>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Bajarilish darajasi")}</td>
+              <td className={`${td} text-right font-display font-extrabold tabular-nums`}>{umumiyFoiz}%</td>
+              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Izohlar")}</td>
+              <td className={`${td} text-right tabular-nums`}>{son(videoStat.comments)}</td>
+            </tr>
+          </tbody>
+        </table>
+        {bandJami === 0 && (
+          <p className="mt-1 text-[10px] text-gray-600">
+            {tr("Bandlarga bo'lingan TZ yo'q — bajarilish darajasi hisoblanmadi.")}
+          </p>
+        )}
+      </section>
+
+      {/* ---- 3. TZ bo'yicha bajarilish ---- */}
+      <section className="mt-5">
+        <h2 className="font-display text-sm font-bold">3. {tr("TOPSHIRIQLAR BO'YICHA BAJARILISH")}</h2>
+        {tz.length === 0 ? (
+          <p className="mt-2 text-[11px] text-gray-600">{tr("Topshiriq berilmagan.")}</p>
+        ) : (
+          <table className="mt-2 w-full border-collapse">
+            <thead>
+              <tr>
+                <th className={`${th} w-6`}>№</th>
+                <th className={th}>{tr("Topshiriq")}</th>
+                <th className={th}>{tr("Takrorlanish")}</th>
+                <th className={`${th} text-right`}>{tr("Reja")}</th>
+                <th className={`${th} text-right`}>{tr("Bajarildi")}</th>
+                <th className={`${th} text-right`}>%</th>
+                <th className={`${th} text-right`}>{tr("Video")}</th>
+                <th className={`${th} text-right`}>{tr("Ko'rish")}</th>
+                <th className={th}>{tr("Holat")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tz.map((b, i) => {
+                const f = b.bandJami ? Math.round((b.bandBajarildi / b.bandJami) * 100) : 0
+                return (
+                  <tr key={b.id}>
+                    <td className={`${td} text-center`}>{i + 1}</td>
+                    <td className={td}>
+                      {b.title}
+                      <span className="block text-[10px] text-gray-500">
+                        {new Date(b.created_at).toLocaleDateString("ru-RU")}
+                        {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
+                      </span>
+                    </td>
+                    <td className={td}>
+                      {tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}
+                      {b.davrSoni > 1 && <span className="block text-[10px] text-gray-500">{b.davrSoni} {tr("davr")}</span>}
+                    </td>
+                    <td className={`${td} text-right tabular-nums`}>{b.bandJami || "—"}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.bandJami ? b.bandBajarildi : "—"}</td>
+                    <td className={`${td} text-right font-bold tabular-nums`}>{b.bandJami ? `${f}%` : "—"}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.videoJami}</td>
+                    <td className={`${td} text-right tabular-nums`}>{son(b.views)}</td>
+                    <td className={td}>{holatNomi(b)}</td>
+                  </tr>
+                )
+              })}
+              <tr className="bg-gray-50 font-bold">
+                <td className={td} colSpan={3}>{tr("JAMI")}</td>
+                <td className={`${td} text-right tabular-nums`}>{bandJami}</td>
+                <td className={`${td} text-right tabular-nums`}>{bandBajarildi}</td>
+                <td className={`${td} text-right tabular-nums`}>{umumiyFoiz}%</td>
+                <td className={`${td} text-right tabular-nums`}>{tz.reduce((s, b) => s + b.videoJami, 0)}</td>
+                <td className={`${td} text-right tabular-nums`}>{son(tz.reduce((s, b) => s + b.views, 0))}</td>
+                <td className={td} />
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ---- 4. Bajarilmagan bandlar ---- */}
+      {bajarilmagan.length > 0 && (
+        <section className="mt-5">
+          <h2 className="font-display text-sm font-bold">4. {tr("BAJARILMAGAN BANDLAR")}</h2>
+          <table className="mt-2 w-full border-collapse">
+            <thead>
+              <tr>
+                <th className={`${th} w-6`}>№</th>
+                <th className={th}>{tr("Topshiriq")}</th>
+                <th className={th}>{tr("Bajarilmagan talab")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bajarilmagan.map((x, i) => (
+                <tr key={i}>
+                  <td className={`${td} text-center`}>{i + 1}</td>
+                  <td className={td}>{x.tz}</td>
+                  <td className={td}>{x.band}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {/* ---- 5. Blogerlar ---- */}
+      <section className="mt-5">
+        <h2 className="font-display text-sm font-bold">
+          {bajarilmagan.length > 0 ? "5" : "4"}. {tr("BLOGERLAR BO'YICHA NATIJA")}
+        </h2>
+        {blogerlar.length === 0 ? (
+          <p className="mt-2 text-[11px] text-gray-600">{tr("Hali bloger biriktirilmagan.")}</p>
+        ) : (
+          <>
+            <table className="mt-2 w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className={`${th} w-6`}>№</th>
+                  <th className={th}>{tr("Bloger")}</th>
+                  <th className={`${th} text-right`}>{tr("TZ")}</th>
+                  <th className={`${th} text-right`}>{tr("Video")}</th>
+                  <th className={`${th} text-right`}>{tr("Bandlar")}</th>
+                  <th className={`${th} text-right`}>{tr("Ko'rish")}</th>
+                  <th className={`${th} text-right`}>{tr("Layk")}</th>
+                  <th className={`${th} text-right`}>{tr("E'tiroz")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blogerlar.map((b, i) => (
+                  <tr key={b.id} className={eng && b.id === eng.id ? "bg-gray-50 font-semibold" : ""}>
+                    <td className={`${td} text-center`}>{i + 1}</td>
+                    <td className={td}>{b.name}{eng && b.id === eng.id ? ` ★` : ""}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.tzSoni}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.videolar}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.bandlar}</td>
+                    <td className={`${td} text-right tabular-nums`}>{son(b.views)}</td>
+                    <td className={`${td} text-right tabular-nums`}>{son(b.likes)}</td>
+                    <td className={`${td} text-right tabular-nums`}>{b.etirozlar || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {eng && (
+              /* Baho FAQAT ko'rish bo'yicha emas: TZ bandlarini bajarish
+                 va e'tiroz olmaslik ham hisobga olinadi — aks holda
+                 "ko'p ko'rilgan, lekin TZ ni bajarmagan" bloger
+                 birinchi chiqardi */
+              <p className="mt-1.5 text-[11px]">
+                ★ <b>{tr("Eng yaxshi natija")}: {eng.name}</b> — {son(eng.views)} {tr("ko'rish")},{" "}
+                {eng.bandlar} {tr("band bajarilgan")}
+                {eng.etirozlar ? `, ${eng.etirozlar} ${tr("e'tiroz")}` : `, ${tr("e'tirozsiz")}`}.
+                <span className="block text-gray-600">
+                  {tr("Baho ko'rishlar (60%), bajarilgan bandlar (40%) va e'tirozlar asosida hisoblangan.")}
+                </span>
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* ---- 6. E'tirozlar ---- */}
+      {shikoyatlar.length > 0 && (
+        <section className="mt-5">
+          <h2 className="font-display text-sm font-bold">
+            {bajarilmagan.length > 0 ? "6" : "5"}. {tr("E'TIROZLAR")}
+          </h2>
+          <table className="mt-2 w-full border-collapse">
+            <thead>
+              <tr>
+                <th className={th}>{tr("Sana")}</th>
+                <th className={th}>{tr("Bloger")}</th>
+                <th className={th}>{tr("Sabab")}</th>
+                <th className={th}>{tr("Holat")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shikoyatlar.map((s) => (
+                <tr key={s.id}>
+                  <td className={`${td} whitespace-nowrap`}>{new Date(s.created_at).toLocaleDateString("ru-RU")}</td>
+                  <td className={td}>{s.blogger_name}</td>
+                  <td className={td}>{tr(SHIKOYAT_SABAB[s.sabab] || s.sabab)}</td>
+                  <td className={td}>{tr((SHIKOYAT_HOLAT[s.status] || SHIKOYAT_HOLAT.yangi).nom)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {/* ---- Oyoq: imzo joyi ---- */}
+      <div className="mt-10 flex justify-between gap-8 text-[11px]">
+        <div className="flex-1">
+          <p className="border-t border-gray-400 pt-1">{tr("AGRO ALLIANCE vakili")}</p>
+        </div>
+        <div className="flex-1">
+          <p className="border-t border-gray-400 pt-1">{partner.name}</p>
+        </div>
+      </div>
+      <p className="mt-3 text-center text-[9px] text-gray-500">
+        {tr("Hujjat avtomatik tuzilgan. Ko'rish va yoqtirish raqamlari ijtimoiy tarmoqlardan olinadi va vaqt o'tishi bilan o'zgaradi.")}
+      </p>
+    </div>
+  )
+}
+
 function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; extra: CompanyExtra }) {
   const [videos, setVideos] = useState<PartnerVideo[]>([])
   const [yuklanmoqda, setYuklanmoqda] = useState(true)
@@ -2278,6 +2658,10 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
   /** Butun ro'yxatni ochish: sukut bo'yicha faqat yig'indi ko'rinadi */
   const [toliq, setToliq] = useState(false)
 
+  const [shikoyatlar, setShikoyatlar] = useState<Shikoyat[]>([])
+  /** Hujjat ko'rinishi ekranda ham ochilganmi */
+  const [hujjat, setHujjat] = useState(false)
+
   const yukla = useCallback(() => {
     setYuklanmoqda(true); setXato(false)
     Promise.all([
@@ -2287,6 +2671,9 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
       api<{ hisobot: TzHisobot[]; raqamlarHolati: string | null }>("/me/partner?action=brief-report")
         .then((d) => { setTz(d.hisobot || []); setRaqamHolati(d.raqamlarHolati) })
         .catch(() => {}),
+      // E'tirozlar hujjatda alohida bo'lim bo'lib chiqadi
+      api<{ shikoyatlar: Shikoyat[] }>("/me/partner?action=shikoyatlar")
+        .then((d) => setShikoyatlar(d.shikoyatlar || [])).catch(() => {}),
     ])
       // Xato "video yo'q" degani emas — ikkalasi bir xil ko'rinmasin
       .catch(() => setXato(true))
@@ -2371,23 +2758,47 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
    * `print-area` sinfi shu blokdagina — chap menyu, tepa panel va
    * tugmalar qog'ozga tushmaydi.
    */
-  const chopEt = () => {
-    // To'liq ro'yxat ochilmagan bo'lsa qog'ozga ham qisqasi tushadi —
-    // buni foydalanuvchi bilishi kerak emas, chunki ekranda ham shunday
-    window.print()
-  }
-
   return (
-    <div className="print-area mt-6">
+    <div className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-bold">{tr("Hamkorlik hisoboti")}</h3>
-          <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot. Chop etish yoki PDF sifatida saqlash mumkin.")}</p>
+          <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot va rasmiy A4 hujjat.")}</p>
         </div>
-        <button onClick={chopEt} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d={I.doc} className="h-4 w-4" /> {tr("A4 ga chop etish / PDF")}
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button onClick={() => setHujjat((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green/5">
+            <Icon d={I.eye} className="h-4 w-4" />
+            {hujjat ? tr("Hujjatni yopish") : tr("Hujjatni ko'rish")}
+          </button>
+          <button onClick={() => window.print()}
+            className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
+            <Icon d={I.doc} className="h-4 w-4" /> {tr("PDF yuklab olish")}
+          </button>
+        </div>
       </div>
+
+      {/* PDF brauzerning O'Z eksporti orqali saqlanadi. Buni aytib
+          qo'yish kerak: foydalanuvchi tugmani bosgach oyna ochilishini
+          kutmasa, "ishlamadi" deb o'ylardi. */}
+      <p className="mt-2 text-[11px] text-muted print:hidden">
+        {tr("\"PDF yuklab olish\" bosilganda saqlash oynasi ochiladi — u yerda \"PDF sifatida saqlash\" ni tanlang.")}
+      </p>
+
+      {/* ============ A4 HUJJAT ============
+          Ekranda faqat so'ralganda ko'rinadi, QOG'OZGA esa DOIM shu
+          tushadi. Paneldagi kartochkalar, ranglar va bosiladigan
+          diagrammalar qog'ozda kerak emas — ular hujjatni
+          chalkashtiradi. */}
+      <div className={`print-area ${hujjat ? "mt-5 rounded-2xl border border-green/15 shadow-sm" : "hidden print:block"}`}>
+        <Hujjat
+          partner={partner} extra={extra} tz={tz} shikoyatlar={shikoyatlar}
+          davrNomi={davrNomi} raqamHolati={raqamHolati} videoStat={k}
+        />
+      </div>
+
+      {/* Paneldagi ko'rinish — qog'ozga tushmaydi */}
+      <div className="print:hidden">
 
       {/* ---- Davr tanlash ---- */}
       <div className={`mt-5 ${card} print:hidden`}>
@@ -2665,6 +3076,7 @@ function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { t
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

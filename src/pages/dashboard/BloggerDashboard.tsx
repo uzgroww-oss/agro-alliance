@@ -1338,6 +1338,15 @@ function TasksTab({ me }: { me: User }) {
 
   // silent=true -> mutatsiyadan keyingi qayta yuklash. Skeleton ko'rsatilmaydi,
   // aks holda butun forma (input'lar bilan) qayta mount bo'lib, fokus yo'qolardi.
+  /** Video biriktirish oynasi qaysi topshiriq uchun ochilgan */
+  const [videoUchun, setVideoUchun] = useState<MeTask | null>(null)
+  /** Band izohi tahrirlanayotgan band id si */
+  const [izohUchun, setIzohUchun] = useState<{ id: string; matn: string } | null>(null)
+  /** Hamkorlarning e'tirozlari va javob yozilayotgani */
+  const [shikoyatlar, setShikoyatlar] = useState<BlogerShikoyat[]>([])
+  const [javobUchun, setJavobUchun] = useState<{ id: string; matn: string } | null>(null)
+  const [xato, setXato] = useState("")
+
   const load = (silent = false) => {
     if (!silent) setLoading(true)
     setFailed(false)
@@ -1347,15 +1356,6 @@ function TasksTab({ me }: { me: User }) {
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
-
-  /** Video biriktirish oynasi qaysi topshiriq uchun ochilgan */
-  const [videoUchun, setVideoUchun] = useState<MeTask | null>(null)
-  /** Band izohi tahrirlanayotgan band id si */
-  const [izohUchun, setIzohUchun] = useState<{ id: string; matn: string } | null>(null)
-  /** Hamkorlarning e'tirozlari va javob yozilayotgani */
-  const [shikoyatlar, setShikoyatlar] = useState<BlogerShikoyat[]>([])
-  const [javobUchun, setJavobUchun] = useState<{ id: string; matn: string } | null>(null)
-  const [xato, setXato] = useState("")
 
   const setStatus = async (id: string, status: string) => {
     /**
