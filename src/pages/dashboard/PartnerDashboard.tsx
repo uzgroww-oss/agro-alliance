@@ -5,7 +5,7 @@ import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid, ErrorState } from "../../l
 import MediaUpload from "../../components/MediaUpload"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
-import { supabase } from "../../lib/supabase"
+import { getSupabase } from "../../lib/supabase"
 import { tr } from "../../lib/i18n"
 
 /**
@@ -3098,7 +3098,8 @@ function Settings() {
     if (pwd !== pwd2) { setMsg({ ok: false, text: tr("Parollar mos kelmadi") }); return }
     setBusy(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password: pwd })
+      const sb = await getSupabase()
+      const { error } = await sb.auth.updateUser({ password: pwd })
       if (error) throw new Error(error.message)
       setMsg({ ok: true, text: tr("Parol muvaffaqiyatli o'zgartirildi") }); setPwd(""); setPwd2("")
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "Xatolik" }) } finally { setBusy(false) }

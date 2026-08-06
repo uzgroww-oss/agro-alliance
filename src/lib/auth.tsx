@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode, useRef, useCallback } from "react"
 import { tr } from "./i18n"
-import { supabase } from "./supabase"
+import { getSupabase, supabaseSessiyasiBormi, urldaTokenBormi } from "./supabase"
 import { getToken, setToken, clearToken, api, type User } from "./api"
 import { dbProfileToUser, type DbProfile } from "./db-types"
 
@@ -19,13 +19,14 @@ async function fetchProfile(userId: string): Promise<User | null> {
     // TEZLIK: bu ikki so'rov ilgari ketma-ket edi — bir-birini kutishi
     // shart emas. Ustiga select("*") butun qatorni tortardi; endi faqat
     // dbProfileToUser ishlatadigan ustunlar.
+    const sb = await getSupabase()
     const [{ data: profile }, { data: roleName }] = await Promise.all([
-      supabase
+      sb
         .from("profiles")
         .select("id, email, name, avatar, phone, bio, status, metadata")
         .eq("id", userId)
         .single(),
-      supabase.rpc("auth_role"),
+      sb.rpc("auth_role"),
     ])
 
     if (!profile) return null
@@ -73,60 +74,109 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     cancelled.current = false
+    let obunaniYop = () => {}
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (cancelled.current) return
-        const tok = session?.access_token ?? null
-        if (tok && tok === resolvedToken.current) return // shu token allaqachon hal qilingan
-        resolvedToken.current = tok
-        const resolved = await resolveSession(session)
-        if (cancelled.current) return
-        setUser(resolved)
-        setLoading(false)
-      },
-    )
+    /**
+     * SUPABASE KUTUBXONASINI YUKLASH KERAKMI?
+     *
+     * Saytga birinchi marta kirgan, hisobi yo'q odam uchun u umuman
+     * kerak emas — lekin ilgari HAR DOIM yuklanardi va bu bosh
+     * sahifaga bekorga 51 KB qo'shardi.
+     *
+     * Tekshiruv kutubxonasiz bajariladi: sessiya `localStorage` da
+     * turadi, OAuth va parol tiklash tokenlari esa manzil ichida.
+     */
+    const kerak = supabaseSessiyasiBormi() || urldaTokenBormi()
 
-    // On mount, try to recover existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled.current) return
-
-      if (session) {
-        if (session.access_token === resolvedToken.current) return // listener ulgurgan
-        resolvedToken.current = session.access_token
-        const resolved = await resolveSession(session)
-        if (!cancelled.current) {
-          setUser(resolved)
-          setLoading(false)
-          return
-        }
-      }
-
-      // No active Supabase session — check for edge function token
+    if (!kerak) {
+      /**
+       * Supabase sessiyasi yo'q. Lekin bizning O'Z tokenimiz
+       * (edge-funksiya orqali kirish) bo'lishi mumkin — u Supabase
+       * kutubxonasisiz ham ishlaydi.
+       */
       const token = getToken()
       if (token) {
-        const u = await fetchUserByToken()
-        if (!cancelled.current) {
+        fetchUserByToken().then((u) => {
+          if (cancelled.current) return
           setUser(u)
           setLoading(false)
-          return
-        }
-      }
-
-      if (!cancelled.current) {
+        })
+      } else {
         setUser(null)
         setLoading(false)
       }
+      return () => { cancelled.current = true }
+    }
+
+    getSupabase().then((sb) => {
+      if (cancelled.current) return
+
+      const { data: { subscription } } = sb.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (cancelled.current) return
+          const tok = session?.access_token ?? null
+          if (tok && tok === resolvedToken.current) return // shu token allaqachon hal qilingan
+          resolvedToken.current = tok
+          const resolved = await resolveSession(session)
+          if (cancelled.current) return
+          setUser(resolved)
+          setLoading(false)
+        },
+      )
+      obunaniYop = () => subscription.unsubscribe()
+
+      // On mount, try to recover existing session
+      sb.auth.getSession().then(async ({ data: { session } }) => {
+        if (cancelled.current) return
+
+        if (session) {
+          if (session.access_token === resolvedToken.current) return // listener ulgurgan
+          resolvedToken.current = session.access_token
+          const resolved = await resolveSession(session)
+          if (!cancelled.current) {
+            setUser(resolved)
+            setLoading(false)
+            return
+          }
+        }
+
+        // No active Supabase session — check for edge function token
+        const token = getToken()
+        if (token) {
+          const u = await fetchUserByToken()
+          if (!cancelled.current) {
+            setUser(u)
+            setLoading(false)
+            return
+          }
+        }
+
+        if (!cancelled.current) {
+          setUser(null)
+          setLoading(false)
+        }
+      })
+    }).catch(() => {
+      /**
+       * Kutubxona yuklanmasa (tarmoq uzilgan) sayt QOTIB QOLMASLIGI
+       * kerak: foydalanuvchi tizimga kirmagandek ko'rinadi, ommaviy
+       * sahifalar esa ishlayveradi.
+       */
+      if (cancelled.current) return
+      setUser(null)
+      setLoading(false)
     })
 
     return () => {
       cancelled.current = true
-      subscription.unsubscribe()
+      obunaniYop()
     }
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    // Kirish paytida kutubxona baribir kerak — shu yerda yuklanadi
+    const sb = await getSupabase()
+    const { data, error } = await sb.auth.signInWithPassword({ email, password })
     if (error) throw error
 
     /**
@@ -155,7 +205,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    supabase.auth.signOut()
+    /**
+     * Supabase sessiyasi BO'LSAGINA kutubxonani yuklaymiz. Faqat
+     * edge-funksiya tokeni bilan kirgan foydalanuvchi uchun uni
+     * yuklash bekorga 51 KB bo'lardi.
+     *
+     * Javob KUTILMAYDI: chiqish darhol ko'rinishi kerak, serverdagi
+     * sessiyani yopish esa fonda ketaveradi.
+     */
+    if (supabaseSessiyasiBormi()) {
+      getSupabase().then((sb) => sb.auth.signOut()).catch(() => {})
+    }
     clearToken()
     setUser(null)
   }, [])

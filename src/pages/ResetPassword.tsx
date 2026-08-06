@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { tr } from "../lib/i18n"
 import { Link } from "react-router-dom"
-import { supabase } from "../lib/supabase"
+import { getSupabase } from "../lib/supabase"
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("")
@@ -14,7 +14,10 @@ export default function ResetPassword() {
     setError("")
     setBusy(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
+      // Kutubxona shu yerda yuklanadi — parol tiklash amali baribir
+      // uni talab qiladi, oldindan yuklab qo'yishning hojati yo'q
+      const sb = await getSupabase()
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim())
       if (error) throw error
       setSent(true)
     } catch (err: unknown) {
