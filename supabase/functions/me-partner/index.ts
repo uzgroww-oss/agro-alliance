@@ -672,6 +672,109 @@ Deno.serve(async (req) => {
       })
     }
 
+    /* ================================================================
+     * E'TIROZLAR (SHIKOYATLAR)
+     *
+     * Bloger TZ ni noto'g'ri bajarsa yoki video yoqmasa, hamkorning
+     * ayta oladigan joyi yo'q edi: telefon qilardi, admin og'zaki
+     * yetkazardi va bu tizimda iz qoldirmasdi — bloger aynan nima
+     * noto'g'ri ekanini bilmasdi va xato takrorlanaverardi.
+     * ================================================================ */
+    if (new URL(req.url).searchParams.get("action") === "shikoyatlar") {
+      const { data, error } = await supabaseAdmin
+        .from("shikoyatlar")
+        .select("id, blogger_id, task_id, video_link, sabab, matn, rasmlar, status, bloger_javobi, admin_izohi, created_at")
+        .eq("partner_id", partner.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(100)
+      if (error) {
+        console.error("shikoyatlar:", error.message)
+        return errorResponse("E'tirozlarni yuklab bo'lmadi", 500)
+      }
+
+      const blogerIds = [...new Set((data || []).map((x) => x.blogger_id as string))]
+      const nomlar: Record<string, string> = {}
+      if (blogerIds.length) {
+        const { data: profs } = await supabaseAdmin
+          .from("profiles").select("id, name").in("id", blogerIds)
+        for (const p of (profs || []) as { id: string; name: string }[]) nomlar[p.id] = p.name || "—"
+      }
+
+      return jsonResponse({
+        shikoyatlar: (data || []).map((x) => ({
+          ...x, blogger_name: nomlar[x.blogger_id as string] || "—",
+        })),
+      })
+    }
+
+    if (req.method === "POST" && new URL(req.url).searchParams.get("action") === "shikoyat-create") {
+      const body = await req.json().catch(() => ({}))
+      const matn = String(body.matn || "").trim().slice(0, 3000)
+      if (matn.length < 10) {
+        // "Yoqmadi" degan e'tiroz blogerga hech narsa bermaydi va u
+        // nimani tuzatishni bilmaydi
+        return errorResponse("Nima noto'g'ri ekanini aniqroq yozing (kamida 10 belgi)", 400)
+      }
+
+      const blogerId = String(body.blogger_id || "")
+      if (!blogerId) return errorResponse("Bloger tanlanmagan", 400)
+
+      /**
+       * XAVFSIZLIK: e'tiroz faqat SHU KOMPANIYA uchun ishlagan
+       * blogerga yozilishi mumkin. Aks holda hamkor tizimdagi
+       * istalgan blogerga e'tiroz yozib, uning tarixini
+       * bulg'ay olardi.
+       */
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles").select("id, metadata")
+        .eq("id", blogerId).is("deleted_at", null).maybeSingle()
+      const menikiVideolar = profiles
+        ? ((((profiles.metadata as Record<string, unknown>) || {}).videos as Record<string, unknown>[]) || [])
+        : []
+      const shuKompaniyaga = menikiVideolar.some((v) => v.partner_id === partner.id)
+
+      let tegishli = shuKompaniyaga
+      if (!tegishli) {
+        // Video hali qo'shilmagan bo'lishi mumkin — TZ orqali ham tekshiramiz
+        const { data: brieflar } = await supabaseAdmin
+          .from("partner_briefs").select("task_id")
+          .eq("partner_id", partner.id).not("task_id", "is", null).is("deleted_at", null)
+        const taskIds = (brieflar || []).map((b) => b.task_id as string)
+        if (taskIds.length) {
+          const { data: bor } = await supabaseAdmin
+            .from("blogger_task_assignments").select("id")
+            .in("task_id", taskIds).eq("blogger_id", blogerId).is("deleted_at", null).limit(1)
+          tegishli = (bor || []).length > 0
+        }
+      }
+      if (!tegishli) return errorResponse("Bu bloger sizning kompaniyangiz uchun ishlamagan", 403)
+
+      const SABABLAR = ["tz_bajarilmagan", "sifat", "notogri_malumot", "brend", "muddat", "boshqa"]
+      const sabab = SABABLAR.includes(String(body.sabab)) ? String(body.sabab) : "boshqa"
+
+      // Rasm havolalari faqat http(s): boshqa sxemalar blogerning
+      // brauzerida ochilganda xavfli bo'lardi
+      const rasmlar = (Array.isArray(body.rasmlar) ? body.rasmlar : [])
+        .map((x: unknown) => String(x || "").trim())
+        .filter((x: string) => /^https?:\/\//i.test(x))
+        .slice(0, 6)
+
+      const { data, error } = await supabaseAdmin.from("shikoyatlar").insert({
+        partner_id: partner.id,
+        blogger_id: blogerId,
+        task_id: String(body.task_id || "") || null,
+        video_link: /^https?:\/\//i.test(String(body.video_link || "")) ? String(body.video_link) : null,
+        sabab, matn, rasmlar,
+        created_by: auth.user.id,
+      }).select("id").single()
+      if (error) {
+        console.error("shikoyat-create:", error.message)
+        return errorResponse("E'tirozni yuborib bo'lmadi", 500)
+      }
+      return jsonResponse({ success: true, id: data.id })
+    }
+
     if (req.method === "POST" && new URL(req.url).searchParams.get("action") === "brief-create") {
       const body = await req.json().catch(() => ({}))
       const title = String(body.title || "").trim().slice(0, 255)

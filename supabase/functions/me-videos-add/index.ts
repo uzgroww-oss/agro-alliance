@@ -132,6 +132,9 @@ Deno.serve(async (req) => {
 
       const hamkor = await hamkorniTekshir(body.partner_id)
       if (hamkor === "xato") return errorResponse("Hamkor kompaniya topilmadi", 400)
+      // Kompaniyani BO'SHATIB bo'lmaydi — video hamkor kabinetidan
+      // yo'qolib, TZ bajarilgani hisobotdan tushib qolardi
+      if (!hamkor) return errorResponse("Hamkor kompaniyani tanlang", 400)
 
       const { data: profile } = await supabaseAdmin
         .from("profiles").select("metadata").eq("id", authTop.user.id).is("deleted_at", null).single()
@@ -192,9 +195,20 @@ Deno.serve(async (req) => {
       return errorResponse("Bu platforma qo'llab-quvvatlanmaydi", 400)
     }
 
-    // 2.1. Hamkor kompaniya (ixtiyoriy, lekin berilsa haqiqiy bo'lishi shart)
+    /**
+     * 2.1. HAMKOR KOMPANIYA MAJBURIY.
+     *
+     * Ilgari ixtiyoriy edi va bu jimgina zarar keltirardi:
+     * kompaniyasiz video hech qaysi hamkor kabinetiga tushmasdi,
+     * TZ bajarilgani ko'rinmasdi va hisobot bo'sh chiqardi — bloger
+     * ishni qilgan bo'lsa ham.
+     *
+     * Tekshiruv SERVERDA: interfeysdagi majburlash so'rovni
+     * to'g'ridan-to'g'ri yuborishdan saqlamaydi.
+     */
     const hamkor = await hamkorniTekshir(body.partner_id)
     if (hamkor === "xato") return errorResponse("Hamkor kompaniya topilmadi", 400)
+    if (!hamkor) return errorResponse("Hamkor kompaniyani tanlang — usiz video kompaniya kabinetiga tushmaydi", 400)
 
     const userId = auth.user.id
 

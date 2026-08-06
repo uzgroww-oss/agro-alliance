@@ -461,9 +461,13 @@ function SocialsCard({ me: _me, reload: _reload }: { me: User; reload: () => voi
  * kompaniyalarni ko'rsatadi. Ro'yxat uzun bo'lishi mumkin, shuning
  * uchun qidiruv bor.
  *
- * "Kompaniyasiz qo'shish" ATAYLAB qoldirilgan: bloger har doim ham
- * kompaniya buyurtmasi bo'yicha video joylamaydi, majburlash uni
- * tasodifiy kompaniya tanlashga olib kelardi.
+ * KOMPANIYA TANLASH MAJBURIY.
+ *
+ * Ilgari "Kompaniyasiz qo'shish" tugmasi bor edi. Amalda u zarar
+ * keltirardi: kompaniyasiz video hech qaysi hamkor kabinetiga
+ * tushmasdi va TZ bajarilgani ko'rinmasdi — bloger ishni qilgan,
+ * hisobot esa bo'sh chiqardi. Sabab har doim bir xil edi: tugma
+ * shunchaki tezroq edi.
  */
 function PartnerPicker({
   partners, nima, onPick, onClose,
@@ -521,9 +525,6 @@ function PartnerPicker({
         <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
           <button onClick={onClose} className="rounded-xl border-2 border-green/30 px-4 py-2.5 text-sm font-bold transition-colors hover:border-green hover:text-green">
             {tr("Bekor qilish")}
-          </button>
-          <button onClick={() => onPick("")} className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted underline-offset-2 hover:underline">
-            {tr("Kompaniyasiz qo'shish")}
           </button>
           <button
             onClick={() => onPick(tanlangan)}
@@ -1032,7 +1033,11 @@ function VideosCard({ me, reload: _reload }: { me: User; reload: () => void }) {
                   title={tr("Hamkor kompaniya")}
                   className={`shrink-0 max-w-[8.5rem] rounded-md border px-1.5 py-1 text-[9px] outline-none ${v.partner_id ? "border-green/30 bg-green/5 text-green" : "border-green/15 bg-white text-muted"}`}
                 >
-                  <option value="">{tr("Kompaniyasiz")}</option>
+                  {/* Bo'sh variant ATAYLAB yo'q: kompaniyasiz video hech
+                      qaysi hamkor kabinetiga tushmaydi va TZ bajarilgani
+                      ko'rinmaydi. Eski, kompaniyasiz videolar uchun esa
+                      tanlov ko'rinib turishi kerak. */}
+                  {!v.partner_id && <option value="">{tr("Kompaniya tanlanmagan")}</option>}
                   {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <span className="text-[9px] text-muted shrink-0">{v.views} ko'rish</span>
@@ -1284,6 +1289,24 @@ type TzVideo = {
   platform: string | null; views: string; likes: string; comments: string
   ochirilgan: boolean; added_at: string
 }
+/** Hamkorning e'tirozi — nima noto'g'ri qilinganini aytadi */
+type BlogerShikoyat = {
+  id: string; partner_id: string; partner_name: string
+  task_id: string | null; video_link: string | null
+  sabab: string; matn: string; rasmlar: string[]
+  status: string; bloger_javobi: string | null; admin_izohi: string | null
+  created_at: string
+}
+
+const SHIKOYAT_SABAB: Record<string, string> = {
+  tz_bajarilmagan: "TZ bo'yicha bajarilmagan",
+  sifat: "Video sifati past",
+  notogri_malumot: "Noto'g'ri ma'lumot aytilgan",
+  brend: "Brend noto'g'ri ko'rsatilgan",
+  muddat: "Muddati o'tkazib yuborilgan",
+  boshqa: "Boshqa sabab",
+}
+
 /** Shu TZ ustida ishlayotgan bloger va uning natijasi */
 type TzJamoa = {
   id: string; name: string; avatar: string | null; meniki: boolean
@@ -1318,8 +1341,8 @@ function TasksTab({ me }: { me: User }) {
   const load = (silent = false) => {
     if (!silent) setLoading(true)
     setFailed(false)
-    api<{ tasks: MeTask[] }>("/me/tasks")
-      .then((d) => setTasks(d.tasks || []))
+    api<{ tasks: MeTask[]; shikoyatlar?: BlogerShikoyat[] }>("/me/tasks")
+      .then((d) => { setTasks(d.tasks || []); setShikoyatlar(d.shikoyatlar || []) })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false))
   }
@@ -1329,6 +1352,9 @@ function TasksTab({ me }: { me: User }) {
   const [videoUchun, setVideoUchun] = useState<MeTask | null>(null)
   /** Band izohi tahrirlanayotgan band id si */
   const [izohUchun, setIzohUchun] = useState<{ id: string; matn: string } | null>(null)
+  /** Hamkorlarning e'tirozlari va javob yozilayotgani */
+  const [shikoyatlar, setShikoyatlar] = useState<BlogerShikoyat[]>([])
+  const [javobUchun, setJavobUchun] = useState<{ id: string; matn: string } | null>(null)
   const [xato, setXato] = useState("")
 
   const setStatus = async (id: string, status: string) => {
@@ -1400,6 +1426,20 @@ function TasksTab({ me }: { me: User }) {
     } finally { setBusy(null) }
   }
 
+  const shikoyatgaJavob = async (id: string, javob: string) => {
+    setBusy(id)
+    setXato("")
+    try {
+      await api("/me/tasks?op=shikoyat-javob", {
+        method: "POST", body: JSON.stringify({ id, javob }),
+      })
+      setJavobUchun(null)
+      load(true)
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("Javobni yuborib bo'lmadi"))
+    } finally { setBusy(null) }
+  }
+
   const son = (n: number) => n.toLocaleString("ru-RU")
   const unread = tasks.filter((t) => !t.is_read).length
 
@@ -1415,6 +1455,97 @@ function TasksTab({ me }: { me: User }) {
 
       {xato && (
         <div className="mt-4 rounded-xl bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700">{xato}</div>
+      )}
+
+      {/* ============ HAMKORLARNING E'TIROZLARI ============
+          Topshiriqlardan YUQORIDA turadi: e'tiroz bor bo'lsa bloger
+          uni birinchi ko'rishi kerak. Ilgari u nima noto'g'ri
+          qilganini umuman bilmasdi — hamkor telefon qilar, admin
+          og'zaki yetkazardi va xato takrorlanaverardi. */}
+      {shikoyatlar.length > 0 && (
+        <div className="mt-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-display font-bold text-red-600">{tr("Hamkor e'tirozlari")}</h3>
+            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold text-red-600">
+              {shikoyatlar.filter((s) => s.status === "yangi").length} {tr("javobsiz")}
+            </span>
+          </div>
+          <div className="mt-3 space-y-3">
+            {shikoyatlar.map((s) => (
+              <div key={s.id} className={`${card} ${s.status === "yangi" ? "border-red-200" : ""}`}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-display font-bold">{tr(SHIKOYAT_SABAB[s.sabab] || s.sabab)}</h4>
+                      <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.partner_name}</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted">{new Date(s.created_at).toLocaleString("ru-RU")}</p>
+                  </div>
+                  {s.status === "tuzatildi" && (
+                    <span className="shrink-0 rounded-lg bg-green/10 px-2.5 py-1 text-[11px] font-bold text-green">{tr("Tuzatildi")}</span>
+                  )}
+                </div>
+
+                <p className="mt-2 whitespace-pre-wrap rounded-xl bg-red-50/60 p-3 text-sm text-ink/85">{s.matn}</p>
+
+                {s.video_link && (
+                  <a href={s.video_link} target="_blank" rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
+                    <Icon d={I.media} className="h-3.5 w-3.5" /> {tr("Video")}
+                  </a>
+                )}
+
+                {/* Ekran suratlari — matndan ko'ra aniqroq ko'rsatadi */}
+                {s.rasmlar.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {s.rasmlar.map((r, i) => (
+                      <a key={i} href={r} target="_blank" rel="noopener noreferrer">
+                        <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {s.bloger_javobi ? (
+                  <div className="mt-3 rounded-xl border border-green/15 bg-soft p-3">
+                    <p className="text-[11px] font-bold text-muted">{tr("Sizning javobingiz")}</p>
+                    <p className="mt-0.5 text-sm text-ink/85">{s.bloger_javobi}</p>
+                  </div>
+                ) : javobUchun?.id === s.id ? (
+                  <div className="mt-3">
+                    <textarea value={javobUchun.matn} rows={3} maxLength={2000} autoFocus
+                      onChange={(e) => setJavobUchun({ id: s.id, matn: e.target.value })}
+                      placeholder={tr("Nima qildingiz yoki nega rozi emassiz?")}
+                      className="w-full resize-y rounded-lg border border-green/25 px-3 py-2 text-sm outline-none focus:border-green" />
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => shikoyatgaJavob(s.id, javobUchun.matn)}
+                        disabled={busy === s.id || !javobUchun.matn.trim()}
+                        className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">
+                        {tr("Javob yuborish")}
+                      </button>
+                      <button onClick={() => setJavobUchun(null)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted hover:text-ink">
+                        {tr("Bekor")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setJavobUchun({ id: s.id, matn: "" })}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green/5">
+                    <Icon d={I.message} className="h-3.5 w-3.5" /> {tr("Javob berish")}
+                  </button>
+                )}
+
+                {s.admin_izohi && (
+                  <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                    <p className="text-[11px] font-bold text-blue-700">{tr("Administrator qarori")}</p>
+                    <p className="mt-0.5 text-sm text-ink/85">{s.admin_izohi}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading ? (

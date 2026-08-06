@@ -162,6 +162,71 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true })
     }
 
+    /* ================================================================
+     * E'TIROZLAR — ADMIN NAZORATI
+     *
+     * Admin qaysi bloger qancha e'tiroz olganini ko'rishi kerak:
+     * bitta e'tiroz tasodif, beshtasi esa tizimli muammo. Ilgari bu
+     * ma'lumot umuman yo'q edi — hamma narsa telefonda hal bo'lardi.
+     * ================================================================ */
+    if (op === "shikoyatlar") {
+      const { data, error } = await supabaseAdmin
+        .from("shikoyatlar")
+        .select("id, partner_id, blogger_id, task_id, video_link, sabab, matn, rasmlar, status, bloger_javobi, admin_izohi, created_at")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(200)
+      if (error) return errorResponse(error.message, 500)
+
+      const royxat = (data || []) as Record<string, unknown>[]
+      const pIds = [...new Set(royxat.map((x) => x.partner_id as string))]
+      const bIds = [...new Set(royxat.map((x) => x.blogger_id as string))]
+
+      const [pRes, bRes] = await Promise.all([
+        pIds.length ? supabaseAdmin.from("partners").select("id, name").in("id", pIds) : Promise.resolve({ data: [] }),
+        bIds.length ? supabaseAdmin.from("profiles").select("id, name").in("id", bIds) : Promise.resolve({ data: [] }),
+      ])
+      const pNom: Record<string, string> = {}
+      for (const p of (pRes.data || []) as { id: string; name: string }[]) pNom[p.id] = p.name || "—"
+      const bNom: Record<string, string> = {}
+      for (const b of (bRes.data || []) as { id: string; name: string }[]) bNom[b.id] = b.name || "—"
+
+      // Bloger bo'yicha jami — "kim ko'p e'tiroz olyapti" savoliga javob
+      const blogerHisobi: Record<string, number> = {}
+      for (const x of royxat) {
+        const k = x.blogger_id as string
+        blogerHisobi[k] = (blogerHisobi[k] || 0) + 1
+      }
+
+      return jsonResponse({
+        shikoyatlar: royxat.map((x) => ({
+          ...x,
+          partner_name: pNom[x.partner_id as string] || "—",
+          blogger_name: bNom[x.blogger_id as string] || "—",
+          blogerJami: blogerHisobi[x.blogger_id as string] || 1,
+        })),
+      })
+    }
+
+    if (op === "shikoyat-update" && (req.method === "POST" || req.method === "PATCH")) {
+      const body = await req.json().catch(() => ({}))
+      const id = String(body.id || "")
+      if (!id) return errorResponse("id talab qilinadi", 400)
+
+      const yangilash: Record<string, unknown> = {}
+      if (["yangi", "korildi", "tuzatildi", "rad_etildi"].includes(String(body.status))) {
+        yangilash.status = String(body.status)
+      }
+      if (typeof body.admin_izohi === "string") {
+        yangilash.admin_izohi = body.admin_izohi.trim().slice(0, 2000) || null
+      }
+      if (!Object.keys(yangilash).length) return errorResponse("O'zgartirish yo'q", 400)
+
+      const { error } = await supabaseAdmin.from("shikoyatlar").update(yangilash).eq("id", id)
+      if (error) return errorResponse(error.message, 500)
+      return jsonResponse({ success: true })
+    }
+
     /* So'rovni O'CHIRISH ataylab yo'q: "Rad etish" so'rovni sababi
        bilan saqlab qoladi va hamkor javobni ko'radi. O'chirish esa iz
        qoldirmasdi — hamkor so'rovi shunchaki yo'qolib qolardi. */

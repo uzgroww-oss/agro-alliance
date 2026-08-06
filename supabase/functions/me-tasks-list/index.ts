@@ -241,7 +241,41 @@ Deno.serve(async (req) => {
 
     const unread = tasks.filter((t) => !t.is_read).length
 
-    return jsonResponse({ tasks, unread })
+    /**
+     * HAMKORLARNING E'TIROZLARI.
+     *
+     * Ilgari bloger nima noto'g'ri qilganini bilmasdi: hamkor telefon
+     * qilardi, admin og'zaki yetkazardi. Endi e'tiroz aniq sabab,
+     * izoh va ekran surati bilan shu yerda ko'rinadi.
+     *
+     * Kompaniya NOMI ataylab berilmaydi — bloger qaysi kompaniya
+     * e'tiroz bildirganini bilishi kerak, shuning uchun beriladi;
+     * lekin `admin_izohi` ichki qaror bo'lgani uchun faqat "korildi"
+     * dan keyingi holatda ko'rsatiladi.
+     */
+    const { data: shikoyatlar } = await supabaseAdmin
+      .from("shikoyatlar")
+      .select("id, partner_id, task_id, video_link, sabab, matn, rasmlar, status, bloger_javobi, admin_izohi, created_at")
+      .eq("blogger_id", auth.user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(50)
+
+    const shikoyatRoyxat = (shikoyatlar || []) as Record<string, unknown>[]
+    const pIds = [...new Set(shikoyatRoyxat.map((x) => x.partner_id as string))]
+    const pNomlar: Record<string, string> = {}
+    if (pIds.length) {
+      const { data: ps } = await supabaseAdmin.from("partners").select("id, name").in("id", pIds)
+      for (const p of (ps || []) as { id: string; name: string }[]) pNomlar[p.id] = p.name || "—"
+    }
+
+    return jsonResponse({
+      tasks,
+      unread,
+      shikoyatlar: shikoyatRoyxat.map((x) => ({
+        ...x, partner_name: pNomlar[x.partner_id as string] || "—",
+      })),
+    })
   } catch (err) {
     console.error("me-tasks-list:", err instanceof Error ? err.message : err)
     return errorResponse(err instanceof Error ? err.message : "Internal error", 500)

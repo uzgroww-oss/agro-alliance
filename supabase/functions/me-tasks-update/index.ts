@@ -81,6 +81,34 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true })
     }
 
+    /* ================================================================
+     * E'TIROZGA JAVOB
+     *
+     * Bloger e'tirozni faqat KO'RSA yetarli emas — u nima qilganini
+     * yoki nega rozi emasligini ayta olishi kerak. Aks holda bahs
+     * yana panel tashqarisiga, telefonga ko'chardi.
+     * ================================================================ */
+    if (op === "shikoyat-javob" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const shikoyatId = String(body.id || "")
+      const javob = String(body.javob || "").trim().slice(0, 2000)
+      if (!shikoyatId) return errorResponse("id talab qilinadi", 400)
+      if (!javob) return errorResponse("Javob yozing", 400)
+
+      // Faqat O'ZIGA yozilgan e'tirozga javob bera oladi
+      const { data, error } = await supabaseAdmin
+        .from("shikoyatlar")
+        .update({ bloger_javobi: javob, status: "korildi" })
+        .eq("id", shikoyatId)
+        .eq("blogger_id", auth.user.id)
+        .is("deleted_at", null)
+        .select("id")
+        .maybeSingle()
+      if (error) return errorResponse(error.message, 500)
+      if (!data) return errorResponse("E'tiroz topilmadi", 404)
+      return jsonResponse({ success: true })
+    }
+
     const id = url.searchParams.get("id")
     if (!id) return errorResponse("id talab qilinadi", 400)
 

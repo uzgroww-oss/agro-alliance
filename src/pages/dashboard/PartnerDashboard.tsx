@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout from "../../components/DashboardLayout"
 import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
+import MediaUpload from "../../components/MediaUpload"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { supabase } from "../../lib/supabase"
@@ -316,7 +317,7 @@ export default function PartnerDashboard() {
           )}
           {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
           {active === "Videolar" && <PartnerVideos partnerId={String(partner.id)} />}
-          {active === "Topshiriqlar" && <Briefs />}
+          {active === "Topshiriqlar" && <><Briefs /><Shikoyatlar /></>}
           {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
           {active === "Sozlamalar" && <Settings />}
         </>
@@ -1892,6 +1893,306 @@ function Briefs() {
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------- E'tirozlar (shikoyatlar) ---------- */
+
+type Shikoyat = {
+  id: string; blogger_id: string; blogger_name: string
+  task_id: string | null; video_link: string | null
+  sabab: string; matn: string; rasmlar: string[]
+  status: string; bloger_javobi: string | null; admin_izohi: string | null
+  created_at: string
+}
+
+/**
+ * E'TIROZ SABABLARI.
+ *
+ * Tayyor ro'yxat ataylab: "yoqmadi" degan erkin matn blogerga hech
+ * narsa bermaydi. Sabab turi esa adminga ham kerak — qaysi muammo
+ * tez-tez takrorlanayotganini shundan ko'radi.
+ */
+export const SHIKOYAT_SABAB: Record<string, string> = {
+  tz_bajarilmagan: "TZ bo'yicha bajarilmagan",
+  sifat: "Video sifati past",
+  notogri_malumot: "Noto'g'ri ma'lumot aytilgan",
+  brend: "Brend noto'g'ri ko'rsatilgan",
+  muddat: "Muddati o'tkazib yuborilgan",
+  boshqa: "Boshqa sabab",
+}
+
+export const SHIKOYAT_HOLAT: Record<string, { nom: string; cls: string }> = {
+  yangi: { nom: "Yangi", cls: "bg-orange-100 text-orange-600" },
+  korildi: { nom: "Bloger javob berdi", cls: "bg-blue-50 text-blue-700" },
+  tuzatildi: { nom: "Tuzatildi", cls: "bg-green/10 text-green" },
+  rad_etildi: { nom: "Rad etildi", cls: "bg-red-50 text-red-600" },
+}
+
+/**
+ * E'TIROZLAR BO'LIMI.
+ *
+ * Bloger TZ ni noto'g'ri bajarsa yoki video yoqmasa, hamkorning
+ * ayta oladigan joyi yo'q edi: telefon qilardi, admin og'zaki
+ * yetkazardi va bu hech qayerda qolmasdi — bloger aynan NIMA
+ * noto'g'ri ekanini bilmasdi va xato takrorlanaverardi.
+ */
+function Shikoyatlar() {
+  const [list, setList] = useState<Shikoyat[]>([])
+  const [videos, setVideos] = useState<PartnerVideo[]>([])
+  const [yuklanmoqda, setYuklanmoqda] = useState(true)
+  const [xato, setXato] = useState(false)
+
+  const [ochiq, setOchiq] = useState(false)
+  const [forma, setForma] = useState({ blogger_id: "", video_link: "", sabab: "tz_bajarilmagan", matn: "" })
+  const [rasmlar, setRasmlar] = useState<string[]>([])
+  const [band, setBand] = useState(false)
+  const [xabar, setXabar] = useState<{ ok: boolean; matn: string } | null>(null)
+
+  const yukla = useCallback(() => {
+    setYuklanmoqda(true); setXato(false)
+    Promise.all([
+      api<{ shikoyatlar: Shikoyat[] }>("/me/partner?action=shikoyatlar").then((d) => setList(d.shikoyatlar || [])),
+      // Videolar ro'yxati — e'tirozni aynan qaysi video haqida ekanini
+      // ko'rsatish uchun. Havolani qo'lda ko'chirish noqulay va xato beradi.
+      api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
+        .then((d) => setVideos(d.videos || [])).catch(() => {}),
+    ]).catch(() => setXato(true)).finally(() => setYuklanmoqda(false))
+  }, [])
+  useEffect(() => { yukla() }, [yukla])
+
+  /** Faqat shu kompaniya uchun ishlagan blogerlar */
+  const blogerlar = useMemo(() => {
+    const x = new Map<string, string>()
+    for (const v of videos) x.set(v.blogger.id, v.blogger.name)
+    return [...x.entries()].map(([id, name]) => ({ id, name }))
+  }, [videos])
+
+  const tanlanganVideolar = useMemo(
+    () => videos.filter((v) => !forma.blogger_id || v.blogger.id === forma.blogger_id),
+    [videos, forma.blogger_id],
+  )
+
+  const yubor = async () => {
+    setXabar(null)
+    if (!forma.blogger_id) { setXabar({ ok: false, matn: tr("Blogerni tanlang") }); return }
+    if (forma.matn.trim().length < 10) {
+      setXabar({ ok: false, matn: tr("Nima noto'g'ri ekanini aniqroq yozing (kamida 10 belgi)") }); return
+    }
+    setBand(true)
+    try {
+      await api("/me/partner?action=shikoyat-create", {
+        method: "POST", body: JSON.stringify({ ...forma, rasmlar }),
+      })
+      setXabar({ ok: true, matn: tr("E'tiroz yuborildi — bloger va administrator ko'radi") })
+      setForma({ blogger_id: "", video_link: "", sabab: "tz_bajarilmagan", matn: "" })
+      setRasmlar([])
+      setOchiq(false)
+      yukla()
+    } catch (e) {
+      setXabar({ ok: false, matn: e instanceof Error ? e.message : tr("E'tirozni yuborib bo'lmadi") })
+    } finally { setBand(false) }
+  }
+
+  return (
+    <div className="mt-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-lg font-bold">{tr("E'tirozlar")}</h3>
+          <p className="mt-1 text-sm text-muted">
+            {tr("Ish TZ bo'yicha bajarilmagan yoki video sizga yoqmagan bo'lsa — aniq yozing, bloger va administrator ko'radi.")}
+          </p>
+        </div>
+        <button onClick={() => { setOchiq(true); setXabar(null) }}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-50">
+          <Icon d={I.bolt} className="h-4 w-4" /> {tr("E'tiroz bildirish")}
+        </button>
+      </div>
+
+      {xabar && (
+        <div className={`mt-3 rounded-xl px-4 py-3 text-sm font-semibold ${xabar.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>
+          {xabar.matn}
+        </div>
+      )}
+
+      {yuklanmoqda ? (
+        <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+      ) : xato ? (
+        <div className={`mt-4 ${card}`}><ErrorState onRetry={yukla} message={tr("E'tirozlarni yuklab bo'lmadi.")} /></div>
+      ) : list.length === 0 ? (
+        <div className={`mt-4 ${card} text-center`}>
+          <Icon d={I.check} className="mx-auto h-8 w-8 text-green/40" />
+          <p className="mt-2 text-sm text-muted">{tr("E'tiroz yo'q — hammasi joyida.")}</p>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {list.map((s) => {
+            const h = SHIKOYAT_HOLAT[s.status] || SHIKOYAT_HOLAT.yangi
+            return (
+              <div key={s.id} className={card}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-display font-bold">{tr(SHIKOYAT_SABAB[s.sabab] || s.sabab)}</h4>
+                      <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.blogger_name}</span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted">{new Date(s.created_at).toLocaleString("ru-RU")}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${h.cls}`}>{tr(h.nom)}</span>
+                </div>
+
+                <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{s.matn}</p>
+
+                {s.video_link && (
+                  <a href={s.video_link} target="_blank" rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
+                    <Icon d={I.media} className="h-3.5 w-3.5" /> {tr("Video")}
+                  </a>
+                )}
+
+                {s.rasmlar.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {s.rasmlar.map((r, i) => (
+                      <a key={i} href={r} target="_blank" rel="noreferrer">
+                        <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {/* Blogerning javobi — bahs panel ichida qolsin */}
+                {s.bloger_javobi && (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                    <p className="text-[11px] font-bold text-blue-700">{tr("Bloger javobi")}</p>
+                    <p className="mt-0.5 text-sm text-ink/85">{s.bloger_javobi}</p>
+                  </div>
+                )}
+                {s.admin_izohi && (
+                  <div className="mt-2 rounded-xl border border-green/15 bg-[#fafdf7] p-3">
+                    <p className="text-[11px] font-bold text-muted">{tr("Administrator qarori")}</p>
+                    <p className="mt-0.5 text-sm text-ink/85">{s.admin_izohi}</p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ---- Yangi e'tiroz — MODAL ---- */}
+      {ochiq && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+          onClick={() => setOchiq(false)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="font-display text-lg font-bold">{tr("E'tiroz bildirish")}</h4>
+                <p className="mt-0.5 text-sm text-muted">
+                  {tr("Aniq yozing: nima noto'g'ri va qanday bo'lishi kerak edi.")}
+                </p>
+              </div>
+              <button onClick={() => setOchiq(false)} aria-label={tr("Yopish")}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-xs font-semibold text-muted">{tr("Bloger")}</label>
+                <select value={forma.blogger_id}
+                  onChange={(e) => setForma((f) => ({ ...f, blogger_id: e.target.value, video_link: "" }))}
+                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                  <option value="">{tr("Tanlang")}</option>
+                  {blogerlar.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                {blogerlar.length === 0 && (
+                  <p className="mt-1 text-[11px] text-muted">
+                    {tr("Hali sizning kompaniyangiz uchun video qo'shilmagan.")}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted">{tr("Sabab")}</label>
+                <select value={forma.sabab}
+                  onChange={(e) => setForma((f) => ({ ...f, sabab: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                  {Object.entries(SHIKOYAT_SABAB).map(([k, v]) => (
+                    <option key={k} value={k}>{tr(v)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Video ro'yxatdan tanlanadi: havolani qo'lda ko'chirish
+                  noqulay va xato beradi */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-muted">{tr("Qaysi video (ixtiyoriy)")}</label>
+                <select value={forma.video_link}
+                  onChange={(e) => setForma((f) => ({ ...f, video_link: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
+                  <option value="">{tr("Umumiy — aniq video emas")}</option>
+                  {tanlanganVideolar.map((v) => (
+                    <option key={v.id} value={v.link}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-muted">{tr("Nima noto'g'ri?")}</label>
+                <textarea value={forma.matn} rows={5} maxLength={3000}
+                  onChange={(e) => setForma((f) => ({ ...f, matn: e.target.value }))}
+                  placeholder={tr("Masalan: TZ da mahsulot qadog'ini yaqindan ko'rsatish yozilgan edi, videoda umuman ko'rsatilmagan. Narx ham aytilmagan.")}
+                  className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
+                <p className="mt-1 text-[11px] text-muted">
+                  {forma.matn.trim().length} / 10 {tr("belgi (kamida)")}
+                </p>
+              </div>
+
+              {/* Ekran surati — "sifati past" degan gapdan ko'ra rasm
+                  aniqroq va bahsni qisqartiradi */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-muted">{tr("Ekran surati (ixtiyoriy)")}</label>
+                {rasmlar.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {rasmlar.map((r, i) => (
+                      <span key={i} className="relative">
+                        <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
+                        <button type="button" onClick={() => setRasmlar((p) => p.filter((_, j) => j !== i))}
+                          aria-label={tr("O'chirish")}
+                          className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white">
+                          <Icon d="M18 6L6 18 M6 6l12 12" className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {rasmlar.length < 6 && (
+                  <div className="mt-1.5">
+                    <MediaUpload accept="image/*" multiple
+                      onUpload={(r) => setRasmlar((p) => [...p, r.signedUrl].slice(0, 6))} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-green/10 pt-4">
+              <button onClick={yubor} disabled={band}
+                className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
+                {band
+                  ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  : <Icon d={I.send} className="h-4 w-4" />}
+                {band ? tr("Yuborilmoqda…") : tr("E'tirozni yuborish")}
+              </button>
+              <button onClick={() => setOchiq(false)}
+                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted transition-colors hover:text-ink">
+                {tr("Bekor qilish")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

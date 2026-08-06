@@ -1784,6 +1784,33 @@ type PartnerBrief = {
   bandlar: { id: string; title: string; status: string }[]
 }
 
+type AdminShikoyat = {
+  id: string; partner_id: string; partner_name: string
+  blogger_id: string; blogger_name: string
+  task_id: string | null; video_link: string | null
+  sabab: string; matn: string; rasmlar: string[]
+  status: string; bloger_javobi: string | null; admin_izohi: string | null
+  created_at: string
+  /** Shu bloger jami nechta e'tiroz olgan — tizimli muammoni ko'rsatadi */
+  blogerJami: number
+}
+
+const SHIKOYAT_SABAB_A: Record<string, string> = {
+  tz_bajarilmagan: "TZ bo'yicha bajarilmagan",
+  sifat: "Video sifati past",
+  notogri_malumot: "Noto'g'ri ma'lumot aytilgan",
+  brend: "Brend noto'g'ri ko'rsatilgan",
+  muddat: "Muddati o'tkazib yuborilgan",
+  boshqa: "Boshqa sabab",
+}
+
+const SHIKOYAT_HOLAT_A: Record<string, { nom: string; cls: string }> = {
+  yangi: { nom: "Yangi", cls: "bg-orange-100 text-orange-600" },
+  korildi: { nom: "Bloger javob berdi", cls: "bg-blue-50 text-blue-700" },
+  tuzatildi: { nom: "Tuzatildi", cls: "bg-green/10 text-green" },
+  rad_etildi: { nom: "Rad etildi", cls: "bg-red-50 text-red-600" },
+}
+
 const briefStatus: Record<string, { label: string; cls: string }> = {
   new: { label: "Yangi so'rov", cls: "bg-orange-100 text-orange-600" },
   seen: { label: "Ko'rib chiqilmoqda", cls: "bg-blue-50 text-blue-700" },
@@ -1811,6 +1838,9 @@ function AdminTasks() {
    * qolardi va bu yolg'on ko'rsatkich edi.
    */
   const [bandTahrir, setBandTahrir] = useState<{ id: string; matn: string } | null>(null)
+  /** E'tirozlar va qaror yozilayotgani */
+  const [shikoyatlar, setShikoyatlar] = useState<AdminShikoyat[]>([])
+  const [qarorUchun, setQarorUchun] = useState<{ id: string; matn: string } | null>(null)
   const [bandSaqlanmoqda, setBandSaqlanmoqda] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
   const [file, setFile] = useState<{ url: string; name: string } | null>(null)
@@ -1833,6 +1863,9 @@ function AdminTasks() {
       // So'rovlar yuklanmasa ham qolgan ish ishlayversin: TZ yuborish
       // hamkor so'roviga bog'liq emas
       api<{ briefs: PartnerBrief[] }>("/tasks?op=briefs").then((d) => setBriefs(d.briefs || [])).catch(() => {}),
+      // E'tirozlar yuklanmasa ham qolgan ish ishlayversin
+      api<{ shikoyatlar: AdminShikoyat[] }>("/tasks?op=shikoyatlar")
+        .then((d) => setShikoyatlar(d.shikoyatlar || [])).catch(() => {}),
     ]).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -1855,6 +1888,18 @@ function AdminTasks() {
       setBriefs((prev) => prev.map((x) => x.id === b.id ? { ...x, status: "seen" } : x))
     }
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  const shikoyatQaror = async (id: string, status: string, izoh: string) => {
+    try {
+      await api("/tasks?op=shikoyat-update", {
+        method: "POST", body: JSON.stringify({ id, status, admin_izohi: izoh }),
+      })
+      setQarorUchun(null)
+      load()
+    } catch (e) {
+      setMsg(`❌ ${e instanceof Error ? e.message : "Xatolik"}`)
+    }
   }
 
   const bandlarniSaqla = async () => {
@@ -1925,6 +1970,116 @@ function AdminTasks() {
         <h2 className="font-display text-xl font-extrabold tracking-tight">{tr("Topshiriqlar (TZ)")}</h2>
         <p className="mt-1 text-sm text-muted">{tr("Blogerlarga topshiriq yuboring va bajarilishini kuzating.")}</p>
       </div>
+
+      {/* ============ E'TIROZLAR ============
+          Eng tepada: e'tiroz — bu allaqachon yuz bergan muammo,
+          topshiriq esa kelajakdagi ish. Ilgari bu ma'lumot umuman
+          yo'q edi va hamma narsa telefonda hal bo'lardi. */}
+      {shikoyatlar.length > 0 && (
+        <div className="mt-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-display font-bold">{tr("Hamkor e'tirozlari")}</h3>
+            {shikoyatlar.some((s) => s.status === "yangi") && (
+              <span className="rounded-lg bg-orange-100 px-2.5 py-1 text-[11px] font-bold text-orange-600">
+                {shikoyatlar.filter((s) => s.status === "yangi").length} {tr("ta yangi")}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            {tr("Hamkor kompaniyalarning blogerlar ishiga e'tirozlari. Ko'rib chiqing va qaror yozing.")}
+          </p>
+
+          <div className="mt-3 space-y-3">
+            {shikoyatlar.map((s) => {
+              const h = SHIKOYAT_HOLAT_A[s.status] || SHIKOYAT_HOLAT_A.yangi
+              return (
+                <div key={s.id} className={`${card} ${s.status === "yangi" ? "border-orange-200" : ""}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-display font-bold">{tr(SHIKOYAT_SABAB_A[s.sabab] || s.sabab)}</h4>
+                        {/* Bitta e'tiroz tasodif, beshtasi tizimli muammo */}
+                        {s.blogerJami > 2 && (
+                          <span className="rounded-md bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                            {s.blogerJami} {tr("ta e'tiroz")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted">
+                        <b className="text-ink">{s.partner_name}</b> → {s.blogger_name}
+                        {" · "}{new Date(s.created_at).toLocaleString("ru-RU")}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${h.cls}`}>{tr(h.nom)}</span>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{s.matn}</p>
+
+                  {s.video_link && (
+                    <a href={s.video_link} target="_blank" rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
+                      <Icon d={I.media} className="h-3.5 w-3.5" /> {tr("Video")}
+                    </a>
+                  )}
+                  {s.rasmlar.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {s.rasmlar.map((r, i) => (
+                        <a key={i} href={r} target="_blank" rel="noreferrer">
+                          <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {s.bloger_javobi && (
+                    <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                      <p className="text-[11px] font-bold text-blue-700">{tr("Bloger javobi")}</p>
+                      <p className="mt-0.5 text-sm text-ink/85">{s.bloger_javobi}</p>
+                    </div>
+                  )}
+                  {s.admin_izohi && (
+                    <p className="mt-2 rounded-xl bg-[#fafdf7] px-3 py-2 text-xs text-ink/80">
+                      <b>{tr("Qaroringiz")}:</b> {s.admin_izohi}
+                    </p>
+                  )}
+
+                  {/* Qaror — ikkala tomon ham ko'radi, shuning uchun
+                      sababsiz yopib qo'yish mumkin emas */}
+                  {qarorUchun?.id === s.id ? (
+                    <div className="mt-3 rounded-xl border border-green/20 bg-soft p-3">
+                      <label className="text-xs font-bold text-muted">{tr("Qaror — hamkor ham, bloger ham ko'radi")}</label>
+                      <textarea value={qarorUchun.matn} rows={2} maxLength={2000} autoFocus
+                        onChange={(e) => setQarorUchun({ ...qarorUchun, matn: e.target.value })}
+                        className="mt-1 w-full resize-y rounded-lg border border-green/25 bg-white px-3 py-2 text-sm outline-none focus:border-green" />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button onClick={() => shikoyatQaror(s.id, "tuzatildi", qarorUchun.matn)}
+                          className="rounded-lg bg-green px-3 py-1.5 text-xs font-bold text-white">
+                          {tr("Tuzatildi")}
+                        </button>
+                        <button onClick={() => shikoyatQaror(s.id, "rad_etildi", qarorUchun.matn)}
+                          disabled={!qarorUchun.matn.trim()}
+                          title={!qarorUchun.matn.trim() ? tr("Rad etish sababini yozing") : undefined}
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-500 disabled:opacity-50">
+                          {tr("Rad etish")}
+                        </button>
+                        <button onClick={() => setQarorUchun(null)}
+                          className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted hover:text-ink">
+                          {tr("Bekor")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : s.status !== "tuzatildi" && s.status !== "rad_etildi" && (
+                    <button onClick={() => setQarorUchun({ id: s.id, matn: s.admin_izohi || "" })}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-green/25 px-3 py-1.5 text-xs font-bold text-green transition-colors hover:bg-green/5">
+                      <Icon d={I.check} className="h-3.5 w-3.5" /> {tr("Qaror qabul qilish")}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ============ HAMKORLARDAN KELGAN SO'ROVLAR ============
           Formadan YUQORIDA turadi: yangi so'rov kelgan bo'lsa admin
