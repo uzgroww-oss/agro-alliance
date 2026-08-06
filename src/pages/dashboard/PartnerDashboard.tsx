@@ -293,8 +293,9 @@ export default function PartnerDashboard() {
 
       {partner && (
         <>
-          {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Header — QOG'OZGA TUSHMAYDI: hujjatning o'z sarlavhasi bor
+              va kabinet sarlavhasi uning ustida takrorlanib turardi */}
+          <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
             <div className="flex items-center gap-3">
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-green/10 text-green"><Icon d={I.building} className="h-7 w-7" /></span>
               <div>
@@ -2373,7 +2374,7 @@ function Hujjat({ partner, extra, tz, shikoyatlar, davrNomi, raqamHolati, videoS
   }
 
   return (
-    <div className="hujjat mx-auto max-w-[210mm] bg-white p-8 text-ink">
+    <div className="hujjat mx-auto max-w-[210mm] bg-white p-8 text-ink print:p-0">
       {/* ---- Sarlavha ---- */}
       <div className="border-b-2 border-ink pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -2627,8 +2628,11 @@ function Hujjat({ partner, extra, tz, shikoyatlar, davrNomi, raqamHolati, videoS
         </section>
       )}
 
-      {/* ---- Oyoq: imzo joyi ---- */}
-      <div className="mt-10 flex justify-between gap-8 text-[11px]">
+      {/* ---- Oyoq: imzo joyi ----
+           `print-block` bilan birga: imzo va uning ostidagi izoh
+           ikkinchi varaqqa tushib qolmasin — bo'sh varaqda yolg'iz
+           turgan imzo hujjatni tugallanmagan ko'rsatadi */}
+      <div className="print-block mt-8 flex justify-between gap-8 text-[11px]">
         <div className="flex-1">
           <p className="border-t border-gray-400 pt-1">{tr("AGRO ALLIANCE vakili")}</p>
         </div>

@@ -120,11 +120,38 @@ body.modal-open { overflow: hidden; }
    ishlaydi).
    ========================================================================== */
 @media print {
-  /* Chekka o'lchamlari — chap tomon kengroq: hisobot tikilganda
-     yoki qadalganda matn yopilib qolmasin */
+  /**
+   * CHEKKA NOL — BU ATAYLAB.
+   *
+   * Brauzer sahifaning tepasi va pastiga O'ZINING sarlavhasini
+   * qo'shadi: sana, sahifa nomi, manzil (localhost:5173/hamkor) va
+   * "1/2". Rasmiy hujjatda bularning bo'lishi mumkin emas.
+   *
+   * `margin: 0` bo'lganda brauzer bu sarlavhalarni chiqarmaydi.
+   * Haqiqiy chekkalar hujjatning O'ZIGA otступ sifatida beriladi
+   * (pastda `.hujjat`), shuning uchun qog'ozda hech narsa
+   * o'zgarmaydi — faqat ortiqcha yozuvlar yo'qoladi.
+   */
   @page {
     size: A4;
-    margin: 14mm 12mm 16mm 16mm;
+    margin: 0;
+  }
+
+  /* Chekkalar endi hujjatning ichida. Chap tomon kengroq: hisobot
+     tikilganda yoki qadalganda matn yopilib qolmasin. */
+  .hujjat {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 14mm 12mm 10mm 16mm !important;
+  }
+
+  /* Hujjat atrofidagi ekran bezaklari qog'ozda kerak emas */
+  .print-area {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
   }
 
   /* Fon ranglari va soyalari QOG'OZDA ishlatilmaydi: siyoh ko'p
