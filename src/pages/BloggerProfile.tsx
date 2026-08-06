@@ -141,7 +141,7 @@ function Header({ b }: { b: LiveBlogger }) {
       {b.cover ? (
         <img src={b.cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <img src="/hero-bg-1280.webp" srcSet="/hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
       )}
       <div className="absolute inset-0 bg-gradient-to-tr from-white/92 via-white/55 to-white/15" />
       <Mascot nom="mascot3" className="animate-float pointer-events-none absolute bottom-0 left-1/2 z-10 hidden h-[12.5rem] w-auto -translate-x-1/2 object-contain drop-shadow-2xl xl:block" />

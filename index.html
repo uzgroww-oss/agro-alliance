@@ -3,7 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/webp" href="/logo.webp" />
-    <link rel="preload" as="image" href="/hero-bg.webp" />
+    <!--
+      LCP RASMI — TO'G'RI NUSXASI OLDINDAN YUKLANADI.
+
+      ILGARI shu yerda `href="/hero-bg.webp"` (1536px, 57 KB) turardi,
+      sahifadagi `<img>` esa `srcset` bo'yicha telefonda 1280px lik
+      nusxani tanlardi. Ya'ni brauzer IKKITA rasm yuklardi: oldindan
+      yuklangan 1536px hech qayerda ishlatilmasdi.
+
+      `imagesrcset` va `imagesizes` — `<img>` dagi bilan AYNAN bir xil
+      bo'lishi shart, aks holda brauzer boshqa nusxani tanlaydi va
+      oldindan yuklash yana bekorga ketadi.
+    -->
+    <link
+      rel="preload"
+      as="image"
+      href="/hero-bg-768.webp"
+      imagesrcset="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
     <!--
       viewport-fit=cover — notch/safe-area uchun (native ilova).
 
@@ -47,6 +66,62 @@
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     </noscript>
     <title>AGRO ALLIANCE — Agro Media Platforma</title>
+    <!--
+      BOSH SAHIFA MA'LUMOTI REACT'DAN OLDIN SO'RALADI.
+
+      MUAMMO EDI (PageSpeed, telefon): so'rov faqat React ishga tushib,
+      komponent chizilgandan KEYIN ketardi — sekin 4G da bu ~2.5 soniya.
+      Shu vaqtgacha ekranda skelet turardi, ma'lumot kelgach esa hero
+      bo'limi 259 piksel cho'zilib, pastdagi hamma narsa siljib
+      ketardi. Maket siljishi (CLS) 0.356 — bahodan chorak qismi shu
+      sabab yo'qolardi.
+
+      Endi so'rov HTML o'qilayotgan payt, ya'ni JavaScript hali
+      yuklanmasdan boshlanadi. Frankfurtga borib kelish (~1 s) React
+      ishga tushayotgan paytga to'g'ri keladi, natijada birinchi
+      chizishdayoq HAQIQIY matn chiqadi: skelet ham, siljish ham yo'q.
+
+      `api.ts` shu va'dani AYNAN shu manzil bo'yicha topib oladi
+      (`window.__aaBoot`), shuning uchun manzil ikki joyda bir xil
+      qurilishi kerak — til qo'shimchasi ham.
+
+      Faqat bosh sahifada: boshqa sahifalarga bu ma'lumot kerak emas.
+      Xato bo'lsa hech narsa buzilmaydi — `api.ts` odatdagidek
+      so'rovni o'zi yuboradi.
+    -->
+    <script>
+      (function () {
+        try {
+          if (location.pathname !== "/") return
+          // Native ilovada yo'nalish hash ichida (`#/kirish`) — u yerda
+          // bosh sahifa ma'lumoti kerak emas
+          var h = location.hash
+          if (h && h !== "#" && h !== "#/") return
+          var TILLAR = ["uz", "ru", "en", "zh"]
+          var til = localStorage.getItem("aa_lang")
+          if (TILLAR.indexOf(til) < 0) {
+            var b = (navigator.language || "").slice(0, 2).toLowerCase()
+            til = b === "ru" ? "ru" : b === "en" ? "en" : b === "zh" ? "zh" : "uz"
+            localStorage.setItem("aa_lang", til)
+          }
+          var url =
+            "%VITE_SUPABASE_URL%/functions/v1/public-homepage-sections" +
+            (til !== "uz" ? "?lang=" + til : "")
+          window.__aaBoot = {}
+          window.__aaBoot[url] = fetch(url, {
+            headers: { "Content-Type": "application/json", apikey: "%VITE_SUPABASE_ANON_KEY%" },
+          })
+            .then(function (r) {
+              return r.ok ? r.json().then(function (d) { return { ok: true, data: d } }) : { ok: false }
+            })
+            .catch(function () {
+              return { ok: false }
+            })
+        } catch (e) {
+          /* localStorage yopiq yoki fetch yo'q — oddiy yo'ldan ketaveradi */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

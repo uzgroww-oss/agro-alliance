@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { tr } from "../lib/i18n"
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { Reveal, Icon, I, StatsBar, Skeleton, Mascot } from "../lib/ui"
 import { useHomeSections } from "../lib/sections"
 import { useStaticSeo } from "../lib/seo"
@@ -18,8 +18,43 @@ const iconMap: Record<string, string> = {
 type SectionItem = { title: string; description: string; icon: string; link: string }
 type Section = { section_key: string; title: string; subtitle: string; items: SectionItem[] }
 
+/* ==========================================================================
+   YUKLASH PAYTIDA NECHTA SKELET KARTA
+   ==========================================================================
+   Skelet kartalar soni HAQIQIY kartalar soniga teng bo'lishi kerak.
+   Teng bo'lmasa ma'lumot kelganda ustun cho'zilib yoki qisqarib, hero
+   bo'limi bilan birga pastdagi hamma narsa siljiydi.
+
+   Son admin panelidan o'zgarishi mumkin, shuning uchun u qattiq
+   yozilmaydi: oxirgi ko'rilgan son brauzerda saqlanadi va keyingi
+   tashrifda o'shanisi ishlatiladi. Birinchi tashrifda zaxira qiymat
+   ketadi — hozirgi sayt uchun beshta.
+   ========================================================================== */
+const HERO_SONI_KEY = "aa_hero_soni"
+const HERO_SONI_ZAXIRA = 5
+
+function heroSoniOl(): number {
+  try {
+    const v = Number(localStorage.getItem(HERO_SONI_KEY))
+    if (Number.isInteger(v) && v >= 1 && v <= 12) return v
+  } catch { /* maxfiylik rejimida localStorage yopiq */ }
+  return HERO_SONI_ZAXIRA
+}
+
+/** Modul yuklanganda BIR MARTA o'qiladi — sahifa o'rtasida o'zgarmasin */
+const HERO_KARTA_SONI = heroSoniOl()
+
 function HeroCardBox({ card }: { card: HeroCard }) {
-  const base = "group flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4 shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-all"
+  /**
+   * `min-h-[92px]` — kartaning BALANDLIGI QAT'IY.
+   *
+   * Matn uzunligiga qarab karta 91 yoki 107 piksel bo'lardi. Ma'lumot
+   * kelganda ustun cho'zilib, hero bo'limi bilan birga pastdagi hamma
+   * narsa siljirdi. Endi tavsif ikki qatorga kesiladi (`line-clamp-2`)
+   * va karta har doim bir xil balandlikda — skelet bilan ham aynan
+   * bir xil.
+   */
+  const base = "group flex min-h-[92px] items-start gap-3 rounded-2xl border border-green/10 bg-white p-4 shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-all"
   const hoverable = " hover:-translate-y-0.5 hover:border-green/30 hover:shadow-[0_8px_28px_rgba(91,180,32,0.16)]"
   const inner = (
     <>
@@ -36,7 +71,7 @@ function HeroCardBox({ card }: { card: HeroCard }) {
           <h2 className="font-display text-[13px] font-bold tracking-wide">{card.t}</h2>
           {card.link && <Icon d={I.arrow} className="h-4 w-4 text-green opacity-0 transition-opacity group-hover:opacity-100" />}
         </div>
-        <p className="mt-1 text-xs leading-snug text-muted">{card.d}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted">{card.d}</p>
       </div>
     </>
   )
@@ -55,6 +90,12 @@ function Hero() {
     if (!hc?.items?.length) return []
     return hc.items.map((item) => ({ icon: iconMap[item.icon] || I.star, t: item.title, d: item.description, link: item.link }))
   }, [sections])
+
+  // Keyingi tashrifda skelet AYNAN shuncha karta ko'rsatsin
+  useEffect(() => {
+    if (!heroCards.length) return
+    try { localStorage.setItem(HERO_SONI_KEY, String(heroCards.length)) } catch { /* ahamiyatsiz */ }
+  }, [heroCards.length])
 
   const main = useMemo(() => {
     const fallback = {
@@ -83,10 +124,23 @@ function Hero() {
              1536px. Ilgari hammaga 1536px ketardi va oddiy noutbukda
              piksellarning bir qismi bekorga yuklanardi. Ustidan oq
              parda tushgani uchun sifat farqi ko'zga ilinmaydi. */}
-        <img src="/hero-bg-1280.webp" srcSet="/hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="/hero-bg-768.webp" srcSet="/hero-bg-768.webp 768w, /hero-bg-1280.webp 1280w, /hero-bg.webp 1536w" sizes="100vw" alt="" width={1280} height={853} fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-white/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/65 to-white/35" />
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
+        {/* PASTKI PARDA FAQAT MA'LUMOT KELGANDAN KEYIN CHIZILADI.
+
+            U bo'limning PASTIGA yopishgan, ya'ni bo'lim bo'yi
+            o'zgarsa u ham joyidan siljiydi. PageSpeed telefonda
+            aynan shuni ko'rsatdi: butun maket siljishining 0.338 i
+            shu bitta pardadan edi.
+
+            Yangi paydo bo'lgan element siljish HISOBLANMAYDI —
+            faqat joyidan qo'zg'algani hisoblanadi. Shuning uchun uni
+            yuklash paytida umuman chizmaslik muammoni ildizi bilan
+            yo'q qiladi. Ko'rinishda farq sezilmaydi: parda shaffofdan
+            oqqa o'tuvchi bezak, ustidagi ikkita oq qatlam esa
+            joyida turadi. */}
+        {!loading && <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />}
       </div>
 
       <div className="mx-auto grid max-w-[1320px] gap-8 px-5 pt-10 pb-8 lg:px-8 lg:pt-14 xl:grid-cols-[1fr_0.85fr_340px]">
@@ -123,8 +177,12 @@ function Hero() {
         </div>
 
         <div className="flex flex-col gap-3">
-          {loading && Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-2xl border border-green/10 bg-white p-4">
+          {/* Skelet HAQIQIY kartalar bilan bir xil o'lchamda va bir xil
+              SONDA bo'lishi shart: bittasi kam bo'lsa ham ma'lumot
+              kelganda ustun cho'zilib, sahifa siljiydi. `min-h-[92px]`
+              va `HERO_KARTA_SONI` shu ikkalasini bog'lab turadi. */}
+          {loading && Array.from({ length: HERO_KARTA_SONI }).map((_, i) => (
+            <div key={i} className="flex min-h-[92px] items-start gap-3 rounded-2xl border border-green/10 bg-white p-4">
               <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-3.5 w-24" />

@@ -59,6 +59,26 @@ const REJA = [
   { fayl: "hero-bg.webp", en: 1536, sifat: 68 },
 ]
 
+/**
+ * KICHIKROQ NUSXALAR (`srcset` uchun).
+ *
+ * Bitta o'lcham hammaga to'g'ri kelmaydi: telefonda 375px keng ekranga
+ * 1536px lik fon rasmini yuklash — bekorga ketgan trafik va LCP ning
+ * sekinlashishi. Shuning uchun har rasmning bir nechta nusxasi
+ * saqlanadi, brauzer esa ekraniga mosini o'zi tanlaydi.
+ *
+ * Nom qoidasi: `hero-bg.webp` -> `hero-bg-768.webp`. Kodda `srcSet`
+ * shu nomlarga tayanadi, shuning uchun qoidani buzmang.
+ *
+ * ILGARI bu nusxalar qo'lda yasalgan edi va skriptda izi yo'q edi —
+ * ya'ni asl rasm almashtirilsa ular eskirib qolardi va buni hech kim
+ * sezmasdi.
+ */
+const NUSXALAR = [
+  // Telefon (375–430px, retina bilan ~750px) va noutbuk
+  { fayl: "hero-bg.webp", enlar: [768, 1280], sifat: 66 },
+]
+
 const kb = (n) => Math.round(n / 1024)
 
 async function main() {
@@ -113,6 +133,25 @@ async function main() {
 
   for (const q of jadval) console.log("  " + q.map(String).join("  |  "))
   console.log(`\n  JAMI: ${kb(oldin)} KB -> ${kb(keyin)} KB  (${kb(oldin - keyin)} KB tejaldi)`)
+
+  console.log("\n  SRCSET NUSXALARI:")
+  for (const { fayl, enlar, sifat } of NUSXALAR) {
+    const manba = path.join(ZAXIRA, fayl)
+    if (!existsSync(manba)) {
+      console.log(`  ${fayl}: asl nusxa ${ZAXIRA} da yo'q, o'tkazib yuborildi`)
+      continue
+    }
+    const xom = await readFile(manba)
+    for (const en of enlar) {
+      const nom = fayl.replace(/\.webp$/, `-${en}.webp`)
+      const chiqdi = await sharp(xom)
+        .resize({ width: en, withoutEnlargement: true })
+        .webp({ quality: sifat, effort: 6 })
+        .toBuffer()
+      await writeFile(path.join(PUBLIC, nom), chiqdi)
+      console.log(`  ${nom}  |  ${en}px  |  ${kb(chiqdi.length)} KB`)
+    }
+  }
 }
 
 main().catch((e) => {

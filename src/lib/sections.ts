@@ -26,6 +26,29 @@ function loadSections(): Promise<Section[]> {
 }
 
 /**
+ * BOSH SAHIFADA YUKLASH REACT CHIZILMASDAN OLDIN BOSHLANADI.
+ *
+ * `index.html` so'rovni allaqachon yuborgan (u yerdagi izohga qarang).
+ * Shu qatorda javob keshga OLINADI, ya'ni `useHomeSections` birinchi
+ * marta chaqirilganda `cache` to'la bo'ladi va komponent skelet
+ * ko'rsatmasdan, darhol haqiqiy matn bilan chiziladi.
+ *
+ * Faqat bosh sahifada: panellarda (`/admin`, `/hamkor`) bu ma'lumot
+ * ishlatilmaydi, bekorga so'rov yubormaymiz.
+ */
+function boshSahifadami(): boolean {
+  if (typeof window === "undefined") return false
+  if (window.location.pathname !== "/") return false
+  // Native ilovada yo'nalish hash ichida: `#/kirish` — bosh sahifa emas
+  const h = window.location.hash
+  return !h || h === "#" || h === "#/"
+}
+
+if (boshSahifadami()) {
+  void loadSections().catch(() => { /* xato bo'lsa hook o'zi qayta uradi */ })
+}
+
+/**
  * Barcha bo'limlarni bir marta oladi (kesh bilan). Bo'lim ichidagi `items`
  * kerak bo'lganda ishlating (Home hero kartalari, Footer aloqa qatorlari...).
  */

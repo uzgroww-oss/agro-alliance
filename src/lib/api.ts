@@ -531,6 +531,32 @@ const SLOW_TIMEOUT = 110_000
  */
 const SLOW_PATHS = ["/smm/ai", "/smm/posts", "/settings?action=retranslate", "/news"]
 
+/* ==========================================================================
+   INDEX.HTML DA OLDINDAN BOSHLANGAN SO'ROVLAR
+   ==========================================================================
+   Bosh sahifa ma'lumoti React yuklanmasdan oldin so'raladi (qarang:
+   index.html dagi izoh). Bu yerda o'sha va'da AYNAN bir xil manzil
+   bo'yicha topiladi va tarmoqqa ikkinchi marta chiqilmaydi.
+
+   Bir marta ishlatiladi va o'chiriladi: foydalanuvchi sahifada ancha
+   turgandan keyin yangi so'rov yubormoqchi bo'lsa, unga eski javob
+   qaytmasligi kerak.
+
+   Javob yiqilgan bo'lsa (`ok: false`) hech narsa qilinmaydi — chaqiruvchi
+   odatdagi yo'ldan davom etadi. Shuning uchun bu qo'shimcha HECH QANDAY
+   yangi ishlamay qolish holatini keltirib chiqarmaydi.
+   ========================================================================== */
+type BootJavob = { ok: boolean; data?: unknown }
+
+function oldindanBoshlangan(url: string): Promise<BootJavob> | null {
+  if (typeof window === "undefined") return null
+  const w = window as unknown as { __aaBoot?: Record<string, Promise<BootJavob>> }
+  const p = w.__aaBoot?.[url]
+  if (!p) return null
+  delete w.__aaBoot![url]
+  return p
+}
+
 async function fetchWithTimeout(url: string, opts: RequestInit, timeout = REQUEST_TIMEOUT): Promise<Response> {
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeout)
@@ -633,6 +659,16 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
   const slow = SLOW_PATHS.some((p) => path.startsWith(p))
 
   const yubor = async (): Promise<T> => {
+    // Faqat OMMAVIY GET: oldindan boshlangan so'rovda Authorization
+    // sarlavhasi yo'q, ya'ni shaxsiy ma'lumot uchun yaramaydi.
+    if (method === "GET" && isPublic) {
+      const boot = oldindanBoshlangan(url)
+      if (boot) {
+        const n = await boot
+        if (n.ok) return n.data as T
+        // Yiqilgan — pastda odatdagidek qayta so'raymiz
+      }
+    }
     let res: Response
     try {
       res = await fetchWithTimeout(
