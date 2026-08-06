@@ -104,18 +104,13 @@ export async function lugatniTayyorla(lang: Lang): Promise<void> {
 
 const STORAGE_KEY = LANG_STORAGE_KEY
 
-function boshlangichTil(): Lang {
-  try {
-    const saqlangan = currentLang()
-    if (localStorage.getItem(STORAGE_KEY)) return saqlangan
-    // Brauzer tili — faqat BIRINCHI tashrifda
-    const brauzer = navigator.language.slice(0, 2).toLowerCase()
-    if (brauzer === "ru") return "ru"
-    if (brauzer === "en") return "en"
-    if (brauzer === "zh") return "zh"
-  } catch { /* localStorage yopiq bo'lishi mumkin */ }
-  return "uz"
-}
+/**
+ * Brauzer tilini aniqlash mantig'i `currentLang()` ga KO'CHIRILDI.
+ *
+ * Ilgari u shu yerda takrorlangan edi va natijada ikki joyda ikki xil
+ * javob chiqardi: provayder "ru" deb bilardi, `tr()` esa "uz". Endi
+ * yagona manba bor.
+ */
 
 type Ctx = {
   lang: Lang
@@ -127,7 +122,7 @@ type Ctx = {
 const I18nCtx = createContext<Ctx | null>(null)
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => boshlangichTil())
+  const [lang, setLangState] = useState<Lang>(() => currentLang())
 
   useEffect(() => {
     document.documentElement.lang = lang
