@@ -60,6 +60,7 @@ const ISHLAR: Record<string, () => Promise<Record<string, unknown>>> = {
   "telegram-monitor": () => import("../_shared/jobs/telegram-monitor.ts"),
   "telegram-publish": () => import("../_shared/jobs/telegram-publish.ts"),
   "tz-takrorlash": () => import("../_shared/jobs/tz-takrorlash.ts"),
+  "yt-izoh": () => import("../_shared/jobs/yt-izoh.ts"),
   "web-crawler": () => import("../_shared/jobs/web-crawler.ts"),
 }
 

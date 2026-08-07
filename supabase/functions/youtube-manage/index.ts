@@ -1,7 +1,10 @@
 import { handleCors } from "../_shared/cors.ts"
 import { requireRole } from "../_shared/auth.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
+import { supabaseAdmin } from "../_shared/supabase.ts"
 import { ulanishOl, tokenOl, ytFetch } from "../_shared/youtubeAuth.ts"
+import { javobYoz, sozlamaYoz, sozlamalarOl } from "../_shared/izohJavob.ts"
+import { izohlarniOl, javobYubor, yozuvSaqla } from "../_shared/ytIzoh.ts"
 
 /**
  * YOUTUBE KANALINI BOSHQARISH — hammasi shu panelda.
@@ -12,6 +15,17 @@ import { ulanishOl, tokenOl, ytFetch } from "../_shared/youtubeAuth.ts"
  *   POST   ?action=update      — sarlavha, tavsif, teglar, maxfiylik
  *   POST   ?action=thumbnail   — muqova rasmini qo'yish
  *   DELETE ?action=delete&id=  — videoni o'chirish
+ *
+ * IZOHLAR (avtomatik javob):
+ *   GET    ?action=comments        — izohlar + bizning javob holatimiz
+ *   POST   ?action=comment-draft   — bitta izohga AI javob yozdirish
+ *   POST   ?action=comment-send    — javobni YouTube'ga yuborish
+ *   POST   ?action=comment-skip    — bu izohga javob berilmasin
+ *   POST   ?action=comment-config  — sozlamalarni yozish
+ *
+ * Nega alohida funksiya emas: Supabase loyihada ~100 ta funksiyaga
+ * ruxsat beradi va biz chegaraga yaqinmiz. Bir mavzudagi amallar
+ * bitta funksiyada `action` bilan ajratiladi.
  *
  * VIDEO FAYLI BU FUNKSIYA ORQALI O'TMAYDI.
  * Edge funksiyaning so'rov hajmi cheklangan, 500 MB lik videoni u
@@ -267,6 +281,158 @@ Deno.serve(async (req) => {
       const r = await ytFetch(`${API}/videos?id=${encodeURIComponent(id)}`, { method: "DELETE" })
       if (!r.ok) return errorResponse(r.xato, 400)
       return jsonResponse({ success: true })
+    }
+
+    /* ================= IZOHLAR ================= */
+
+    /**
+     * Izohlar ro'yxati — YouTube'dan kelgan izohlar ustiga bizning
+     * javob holatimiz qo'yilgan holda.
+     *
+     * Ikkala manba ham kerak: YouTube kim nima yozganini biladi,
+     * baza esa biz nima qilganimizni (qoralama bormi, o'tkazib
+     * yuborilganmi, nega yiqilgan).
+     */
+    if (action === "comments" && req.method === "GET") {
+      const sozlama = await sozlamalarOl()
+      const { ok, izohlar, xato, kanal } = await izohlarniOl(50)
+      if (!ok) return jsonResponse({ izohlar: [], sozlama, xato })
+
+      const { data: yozuvlar } = await supabaseAdmin
+        .from("yt_izoh_javob")
+        .select("comment_id, javob, holat, sabab, avto, provayder, yuborilgan_at")
+        .in("comment_id", izohlar.map((i) => i.id).slice(0, 200))
+
+      const m = new Map((yozuvlar || []).map((r: Record<string, unknown>) => [String(r.comment_id), r]))
+
+      return jsonResponse({
+        sozlama,
+        izohlar: izohlar
+          // O'z izohimizga javob yozishning ma'nosi yo'q
+          .filter((i) => i.muallifKanal !== kanal)
+          .map((i) => ({ ...i, yozuv: m.get(i.id) || null })),
+      })
+    }
+
+    /**
+     * Bitta izohga AI javob yozdirish. YouTube'ga YUBORMAYDI —
+     * tahririyat avval o'qib chiqadi.
+     */
+    if (action === "comment-draft" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const id = matn(body.commentId, 80)
+      const izoh = matn(body.izoh, 1500)
+      if (!id || !izoh) return errorResponse("Izoh ID va matni kerak", 400)
+
+      const sozlama = await sozlamalarOl()
+      const n = await javobYoz({
+        izoh,
+        muallif: matn(body.muallif, 60),
+        videoSarlavha: matn(body.videoTitle, 120),
+        sozlama,
+      })
+
+      const asos = {
+        comment_id: id,
+        video_id: matn(body.videoId, 20) || "—",
+        video_title: matn(body.videoTitle, 200),
+        muallif: matn(body.muallif, 100),
+        izoh,
+        izoh_vaqti: matn(body.vaqt, 40) || null,
+        avto: false,
+      }
+
+      if (n.holat === "javob") {
+        await yozuvSaqla({ ...asos, javob: n.matn, provayder: n.provayder, holat: "qoralama", sabab: null })
+        return jsonResponse({ holat: "qoralama", javob: n.matn, provayder: n.provayder })
+      }
+      if (n.holat === "otkaz") {
+        await yozuvSaqla({ ...asos, holat: "otkazildi", sabab: n.sabab })
+        return jsonResponse({ holat: "otkazildi", sabab: n.sabab })
+      }
+      return errorResponse(n.sabab, 502)
+    }
+
+    /**
+     * Javobni YouTube'ga yuborish.
+     *
+     * Matn tanadan olinadi, bazadan emas: tahririyat AI yozganini
+     * tahrirlagan bo'lishi mumkin va aynan tahrirlangani ketishi
+     * kerak.
+     */
+    if (action === "comment-send" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const id = matn(body.commentId, 80)
+      const javob = matn(body.javob, 2000)
+      if (!id || !javob) return errorResponse("Izoh ID va javob matni kerak", 400)
+
+      /**
+       * IKKI MARTA YUBORILMASIN.
+       *
+       * Brauzerda tugma bosilgach bloklanadi, lekin bu yetarli emas:
+       * ikkita oyna ochiq bo'lishi, so'rov qayta yuborilishi yoki
+       * avtomatik yurish bilan ustma-ust tushishi mumkin. Bir izoh
+       * ostida kanalning ikkita javobi — ko'zga tashlanadigan xato.
+       */
+      const { data: bor } = await supabaseAdmin
+        .from("yt_izoh_javob")
+        .select("holat")
+        .eq("comment_id", id)
+        .maybeSingle()
+      if (bor?.holat === "yuborildi") {
+        return errorResponse("Bu izohga javob allaqachon yuborilgan", 409)
+      }
+
+      const y = await javobYubor(id, javob)
+      const asos = {
+        comment_id: id,
+        video_id: matn(body.videoId, 20) || "—",
+        video_title: matn(body.videoTitle, 200),
+        muallif: matn(body.muallif, 100),
+        izoh: matn(body.izoh, 1500) || "—",
+        javob,
+        avto: false,
+      }
+
+      if (!y.ok) {
+        await yozuvSaqla({ ...asos, holat: "xato", sabab: y.xato })
+        return errorResponse(y.xato, 400)
+      }
+      await yozuvSaqla({ ...asos, holat: "yuborildi", sabab: null, yuborilgan_at: new Date().toISOString() })
+      return jsonResponse({ success: true })
+    }
+
+    /**
+     * "Bu izohga javob kerak emas" — avtomatik yurish uni boshqa
+     * ko'rmasin. Aks holda har soatda AI bir xil izohni qayta ko'rib
+     * bekorga token sarflardi.
+     */
+    if (action === "comment-skip" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const id = matn(body.commentId, 80)
+      if (!id) return errorResponse("Izoh ID kerak", 400)
+      await yozuvSaqla({
+        comment_id: id,
+        video_id: matn(body.videoId, 20) || "—",
+        video_title: matn(body.videoTitle, 200),
+        muallif: matn(body.muallif, 100),
+        izoh: matn(body.izoh, 1500) || "—",
+        holat: "otkazildi",
+        sabab: "tahririyat o'tkazib yubordi",
+        avto: false,
+      })
+      return jsonResponse({ success: true })
+    }
+
+    /** Sozlamalar — avtomatik rejim, ohang, til, chegaralar */
+    if (action === "comment-config" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const yozildi: string[] = []
+      for (const [k, v] of Object.entries(body || {})) {
+        if (await sozlamaYoz(k, String(v ?? "").slice(0, 1000))) yozildi.push(k)
+      }
+      if (yozildi.length === 0) return errorResponse("O'zgartiriladigan sozlama topilmadi", 400)
+      return jsonResponse({ success: true, sozlama: await sozlamalarOl() })
     }
 
     return errorResponse("Noma'lum amal", 400)

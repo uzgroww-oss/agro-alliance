@@ -26,15 +26,24 @@ const REDIRECT = `${SUPABASE_URL}/functions/v1/youtube-oauth`
  * `youtube.upload` — video yuklash
  * `youtube`        — o'zgartirish, o'chirish, muqova, pleylistlar
  * `youtube.readonly` — o'z kanalining ro'yxatini o'qish
+ * `youtube.force-ssl` — IZOHLAR: o'qish va javob yozish
  *
- * `force-ssl` ATAYLAB YO'Q: u izohlarni boshqarish uchun kerak va
- * Google tekshiruvida qo'shimcha talab qo'yadi. Kerak bo'lganda
- * alohida qo'shiladi.
+ * `force-ssl` ilgari ataylab yo'q edi — u Google tekshiruvida
+ * qo'shimcha talab qo'yadi. Izohlarga avtomatik javob berish
+ * qo'shilgach u SHART bo'lib qoldi: `comments.insert` boshqa hech
+ * qanday ruxsat bilan ishlamaydi.
+ *
+ * ⚠️ RUXSAT KENGAYDI — ESKI ULANISH YETMAYDI. Google tokenga
+ * ruxsatlarni ULANGAN PAYTDA biriktiradi, keyin kengaytirmaydi.
+ * Ya'ni kanal shu o'zgarishdan oldin ulangan bo'lsa, izohlar 403
+ * qaytaradi va uni faqat QAYTA ulash tuzatadi. Panel bu xatoni
+ * aynan shunday tushuntiradi (qarang: ytIzoh.ts).
  */
 const SCOPES = [
   "https://www.googleapis.com/auth/youtube.upload",
   "https://www.googleapis.com/auth/youtube",
   "https://www.googleapis.com/auth/youtube.readonly",
+  "https://www.googleapis.com/auth/youtube.force-ssl",
 ].join(" ")
 
 /**
