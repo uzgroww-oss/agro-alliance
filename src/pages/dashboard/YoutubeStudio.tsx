@@ -142,7 +142,9 @@ export default function YoutubeStudio() {
                 {ulangan && kanal ? kanal.title : tr("Kanal ulanmagan")}
               </h3>
               <p className="text-sm text-muted">
-                {ulangan ? tr("Video yuklash, tahrirlash va o'chirish") : tr("YouTube kartochkasidan kanalni ulang")}
+                {ulangan
+                  ? tr("Video yuklash, tahrirlash, o'chirish va izohlarga javob")
+                  : tr("YouTube kartochkasidan kanalni ulang — izohlarga javob ham shu yerda")}
               </p>
             </div>
           </div>

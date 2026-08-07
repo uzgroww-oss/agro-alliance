@@ -1108,10 +1108,34 @@ export default function SmmPanel({ seed }: {
             <h3 className="font-display font-bold">{tr("1. Ijtimoiy tarmoqlarni tanlang")}</h3>
             <p className="mt-0.5 text-sm text-muted">{tr("Post qaysi tarmoqlarga chiqishini belgilang")}</p>
           </div>
-          <button onClick={savePick} disabled={connLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
-            <Icon d={I.check} className="h-4 w-4" /> {tr("Tanlovni saqlash")}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {/*
+              YOUTUBE STUDIYASI — KO'RINADIGAN TUGMA.
+
+              Ilgari unga kirishning YAGONA yo'li YouTube kartochkasining
+              pastki o'ng burchagidagi 24 pikselli ikonka edi va u
+              SICHQONCHA USTIGA KELGANDAGINA ko'rinardi. Ya'ni studiyani
+              faqat uning borligini bilgan odam topa olardi — bilmagan
+              odam uchun u yo'q edi.
+
+              Izohlarga javob shu studiya ichida, shuning uchun tugma
+              nomida ham aytilgan: aks holda "izohlar qayerda?" degan
+              savol qayta-qayta tug'ilaveradi.
+
+              Kanal ulanmagan bo'lsa ham ochiladi — ichkarida "kanalni
+              ulang" deb aniq yozilgan. Tugmani yashirish esa "bunday
+              imkoniyat yo'q" degan yolg'on taassurot berardi.
+            */}
+            <button onClick={() => setYtStudio(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100">
+              <Brand k="youtube" className="h-4 w-4" />
+              {tr("YouTube: videolar va izohlar")}
+            </button>
+            <button onClick={savePick} disabled={connLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
+              <Icon d={I.check} className="h-4 w-4" /> {tr("Tanlovni saqlash")}
+            </button>
+          </div>
         </div>
 
         {pickMsg && (
