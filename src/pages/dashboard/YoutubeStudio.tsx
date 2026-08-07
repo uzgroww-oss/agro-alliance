@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Icon, I, Skeleton } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
-import YtIzohlar from "./YtIzohlar"
 
 /**
  * YOUTUBE STUDIYASI — kanalni shu paneldan boshqarish.
@@ -143,8 +142,8 @@ export default function YoutubeStudio() {
               </h3>
               <p className="text-sm text-muted">
                 {ulangan
-                  ? tr("Video yuklash, tahrirlash, o'chirish va izohlarga javob")
-                  : tr("YouTube kartochkasidan kanalni ulang — izohlarga javob ham shu yerda")}
+                  ? tr("Video yuklash, tahrirlash va o'chirish")
+                  : tr("YouTube kartochkasidan kanalni ulang")}
               </p>
             </div>
           </div>
@@ -179,10 +178,6 @@ export default function YoutubeStudio() {
       </div>
 
       {ulangan && <UploadForm turkumlar={turkumlar} onDone={yukla} />}
-
-      {/* Izohlar — yopiq holatda ochiladi, ro'yxat faqat shunda
-          yuklanadi (YouTube kvotasi bekorga sarflanmasin) */}
-      {ulangan && <YtIzohlar />}
 
       {ulangan && (
         <div className={card}>

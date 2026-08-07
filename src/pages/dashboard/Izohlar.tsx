@@ -1,29 +1,30 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Icon, I, Skeleton } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
 
 /**
- * IZOHLARGA JAVOB — YOUTUBE STUDIYASI ICHIDA.
+ * IZOHLARGA JAVOB — BARCHA TARMOQLAR.
  *
- * MUAMMO: kanalga kuniga o'nlab izoh tushadi va ko'pchiligi javobsiz
- * qoladi. Javob olmagan tomoshabin ikkinchi marta yozmaydi, YouTube
- * esa izoh ostidagi faollikni tavsiya algoritmida hisobga oladi —
- * ya'ni javobsiz izoh ikki tomonlama yo'qotish. Tahririyat esa har
- * biriga qo'lda javob yozishga ulgurmaydi.
+ * MUAMMO: kanallarga kuniga o'nlab izoh tushadi va ko'pchiligi
+ * javobsiz qoladi. Javob olmagan tomoshabin ikkinchi marta yozmaydi,
+ * tarmoqlar esa izoh ostidagi faollikni tavsiya algoritmida hisobga
+ * oladi — ya'ni javobsiz izoh ikki tomonlama yo'qotish. Tahririyat
+ * har biriga qo'lda javob yozishga ulgurmaydi.
  *
  * IKKI REJIM:
  *   QO'LDA    — "AI javob" bosiladi, matn chiqadi, tahrirlanadi va
  *               yuboriladi. Nima chiqishini oldindan ko'rasiz.
  *   AVTOMATIK — soatiga bir marta o'zi ishlaydi, javoblar odam
- *               ko'rmasdan chiqadi (fon ishi: `jobs?job=yt-izoh`).
+ *               ko'rmasdan chiqadi (fon ishi: `jobs?job=izohlar`).
  *
- * Avtomatik rejim ODDIY HOLATDA O'CHIQ: u kanal nomidan ommaviy matn
- * chiqaradi va buni faqat odam ataylab yoqishi kerak.
+ * Avtomatik rejim HAR TARMOQ UCHUN ALOHIDA va oddiy holatda O'CHIQ:
+ * u kanal nomidan ommaviy matn chiqaradi va buni faqat odam ataylab
+ * yoqishi kerak. YouTube'da javoblar ishonchli chiqayotgan bo'lishi,
+ * Instagram'da esa hali qo'lda ko'rish kerak bo'lishi mumkin.
  *
- * Ro'yxat TALAB BO'YICHA yuklanadi (bo'lim ochilganda). Har yuklash
- * YouTube kvotasidan yeydi, studiya ochilganda esa izohlar odatda
- * kerak emas.
+ * Ro'yxat TALAB BO'YICHA yuklanadi: har yuklash tarmoq kvotasidan
+ * yeydi va varaq almashtirilmaguncha kerak emas.
  */
 
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
@@ -40,8 +41,9 @@ type IzohYozuv = {
 
 type Izoh = {
   id: string
-  videoId: string
-  videoTitle: string
+  postId: string
+  postTitle: string
+  havola: string
   muallif: string
   matn: string
   vaqt: string
@@ -51,7 +53,22 @@ type Izoh = {
   yozuv: IzohYozuv | null
 }
 
-type IzohSozlama = { avto: boolean; ohang: string; til: string; limit: number; uzunlik: number }
+type Platforma = "youtube" | "instagram" | "facebook" | "telegram"
+
+const TARMOQLAR: { k: Platforma; nom: string; rang: string }[] = [
+  { k: "youtube", nom: "YouTube", rang: "#FF0000" },
+  { k: "instagram", nom: "Instagram", rang: "#E1306C" },
+  { k: "facebook", nom: "Facebook", rang: "#1877F2" },
+  { k: "telegram", nom: "Telegram", rang: "#229ED9" },
+]
+
+type IzohSozlama = {
+  avto: Record<Platforma, boolean>
+  ohang: string
+  til: string
+  limit: number
+  uzunlik: number
+}
 
 const HOLAT_NISHON: Record<string, { label: string; cls: string }> = {
   yuborildi: { label: "Javob yuborilgan", cls: "bg-green/10 text-green" },
@@ -74,9 +91,9 @@ const BOSH_YOZUV: IzohYozuv = {
   avto: false, provayder: null, yuborilgan_at: null,
 }
 
-export default function YtIzohlar() {
-  const [ochiq, setOchiq] = useState(false)
-  const [yuklanmoqda, setYuklanmoqda] = useState(false)
+export default function Izohlar() {
+  const [tarmoq, setTarmoq] = useState<Platforma>("youtube")
+  const [yuklanmoqda, setYuklanmoqda] = useState(true)
   const [izohlar, setIzohlar] = useState<Izoh[]>([])
   const [sozlama, setSozlama] = useState<IzohSozlama | null>(null)
   const [xato, setXato] = useState("")
@@ -87,12 +104,19 @@ export default function YtIzohlar() {
   const [matnlar, setMatnlar] = useState<Record<string, string>>({})
   const [filtr, setFiltr] = useState<"javobsiz" | "hammasi" | "yuborilgan">("javobsiz")
 
-  const yukla = useCallback(async () => {
-    setYuklanmoqda(true)
-    setXato("")
+  /**
+   * Yuklash funksiyasi HOLATNI O'ZGARTIRMASDAN boshlanadi.
+   *
+   * Birinchi amali — `await`. Sabab: uni effekt ham chaqiradi, effekt
+   * tanasida esa sinxron `setState` bo'lmasligi kerak (React shu
+   * sababdan qo'shimcha qayta chizish qiladi). "Yuklanmoqda" holati
+   * varaq almashtirilganda yoki tugma bosilganda — ya'ni hodisa
+   * ichida — qo'yiladi.
+   */
+  const yukla = useCallback(async (p: Platforma) => {
     try {
       const d = await api<{ izohlar: Izoh[]; sozlama: IzohSozlama; xato?: string }>(
-        "/youtube/manage?action=comments",
+        `/izohlar?action=list&platform=${p}`,
       )
       setIzohlar(d.izohlar || [])
       setSozlama(d.sozlama || null)
@@ -108,10 +132,21 @@ export default function YtIzohlar() {
     }
   }, [])
 
-  // Birinchi ochilganda yuklanadi — kvota bekorga sarflanmasin
-  const ochVaYukla = () => {
-    setOchiq((v) => !v)
-    if (!ochiq && izohlar.length === 0 && !yuklanmoqda) void yukla()
+  // Varaq almashganda o'sha tarmoqning izohlari yuklanadi.
+  // Har yuklash tarmoq kvotasidan yeydi, shuning uchun faqat
+  // ko'rilayotgan tarmoq so'raladi — hammasi birdan emas.
+  // `await` orqali chaqiriladi: effekt tanasida sinxron setState
+  // bo'lmasligi kerak (YoutubeStudio dagi bilan bir xil naqsh)
+  useEffect(() => { void (async () => { await yukla(tarmoq) })() }, [tarmoq, yukla])
+
+  /** Varaq almashtirish: eski ro'yxat darhol ketadi, skelet chiqadi */
+  const varaqAlmash = (p: Platforma) => {
+    if (p === tarmoq) return
+    setYuklanmoqda(true)
+    setXato("")
+    setIzohlar([])
+    setMatnlar({})
+    setTarmoq(p)
   }
 
   /** Bitta izohning holatini ro'yxatda yangilaydi — qayta yuklamasdan */
@@ -125,12 +160,12 @@ export default function YtIzohlar() {
     setBand(i.id); setXabar("")
     try {
       const d = await api<{ holat: string; javob?: string; sabab?: string; provayder?: string }>(
-        "/youtube/manage?action=comment-draft",
+        "/izohlar?action=draft",
         {
           method: "POST",
           body: JSON.stringify({
-            commentId: i.id, izoh: i.matn, muallif: i.muallif,
-            videoId: i.videoId, videoTitle: i.videoTitle, vaqt: i.vaqt,
+            platform: tarmoq, commentId: i.id, izoh: i.matn, muallif: i.muallif,
+            postId: i.postId, postTitle: i.postTitle, vaqt: i.vaqt,
           }),
         },
       )
@@ -153,11 +188,11 @@ export default function YtIzohlar() {
     if (!javob) return
     setBand(i.id); setXabar("")
     try {
-      await api("/youtube/manage?action=comment-send", {
+      await api("/izohlar?action=send", {
         method: "POST",
         body: JSON.stringify({
-          commentId: i.id, javob, izoh: i.matn, muallif: i.muallif,
-          videoId: i.videoId, videoTitle: i.videoTitle,
+          platform: tarmoq, commentId: i.id, javob, izoh: i.matn, muallif: i.muallif,
+          postId: i.postId, postTitle: i.postTitle,
         }),
       })
       yozuvniQoy(i.id, { holat: "yuborildi", javob, sabab: null, yuborilgan_at: new Date().toISOString() })
@@ -172,11 +207,11 @@ export default function YtIzohlar() {
   const kerakEmas = async (i: Izoh) => {
     setBand(i.id); setXabar("")
     try {
-      await api("/youtube/manage?action=comment-skip", {
+      await api("/izohlar?action=skip", {
         method: "POST",
         body: JSON.stringify({
-          commentId: i.id, izoh: i.matn, muallif: i.muallif,
-          videoId: i.videoId, videoTitle: i.videoTitle,
+          platform: tarmoq, commentId: i.id, izoh: i.matn, muallif: i.muallif,
+          postId: i.postId, postTitle: i.postTitle,
         }),
       })
       yozuvniQoy(i.id, { holat: "otkazildi", sabab: tr("tahririyat o'tkazib yubordi") })
@@ -195,12 +230,13 @@ export default function YtIzohlar() {
     setXabar("")
     try {
       const tana: Record<string, string> = {}
-      if (yangi.avto !== undefined) tana.yt_izoh_avto = String(yangi.avto)
-      if (yangi.ohang !== undefined) tana.yt_izoh_ohang = yangi.ohang
-      if (yangi.til !== undefined) tana.yt_izoh_til = yangi.til
-      if (yangi.limit !== undefined) tana.yt_izoh_limit = String(yangi.limit)
-      if (yangi.uzunlik !== undefined) tana.yt_izoh_uzunlik = String(yangi.uzunlik)
-      const d = await api<{ sozlama: IzohSozlama }>("/youtube/manage?action=comment-config", {
+      // Avtomatik rejim faqat KO'RILAYOTGAN tarmoq uchun yoziladi
+      if (yangi.avto !== undefined) tana["izoh_avto_" + tarmoq] = String(yangi.avto[tarmoq])
+      if (yangi.ohang !== undefined) tana.izoh_ohang = yangi.ohang
+      if (yangi.til !== undefined) tana.izoh_til = yangi.til
+      if (yangi.limit !== undefined) tana.izoh_limit = String(yangi.limit)
+      if (yangi.uzunlik !== undefined) tana.izoh_uzunlik = String(yangi.uzunlik)
+      const d = await api<{ sozlama: IzohSozlama }>("/izohlar?action=config", {
         method: "POST", body: JSON.stringify(tana),
       })
       if (d.sozlama) setSozlama(d.sozlama)
@@ -230,9 +266,12 @@ export default function YtIzohlar() {
     return i.yozuv?.holat === "yuborildi" || i.javobBerilgan
   })
 
+  const avtoYoqilgan = Boolean(sozlama?.avto?.[tarmoq])
+  const tarmoqNomi = TARMOQLAR.find((t) => t.k === tarmoq)?.nom || tarmoq
+
   return (
     <div className={card}>
-      <button onClick={ochVaYukla} className="flex w-full items-center justify-between gap-3 text-left">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-green/10 text-green">
             <Icon d={I.message} className="h-5 w-5" />
@@ -240,21 +279,37 @@ export default function YtIzohlar() {
           <div>
             <h3 className="font-display font-bold">{tr("Izohlarga javob")}</h3>
             <p className="text-xs text-muted">
-              {sozlama?.avto ? tr("Avtomatik rejim yoqilgan") : tr("AI javob yozadi, siz tasdiqlaysiz")}
+              {avtoYoqilgan ? tr("Bu tarmoqda avtomatik rejim yoqilgan") : tr("AI javob yozadi, siz tasdiqlaysiz")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {ochiq && javobsiz > 0 && (
-            <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-bold text-orange-600">
-              {javobsiz} {tr("javobsiz")}
-            </span>
-          )}
-          <Icon d={I.chevDown} className={`h-5 w-5 text-muted transition-transform ${ochiq ? "rotate-180" : ""}`} />
-        </div>
-      </button>
+        {javobsiz > 0 && (
+          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-600">
+            {javobsiz} {tr("javobsiz")}
+          </span>
+        )}
+      </div>
 
-      {ochiq && (
+      {/* TARMOQ VARAQLARI.
+          Har varaq alohida so'rov yuboradi. Hammasi birdan yuklansa
+          to'rtta tarmoq kvotasi bir vaqtda sarflanardi, holbuki
+          tahririyat odatda bittasiga qaraydi. */}
+      <div className="mt-4 flex flex-wrap gap-1 rounded-xl bg-soft p-1">
+        {TARMOQLAR.map((t) => (
+          <button key={t.k} onClick={() => varaqAlmash(t.k)}
+            className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors " +
+              (tarmoq === t.k ? "bg-white shadow-sm" : "text-muted hover:text-ink")}
+            style={tarmoq === t.k ? { color: t.rang } : undefined}>
+            <span className="h-2 w-2 rounded-full" style={{ background: t.rang }} />
+            {t.nom}
+            {sozlama?.avto?.[t.k] && (
+              <span className="rounded bg-green/15 px-1 text-[9px] font-bold text-green">{tr("avto")}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {(
         <div className="mt-4 space-y-4">
           {xabar && (
             <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${xabar.startsWith("✅") ? "bg-green/10 text-green" : xabar.startsWith("❌") ? "bg-red-50 text-red-600" : "bg-orange-50 text-orange-700"}`}>{xabar}</div>
@@ -265,13 +320,16 @@ export default function YtIzohlar() {
           {sozlama && (
             <div className="rounded-xl border border-green/10 bg-[#fafdf7] p-4">
               <label className="flex cursor-pointer items-start gap-3">
-                <input type="checkbox" checked={sozlama.avto}
-                  onChange={(e) => void sozlamaSaqla({ avto: e.target.checked })}
+                <input type="checkbox" checked={avtoYoqilgan}
+                  onChange={(e) => void sozlamaSaqla({ avto: { ...sozlama.avto, [tarmoq]: e.target.checked } })}
                   className="mt-0.5 h-5 w-5 shrink-0 accent-green" />
                 <span>
-                  <span className="block text-sm font-bold">{tr("Avtomatik javob")}</span>
+                  <span className="block text-sm font-bold">{tr("Avtomatik javob")} — {tarmoqNomi}</span>
                   <span className="block text-xs text-muted">
                     {tr("Soatiga bir marta yangi izohlarga o'zi javob yozadi va yuboradi. Javoblar kanal nomidan ommaviy chiqadi — siz ko'rib tasdiqlamaysiz.")}
+                  </span>
+                  <span className="mt-1 block text-[11px] text-muted">
+                    {tr("Ohang, til va uzunlik hamma tarmoqqa umumiy. Bu katakcha faqat shu tarmoq uchun.")}
                   </span>
                 </span>
               </label>
@@ -325,7 +383,7 @@ export default function YtIzohlar() {
                 </button>
               ))}
             </div>
-            <button onClick={() => void yukla()} disabled={yuklanmoqda}
+            <button onClick={() => { setYuklanmoqda(true); void yukla(tarmoq) }} disabled={yuklanmoqda}
               className="inline-flex items-center gap-1.5 rounded-lg border border-green/20 px-3 py-1.5 text-xs font-bold text-green disabled:opacity-60">
               <Icon d={I.refresh} className={`h-3.5 w-3.5 ${yuklanmoqda ? "animate-spin" : ""}`} /> {tr("Yangilash")}
             </button>
@@ -354,9 +412,10 @@ export default function YtIzohlar() {
                       {i.yoqtirish > 0 && (
                         <span className="inline-flex items-center gap-1"><Icon d={I.star} className="h-3 w-3" />{i.yoqtirish}</span>
                       )}
-                      {i.videoTitle && (
-                        <a href={`https://www.youtube.com/watch?v=${i.videoId}&lc=${i.id}`} target="_blank" rel="noreferrer"
-                          className="line-clamp-1 max-w-[220px] hover:text-green hover:underline">{i.videoTitle}</a>
+                      {i.postTitle && (i.havola
+                        ? <a href={i.havola} target="_blank" rel="noreferrer"
+                            className="line-clamp-1 max-w-[220px] hover:text-green hover:underline">{i.postTitle}</a>
+                        : <span className="line-clamp-1 max-w-[220px]">{i.postTitle}</span>
                       )}
                       {nishon && <span className={`rounded px-1.5 py-0.5 font-bold ${nishon.cls}`}>{tr(nishon.label)}</span>}
                       {y?.avto && <span className="rounded bg-purple-100 px-1.5 py-0.5 font-bold text-purple-600">AI</span>}
@@ -374,7 +433,7 @@ export default function YtIzohlar() {
                         <p className="mt-2 rounded-lg border-l-2 border-green/40 bg-green/5 px-3 py-2 text-sm">{y.javob}</p>
                       )
                     ) : !i.javobMumkin ? (
-                      <p className="mt-2 text-[11px] text-muted">{tr("Bu videoda izohga javob yozish yopilgan.")}</p>
+                      <p className="mt-2 text-[11px] text-muted">{tr("Bu postda izohga javob yozish yopilgan.")}</p>
                     ) : (
                       <>
                         {/* Maydon DOIM ko'rinadi.

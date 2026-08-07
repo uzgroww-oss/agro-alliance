@@ -14,22 +14,40 @@
  * YouTube'ga chiqadi. Shuning uchun hammasi testdan o'tadi.
  */
 
+/** Izoh tushadigan tarmoqlar */
+export const PLATFORMALAR = ["youtube", "instagram", "facebook", "telegram"] as const
+export type Platforma = (typeof PLATFORMALAR)[number]
+
+export const PLATFORMA_NOM: Record<Platforma, string> = {
+  youtube: "YouTube",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  telegram: "Telegram",
+}
+
 export type IzohTil = "auto" | "uz" | "ru" | "en"
 
 export type IzohSozlama = {
-  /** Avtomatik rejim yoqilganmi — javoblar odam ko'rmasdan chiqadimi */
-  avto: boolean
+  /**
+   * Avtomatik rejim — HAR TARMOQ UCHUN ALOHIDA.
+   *
+   * Bitta umumiy kalit bo'lsa tahririyat "hammasini yoqaman yoki
+   * hech qaysisini" degan tanlovga qolardi. Amalda esa YouTube'da
+   * javoblar ishonchli chiqib, Instagram'da hali qo'lda ko'rish
+   * kerak bo'lishi mumkin.
+   */
+  avto: Record<Platforma, boolean>
   /** Paneldan yozilgan qo'shimcha ko'rsatma (ohang, taqiqlar) */
   ohang: string
   til: IzohTil
-  /** Bitta yurishda ko'pi bilan nechta javob */
+  /** Bitta yurishda har tarmoqda ko'pi bilan nechta javob */
   limit: number
   /** Javobning eng ko'p belgilar soni */
   uzunlik: number
 }
 
 export const ZAXIRA_SOZLAMA: IzohSozlama = {
-  avto: false,
+  avto: { youtube: false, instagram: false, facebook: false, telegram: false },
   ohang: "",
   til: "auto",
   limit: 20,
@@ -133,16 +151,19 @@ export function promptYasa(q: {
   muallif: string
   videoSarlavha: string
   sozlama: IzohSozlama
+  /** Qaysi tarmoqda — javob uslubi tarmoqqa qarab biroz farq qiladi */
+  platforma?: Platforma
 }): string {
   const { sozlama } = q
   const til = sozlama.til === "auto"
     ? "IZOH QAYSI TILDA YOZILGAN BO'LSA, O'SHA TILDA (o'zbekcha izohga o'zbekcha, ruschaga ruscha)"
     : TIL_NOM[sozlama.til]
+  const p = q.platforma || "youtube"
 
-  return `Sen "Agro Alliance" YouTube kanalining rasmiy javob yozuvchisisan.
+  return `Sen "Agro Alliance" ${PLATFORMA_NOM[p]} sahifasining rasmiy javob yozuvchisisan.
 Kanal agro sohasi haqida: fermerlar, agro texnologiyalar, blogerlar.
 
-VIDEO: ${q.videoSarlavha || "(sarlavha yo'q)"}
+POST: ${q.videoSarlavha || "(sarlavha yo'q)"}
 IZOH MUALLIFI: ${q.muallif || "(noma'lum)"}
 IZOH: ${q.izoh}
 

@@ -8,6 +8,7 @@ import { composeThumbnail, dataUrlToFile, THUMB_SIZES, type ThumbSize } from "..
 import { api } from "../../lib/api"
 import { tr } from "../../lib/i18n"
 import YoutubeStudio from "./YoutubeStudio"
+import Izohlar from "./Izohlar"
 import AiTokens from "./AiTokens"
 
 /**
@@ -202,6 +203,8 @@ export default function SmmPanel({ seed }: {
   const [connOpen, setConnOpen] = useState<string | null>(null)
   /** YouTube studiyasi oynasi — kanal kartochkasi bosilganda ochiladi */
   const [ytStudio, setYtStudio] = useState(false)
+  /** Izohlar oynasi — barcha tarmoqlar uchun bitta joy */
+  const [izohOyna, setIzohOyna] = useState(false)
   const [connForm, setConnForm] = useState({ chat_id: "", page_id: "", page_token: "" })
   const [connBusy, runConn] = useBusy()
   const [pickMsg, setPickMsg] = useState("")
@@ -1126,10 +1129,24 @@ export default function SmmPanel({ seed }: {
               ulang" deb aniq yozilgan. Tugmani yashirish esa "bunday
               imkoniyat yo'q" degan yolg'on taassurot berardi.
             */}
+            {/*
+              IZOHLAR — ALOHIDA TUGMA.
+
+              Ilgari izohlar YouTube studiyasi ichida edi va u yerga
+              kirishning yagona yo'li kartochka ustidagi yashirin
+              ikonka edi — hech kim topa olmasdi. Endi izohlar
+              to'rtala tarmoq uchun ishlaydi, ya'ni ularni YouTube
+              ichiga yashirish mantiqan ham noto'g'ri bo'lardi.
+            */}
+            <button onClick={() => setIzohOyna(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-green px-4 py-2 text-sm font-bold text-white transition-transform hover:scale-105">
+              <Icon d={I.message} className="h-4 w-4" />
+              {tr("Izohlarga javob")}
+            </button>
             <button onClick={() => setYtStudio(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-100">
               <Brand k="youtube" className="h-4 w-4" />
-              {tr("YouTube: videolar va izohlar")}
+              {tr("YouTube studiyasi")}
             </button>
             <button onClick={savePick} disabled={connLoading}
               className="inline-flex items-center gap-2 rounded-xl border border-green/25 px-4 py-2 text-sm font-bold text-green transition-colors hover:bg-green/5 disabled:opacity-40">
@@ -2068,6 +2085,24 @@ export default function SmmPanel({ seed }: {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ============ IZOHLAR (oyna) ============ */}
+      {izohOyna && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setIzohOyna(false)}>
+          <div className="my-auto w-full max-w-4xl rounded-2xl bg-[#fafdf7] p-4 shadow-2xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-extrabold">{tr("Izohlarga javob")}</h2>
+              <button onClick={() => setIzohOyna(false)}
+                className="grid h-9 w-9 place-items-center rounded-lg bg-white text-muted shadow-sm transition-colors hover:text-ink">
+                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
+              </button>
+            </div>
+            <Izohlar />
           </div>
         </div>
       )}

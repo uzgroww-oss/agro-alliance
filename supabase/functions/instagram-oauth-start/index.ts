@@ -45,7 +45,17 @@ Deno.serve(async (req) => {
     // Shuningdek shu ruxsat orqali olingan sahifa tokeni MUDDATSIZ
     // bo'ladi — qo'lda kiritilgan qisqa tokenlar esa bir necha soatda
     // "Session has expired" bilan yiqilardi.
-    const scopes = "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts"
+    /**
+     * instagram_manage_comments — IG izohlarini o'qish va javob yozish.
+     * pages_manage_engagement   — Facebook sahifasi NOMIDAN izoh yozish.
+     *
+     * Ikkalasi ham keyin qo'shildi (izohlarga avtomatik javob uchun).
+     * ⚠️ Meta ruxsatlarni tokenga ULANGAN PAYTDA biriktiradi va keyin
+     * kengaytirmaydi — ya'ni eski ulanish bilan izohlar ishlamaydi,
+     * hisobni QAYTA ulash kerak. Panel bu xatoni aynan shunday
+     * tushuntiradi (qarang: metaIzoh.ts).
+     */
+    const scopes = "instagram_basic,instagram_manage_insights,instagram_content_publish,instagram_manage_comments,pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement"
 
     // auth_type=rerequest — MAJBURIY.
     // Foydalanuvchi ilgari rozilik bergan bo'lsa, Facebook oynani

@@ -434,6 +434,15 @@ function resolveAdminUrl(path: string, method: string): string {
     return `${SUPABASE_FUNCTIONS_URL}/youtube-${segments[1]}${qsRaw ? `?${qsRaw}` : ""}`
   }
 
+  /**
+   * Izohlarga javob — barcha tarmoqlar uchun bitta funksiya.
+   * Aniq yozilgan, aks holda pastdagi zaxira qoida uni `admin-izohlar`
+   * ga yo'naltirardi — bunday funksiya yo'q.
+   */
+  if (segments[0] === "izohlar") {
+    return `${SUPABASE_FUNCTIONS_URL}/izohlar${qsRaw ? `?${qsRaw}` : ""}`
+  }
+
   if (segments[0] === "tasks") {
     if (segments.length === 1) {
       /**
@@ -529,7 +538,13 @@ const SLOW_TIMEOUT = 110_000
  * ishlashda davom etardi, panel esa "So'rov vaqti tugadi" deb
  * ko'rsatib, post joylanganini bilmay qolardi.
  */
-const SLOW_PATHS = ["/smm/ai", "/smm/posts", "/settings?action=retranslate", "/news"]
+/**
+ * `/izohlar` ham shu ro'yxatda: `action=draft` AI zanjirini
+ * chaqiradi va u 45 soniyagacha ketishi mumkin. 30 soniyalik oddiy
+ * chegara bilan brauzer so'rovni uzib, "So'rov vaqti tugadi" deb
+ * ko'rsatardi — holbuki server javobni yozib bo'lgan bo'lardi.
+ */
+const SLOW_PATHS = ["/smm/ai", "/smm/posts", "/settings?action=retranslate", "/news", "/izohlar"]
 
 /* ==========================================================================
    INDEX.HTML DA OLDINDAN BOSHLANGAN SO'ROVLAR

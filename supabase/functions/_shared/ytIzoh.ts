@@ -1,45 +1,24 @@
-import { supabaseAdmin } from "./supabase.ts"
 import { ulanishOl, ytFetch } from "./youtubeAuth.ts"
+import type { UmumIzoh } from "./izohTur.ts"
 
 /**
  * YOUTUBE IZOHLARI — O'QISH VA JAVOB YOZISH.
- *
- * Bu yerda faqat YouTube bilan muloqot va bazadagi hisob turadi.
- * Javob MATNINI yozish — `izohJavob.ts` da, sof mantiq esa
- * `izohMatn.ts` da. Uchalasini ikki joy ishlatadi: paneldagi
- * tugmalar (`youtube-manage`) va avtomatik yurish (`jobs/yt-izoh`).
  *
  * KVOTA. YouTube kuniga 10 000 birlik beradi:
  *   commentThreads.list —  1 birlik
  *   videos.list         —  1 birlik
  *   comments.insert     — 50 birlik
- * Ya'ni soatiga bir yurish + 20 tagacha javob kuniga ~24 000 emas,
- * ~24 x (1 + 1 + 20x50) = juda ko'p bo'lardi. Shuning uchun bitta
- * yurishdagi javoblar soni sozlamada cheklangan (odatda 20) va
- * yurish soatiga bir marta bo'ladi. Eng yomon holatda 24 x 1002 =
- * chegaradan oshadi, shuning uchun avtomatik yurish JAVOB BERILMAGAN
- * izoh qolmasa darhol to'xtaydi va odatdagi kunda bir necha birlik
- * sarflaydi.
+ * Soatiga bir yurish + sozlamadagi chegara (odatda 20 javob) —
+ * javobsiz izoh ko'p bo'lgan kunda ham kvota yetadi, odatdagi kunda
+ * esa bir necha birlik sarflanadi.
+ *
+ * RUXSAT: `youtube.force-ssl` shart — `comments.insert` boshqa hech
+ * qanday ruxsat bilan ishlamaydi. U keyin qo'shilgan, ya'ni ESKI
+ * ULANISH YETMAYDI: Google ruxsatlarni tokenga ulangan paytda
+ * biriktiradi. 403 xatosi aynan shunday tushuntiriladi.
  */
 
 const API = "https://www.googleapis.com/youtube/v3"
-
-export type YtIzoh = {
-  /** Yuqori darajadagi izoh identifikatori — javob shunga ulanadi */
-  id: string
-  videoId: string
-  videoTitle: string
-  muallif: string
-  /** Muallifning kanal ID si — o'z izohimizni ajratish uchun */
-  muallifKanal: string
-  matn: string
-  vaqt: string
-  yoqtirish: number
-  /** Ipga javob yozish mumkinmi (yopilgan bo'lishi mumkin) */
-  javobMumkin: boolean
-  /** Kanalning O'ZI shu ipga allaqachon javob berganmi */
-  javobBerilgan: boolean
-}
 
 /**
  * Kanal ID sini oladi.
@@ -74,19 +53,16 @@ async function sarlavhalarOl(videoIds: string[]): Promise<Map<string, string>> {
  * Kanalning barcha videolariga tushgan so'nggi izohlar.
  *
  * `allThreadsRelatedToChannelId` — video bo'yicha aylanib chiqishdan
- * ancha arzon: bitta so'rov butun kanalni qamrab oladi. Video bo'yicha
- * yurilsa har video uchun alohida so'rov kerak bo'lardi.
+ * ancha arzon: bitta so'rov butun kanalni qamrab oladi.
  *
  * `order=time` — eng yangisi birinchi. Avtomatik yurish uchun aynan
  * shu kerak: eski izohlarga endi javob berishning ma'nosi kam.
  */
-export async function izohlarniOl(
+export async function youtubeIzohlar(
   limit = 50,
-): Promise<{ ok: boolean; izohlar: YtIzoh[]; xato: string; kanal: string }> {
-  // Kanal ID ni O'ZI qaytaradi: chaqiruvchiga ham kerak (o'z izohini
-  // ajratish uchun), ikki marta so'rash esa bekorga so'rov bo'lardi.
+): Promise<{ ok: boolean; izohlar: UmumIzoh[]; xato: string }> {
   const kanal = await kanalIdOl()
-  if (!kanal) return { ok: false, izohlar: [], kanal: "", xato: "Kanal aniqlanmadi — YouTube ulanishini tekshiring" }
+  if (!kanal) return { ok: false, izohlar: [], xato: "Kanal aniqlanmadi — YouTube ulanishini tekshiring" }
 
   const r = await ytFetch(
     `${API}/commentThreads?part=snippet,replies&allThreadsRelatedToChannelId=${kanal}` +
@@ -99,44 +75,41 @@ export async function izohlarniOl(
      * xabar foydalanuvchini kunlab adashtirardi.
      */
     const aniq = r.status === 403
-      ? "Izohlarni o'qish uchun kanalni QAYTA ulash kerak (yangi ruxsat: izohlarni boshqarish)"
+      ? "YouTube: izohlar uchun ruxsat yo'q — kanalni QAYTA ulang (yangi ruxsat: izohlarni boshqarish)"
       : r.xato
-    return { ok: false, izohlar: [], kanal, xato: aniq }
+    return { ok: false, izohlar: [], xato: aniq }
   }
 
   const items = (r.data.items as Record<string, any>[]) || []
   const sarlavhalar = await sarlavhalarOl(items.map((it) => String(it.snippet?.videoId || "")))
 
-  const izohlar: YtIzoh[] = items.map((it) => {
+  const izohlar: UmumIzoh[] = items.map((it) => {
     const top = it.snippet?.topLevelComment
     const s = top?.snippet || {}
     const javoblar = (it.replies?.comments as Record<string, any>[]) || []
     const videoId = String(it.snippet?.videoId || "")
+    const id = String(top?.id || it.id || "")
     return {
-      id: String(top?.id || it.id || ""),
-      videoId,
-      videoTitle: sarlavhalar.get(videoId) || "",
+      id,
+      postId: videoId,
+      postTitle: sarlavhalar.get(videoId) || "",
+      havola: videoId ? `https://www.youtube.com/watch?v=${videoId}&lc=${id}` : "",
       muallif: String(s.authorDisplayName || ""),
-      muallifKanal: String(s.authorChannelId?.value || ""),
+      ozimizmi: String(s.authorChannelId?.value || "") === kanal,
       matn: String(s.textOriginal || s.textDisplay || ""),
       vaqt: String(s.publishedAt || ""),
       yoqtirish: Number(s.likeCount ?? 0),
       javobMumkin: it.snippet?.canReply !== false,
       /**
-       * Kanal O'ZI javob berganmi. `replies` faqat oxirgi bir nechta
-       * javobni qaytaradi, lekin bizga yetarli: o'z javobimiz bo'lsa
-       * u odatda oxirgilardan biri.
-       *
-       * Bu YAGONA tekshiruv emas — asosiy himoya bazadagi yagona
-       * `comment_id`. Bu esa QO'LDA yozilgan javoblarni ham hisobga
-       * oladi: tahririyat YouTube'da o'zi javob bergan bo'lsa, AI
-       * ustiga ikkinchi javob yozmasligi kerak.
+       * Kanal O'ZI javob berganmi. Bu bazadagi tekshiruvga QO'SHIMCHA:
+       * tahririyat YouTube'da qo'lda javob bergan bo'lsa, AI ustiga
+       * ikkinchisini yozmasligi kerak.
        */
       javobBerilgan: javoblar.some((c) => String(c.snippet?.authorChannelId?.value || "") === kanal),
     }
   }).filter((x) => x.id)
 
-  return { ok: true, izohlar, kanal, xato: "" }
+  return { ok: true, izohlar, xato: "" }
 }
 
 /**
@@ -146,7 +119,7 @@ export async function izohlarniOl(
  * javobini qo'llab-quvvatlamaydi: ip ichidagi har qanday javob
  * baribir yuqori darajadagi izohga ulanadi.
  */
-export async function javobYubor(parentId: string, matn: string): Promise<{ ok: boolean; xato: string }> {
+export async function youtubeJavob(parentId: string, matn: string): Promise<{ ok: boolean; xato: string }> {
   const t = matn.trim()
   if (!parentId) return { ok: false, xato: "Izoh ID kerak" }
   if (!t) return { ok: false, xato: "Javob matni bo'sh" }
@@ -158,58 +131,9 @@ export async function javobYubor(parentId: string, matn: string): Promise<{ ok: 
   })
   if (!r.ok) {
     const aniq = r.status === 403
-      ? "Javob yuborish uchun kanalni QAYTA ulash kerak (yangi ruxsat: izohlarni boshqarish)"
+      ? "YouTube: javob yuborish uchun kanalni QAYTA ulang (yangi ruxsat: izohlarni boshqarish)"
       : r.xato
     return { ok: false, xato: aniq }
   }
   return { ok: true, xato: "" }
-}
-
-/* ==========================================================================
-   BAZADAGI HISOB
-   ========================================================================== */
-
-export type JavobHolat = "qoralama" | "yuborildi" | "otkazildi" | "xato"
-
-export type JavobYozuv = {
-  comment_id: string
-  video_id: string
-  video_title?: string
-  muallif?: string
-  izoh: string
-  javob?: string | null
-  holat: JavobHolat
-  sabab?: string | null
-  avto?: boolean
-  provayder?: string | null
-  izoh_vaqti?: string | null
-  yuborilgan_at?: string | null
-}
-
-/**
- * Yozuvni saqlaydi (bori yangilanadi).
- *
- * `comment_id` bo'yicha upsert: yagona indeks shu ustunda va aynan
- * shu narsa bir izohga ikki marta javob yozilishini imkonsiz qiladi.
- */
-export async function yozuvSaqla(y: JavobYozuv): Promise<void> {
-  await supabaseAdmin
-    .from("yt_izoh_javob")
-    .upsert({ ...y, updated_at: new Date().toISOString() }, { onConflict: "comment_id" })
-}
-
-/**
- * Qaysi izohlarga allaqachon tegilgan.
- *
- * `qoralama` HAM kiradi: tahririyat ko'rib chiqmagan qoralama bor
- * ekan, avtomatik yurish o'sha izohga yangi qoralama yozib,
- * eskisini bekorga almashtirmasligi kerak.
- */
-export async function tegilganlar(ids: string[]): Promise<Set<string>> {
-  if (ids.length === 0) return new Set()
-  const { data } = await supabaseAdmin
-    .from("yt_izoh_javob")
-    .select("comment_id")
-    .in("comment_id", ids.slice(0, 200))
-  return new Set((data || []).map((r: { comment_id: string }) => r.comment_id))
 }

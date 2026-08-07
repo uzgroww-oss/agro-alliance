@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts"
-import { otkazSababi, tozala, qisqartir, promptYasa, ZAXIRA_SOZLAMA, SKIP } from "./izohMatn.ts"
+import { otkazSababi, tozala, qisqartir, promptYasa, ZAXIRA_SOZLAMA, SKIP, PLATFORMALAR } from "./izohMatn.ts"
 
 /**
  * IZOHGA AVTOMATIK JAVOB — TEKSHIRUVLAR.
@@ -142,4 +142,24 @@ Deno.test("tahririyat ko'rsatmasi qo'shiladi va bo'sh bo'lsa qo'shilmaydi", () =
 
   const siz = promptYasa({ ...asos, sozlama: ZAXIRA_SOZLAMA })
   assertEquals(siz.includes("TAHRIRIYAT KO'RSATMASI"), false)
+})
+
+/* ---------------- Tarmoqlar ---------------- */
+
+Deno.test("so'rovda tarmoq nomi to'g'ri chiqadi", () => {
+  const ig = promptYasa({ ...asos, sozlama: ZAXIRA_SOZLAMA, platforma: "instagram" })
+  assertStringIncludes(ig, "Instagram sahifasining")
+
+  const tg = promptYasa({ ...asos, sozlama: ZAXIRA_SOZLAMA, platforma: "telegram" })
+  assertStringIncludes(tg, "Telegram sahifasining")
+})
+
+Deno.test("tarmoq ko'rsatilmasa YouTube deb hisoblanadi", () => {
+  assertStringIncludes(promptYasa({ ...asos, sozlama: ZAXIRA_SOZLAMA }), "YouTube")
+})
+
+Deno.test("zaxira sozlamada hamma tarmoqda avtomatik rejim O'CHIQ", () => {
+  // Bu qiymat kanal nomidan ommaviy matn chiqaradi — birorta ham
+  // tarmoq sukut bo'yicha yoqilgan bo'lmasligi kerak
+  for (const p of PLATFORMALAR) assertEquals(ZAXIRA_SOZLAMA.avto[p], false)
 })

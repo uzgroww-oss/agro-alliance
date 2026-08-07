@@ -7,6 +7,7 @@ import { aiKalitBormi } from "./aiKalit.ts"
 import { sarfYoz } from "./aiKesh.ts"
 import {
   otkazSababi,
+  PLATFORMALAR,
   promptYasa,
   qisqartir,
   skipmi,
@@ -14,6 +15,7 @@ import {
   ZAXIRA_SOZLAMA,
   type IzohSozlama,
   type IzohTil,
+  type Platforma,
 } from "./izohMatn.ts"
 
 /**
@@ -28,7 +30,7 @@ import {
  * `supabase.ts` ni import qilgani uchun testda yuklanmaydi).
  */
 
-export type { IzohSozlama, IzohTil }
+export type { IzohSozlama, IzohTil, Platforma }
 export { ZAXIRA_SOZLAMA }
 
 /* ==========================================================================
@@ -42,13 +44,16 @@ function sonChegara(v: unknown, zaxira: number, eng: number, kop: number): numbe
   return Math.min(kop, Math.max(eng, Math.round(n)))
 }
 
+/** Har tarmoq uchun alohida yoqish kaliti */
+const AVTO_KALIT = (p: Platforma) => `izoh_avto_${p}`
+
 export const SOZLAMA_KALITLARI = [
-  "yt_izoh_avto",
-  "yt_izoh_ohang",
-  "yt_izoh_til",
-  "yt_izoh_limit",
-  "yt_izoh_uzunlik",
-] as const
+  ...PLATFORMALAR.map(AVTO_KALIT),
+  "izoh_ohang",
+  "izoh_til",
+  "izoh_limit",
+  "izoh_uzunlik",
+]
 
 /**
  * Sozlamalarni `public_settings` dan o'qiydi.
@@ -62,17 +67,19 @@ export async function sozlamalarOl(): Promise<IzohSozlama> {
     const { data } = await supabaseAdmin
       .from("public_settings")
       .select("key, value")
-      .in("key", SOZLAMA_KALITLARI as unknown as string[])
+      .in("key", SOZLAMA_KALITLARI)
       .is("deleted_at", null)
 
     const m = new Map((data || []).map((r: { key: string; value: string }) => [r.key, r.value]))
-    const til = String(m.get("yt_izoh_til") || "auto")
+    const til = String(m.get("izoh_til") || "auto")
+    const avto = { ...ZAXIRA_SOZLAMA.avto }
+    for (const p of PLATFORMALAR) avto[p] = String(m.get(AVTO_KALIT(p)) || "false") === "true"
     return {
-      avto: String(m.get("yt_izoh_avto") || "false") === "true",
-      ohang: String(m.get("yt_izoh_ohang") || "").trim().slice(0, 1000),
+      avto,
+      ohang: String(m.get("izoh_ohang") || "").trim().slice(0, 1000),
       til: (["auto", "uz", "ru", "en"].includes(til) ? til : "auto") as IzohTil,
-      limit: sonChegara(m.get("yt_izoh_limit"), 20, 1, 50),
-      uzunlik: sonChegara(m.get("yt_izoh_uzunlik"), 200, 60, 500),
+      limit: sonChegara(m.get("izoh_limit"), 20, 1, 50),
+      uzunlik: sonChegara(m.get("izoh_uzunlik"), 200, 60, 500),
     }
   } catch {
     return { ...ZAXIRA_SOZLAMA }
@@ -89,7 +96,7 @@ export async function sozlamalarOl(): Promise<IzohSozlama> {
  * qo'llanmagan bo'lsa).
  */
 export async function sozlamaYoz(kalit: string, qiymat: string): Promise<boolean> {
-  if (!(SOZLAMA_KALITLARI as readonly string[]).includes(kalit)) return false
+  if (!SOZLAMA_KALITLARI.includes(kalit)) return false
   const { data, error } = await supabaseAdmin
     .from("public_settings")
     .update({ value: qiymat, updated_at: new Date().toISOString() })
@@ -158,6 +165,7 @@ export async function javobYoz(q: {
   muallif?: string
   videoSarlavha?: string
   sozlama: IzohSozlama
+  platforma?: Platforma
 }): Promise<JavobNatija> {
   const sabab = otkazSababi(q.izoh)
   if (sabab) return { holat: "otkaz", sabab }
@@ -167,6 +175,7 @@ export async function javobYoz(q: {
     muallif: (q.muallif || "").slice(0, 60),
     videoSarlavha: (q.videoSarlavha || "").slice(0, 120),
     sozlama: q.sozlama,
+    platforma: q.platforma,
   })
 
   const oxiri = Date.now() + ZANJIR_BUDGET_MS
@@ -187,7 +196,7 @@ export async function javobYoz(q: {
       const matn = tozala(r.text)
       await sarfYoz({
         provayder: p.nom,
-        vazifa: "yt-izoh",
+        vazifa: `izoh-${q.platforma || "youtube"}`,
         muvaffaqiyat: true,
         tokenlar: r.tokens,
         matnUzunligi: matn.length,
@@ -202,7 +211,7 @@ export async function javobYoz(q: {
       xatolar.push(`${p.nom}: ${xato}`)
       await sarfYoz({
         provayder: p.nom,
-        vazifa: "yt-izoh",
+        vazifa: `izoh-${q.platforma || "youtube"}`,
         muvaffaqiyat: false,
         davomiylik: Date.now() - boshlandi,
         xato,

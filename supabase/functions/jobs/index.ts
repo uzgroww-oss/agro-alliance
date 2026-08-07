@@ -51,6 +51,7 @@ const ISHLAR: Record<string, () => Promise<Record<string, unknown>>> = {
    * Rasm qayta ishlash kerak bo'lsa u alohida muhitda (Node server
    * yoki konteyner) ishlashi kerak.
    */
+  "izohlar": () => import("../_shared/jobs/izohlar.ts"),
   "media-upload": () => import("../_shared/jobs/media-upload.ts"),
   "news-ingest": () => import("../_shared/jobs/news-ingest.ts"),
   "news-publish": () => import("../_shared/jobs/news-publish.ts"),
@@ -60,7 +61,6 @@ const ISHLAR: Record<string, () => Promise<Record<string, unknown>>> = {
   "telegram-monitor": () => import("../_shared/jobs/telegram-monitor.ts"),
   "telegram-publish": () => import("../_shared/jobs/telegram-publish.ts"),
   "tz-takrorlash": () => import("../_shared/jobs/tz-takrorlash.ts"),
-  "yt-izoh": () => import("../_shared/jobs/yt-izoh.ts"),
   "web-crawler": () => import("../_shared/jobs/web-crawler.ts"),
 }
 
