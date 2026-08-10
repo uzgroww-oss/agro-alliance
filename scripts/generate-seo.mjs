@@ -14,7 +14,7 @@
  *
  * Bloger/yangilik ro'yxati Supabase'dan build vaqtida olinadi.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createHash } from "node:crypto"
@@ -227,26 +227,38 @@ async function main() {
   console.log(`[seo] sitemap.xml: ${urls.length} ta havola`)
   console.log(`[seo] robots.txt yozildi`)
 
-  /* --- 6. _headers — Content-Security-Policy --- */
+  /* --- 6. Content-Security-Policy --- */
   yozCsp()
 }
 
 /**
- * CSP NEGA SHU YERDA YOZILADI, netlify.toml da emas.
+ * CSP NEGA SHU YERDA HISOBLANADI VA <meta> ORQALI QO'YILADI.
  *
- * index.html ichida inline skript bor (bosh sahifa ma'lumotini React'dan
- * oldin so'raydi). Uni CSP o'tkazishi uchun skriptning sha256 hash'i
- * ro'yxatda turishi kerak. Hash esa build'dan build'ga o'zgaradi —
- * skript ichida `%VITE_SUPABASE_URL%` kabi o'rinbosarlar build paytida
- * haqiqiy qiymatga almashadi. Ya'ni uni qo'lda yozib qo'yib bo'lmaydi:
- * bir marta env o'zgarsa CSP skriptni bloklaydi va sayt oq ekran bo'ladi.
+ * 1) Nega qo'lda yozilmaydi. index.html ichida inline skript bor (bosh
+ *    sahifa ma'lumotini React'dan oldin so'raydi). Uni CSP o'tkazishi
+ *    uchun skriptning sha256 hash'i ro'yxatda turishi kerak. Hash esa
+ *    build'dan build'ga o'zgaradi — skript ichidagi `%VITE_SUPABASE_URL%`
+ *    kabi o'rinbosarlar build paytida haqiqiy qiymatga almashadi. Qo'lda
+ *    yozilsa, env bir marta o'zgarganda CSP o'z skriptimizni bloklaydi
+ *    va bosh sahifa jimgina buziladi.
  *
- * Shuning uchun hash tayyor HTML dan O'QIB olinadi va `dist/_headers`
- * fayliga yoziladi. Netlify shu faylni avtomatik o'qiydi.
+ * 2) Nega <meta>, sarlavha emas. Sayt VERCEL da turadi (tekshirilgan:
+ *    javob sarlavhasida `Server: Vercel`), `vercel.json` esa repodan
+ *    o'qiladi — build natijasidagi `_headers` ni Vercel umuman
+ *    ko'rmaydi. Ya'ni hisoblangan hash'ni sarlavhaga qo'yishning yo'li
+ *    yo'q. <meta http-equiv> esa HTML ning O'ZIDA turadi — u qaysi
+ *    hostda bo'lishidan qat'i nazar ishlaydi va hash har doim ayni shu
+ *    HTML ga mos keladi.
  *
- * O'zgarmaydigan sarlavhalar (X-Frame-Options, HSTS va h.k.) ATAYLAB
- * netlify.toml da qoldirilgan: agar shu skript bir kun yiqilsa, sayt
- * baribir asosiy himoyasiz qolmaydi.
+ *    `_headers` baribir yoziladi: loyihada netlify.toml ham bor va
+ *    hosting qaytib o'zgarishi mumkin. Ikkalasi bir vaqtda ishlasa
+ *    zarari yo'q — mazmuni bir xil.
+ *
+ * 3) frame-ancestors <meta> da ISHLAMAYDI (spetsifikatsiya shunday) —
+ *    u faqat sarlavha versiyasida qoladi, meta versiyasidan olib
+ *    tashlanadi. Aks holda brauzer har sahifada "ignored" ogohlantirishi
+ *    yozadi. Clickjacking himoyasi meta yo'lida `X-Frame-Options`
+ *    zimmasida — u vercel.json da.
  */
 function yozCsp() {
   const html = readFileSync(join(DIST, "index.html"), "utf-8")
@@ -306,12 +318,47 @@ function yozCsp() {
     "upgrade-insecure-requests",
   ].join("; ")
 
+  /* Netlify uchun (agar hosting qaytsa) — to'liq, frame-ancestors bilan */
   writeFileSync(
     join(DIST, "_headers"),
     ["/*", `  Content-Security-Policy: ${csp}`, ""].join("\n"),
     "utf-8",
   )
-  console.log(`[seo] _headers: CSP yozildi (${hashlar.size} ta inline skript hash'i)`)
+
+  /* Vercel va boshqa hamma joy uchun — HTML ning o'zida */
+  const metaCsp = csp
+    .split("; ")
+    .filter((d) => !d.startsWith("frame-ancestors"))
+    .join("; ")
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${metaCsp.replace(/"/g, "&quot;")}" />`
+
+  let nechta = 0
+  for (const fayl of htmlFayllar(DIST)) {
+    const h = readFileSync(fayl, "utf-8")
+    if (h.includes("http-equiv=\"Content-Security-Policy\"")) continue
+    /* Charset'dan KEYIN, inline skriptdan OLDIN: CSP faqat o'zidan
+       keyin kelgan narsaga ta'sir qiladi. */
+    const yangi = h.replace(/(<meta\s+charset=[^>]*>)/i, `$1\n    ${meta}`)
+    if (yangi === h) {
+      console.warn(`[seo] OGOHLANTIRISH: ${fayl} ga CSP qo'yilmadi (charset tegi topilmadi)`)
+      continue
+    }
+    writeFileSync(fayl, yangi, "utf-8")
+    nechta++
+  }
+
+  console.log(`[seo] CSP: ${nechta} ta HTML + _headers (${hashlar.size} ta skript hash'i)`)
+}
+
+/** dist ichidagi barcha .html fayllar */
+function htmlFayllar(dir) {
+  const natija = []
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) natija.push(...htmlFayllar(p))
+    else if (e.name.endsWith(".html")) natija.push(p)
+  }
+  return natija
 }
 
 main().catch((e) => {
