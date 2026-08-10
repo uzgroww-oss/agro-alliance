@@ -938,6 +938,22 @@ Deno.serve(async (req) => {
     if (action === "ai_holat") return await aiHolat()
 
     if (action === "ai_kalit_qosh") {
+      /**
+       * KALIT BOSHQARUVI — FAQAT ADMIN.
+       *
+       * Yuqoridagi `requireRole` uchala rolni ham o'tkazadi, chunki
+       * muharrirga AI ning O'ZI kerak (matn yozish, tarjima, izohga
+       * javob). Lekin KALITNI almashtirish butunlay boshqa daraja:
+       * kalitni qo'ygan odam butun AI sarfini o'z hisobiga (yoki
+       * begona hisobga) burib yuborishi, ishlab turgan kalitni
+       * o'chirib qo'yishi mumkin. Bu pul va uzilish masalasi.
+       *
+       * O'qish (`ai_holat`) ochiq qoladi — muharrir kvota tugaganini
+       * ko'rishi kerak, aks holda AI nega ishlamayotganini bilmaydi.
+       */
+      if (auth.user.role !== "super_admin" && auth.user.role !== "admin") {
+        return errorResponse("Kalitni faqat administrator boshqaradi", 403, "FORBIDDEN")
+      }
       const provayder = String(body.provayder || "").trim().toLowerCase()
       const qiymat = String(body.qiymat || "").trim()
       const nom = String(body.nom || "").trim()
@@ -979,6 +995,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === "ai_kalit_ochir") {
+      // Qo'shish bilan bir xil sabab — yuqoridagi izohga qarang
+      if (auth.user.role !== "super_admin" && auth.user.role !== "admin") {
+        return errorResponse("Kalitni faqat administrator boshqaradi", 403, "FORBIDDEN")
+      }
       const id = String(body.id || "")
       if (!id) return errorResponse("ID kerak", 400)
       const { error } = await supabaseAdmin.rpc("ai_key_ochirish", { p_id: id })

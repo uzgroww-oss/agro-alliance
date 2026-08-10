@@ -64,14 +64,20 @@
       Oddiy <link rel="stylesheet"> brauzerni to'xtatadi: Google'ning ikkita
       domeniga ulanib, CSS ni yuklab bo'lmaguncha sahifa CHIZILMAYDI.
       media="print" bilan u past ustuvorlikda, bloklamasdan yuklanadi;
-      yuklangach onload uni haqiqiy uslubga aylantiradi.
+      yuklangach media="all" ga o'tkaziladi.
       Matn shu orada tizim shriftida ko'rinadi (display=swap allaqachon shuni qiladi).
+
+      ⚠️ ILGARI shu yerda `onload="this.media='all'"` turardi. U CSP
+      bilan sig'ishmaydi: inline hodisa ishlovchisini `script-src` faqat
+      'unsafe-inline' bilan o'tkazadi, u esa CSP ning butun ma'nosini
+      yo'qotadi. Endi almashtirish pastdagi inline skriptda — u
+      sha256 hash bilan ro'yxatga olingan.
     -->
     <link
+      id="aa-font"
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
       media="print"
-      onload="this.media='all'"
     />
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -101,6 +107,23 @@
       so'rovni o'zi yuboradi.
     -->
     <script>
+      /*
+        Shriftni ishga tushirish (yuqoridagi <link id="aa-font"> uchun).
+        Alohida IIFE — pastdagi blok bosh sahifadan boshqa yerda darhol
+        `return` qiladi, shrift esa HAMMA sahifada kerak.
+        `f.sheet` tekshiruvi: kesh'dan kelgan uslub biz tinglashni
+        boshlagunimizcha yuklanib bo'lgan bo'lishi mumkin — u holda
+        `load` hodisasi endi otilmaydi.
+      */
+      (function () {
+        var f = document.getElementById("aa-font")
+        if (!f) return
+        if (f.sheet) { f.media = "all"; return }
+        f.addEventListener("load", function () { f.media = "all" })
+      })();
+
+      /* ⚠️ Yuqoridagi `;` SHART: usiz brauzer ikkala IIFE ni bitta
+         ifoda deb o'qiydi va "not a function" xatosi chiqadi. */
       (function () {
         try {
           if (location.pathname !== "/") return

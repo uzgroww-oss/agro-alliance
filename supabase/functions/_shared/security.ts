@@ -20,16 +20,17 @@ export function sanitizeFilename(filename: string): string {
     .substring(0, 255)
 }
 
-const requestCounts = new Map<string, { count: number; resetAt: number }>()
-
-export function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
-  const now = Date.now()
-  const entry = requestCounts.get(key)
-  if (!entry || now > entry.resetAt) {
-    requestCounts.set(key, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-  if (entry.count >= maxRequests) return false
-  entry.count++
-  return true
-}
+/**
+ * `checkRateLimit` SHU YERDAN OLIB TASHLANDI.
+ *
+ * U hisobni oddiy `Map` da, ya'ni bitta isolate XOTIRASIDA yuritardi.
+ * Edge funksiyalar esa ko'p isolate'da parallel ishlaydi va ular
+ * bo'sh turganda o'chib ketadi — hisob har safar noldan boshlanardi.
+ * Ya'ni chegara aslida ishlamasdi, faqat ishlayotgandek ko'rinardi.
+ *
+ * Ustiga u hech qayerda chaqirilmasdi ham.
+ *
+ * ISHLATING: `publicRateLimit.ts` dagi `rateLimited()` — u hisobni
+ * bazada, atomik RPC orqali yuritadi va xato bo'lsa BLOKLAYDI
+ * (fail-closed), ya'ni baza tiqilib qolganda himoya ochilib ketmaydi.
+ */

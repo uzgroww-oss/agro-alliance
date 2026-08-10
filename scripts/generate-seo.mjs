@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
+import { createHash } from "node:crypto"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
@@ -225,6 +226,92 @@ async function main() {
 
   console.log(`[seo] sitemap.xml: ${urls.length} ta havola`)
   console.log(`[seo] robots.txt yozildi`)
+
+  /* --- 6. _headers — Content-Security-Policy --- */
+  yozCsp()
+}
+
+/**
+ * CSP NEGA SHU YERDA YOZILADI, netlify.toml da emas.
+ *
+ * index.html ichida inline skript bor (bosh sahifa ma'lumotini React'dan
+ * oldin so'raydi). Uni CSP o'tkazishi uchun skriptning sha256 hash'i
+ * ro'yxatda turishi kerak. Hash esa build'dan build'ga o'zgaradi —
+ * skript ichida `%VITE_SUPABASE_URL%` kabi o'rinbosarlar build paytida
+ * haqiqiy qiymatga almashadi. Ya'ni uni qo'lda yozib qo'yib bo'lmaydi:
+ * bir marta env o'zgarsa CSP skriptni bloklaydi va sayt oq ekran bo'ladi.
+ *
+ * Shuning uchun hash tayyor HTML dan O'QIB olinadi va `dist/_headers`
+ * fayliga yoziladi. Netlify shu faylni avtomatik o'qiydi.
+ *
+ * O'zgarmaydigan sarlavhalar (X-Frame-Options, HSTS va h.k.) ATAYLAB
+ * netlify.toml da qoldirilgan: agar shu skript bir kun yiqilsa, sayt
+ * baribir asosiy himoyasiz qolmaydi.
+ */
+function yozCsp() {
+  const html = readFileSync(join(DIST, "index.html"), "utf-8")
+
+  /* Faqat BAJARILADIGAN inline skriptlar. `src=` li tashqi skript va
+     `type="application/ld+json"` ma'lumot bloki hisobga olinmaydi —
+     brauzer ld+json ni bajarmaydi, script-src unga tegmaydi. */
+  const hashlar = new Set()
+  const re = /<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g
+  let m
+  while ((m = re.exec(html))) {
+    if (/type\s*=\s*["'][^"']*json/i.test(m[1])) continue
+    /**
+     * ⚠️ SATR OXIRLARI LF GA KELTIRILADI.
+     *
+     * Brauzer hash'ni fayl BAYTLARIDAN emas, HTML parser chiqargan
+     * matndan hisoblaydi. HTML spetsifikatsiyasi esa kirish oqimidagi
+     * har bir CRLF va CR ni LF ga almashtiradi.
+     *
+     * Windows'da fayl CRLF bilan saqlanadi, ya'ni to'g'ridan-to'g'ri
+     * hash qilinsa qiymat boshqa chiqadi va CSP o'z skriptimizni
+     * bloklaydi. Bu aynan shunday bo'lgan — brauzerda tekshirilgan:
+     *   CRLF bilan : cIWWeidFm7Uq...   (CSP bloklaydi)
+     *   LF bilan   : Lwv49aP6oiQI...   (brauzer kutgan qiymat)
+     *
+     * Linux'da (Netlify build) CRLF bo'lmaydi, ya'ni bu qator u yerda
+     * hech narsani o'zgartirmaydi — lekin lokal build bilan ishlab
+     * chiqarish build'i bir xil natija berishi uchun shart.
+     */
+    const matn = m[2].replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+    hashlar.add(`'sha256-${createHash("sha256").update(matn, "utf8").digest("base64")}'`)
+  }
+
+  const csp = [
+    "default-src 'self'",
+    // Inline skript faqat hash bo'yicha. 'unsafe-inline' YO'Q — aynan
+    // shu CSP ning qiymati: XSS orqali kiritilgan skript ishlamaydi.
+    `script-src 'self' ${[...hashlar].join(" ")}`,
+    // Tailwind va React ikkalasi ham inline uslub yozadi — bunisiz
+    // sayt uslubsiz qoladi. Uslub XSS uchun skriptchalik xavfli emas.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    // Rasm manbalari ko'p va oldindan bilib bo'lmaydi: bloger avatarlari
+    // YouTube/Instagram CDN dan, muqovalar Supabase Storage dan keladi.
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    // Supabase — butun API. googleapis — YouTube'ga to'g'ridan-to'g'ri
+    // video yuklash (brauzer -> Google, server orqali emas).
+    "connect-src 'self' https://*.supabase.co https://*.googleapis.com https://www.youtube.com",
+    // YouTube pleyer (bloger profili) va OpenStreetMap (aloqa sahifasi)
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.openstreetmap.org",
+    // Saytni begona sahifa ichiga qo'yib bo'lmaydi (clickjacking)
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ")
+
+  writeFileSync(
+    join(DIST, "_headers"),
+    ["/*", `  Content-Security-Policy: ${csp}`, ""].join("\n"),
+    "utf-8",
+  )
+  console.log(`[seo] _headers: CSP yozildi (${hashlar.size} ta inline skript hash'i)`)
 }
 
 main().catch((e) => {

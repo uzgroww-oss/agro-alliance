@@ -2,10 +2,30 @@
   command = "npm run build"
   publish = "dist"
 
+# XAVFSIZLIK SARLAVHALARI
+#
+# Content-Security-Policy bu yerda EMAS — u `dist/_headers` ga
+# build paytida yoziladi (scripts/generate-seo.mjs). Sabab: CSP ichida
+# inline skriptning sha256 hash'i bo'lishi kerak va u har build'da
+# o'zgaradi. Bu yerdagilar esa hech qachon o'zgarmaydi, shuning uchun
+# ular alohida turadi — SEO skripti yiqilsa ham sayt himoyasiz qolmasin.
 [[headers]]
   for = "/*"
   [headers.values]
+    # MIME turini brauzer "taxmin qilmasin" — yuklangan fayl skript
+    # sifatida bajarilib ketishining oldini oladi
     X-Content-Type-Options = "nosniff"
+    # Saytni begona sahifa iframe'iga qo'yib bo'lmaydi. CSP dagi
+    # frame-ancestors bilan bir xil ish, lekin eski brauzerlar uchun.
+    X-Frame-Options = "DENY"
+    # Begona saytga o'tilganda to'liq manzil yuborilmasin (kabinet
+    # havolalarida id lar bo'ladi)
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Sayt bu qurilmalarni umuman so'ramaydi — ruxsatni butunlay yopamiz
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    # Bir yil davomida faqat HTTPS. includeSubDomains — barcha
+    # subdomenlarga ham tegishli.
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
 [[headers]]
   for = "*.js"
