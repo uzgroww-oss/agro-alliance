@@ -136,14 +136,39 @@ export async function run(): Promise<Record<string, unknown>> {
   }
 
   const oxiri = Date.now() + ISH_BUDGET_MS
-  const natija: Record<string, Natija> = {}
-  for (const p of yoqilgan) {
-    // Vaqt tugagan bo'lsa qolgan tarmoqlar keyingi yurishda
-    if (oxiri - Date.now() < BIR_SIKL_MS) {
-      natija[p] = { yuborildi: 0, otkazildi: 0, xatolar: 0, korildi: 0, xato: "vaqt tugadi — keyingi yurishda" }
-      continue
-    }
-    natija[p] = await tarmoqniYurgiz(p, sozlama, oxiri)
-  }
-  return natija
+
+  /**
+   * TARMOQLAR PARALLEL YURADI.
+   *
+   * ILGARI KETMA-KET EDI va bu to'rttala tarmoq yoqilganda yomon
+   * ishlardi: YouTube 70 soniya olsa, qolgan 40 soniya bitta siklga
+   * yetmasdi va Instagram, Facebook, Telegram "vaqt tugadi" deb
+   * BUTUNLAY o'tkazib yuborilardi. Soatiga bir marta yuriladigan
+   * ishda bu ro'yxatning oxiridagi tarmoq soatlab javobsiz qolishi
+   * demak edi — har yurishda birinchi tarmoq vaqtni yeb ketardi.
+   *
+   * Endi umumiy vaqt eng SEKIN tarmoqniki, yig'indisi emas.
+   *
+   * XAVFSIZ: tarmoqlar bir-biriga bog'liq emas — har biri o'z API si,
+   * o'z kvotasi va o'z yozuvlari bilan ishlaydi. Umumiy resurs faqat
+   * AI provayderlari, ular esa bir vaqtda to'rtta so'rovni bemalol
+   * ko'taradi (bitta tarmoq ichida izohlar baribir ketma-ket ketadi).
+   *
+   * Har biri alohida `try` ichida: bittasi yiqilsa qolganlarining
+   * natijasi yo'qolmasligi kerak.
+   */
+  const juftlar = await Promise.all(
+    yoqilgan.map(async (p): Promise<readonly [Platforma, Natija]> => {
+      try {
+        return [p, await tarmoqniYurgiz(p, sozlama, oxiri)] as const
+      } catch (e) {
+        return [p, {
+          yuborildi: 0, otkazildi: 0, xatolar: 0, korildi: 0,
+          xato: e instanceof Error ? e.message : "kutilmagan xatolik",
+        }] as const
+      }
+    }),
+  )
+
+  return Object.fromEntries(juftlar)
 }
