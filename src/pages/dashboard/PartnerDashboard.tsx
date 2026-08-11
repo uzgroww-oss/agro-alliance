@@ -280,238 +280,11 @@ export default function PartnerDashboard() {
 
 
 
-/**
- * Bitta video kartochkasi — rasm, sarlavha, bloger va TO'LIQ raqamlar.
- *
- * Ko'rish/yoqtirish/izoh uchtasi ham ko'rsatiladi. Ba'zi manbalarda
- * ular yo'q (qo'lda qo'yilgan link, Instagram ko'rishlar bermaydi) —
- * o'shanda "0" emas, "—" chiqadi: nol real o'lchov, "—" esa
- * "ma'lumot yo'q" degani va ikkovi bir xil ko'rinmasligi kerak.
- */
-const raqam = (s: string) => {
-  const n = Number(String(s).replace(/[^\d]/g, ""))
-  return Number.isFinite(n) && n > 0 ? n.toLocaleString("ru-RU") : (String(s).trim() && String(s) !== "0" ? String(s) : "—")
-}
-
-/**
- * JALB QILISH DARAJASI = (yoqtirish + izoh) / ko'rish.
- *
- * Kompaniya uchun yalpi ko'rishlar sonidan ko'ra muhimroq: ko'p
- * ko'rilgan, lekin hech kim javob bermagan video reklama sifatida
- * kuchsiz. Ko'rishlar noma'lum bo'lsa hisoblanmaydi.
- */
-function jalbDarajasi(v: PartnerVideo): string {
-  const son = (s: string) => Number(String(s).replace(/[^\d]/g, "")) || 0
-  const k = son(v.views)
-  if (!k) return "—"
-  return `${(((son(v.likes) + son(v.comments)) / k) * 100).toFixed(1)}%`
-}
-
-function VideoCard({ v, onOpen }: { v: PartnerVideo; onOpen: () => void }) {
-  const olcham = [
-    { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
-    { icon: I.star, label: tr("Yoqtirishlar"), value: raqam(v.likes) },
-    { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
-  ]
-  return (
-    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-green/12 bg-white shadow-[0_4px_20px_rgba(91,180,32,0.06)] transition-shadow hover:shadow-[0_8px_28px_rgba(91,180,32,0.12)]">
-      <button onClick={onOpen} className="relative block aspect-video w-full bg-soft" title={tr("To'liq ma'lumot")}>
-        {v.thumbnail ? (
-          <img loading="lazy" decoding="async" src={v.thumbnail} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="grid h-full w-full place-items-center text-green"><Icon d={I.play} className="h-9 w-9" /></span>
-        )}
-        <span className="absolute left-2 top-2 flex flex-wrap gap-1">
-          {v.plats.map((p) => (
-            <span key={p} className="rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">{p}</span>
-          ))}
-        </span>
-        {v.duration && (
-          <span className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">{v.duration}</span>
-        )}
-      </button>
-
-      <div className="flex min-w-0 flex-1 flex-col p-2.5">
-        <button onClick={onOpen} className="line-clamp-2 text-left font-display text-[12px] font-bold leading-snug hover:text-green">
-          {v.name}
-        </button>
-
-        {/* Bloger nomi/avatari OLIB TASHLANDI — kompaniyaga video
-            natijasi kerak, kim joylagani emas. Sana qoladi. */}
-        <div className="mt-1.5 flex items-center justify-end">
-          <span className="text-[9px] text-muted">{v.date || "—"}</span>
-        </div>
-
-        <div className="mt-2 grid grid-cols-3 gap-1 border-t border-green/10 pt-2">
-          {olcham.map((o) => (
-            <div key={o.label} className="min-w-0 text-center" title={tr(o.label)}>
-              <Icon d={o.icon} className="mx-auto h-3 w-3 text-green" />
-              <div className="mt-0.5 truncate font-display text-[11px] font-extrabold">{o.value}</div>
-            </div>
-          ))}
-        </div>
-
-        <button onClick={onOpen} className="mt-2 w-full rounded-lg bg-soft py-1.5 text-[10px] font-bold text-green transition-colors hover:bg-green hover:text-white">
-          {tr("To'liq ma'lumot")}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/**
- * VIDEO HAQIDA TO'LIQ MA'LUMOT.
- *
- * Kartochkaga hammasi sig'maydi — u ro'yxat uchun ixcham bo'lishi
- * kerak. Bu oynada esa hech narsa qisqartirilmaydi: to'liq sarlavha,
- * tavsif, kanal, davomiylik, sana, barcha raqamlar va jalb qilish
- * darajasi.
- */
-type VideoComment = { id: string; author: string; avatar: string; text: string; likes: number; date: string; replies: number }
-
-/** Linkdan YouTube video ID — izohlarni so'rash uchun kerak */
-function youtubeIdFrom(v: PartnerVideo): string | null {
-  const m = v.link.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-  if (m) return m[1]
-  return /^[a-zA-Z0-9_-]{11}$/.test(v.id) ? v.id : null
-}
-
-function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
-  const ytId = youtubeIdFrom(v)
-  // YouTube bo'lmasa so'rov ham yubormaymiz — darrov bo'sh ro'yxat
-  const [comments, setComments] = useState<VideoComment[] | null>(ytId ? null : [])
-  const [sabab, setSabab] = useState(ytId ? "" : "Izohlar faqat YouTube videolari uchun ko'rsatiladi")
-
-  useEffect(() => {
-    if (!ytId) return
-    api<{ comments: VideoComment[]; sabab: string }>(`/me/partner?action=comments&video=${ytId}`)
-      .then((d) => { setComments(d.comments || []); setSabab(d.sabab || "") })
-      .catch(() => { setComments([]); setSabab(tr("Izohlarni yuklab bo'lmadi")) })
-  }, [ytId])
-
-  const qatorlar: [string, string][] = [
-    [tr("Kanal"), v.channel || "—"],
-    ["Platforma", v.plats.join(", ") || "—"],
-    [tr("Chiqarilgan sana"), v.date || "—"],
-    [tr("Davomiyligi"), v.duration || "—"],
-  ]
-  const olcham = [
-    { icon: I.eye, label: "Ko'rishlar", value: raqam(v.views) },
-    { icon: I.star, label: tr("Yoqtirishlar"), value: raqam(v.likes) },
-    { icon: I.message, label: "Izohlar", value: raqam(v.comments) },
-    { icon: I.target, label: tr("Jalb qilish"), value: jalbDarajasi(v) },
-  ]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="relative shrink-0">
-          {v.thumbnail ? (
-            <img src={v.thumbnail} alt="" className="aspect-video w-full bg-soft object-cover" />
-          ) : (
-            <div className="grid aspect-video w-full place-items-center bg-soft text-green"><Icon d={I.play} className="h-12 w-12" /></div>
-          )}
-          <button onClick={onClose} className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80">
-            <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          <h3 className="font-display text-lg font-extrabold leading-snug">{v.name}</h3>
-
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {olcham.map((o) => (
-              <div key={o.label} className="rounded-xl bg-[#fafdf7] p-3 text-center">
-                <Icon d={o.icon} className="mx-auto h-4 w-4 text-green" />
-                <div className="mt-1 font-display text-lg font-extrabold">{o.value}</div>
-                <div className="text-[10px] text-muted">{tr(o.label)}</div>
-              </div>
-            ))}
-          </div>
 
 
 
-          <dl className="mt-4 divide-y divide-green/8 rounded-xl border border-green/12">
-            {qatorlar.map(([k, val]) => (
-              <div key={k} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                <dt className="text-xs text-muted">{tr(k)}</dt>
-                <dd className="min-w-0 truncate text-sm font-semibold">{val}</dd>
-              </div>
-            ))}
-          </dl>
 
-          {v.description && (
-            <div className="mt-4">
-              <h4 className="text-xs font-bold text-muted">{tr("Tavsif")}</h4>
-              <p className="mt-1 whitespace-pre-wrap break-words rounded-xl bg-[#fafdf7] p-3 text-xs leading-relaxed">{v.description}</p>
-            </div>
-          )}
 
-          {/*
-            IZOHLAR — raqamning o'zi yetarli emas.
-            Kompaniya odamlar NIMA yozganini bilishi kerak: maqtovmi,
-            shikoyatmi, savolmi. Eng ko'p javob olganlari tepada
-            (YouTube "relevance" tartibi).
-          */}
-          <div className="mt-5">
-            <div className="flex items-center justify-between">
-              <h4 className="font-display text-sm font-bold">{tr("Izohlar")}</h4>
-              <span className="text-xs text-muted">
-                {comments === null ? tr("yuklanmoqda...") : `${raqam(v.comments)} ${tr("ta")}`}
-              </span>
-            </div>
-
-            {comments === null && (
-              <div className="mt-2 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>
-            )}
-
-            {comments !== null && comments.length === 0 && (
-              <p className="mt-2 rounded-xl bg-[#fafdf7] px-3 py-4 text-center text-xs text-muted">
-                {sabab ? tr(sabab) : tr("Hali izoh yozilmagan.")}
-              </p>
-            )}
-
-            {comments !== null && comments.length > 0 && (
-              <>
-                <div className="mt-2 space-y-2">
-                  {comments.map((c) => (
-                    <div key={c.id} className="flex gap-2.5 rounded-xl border border-green/10 bg-[#fafdf7] p-3">
-                      {c.avatar ? (
-                        <img loading="lazy" decoding="async" src={c.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-                      ) : (
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green/10 text-xs font-bold text-green">{c.author[0] || "?"}</span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 text-[11px]">
-                          <span className="font-bold">{c.author}</span>
-                          <span className="text-muted">{c.date}</span>
-                        </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed">{c.text}</p>
-                        <div className="mt-1 flex items-center gap-3 text-[10px] text-muted">
-                          <span className="inline-flex items-center gap-1"><Icon d={I.star} className="h-3 w-3" />{c.likes}</span>
-                          {c.replies > 0 && <span className="inline-flex items-center gap-1"><Icon d={I.message} className="h-3 w-3" />{c.replies} {tr("javob")}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {/* YouTube bir so'rovda 50 tagacha beradi — qolgani videoda */}
-                {comments.length >= 50 && (
-                  <p className="mt-2 text-center text-[11px] text-muted">{tr("Eng mashhur 50 ta izoh ko'rsatildi.")}</p>
-                )}
-              </>
-            )}
-          </div>
-
-          <a href={v.link} target="_blank" rel="noreferrer"
-            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-green px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-[1.02]">
-            <Icon d={I.play} className="h-4 w-4" /> {tr("Videoni ochish")}
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /* ---------- Diagrammalar ---------- */
 
@@ -1073,11 +846,8 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
   const [stats, setStats] = useState<VideoStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  const [platform, setPlatform] = useState("Barchasi")
   /** Grafikda tanlangan oy ("YYYY-MM") yoki null — jami */
   const [oy, setOy] = useState<string | null>(null)
-  /** To'liq ma'lumot oynasida ochilgan video */
-  const [ochiq, setOchiq] = useState<PartnerVideo | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -1091,10 +861,10 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
   useEffect(() => { load() }, [load])
 
   /**
-   * OY FILTRI butun bo'limga qo'llanadi: ko'rsatkichlar, donut,
-   * blogerlar reytingi va ro'yxat — hammasi shu oyga tegishli
-   * bo'ladi. Faqat oylik grafikning O'ZI to'liq yil bo'lib qoladi,
-   * chunki u filtrning boshqaruvchisi.
+   * OY FILTRI butun bo'limga qo'llanadi: ko'rsatkichlar va
+   * platformalar taqsimoti shu oyga tegishli bo'ladi. Faqat oylik
+   * grafikning O'ZI to'liq yil bo'lib qoladi, chunki u filtrning
+   * boshqaruvchisi.
    */
   const oyVideolari = useMemo(
     () => (oy ? videos.filter((v) => String(v.date || "").startsWith(oy)) : videos),
@@ -1103,23 +873,6 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
   // Serverdan kelgan `stats` butun davr uchun — oy tanlansa
   // ko'rsatkichlar shu yerda qaytadan hisoblanadi
   const korsatkich = useMemo(() => hisobla(oyVideolari), [oyVideolari])
-
-  const platformalar = useMemo(
-    () => ["Barchasi", ...Object.keys(korsatkich.platforms)],
-    [korsatkich],
-  )
-  /**
-   * Tanlangan tarmoq shu oyda umuman yo'q bo'lishi mumkin (masalan
-   * Instagram tanlangan, keyin faqat YouTube video bo'lgan oy
-   * bosilgan). Bunda holatni tuzatish shart emas — joriy tanlov
-   * shu yerda hisoblanadi va ro'yxat bo'sh qolib ketmaydi.
-   */
-  const faolPlatform = platformalar.includes(platform) ? platform : "Barchasi"
-
-  const korinadigan = useMemo(
-    () => faolPlatform === "Barchasi" ? oyVideolari : oyVideolari.filter((v) => v.plats.includes(faolPlatform)),
-    [oyVideolari, faolPlatform],
-  )
 
   const oyNomi = oy ? `${oyYorlig(oy).nom} ${oyYorlig(oy).yil}` : ""
 
@@ -1259,40 +1012,20 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
         </div>
       )}
 
-      <div className={card}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display text-lg font-bold">{tr("Videolar ro'yxati")}</h3>
-          {platformalar.length > 2 && (
-            <div className="flex flex-wrap gap-1.5">
-              {platformalar.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPlatform(p)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${faolPlatform === p ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/40"}`}
-                >
-                  {p === "Barchasi" ? tr("Barchasi") : p}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* VIDEOLAR RO'YXATI OLIB TASHLANDI — kompaniyaga umumiy
+          ko'rsatkichlar kerak, har bir videoning kartochkasi emas.
+          Kartochka bilan birga to'liq ma'lumot oynasi va platforma
+          filtri ham ketdi (ular faqat ro'yxat uchun edi).
+
+          Video UMUMAN bo'lmaganda tushuntirish QOLADI: aks holda
+          hamkor bo'sh panel va nollarni ko'rib, sababini bilmasdi. */}
+      {videos.length === 0 && (
+        <div className={`${card} py-10 text-center`}>
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.media} className="h-7 w-7" /></span>
+          <p className="mt-3 text-sm font-semibold">{tr("Video topilmadi")}</p>
+          <p className="mt-1 text-xs text-muted">{tr("Bloger video qo'shayotganda kompaniyangizni belgilasa, u shu yerda paydo bo'ladi.")}</p>
         </div>
-
-        {korinadigan.length === 0 ? (
-          <div className="py-10 text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.media} className="h-7 w-7" /></span>
-            <p className="mt-3 text-sm font-semibold">{tr("Video topilmadi")}</p>
-            <p className="mt-1 text-xs text-muted">{tr("Bloger video qo'shayotganda kompaniyangizni belgilasa, u shu yerda paydo bo'ladi.")}</p>
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {korinadigan.map((v) => (
-              <VideoCard key={`${v.blogger.id}-${v.id}`} v={v} onOpen={() => setOchiq(v)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {ochiq && <VideoModal v={ochiq} onClose={() => setOchiq(null)} />}
+      )}
     </div>
   )
 }
