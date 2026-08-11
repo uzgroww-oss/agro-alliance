@@ -1015,15 +1015,30 @@ Deno.serve(async (req) => {
      * hamma blogerni o'qish shart emas, faqat "Videolar" bo'limida.
      */
     if (new URL(req.url).searchParams.get("action") === "videos") {
-      // `slug` profiles'da emas, bloggers'da — havola uchun kerak
-      const [{ data: profiles }, { data: bloggers }] = await Promise.all([
+      // `slug` profiles'da emas, bloggers'da — havola uchun kerak.
+      // Viloyat esa `blogger_regions` da: kompaniya reklamasi qaysi
+      // hududga tushayotganini ko'rsatish uchun.
+      const [{ data: profiles }, { data: bloggers }, { data: hududlar }] = await Promise.all([
         supabaseAdmin.from("profiles").select("id, name, avatar, metadata")
           .is("deleted_at", null).not("metadata->videos", "is", null).limit(1000),
         supabaseAdmin.from("bloggers").select("id, slug").is("deleted_at", null).limit(1000),
+        supabaseAdmin.from("blogger_regions").select("blogger_id, region, sort_order")
+          .order("sort_order", { ascending: true }).limit(2000),
       ])
       const slugMap = new Map<string, string>()
       for (const b of (bloggers || []) as { id: string; slug: string | null }[]) {
         if (b.slug) slugMap.set(b.id, b.slug)
+      }
+
+      /**
+       * Bloger BIR NECHTA viloyatda ishlashi mumkin, video esa bitta.
+       * Ko'rishni hamma viloyatga bo'lib yuborish noto'g'ri bo'lardi
+       * (yig'indi haqiqiy raqamdan oshib ketardi), shuning uchun
+       * ASOSIY viloyat olinadi — ro'yxatdagi birinchisi (`sort_order`).
+       */
+      const viloyatMap = new Map<string, string>()
+      for (const r of (hududlar || []) as { blogger_id: string; region: string }[]) {
+        if (!viloyatMap.has(r.blogger_id)) viloyatMap.set(r.blogger_id, r.region)
       }
 
       const videolar: Record<string, unknown>[] = []
@@ -1044,6 +1059,7 @@ Deno.serve(async (req) => {
             plats: v.plats || [],
             date: v.date || "",
             thumbnail: v.thumbnail || null,
+            viloyat: viloyatMap.get(p.id as string) || "",
             blogger: { id: p.id, name: p.name, slug: slugMap.get(p.id as string) || null, avatar: p.avatar || null },
           })
         }
@@ -1127,6 +1143,52 @@ Deno.serve(async (req) => {
       }
       const top = [...blogerlar.values()].sort((a, b) => b.views - a.views)
 
+      /**
+       * VILOYATLAR KESIMI — reklama qaysi hududga tushdi.
+       *
+       * Viloyat blogerdan olinadi (videoning o'zida hudud yo'q).
+       * Viloyati ko'rsatilmagan bloger "Belgilanmagan" ga tushadi —
+       * uni jimgina tashlab ketish jami raqamni buzardi.
+       */
+      const viloyatlar = new Map<string, { viloyat: string; videos: number; views: number; likes: number }>()
+      for (const v of videolar) {
+        const nom = String(v.viloyat || "").trim() || "Belgilanmagan"
+        const bor = viloyatlar.get(nom) || { viloyat: nom, videos: 0, views: 0, likes: 0 }
+        bor.videos += 1
+        bor.views += sonGa(v.views)
+        bor.likes += sonGa(v.likes)
+        viloyatlar.set(nom, bor)
+      }
+      const viloyatRoyxat = [...viloyatlar.values()].sort((a, b) => b.views - a.views)
+
+      /**
+       * KUNLIK KESIM — oxirgi 30 kun.
+       *
+       * ⚠️ OYLIK BILAN BIR XIL CHEKLOV: bu "shu kuni nechta ko'rish
+       * qo'shildi" EMAS. Ko'rishlarning kunlik tarixi bazada
+       * saqlanmaydi — ijtimoiy tarmoq faqat JORIY jami raqamni
+       * beradi. Ya'ni bu "shu kuni CHIQARILGAN videolar bugungacha
+       * qancha ko'rish yig'gan". Panelda ham aynan shunday yozilgan.
+       *
+       * Video chiqmagan kunlar ham qoladi (nol bilan): ular tashlab
+       * ketilsa vaqt o'qi buzilib, tanaffuslar ko'rinmasdi.
+       */
+      const kunlar: { kun: string; views: number; likes: number; videos: number }[] = []
+      const kunIndeks = new Map<string, number>()
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(Date.UTC(hozir.getUTCFullYear(), hozir.getUTCMonth(), hozir.getUTCDate() - i))
+        const kalit = d.toISOString().slice(0, 10)
+        kunIndeks.set(kalit, kunlar.length)
+        kunlar.push({ kun: kalit, views: 0, likes: 0, videos: 0 })
+      }
+      for (const v of videolar) {
+        const i = kunIndeks.get(String(v.date || "").slice(0, 10))
+        if (i === undefined) continue
+        kunlar[i].views += sonGa(v.views)
+        kunlar[i].likes += sonGa(v.likes)
+        kunlar[i].videos += 1
+      }
+
       return jsonResponse({
         videos: videolar,
         stats: {
@@ -1138,6 +1200,8 @@ Deno.serve(async (req) => {
           platforms: platformalar,
           platformViews: platformaKorish,
           monthly: oylar,
+          daily: kunlar,
+          regions: viloyatRoyxat,
           topBloggers: top,
           lastDate: videolar[0]?.date || "",
         },

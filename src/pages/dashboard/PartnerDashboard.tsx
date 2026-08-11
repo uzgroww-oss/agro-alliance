@@ -1,38 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout from "../../components/DashboardLayout"
-import { Icon, I, fmtSom, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
-import MediaUpload from "../../components/MediaUpload"
+import { Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
-import { getSupabase } from "../../lib/supabase"
 import { tr } from "../../lib/i18n"
 
 /**
- * "Blogerlar" va "Bildirishnomalar" bo'limlari OLIB TASHLANDI —
- * kompaniyaga ular kerak emas edi. O'rniga "Videolar": blogerlar shu
- * kompaniya uchun tayyorlagan va belgilagan videolar statistikasi.
+ * HAMKOR KABINETI — FAQAT VIDEOLAR STATISTIKASI.
+ *
+ * Ilgari yetti bo'lim bor edi: Umumiy, Kompaniya profili, Shartnoma,
+ * Videolar, Topshiriqlar, Hisobot, Sozlamalar. Hammasi OLIB
+ * TASHLANDI (~1600 qator) — kompaniyaga ulardan hech biri kerak
+ * emasligi aytildi.
+ *
+ * Qoladigan yagona narsa: bloger o'z profiliga video qo'shayotib shu
+ * kompaniyani belgilagan bo'lsa, o'sha video va uning ko'rsatkichlari
+ * shu yerda ko'rinadi. Boshqa hech narsa.
+ *
+ * Bitta bo'lim qolgani uchun yon menyu tanlov emas — u faqat
+ * chiqish tugmasi va foydalanuvchi nomini ushlab turadi.
  */
-const nav = [
-  { label: "Umumiy", icon: I.dashboard },
-  { label: "Kompaniya profili", icon: I.building },
-  { label: "Shartnoma", icon: I.doc },
-  { label: "Videolar", icon: I.media },
-  { label: "Topshiriqlar", icon: I.task },
-  { label: "Hisobot", icon: I.fileText },
-  { label: "Sozlamalar", icon: I.gear },
-]
+const nav = [{ label: "Statistika", icon: I.chart }]
 
 type Task = { id: number; title: string; status: "done" | "progress" | "pending" }
 type Partner = {
   id: number; name: string; sphere: string; contractNo: string
   amount: number; signedDate: string; status: string; tasks: Task[]
 }
-type CompanyExtra = { description?: string; website?: string; phone?: string; address?: string; instagram?: string; telegram?: string }
 type PartnerVideo = {
   id: string; name: string; link: string; views: string; likes: string; comments: string
   duration: string; description: string; channel: string
   plats: string[]; date: string; thumbnail: string | null
+  /** Blogerning asosiy viloyati — reklama qaysi hududga tushgani */
+  viloyat: string
   blogger: { id: string; name: string; slug: string | null; avatar: string | null }
 }
 type TopBlogger = {
@@ -44,6 +45,8 @@ type VideoStats = {
   bloggers: number; platforms: Record<string, number>
   platformViews: Record<string, number>
   monthly: { oy: string; views: number; videos: number }[]
+  daily: { kun: string; views: number; likes: number; videos: number }[]
+  regions: { viloyat: string; videos: number; views: number; likes: number }[]
   topBloggers: TopBlogger[]
   lastDate: string
 }
@@ -193,29 +196,12 @@ const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
 }
 const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
 
-function ProgressBar({ done, total }: { done: number; total: number }) {
-  const pct = total ? Math.round((done / total) * 100) : 0
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <span className="font-semibold">{tr("Umumiy bajarilish")}<span className="text-muted">({done}/{total})</span></span>
-        <span className="font-bold text-green">{pct}%</span>
-      </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-soft"><div className="h-full rounded-full bg-green transition-all" style={{ width: `${pct}%` }} /></div>
-    </div>
-  )
-}
-
 export default function PartnerDashboard() {
-  const [active, setActive] = useState("Umumiy")
+  // Bo'lim bitta — tanlov yo'q, lekin DashboardLayout yon menyuni
+  // belgilash uchun joriy nomni kutadi
+  const [active] = useState("Statistika")
   const [partner, setPartner] = useState<Partner | null>(null)
-  const [extra, setExtra] = useState<CompanyExtra>({})
   const [loading, setLoading] = useState(true)
-  // Ikkinchi so'rov (/client/partner) ham kuzatiladi: ilgari u kuzatilmagani
-  // uchun kompaniya profili formasi BO'SH ochilib, saqlanganda serverdagi
-  // ma'lumotni o'chirib yuborishi mumkin edi.
-  const [extraLoading, setExtraLoading] = useState(true)
-  const [extraFailed, setExtraFailed] = useState(false)
   const [err, setErr] = useState("")
   const { user, logout } = useAuth()
   const nav2 = useNavigate()
@@ -228,25 +214,11 @@ export default function PartnerDashboard() {
       .then((d) => setPartner(d.partner))
       .catch((e) => setErr(e?.message || "Ma'lumotni yuklab bo'lmadi"))
       .finally(() => setLoading(false))
-    setExtraLoading(true)
-    setExtraFailed(false)
-    api<{ settings: CompanyExtra }>("/client/partner")
-      .then((d) => setExtra(d.settings || {}))
-      .catch(() => setExtraFailed(true))
-      .finally(() => setExtraLoading(false))
+    /* `/client/partner` so'rovi OLIB TASHLANDI — u faqat kompaniya
+       profili formasi uchun kerak edi, forma esa endi yo'q. */
   }
   useEffect(() => { reload() }, [])
 
-  const counts = useMemo(() => {
-    const ts = partner?.tasks || []
-    return {
-      total: ts.length,
-      done: ts.filter((t) => t.status === "done").length,
-      progress: ts.filter((t) => t.status === "progress").length,
-      pending: ts.filter((t) => t.status === "pending").length,
-    }
-  }, [partner])
-  const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0
 
   const initials = (user?.name || "HK").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
   const doLogout = () => { logout(); nav2("/kirish") }
@@ -256,7 +228,7 @@ export default function PartnerDashboard() {
     <DashboardLayout
       nav={nav}
       active={active}
-      onNav={setActive}
+      onNav={() => {}}
       onLogout={doLogout}
       user={{ name: user?.name || tr("Hamkor"), role: tr("Hamkor kompaniya"), initials }}
     >
@@ -308,174 +280,17 @@ export default function PartnerDashboard() {
             </div>
           </div>
 
-          {active === "Umumiy" && <Overview partner={partner} counts={counts} pct={pct} onNav={setActive} />}
-          {active === "Kompaniya profili" && (
-            extraLoading
-              ? <Skeleton className="h-96 w-full rounded-2xl" />
-              : extraFailed
-                ? <ErrorState onRetry={reload} message={tr("Kompaniya profilini yuklab bo'lmadi. Saqlash ma'lumotni o'chirib yuborishi mumkin — avval qayta yuklang.")} />
-                : <CompanyProfile partner={partner} extra={extra} onSaved={reload} />
-          )}
-          {active === "Shartnoma" && <Contract partner={partner} counts={counts} />}
-          {active === "Videolar" && <PartnerVideos partnerId={String(partner.id)} />}
-          {active === "Topshiriqlar" && <><Briefs /><Shikoyatlar /></>}
-          {active === "Hisobot" && <Report partner={partner} counts={counts} pct={pct} extra={extra} />}
-          {active === "Sozlamalar" && <Settings />}
+          {/* Yagona mazmun — shu kompaniyaga biriktirilgan videolar
+              va ularning ko'rsatkichlari */}
+          <PartnerVideos partnerId={String(partner.id)} />
         </>
       )}
     </DashboardLayout>
   )
 }
 
-/* ---------- Umumiy ---------- */
-function Overview({ partner, counts, pct, onNav }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; onNav: (t: string) => void }) {
-  const [vs, setVs] = useState<VideoStats | null>(null)
-  useEffect(() => {
-    api<{ stats: VideoStats }>("/me/partner?action=videos")
-      .then((d) => setVs(d.stats))
-      .catch(() => setVs(null))
-  }, [])
 
-  const statCards = [
-    { icon: I.wallet, t: tr("Shartnoma summasi"), v: `${fmtSom(partner.amount)}`, sub: tr("so'm") },
-    { icon: I.task, t: tr("Jami ishlar"), v: String(counts.total), sub: `${counts.done} ${tr("bajarilgan")}` },
-    { icon: I.target, t: tr("Bajarilish"), v: `${pct}%`, sub: `${counts.progress} ${tr("jarayonda")}` },
-    // Yuklanayotganda "0" emas, "…" — nol real raqamdek ko'rinib qolmasin.
-    { icon: I.media, t: tr("Videolar"), v: vs ? String(vs.total) : "…", sub: vs ? `${vs.bloggers} ${tr("bloger")}` : tr("yuklanmoqda") },
-  ]
-  return (
-    <>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((s) => (
-          <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
-            <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
-            <div className="mt-1 font-display text-2xl font-extrabold truncate">{s.v}</div>
-            <div className="mt-0.5 text-[11px] font-semibold text-green">{s.sub}</div>
-          </div>
-        ))}
-      </div>
 
-      <div className={`mt-6 ${card}`}>
-        <h3 className="font-display text-lg font-bold">{tr("Shartnoma qisqacha")}</h3>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Shartnoma raqami")}</div><div className="mt-0.5 font-display font-bold">{partner.contractNo || "—"}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Summa")}</div><div className="mt-0.5 font-display font-bold text-green">{fmtSom(partner.amount)} {tr("so'm")}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Imzolangan")}</div><div className="mt-0.5 font-display font-bold">{partner.signedDate || "—"}</div></div>
-          <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Yo'nalish")}</div><div className="mt-0.5 font-display font-bold truncate">{partner.sphere || "—"}</div></div>
-        </div>
-        <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
-      </div>
-
-      <div className={`mt-6 ${card}`}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-lg font-bold">{tr("Blogerlar videolari")}</h3>
-          <button onClick={() => onNav("Videolar")} className="text-sm font-semibold text-green hover:underline">{tr("Batafsil →")}</button>
-        </div>
-        {!vs ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
-        ) : vs.total === 0 ? (
-          <p className="py-6 text-center text-sm text-muted">{tr("Hali blogerlar sizning kompaniyangizga video belgilamagan.")}</p>
-        ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Jami video")}</div><div className="mt-0.5 font-display text-xl font-extrabold">{vs.total}</div></div>
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Jami ko'rishlar")}</div><div className="mt-0.5 font-display text-xl font-extrabold text-green">{vs.views.toLocaleString("ru-RU")}</div></div>
-            <div className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("So'nggi video")}</div><div className="mt-0.5 font-display text-xl font-extrabold">{vs.lastDate || "—"}</div></div>
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-/* ---------- Kompaniya profili ---------- */
-function CompanyProfile({ partner, extra, onSaved }: { partner: Partner; extra: CompanyExtra; onSaved: () => void }) {
-  const [form, setForm] = useState({ name: partner.name, sphere: partner.sphere, description: extra.description || "", website: extra.website || "", phone: extra.phone || "", address: extra.address || "", instagram: extra.instagram || "", telegram: extra.telegram || "" })
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState("")
-
-  const save = async () => {
-    setSaving(true); setError(""); setSaved(false)
-    try {
-      await api("/client/partner", { method: "PUT", body: JSON.stringify({ name: form.name, sphere: form.sphere, description: form.description, website: form.website, phone: form.phone, address: form.address, instagram: form.instagram, telegram: form.telegram }) })
-      setSaved(true); setTimeout(() => setSaved(false), 2500); onSaved()
-    } catch (e) { setError(e instanceof Error ? e.message : "Xatolik") } finally { setSaving(false) }
-  }
-
-  const field = (label: string, key: keyof typeof form, placeholder = "", type = "text") => (
-    <div>
-      <label className="text-xs font-semibold text-muted">{label}</label>
-      <input value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} placeholder={placeholder} type={type} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-    </div>
-  )
-
-  return (
-    <div className={`mt-6 ${card}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">{tr("Kompaniya ma'lumotlari")}</h3>
-        <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.check} className="h-4 w-4" />} {tr("Saqlash")}
-        </button>
-      </div>
-      {saved && <div className="mt-3 flex items-center gap-2 rounded-xl bg-green/10 px-4 py-3 text-sm font-semibold text-green"><Icon d={I.check} className="h-4 w-4" />{tr("Saqlandi!")}</div>}
-      {error && <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {field(tr("Kompaniya nomi"), "name", tr("Kompaniya nomi"))}
-        {field(tr("Yo'nalish / soha"), "sphere", tr("masalan: O'g'itlar"))}
-        {field(tr("Veb-sayt"), "website", "https://...")}
-        {field(tr("Telefon"), "phone", "+998 ...")}
-        {field(tr("Instagram"), "instagram", tr("@username yoki link"))}
-        {field("Telegram", "telegram", tr("@username yoki link"))}
-      </div>
-      <div className="mt-4">
-        <label className="text-xs font-semibold text-muted">{tr("Manzil")}</label>
-        <input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder={tr("Shahar, ko'cha...")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-      </div>
-      <div className="mt-4">
-        <label className="text-xs font-semibold text-muted">{tr("Kompaniya haqida")}</label>
-        <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={4} placeholder={tr("Kompaniyangiz faoliyati haqida qisqacha...")} className="mt-1 w-full resize-none rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-      </div>
-    </div>
-  )
-}
-
-/* ---------- Shartnoma ---------- */
-function Contract({ partner, counts }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number } }) {
-  const ps = partnerStatusMeta[partner.status] || partnerStatusMeta.active
-  return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-2">
-      <div className={card}>
-        <div className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-xl bg-soft text-green"><Icon d={I.doc} className="h-6 w-6" /></span>
-          <div>
-            <h3 className="font-display text-lg font-bold">{tr("Shartnoma №")} {partner.contractNo || "—"}</h3>
-            <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${ps.cls}`}>{ps.label}</span>
-          </div>
-        </div>
-        <div className="mt-5 space-y-3 text-sm">
-          {[[tr("Kompaniya"), partner.name], [tr("Yo'nalish"), partner.sphere || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " " + tr("so'm")], [tr("Imzolangan sana"), partner.signedDate || "—"]].map(([l, v]) => (
-            <div key={l} className="flex items-center justify-between border-b border-green/8 pb-3 last:border-0">
-              <span className="text-muted">{l}</span><span className="font-semibold">{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className={card}>
-        <h3 className="font-display text-lg font-bold">{tr("Bajarilish darajasi")}</h3>
-        <div className="mt-5"><ProgressBar done={counts.done} total={counts.total} /></div>
-        <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          {[[tr("Bajarilgan"), counts.done, "text-green"], [tr("Jarayonda"), counts.progress, "text-orange-600"], [tr("Kutilayotgan"), counts.pending, "text-slate-500"]].map(([l, v, c]) => (
-            <div key={l as string} className="rounded-xl bg-[#fafdf7] p-4">
-              <div className={`font-display text-2xl font-extrabold ${c}`}>{v}</div>
-              <div className="mt-1 text-xs text-muted">{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /**
  * Bitta video kartochkasi — rasm, sarlavha, bloger va TO'LIQ raqamlar.
@@ -1246,6 +1061,98 @@ function TahlilRoyxat({ sarlavha, bosh, rang, elementlar }: {
   )
 }
 
+
+/* ---------- Viloyatlar kesimi ---------- */
+/**
+ * Reklama qaysi hududlarga tushdi.
+ *
+ * Viloyat VIDEONING o'zida yo'q — u blogerdan olinadi (`blogger_regions`
+ * dagi asosiy hudud). Bloger bir nechta viloyatda ishlasa ham video
+ * BITTA viloyatga yoziladi: aks holda bitta ko'rish bir necha marta
+ * sanalib, yig'indi haqiqiy raqamdan oshib ketardi.
+ */
+function Viloyatlar({ list }: { list: { viloyat: string; videos: number; views: number; likes: number }[] }) {
+  const son = (n: number) => n.toLocaleString("ru-RU")
+  const eng = Math.max(1, ...list.map((r) => r.views))
+  return (
+    <div className={card}>
+      <h3 className="font-display text-lg font-extrabold">{tr("Viloyatlar bo'yicha")}</h3>
+      <p className="mt-1 text-xs text-muted">
+        {tr("Hudud blogerning asosiy viloyati bo'yicha aniqlanadi.")}
+      </p>
+      <ul className="mt-4 space-y-3">
+        {list.map((r) => (
+          <li key={r.viloyat}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="truncate text-sm font-bold">{r.viloyat}</span>
+              <span className="shrink-0 text-sm font-extrabold text-green">{son(r.views)}</span>
+            </div>
+            {/* Ustun uzunligi eng katta viloyatga nisbatan — mutlaq
+                songa emas, aks holda kichik viloyatlar ko'rinmasdi */}
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-soft">
+              <div className="h-full rounded-full bg-green" style={{ width: `${(r.views / eng) * 100}%` }} />
+            </div>
+            <div className="mt-1 flex gap-3 text-[11px] text-muted">
+              <span>{r.videos} {tr("video")}</span>
+              <span>{son(r.likes)} {tr("layk")}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* ---------- Kunlik grafik ---------- */
+/**
+ * Oxirgi 30 kun.
+ *
+ * ⚠️ BU "BUGUN QANCHA KO'RISH QO'SHILDI" EMAS. Ko'rishlarning kunlik
+ * tarixi bazada saqlanmaydi — ijtimoiy tarmoq faqat JORIY jami
+ * raqamni beradi. Ya'ni ustun "o'sha kuni CHIQARILGAN videolar
+ * bugungacha qancha ko'rish yig'gan" degani.
+ *
+ * Sarlavha ostida shu ochiq yozilgan: aks holda kompaniya raqamni
+ * "kunlik o'sish" deb o'qib, noto'g'ri xulosa chiqarardi.
+ */
+function KunlikGrafik({ data }: { data: { kun: string; views: number; likes: number; videos: number }[] }) {
+  const son = (n: number) => n.toLocaleString("ru-RU")
+  const eng = Math.max(1, ...data.map((d) => d.views))
+  const jami = data.reduce((s, d) => s + d.views, 0)
+  const videoKunlari = data.filter((d) => d.videos > 0).length
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-display text-lg font-extrabold">{tr("Oxirgi 30 kun")}</h3>
+        <span className="text-sm font-bold text-green">{son(jami)} {tr("ko'rish")}</span>
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        {tr("Ustun — o'sha kuni chiqarilgan videolar bugungacha yig'gan ko'rish. Bu kunlik o'sish emas.")}
+      </p>
+      {videoKunlari === 0 ? (
+        <p className="mt-6 text-sm text-muted">{tr("Oxirgi 30 kunda video chiqarilmagan.")}</p>
+      ) : (
+        <div className="mt-4 flex h-32 items-end gap-[3px]">
+          {data.map((d) => (
+            <div key={d.kun} className="group relative flex-1" title={`${d.kun}: ${son(d.views)} ko'rish, ${d.videos} video`}>
+              <div
+                className={`w-full rounded-t transition-colors ${d.videos > 0 ? "bg-green/70 group-hover:bg-green" : "bg-soft"}`}
+                /* Video yo'q kunlar ham ko'rinib tursin — vaqt o'qi
+                   uzilib qolmasligi kerak */
+                style={{ height: `${Math.max(d.views > 0 ? 6 : 2, (d.views / eng) * 100)}%` }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 flex justify-between text-[11px] text-muted">
+        <span>{data[0]?.kun.slice(5)}</span>
+        <span>{data[data.length - 1]?.kun.slice(5)}</span>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- Videolar ---------- */
 /**
  * BLOGERLAR SHU KOMPANIYA UCHUN BELGILAGAN VIDEOLAR.
@@ -1432,6 +1339,12 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
         <OylikGrafik data={stats.monthly} tanlangan={oy} onTanla={setOy} />
       )}
 
+      {stats?.daily && <KunlikGrafik data={stats.daily} />}
+
+      {stats?.regions && stats.regions.length > 0 && (
+        <div className="mt-6"><Viloyatlar list={stats.regions} /></div>
+      )}
+
       <IzohlarTahlili partnerId={partnerId} />
 
       {Object.keys(korsatkich.platforms).length > 0 && (
@@ -1482,40 +1395,9 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
 
 /* ---------- Topshiriqlar (TZ) ---------- */
 
-type Brief = {
-  id: string; title: string; description: string | null
-  priority: string; deadline: string | null
-  file_url: string | null; file_name: string | null
-  status: string; admin_note: string | null; task_id: string | null
-  created_at: string
-  takrorlanish: string; boshlanish: string | null; tugash: string | null; keyingi: string | null
-  bajarilish: { jami: number; boshlandi: number; bajarildi: number } | null
-}
 
-/**
- * TZ SO'ROVI HOLATLARI.
- *
- * Hamkor uchun eng muhim savol — "so'rovim qayerda qoldi?". Shuning
- * uchun har holatga TUSHUNARLI izoh berilgan: "new" yoki "seen" kabi
- * texnik so'zlar foydalanuvchiga hech narsa aytmaydi.
- */
-const BRIEF_HOLAT: Record<string, { nom: string; izoh: string; cls: string }> = {
-  new: { nom: "Yuborildi", izoh: "Administrator hali ko'rmagan", cls: "bg-soft text-muted" },
-  seen: { nom: "Ko'rib chiqilmoqda", izoh: "Administrator so'rovingizni o'qidi", cls: "bg-blue-100 text-blue-600" },
-  sent: { nom: "Blogerlarga yuborildi", izoh: "Topshiriq blogerlarga biriktirildi", cls: "bg-green/10 text-green" },
-  rejected: { nom: "Qabul qilinmadi", izoh: "Sababi quyida yozilgan", cls: "bg-red-50 text-red-600" },
-}
 
-const TAKROR_NOM: Record<string, string> = {
-  bir_marta: "Bir marta",
-  kunlik: "Har kuni",
-  haftalik: "Har hafta",
-  oylik: "Har oy",
-}
 
-const KECHIKISH_SOAT: Record<string, number> = {
-  darhol: 0, "2soat": 2, "6soat": 6, "1kun": 24, "3kun": 72,
-}
 
 /**
  * TANLANGAN JADVALNI ODDIY SO'Z BILAN AYTADI.
@@ -1525,413 +1407,12 @@ const KECHIKISH_SOAT: Record<string, number> = {
  * kerak — aks holda noto'g'ri jadval bilan yuborilgan TZ ni keyin
  * tuzatib bo'lmaydi.
  */
-function jadvalIzohi(f: { takrorlanish: string; kechikish: string; boshlanish: string; tugash: string }): string {
-  let qachon: string
-  if (f.kechikish === "aniq") {
-    qachon = f.boshlanish
-      ? new Date(f.boshlanish).toLocaleString("ru-RU")
-      : tr("sana tanlanmagan")
-  } else {
-    const soat = KECHIKISH_SOAT[f.kechikish] ?? 0
-    qachon = soat === 0
-      ? tr("darhol")
-      : new Date(Date.now() + soat * 3600_000).toLocaleString("ru-RU")
-  }
 
-  const takror = f.takrorlanish === "bir_marta"
-    ? tr("bir marta bajariladi")
-    : `${tr(TAKROR_NOM[f.takrorlanish] || "")} ${tr("takrorlanadi")}`
-
-  const tugash = f.takrorlanish !== "bir_marta" && f.tugash
-    ? ` · ${tr("gacha")}: ${f.tugash}`
-    : ""
-
-  return `${tr("Boshlanadi")}: ${qachon} · ${takror}${tugash}`
-}
-
-const BRIEF_MUHIM: Record<string, { nom: string; cls: string }> = {
-  low: { nom: "Past", cls: "bg-soft text-muted" },
-  normal: { nom: "O'rtacha", cls: "bg-blue-50 text-blue-600" },
-  high: { nom: "Shoshilinch", cls: "bg-orange-100 text-orange-600" },
-}
-
-function Briefs() {
-  const [list, setList] = useState<Brief[]>([])
-  const [yuklanmoqda, setYuklanmoqda] = useState(true)
-  const [xato, setXato] = useState(false)
-
-  const [ochiq, setOchiq] = useState(false)
-  const [forma, setForma] = useState({
-    title: "", description: "", priority: "normal", deadline: "", file_url: "",
-    takrorlanish: "bir_marta", kechikish: "darhol", boshlanish: "", tugash: "",
-  })
-  /**
-   * TALAB BANDLARI — har qatordan bitta band.
-   *
-   * Hisobotning butun asosi shu: bandsiz TZ da "nima bajarildi, nima
-   * qolmadi" degan savolga javob berib bo'lmaydi — faqat "bloger
-   * tugatdi" deb aytish mumkin, bu esa hech narsani anglatmaydi.
-   */
-  const [bandlar, setBandlar] = useState("")
-  const [band, setBand] = useState(false)
-  const [xabar, setXabar] = useState<{ ok: boolean; matn: string } | null>(null)
-
-  const yukla = useCallback(() => {
-    setYuklanmoqda(true); setXato(false)
-    api<{ briefs: Brief[] }>("/me/partner?action=briefs")
-      .then((d) => setList(d.briefs || []))
-      .catch(() => setXato(true))
-      .finally(() => setYuklanmoqda(false))
-  }, [])
-  useEffect(() => { yukla() }, [yukla])
-
-  const yubor = async () => {
-    setXabar(null)
-    if (!forma.title.trim()) { setXabar({ ok: false, matn: tr("Sarlavha yozing") }); return }
-    if (forma.description.trim().length < 20) {
-      setXabar({ ok: false, matn: tr("Talablarni batafsilroq yozing (kamida 20 belgi)") }); return
-    }
-    setBand(true)
-    try {
-      const royxat = bandlar.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 50)
-      await api("/me/partner?action=brief-create", {
-        method: "POST", body: JSON.stringify({ ...forma, bandlar: royxat }),
-      })
-      setXabar({ ok: true, matn: tr("Topshiriq administratorga yuborildi") })
-      setForma({
-        title: "", description: "", priority: "normal", deadline: "", file_url: "",
-        takrorlanish: "bir_marta", kechikish: "darhol", boshlanish: "", tugash: "",
-      })
-      setBandlar("")
-      setOchiq(false)
-      yukla()
-    } catch (e) {
-      setXabar({ ok: false, matn: e instanceof Error ? e.message : tr("Topshiriqni yuborib bo'lmadi") })
-    } finally { setBand(false) }
-  }
-
-  return (
-    <div className="mt-6 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-lg font-bold">{tr("Topshiriqlar (TZ)")}</h3>
-          <p className="mt-1 text-sm text-muted">
-            {tr("Qanday reklama kerakligini yozing — administrator ko'rib chiqib blogerlarga yuboradi.")}
-          </p>
-        </div>
-        <button onClick={() => { setOchiq(true); setXabar(null) }}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-          <Icon d="M12 5v14 M5 12h14" className="h-4 w-4" />
-          {tr("Yangi topshiriq")}
-        </button>
-      </div>
-
-      {xabar && (
-        <div className={`rounded-xl px-4 py-3 text-sm font-semibold ${xabar.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>
-          {xabar.matn}
-        </div>
-      )}
-
-      {/* ---- Yangi topshiriq — MODAL ----
-           Ilgari forma sahifa ichida ochilib, ostidagi ro'yxatni pastga
-           surib yuborardi: foydalanuvchi yozayotganda ham, yopgandan
-           keyin ham sahifa "sakrardi". Modal diqqatni bitta ishga
-           qaratadi va sahifa tuzilishini o'zgartirmaydi. */}
-      {ochiq && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
-          onClick={() => setOchiq(false)}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="font-display text-lg font-bold">{tr("Yangi topshiriq")}</h4>
-                <p className="mt-0.5 text-sm text-muted">
-                  {tr("Qanday reklama kerakligini yozing — administrator ko'rib chiqib blogerlarga yuboradi.")}
-                </p>
-              </div>
-              <button onClick={() => setOchiq(false)} aria-label={tr("Yopish")}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
-                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
-              </button>
-            </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-muted">{tr("Sarlavha")}</label>
-              <input value={forma.title} maxLength={255}
-                onChange={(e) => setForma((f) => ({ ...f, title: e.target.value }))}
-                placeholder={tr("Masalan: Yangi o'g'it liniyasi uchun reklama")}
-                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-muted">{tr("Talablar")}</label>
-              <textarea value={forma.description} rows={6} maxLength={5000}
-                onChange={(e) => setForma((f) => ({ ...f, description: e.target.value }))}
-                placeholder={tr("Mahsulot nima, kimga qaratilgan, qanday format kerak (video/post), nimani ta'kidlash kerak, nimani aytmaslik kerak…")}
-                className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              {/* Bo'sh TZ adminga hech narsa bermaydi — u baribir qayta
-                  so'rashga majbur bo'ladi va vaqt yo'qoladi */}
-              <p className="mt-1 text-[11px] text-muted">
-                {forma.description.trim().length} / 20 {tr("belgi (kamida)")}
-              </p>
-            </div>
-            {/* TALAB BANDLARI — hisobotning asosi.
-                Har qatordan bitta band. Bandsiz TZ da hisobot faqat
-                "bloger tugatdi" deya oladi, bu esa nima qilinganini
-                ko'rsatmaydi. */}
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-muted">{tr("Talab bandlari — har qatordan bittasi")}</label>
-              <textarea value={bandlar} rows={5}
-                onChange={(e) => setBandlar(e.target.value)}
-                placeholder={tr("Mahsulot qadog'ini yaqindan ko'rsatish\nNarxni aniq aytish\nTavsifga sayt havolasini qo'yish\nVideo kamida 60 soniya bo'lsin")}
-                className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-              <p className="mt-1 text-[11px] text-muted">
-                {bandlar.split("\n").filter((x) => x.trim()).length} {tr("ta band")} ·{" "}
-                {tr("hisobotda har biri alohida ko'rinadi: bajarildimi, kim bajardi, qanday qildi")}
-              </p>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted">{tr("Muhimligi")}</label>
-              <select value={forma.priority}
-                onChange={(e) => setForma((f) => ({ ...f, priority: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                <option value="low">{tr("Past")}</option>
-                <option value="normal">{tr("O'rtacha")}</option>
-                <option value="high">{tr("Shoshilinch")}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted">{tr("Muddat")}</label>
-              <input type="date" value={forma.deadline}
-                onChange={(e) => setForma((f) => ({ ...f, deadline: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-muted">{tr("Havola (ixtiyoriy)")}</label>
-              <input value={forma.file_url} maxLength={500}
-                onChange={(e) => setForma((f) => ({ ...f, file_url: e.target.value }))}
-                placeholder={tr("Mahsulot sahifasi yoki brief fayliga havola")}
-                className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-            </div>
-
-            {/* ---- JADVAL: takrorlanish va qachondan boshlanishi ----
-                TZ yuborilgan zahoti ishga tushishi shart emas: hamkor
-                ko'pincha "2 soatdan keyin" yoki "ertaga" deydi.
-                Takrorlanuvchi TZ da esa har davr uchun alohida
-                topshiriq yaratiladi. */}
-            <div className="sm:col-span-2 rounded-xl border border-green/15 bg-soft/60 p-3">
-              <p className="text-xs font-bold text-ink">{tr("Jadval")}</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="text-xs font-semibold text-muted">{tr("Takrorlanish")}</label>
-                  <select value={forma.takrorlanish}
-                    onChange={(e) => setForma((f) => ({ ...f, takrorlanish: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                    <option value="bir_marta">{tr("Bir marta")}</option>
-                    <option value="kunlik">{tr("Har kuni")}</option>
-                    <option value="haftalik">{tr("Har hafta")}</option>
-                    <option value="oylik">{tr("Har oy")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted">{tr("Qachondan boshlansin")}</label>
-                  <select value={forma.kechikish}
-                    onChange={(e) => setForma((f) => ({ ...f, kechikish: e.target.value, boshlanish: "" }))}
-                    className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                    <option value="darhol">{tr("Darhol")}</option>
-                    <option value="2soat">{tr("2 soatdan keyin")}</option>
-                    <option value="6soat">{tr("6 soatdan keyin")}</option>
-                    <option value="1kun">{tr("1 kundan keyin")}</option>
-                    <option value="3kun">{tr("3 kundan keyin")}</option>
-                    <option value="aniq">{tr("Aniq sana va vaqt")}</option>
-                  </select>
-                </div>
-                {forma.kechikish === "aniq" && (
-                  <div>
-                    <label className="text-xs font-semibold text-muted">{tr("Boshlanish sanasi va vaqti")}</label>
-                    <input type="datetime-local" value={forma.boshlanish}
-                      onChange={(e) => setForma((f) => ({ ...f, boshlanish: e.target.value }))}
-                      className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-                  </div>
-                )}
-                {/* Takrorlanish MUDDATSIZ bo'lsa TZ abadiy yaratilib
-                    turardi — tugash sanasi shuning uchun ko'rinadi */}
-                {forma.takrorlanish !== "bir_marta" && (
-                  <div>
-                    <label className="text-xs font-semibold text-muted">{tr("Qachongacha takrorlansin")}</label>
-                    <input type="date" value={forma.tugash}
-                      onChange={(e) => setForma((f) => ({ ...f, tugash: e.target.value }))}
-                      className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-                  </div>
-                )}
-              </div>
-              <p className="mt-2 text-[11px] text-muted">{jadvalIzohi(forma)}</p>
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-green/10 pt-4">
-            <button onClick={yubor} disabled={band}
-              className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-              {band
-                ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                : <Icon d={I.send} className="h-4 w-4" />}
-              {band ? tr("Yuborilmoqda…") : tr("Administratorga yuborish")}
-            </button>
-            <button onClick={() => setOchiq(false)}
-              className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted transition-colors hover:text-ink">
-              {tr("Bekor qilish")}
-            </button>
-          </div>
-          </div>
-        </div>
-      )}
-
-      {yuklanmoqda ? (
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      ) : xato ? (
-        <div className={card}><ErrorState onRetry={yukla} message={tr("Topshiriqlarni yuklab bo'lmadi.")} /></div>
-      ) : list.length === 0 ? (
-        <div className={`${card} text-center`}>
-          <Icon d={I.task} className="mx-auto h-8 w-8 text-green/40" />
-          <p className="mt-2 text-sm text-muted">
-            {tr("Hali topshiriq yubormagansiz. \"Yangi topshiriq\" tugmasini bosing.")}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {list.map((b) => {
-            const h = BRIEF_HOLAT[b.status] || BRIEF_HOLAT.new
-            const m = BRIEF_MUHIM[b.priority] || BRIEF_MUHIM.normal
-            return (
-              <div key={b.id} className={card}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-display font-bold">{b.title}</h4>
-                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${m.cls}`}>{tr(m.nom)}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {new Date(b.created_at).toLocaleDateString("ru-RU")}
-                      {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-right">
-                    <span className={`inline-block rounded-lg px-2.5 py-1 text-[11px] font-bold ${h.cls}`}>{tr(h.nom)}</span>
-                    <span className="mt-1 block text-[11px] text-muted">{tr(h.izoh)}</span>
-                  </span>
-                </div>
-
-                {/* ---- JADVAL ----
-                    Takrorlanuvchi yoki kechiktirilgan TZ da "qachon
-                    boshlanadi, qachon takrorlanadi" eng ko'p so'raladigan
-                    savol. Kartada ko'rinmasa hamkor har safar so'rashi
-                    kerak bo'lardi. */}
-                {(b.takrorlanish !== "bir_marta" || b.boshlanish) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                    {b.takrorlanish !== "bir_marta" && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-green/10 px-2 py-1 font-bold text-green">
-                        <Icon d={I.refresh} className="h-3 w-3" />
-                        {tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}
-                      </span>
-                    )}
-                    {b.boshlanish && (
-                      <span className="text-muted">
-                        {new Date(b.boshlanish).getTime() > Date.now()
-                          ? `${tr("Boshlanadi")}: ${new Date(b.boshlanish).toLocaleString("ru-RU")}`
-                          : `${tr("Boshlangan")}: ${new Date(b.boshlanish).toLocaleDateString("ru-RU")}`}
-                      </span>
-                    )}
-                    {b.keyingi && (
-                      <span className="text-muted">
-                        · {tr("keyingisi")}: {new Date(b.keyingi).toLocaleString("ru-RU")}
-                      </span>
-                    )}
-                    {b.tugash && <span className="text-muted">· {tr("gacha")}: {b.tugash}</span>}
-                  </div>
-                )}
-
-                {b.description && (
-                  <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{b.description}</p>
-                )}
-
-                {b.file_url && (
-                  <a href={b.file_url} target="_blank" rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
-                    <Icon d={I.doc} className="h-3.5 w-3.5" /> {b.file_name || b.file_url}
-                  </a>
-                )}
-
-                {/* Adminning javobi — ayniqsa rad etilganda MUHIM:
-                    sababsiz "qabul qilinmadi" hech narsa bermaydi */}
-                {b.admin_note && (
-                  <div className="mt-3 rounded-xl border border-green/15 bg-[#fafdf7] p-3">
-                    <p className="text-[11px] font-bold text-muted">{tr("Administrator javobi")}</p>
-                    <p className="mt-0.5 text-sm">{b.admin_note}</p>
-                  </div>
-                )}
-
-                {/* Blogerlarga yuborilgach — ish qay darajada bajarilgani.
-                    Hamkor uchun "qabul qilindi" emas, AYNAN shu muhim. */}
-                {b.bajarilish && b.bajarilish.jami > 0 && (
-                  <div className="mt-3 rounded-xl bg-soft p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold">
-                        {b.bajarilish.jami} {tr("blogerga yuborildi")}
-                      </span>
-                      <span className="font-bold text-green">
-                        {b.bajarilish.bajarildi} / {b.bajarilish.jami} {tr("bajarildi")}
-                      </span>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                      <div className="h-full rounded-full bg-green transition-all"
-                        style={{ width: `${Math.round((b.bajarilish.bajarildi / b.bajarilish.jami) * 100)}%` }} />
-                    </div>
-                    {b.bajarilish.boshlandi > 0 && (
-                      <p className="mt-1 text-[11px] text-muted">
-                        {b.bajarilish.boshlandi} {tr("ta bloger ishni boshladi")}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
 
 /* ---------- E'tirozlar (shikoyatlar) ---------- */
 
-type Shikoyat = {
-  id: string; blogger_id: string; blogger_name: string
-  task_id: string | null; video_link: string | null
-  sabab: string; matn: string; rasmlar: string[]
-  status: string; bloger_javobi: string | null; admin_izohi: string | null
-  created_at: string
-}
 
-/**
- * E'TIROZ SABABLARI.
- *
- * Tayyor ro'yxat ataylab: "yoqmadi" degan erkin matn blogerga hech
- * narsa bermaydi. Sabab turi esa adminga ham kerak — qaysi muammo
- * tez-tez takrorlanayotganini shundan ko'radi.
- */
-const SHIKOYAT_SABAB: Record<string, string> = {
-  tz_bajarilmagan: "TZ bo'yicha bajarilmagan",
-  sifat: "Video sifati past",
-  notogri_malumot: "Noto'g'ri ma'lumot aytilgan",
-  brend: "Brend noto'g'ri ko'rsatilgan",
-  muddat: "Muddati o'tkazib yuborilgan",
-  boshqa: "Boshqa sabab",
-}
 
-const SHIKOYAT_HOLAT: Record<string, { nom: string; cls: string }> = {
-  yangi: { nom: "Yangi", cls: "bg-orange-100 text-orange-600" },
-  korildi: { nom: "Bloger javob berdi", cls: "bg-blue-50 text-blue-700" },
-  tuzatildi: { nom: "Tuzatildi", cls: "bg-green/10 text-green" },
-  rad_etildi: { nom: "Rad etildi", cls: "bg-red-50 text-red-600" },
-}
 
 /**
  * E'TIROZLAR BO'LIMI.
@@ -1941,269 +1422,9 @@ const SHIKOYAT_HOLAT: Record<string, { nom: string; cls: string }> = {
  * yetkazardi va bu hech qayerda qolmasdi — bloger aynan NIMA
  * noto'g'ri ekanini bilmasdi va xato takrorlanaverardi.
  */
-function Shikoyatlar() {
-  const [list, setList] = useState<Shikoyat[]>([])
-  const [videos, setVideos] = useState<PartnerVideo[]>([])
-  const [yuklanmoqda, setYuklanmoqda] = useState(true)
-  const [xato, setXato] = useState(false)
-
-  const [ochiq, setOchiq] = useState(false)
-  const [forma, setForma] = useState({ blogger_id: "", video_link: "", sabab: "tz_bajarilmagan", matn: "" })
-  const [rasmlar, setRasmlar] = useState<string[]>([])
-  const [band, setBand] = useState(false)
-  const [xabar, setXabar] = useState<{ ok: boolean; matn: string } | null>(null)
-
-  const yukla = useCallback(() => {
-    setYuklanmoqda(true); setXato(false)
-    Promise.all([
-      api<{ shikoyatlar: Shikoyat[] }>("/me/partner?action=shikoyatlar").then((d) => setList(d.shikoyatlar || [])),
-      // Videolar ro'yxati — e'tirozni aynan qaysi video haqida ekanini
-      // ko'rsatish uchun. Havolani qo'lda ko'chirish noqulay va xato beradi.
-      api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
-        .then((d) => setVideos(d.videos || [])).catch(() => {}),
-    ]).catch(() => setXato(true)).finally(() => setYuklanmoqda(false))
-  }, [])
-  useEffect(() => { yukla() }, [yukla])
-
-  /** Faqat shu kompaniya uchun ishlagan blogerlar */
-  const blogerlar = useMemo(() => {
-    const x = new Map<string, string>()
-    for (const v of videos) x.set(v.blogger.id, v.blogger.name)
-    return [...x.entries()].map(([id, name]) => ({ id, name }))
-  }, [videos])
-
-  const tanlanganVideolar = useMemo(
-    () => videos.filter((v) => !forma.blogger_id || v.blogger.id === forma.blogger_id),
-    [videos, forma.blogger_id],
-  )
-
-  const yubor = async () => {
-    setXabar(null)
-    if (!forma.blogger_id) { setXabar({ ok: false, matn: tr("Blogerni tanlang") }); return }
-    if (forma.matn.trim().length < 10) {
-      setXabar({ ok: false, matn: tr("Nima noto'g'ri ekanini aniqroq yozing (kamida 10 belgi)") }); return
-    }
-    setBand(true)
-    try {
-      await api("/me/partner?action=shikoyat-create", {
-        method: "POST", body: JSON.stringify({ ...forma, rasmlar }),
-      })
-      setXabar({ ok: true, matn: tr("E'tiroz yuborildi — bloger va administrator ko'radi") })
-      setForma({ blogger_id: "", video_link: "", sabab: "tz_bajarilmagan", matn: "" })
-      setRasmlar([])
-      setOchiq(false)
-      yukla()
-    } catch (e) {
-      setXabar({ ok: false, matn: e instanceof Error ? e.message : tr("E'tirozni yuborib bo'lmadi") })
-    } finally { setBand(false) }
-  }
-
-  return (
-    <div className="mt-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-lg font-bold">{tr("E'tirozlar")}</h3>
-          <p className="mt-1 text-sm text-muted">
-            {tr("Ish TZ bo'yicha bajarilmagan yoki video sizga yoqmagan bo'lsa — aniq yozing, bloger va administrator ko'radi.")}
-          </p>
-        </div>
-        <button onClick={() => { setOchiq(true); setXabar(null) }}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-50">
-          <Icon d={I.bolt} className="h-4 w-4" /> {tr("E'tiroz bildirish")}
-        </button>
-      </div>
-
-      {xabar && (
-        <div className={`mt-3 rounded-xl px-4 py-3 text-sm font-semibold ${xabar.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>
-          {xabar.matn}
-        </div>
-      )}
-
-      {yuklanmoqda ? (
-        <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
-      ) : xato ? (
-        <div className={`mt-4 ${card}`}><ErrorState onRetry={yukla} message={tr("E'tirozlarni yuklab bo'lmadi.")} /></div>
-      ) : list.length === 0 ? (
-        <div className={`mt-4 ${card} text-center`}>
-          <Icon d={I.check} className="mx-auto h-8 w-8 text-green/40" />
-          <p className="mt-2 text-sm text-muted">{tr("E'tiroz yo'q — hammasi joyida.")}</p>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {list.map((s) => {
-            const h = SHIKOYAT_HOLAT[s.status] || SHIKOYAT_HOLAT.yangi
-            return (
-              <div key={s.id} className={card}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-display font-bold">{tr(SHIKOYAT_SABAB[s.sabab] || s.sabab)}</h4>
-                      <span className="rounded-md bg-soft px-2 py-0.5 text-[11px] font-bold text-muted">{s.blogger_name}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted">{new Date(s.created_at).toLocaleString("ru-RU")}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${h.cls}`}>{tr(h.nom)}</span>
-                </div>
-
-                <p className="mt-3 whitespace-pre-wrap rounded-xl bg-soft p-3 text-sm text-ink/85">{s.matn}</p>
-
-                {s.video_link && (
-                  <a href={s.video_link} target="_blank" rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green hover:underline">
-                    <Icon d={I.media} className="h-3.5 w-3.5" /> {tr("Video")}
-                  </a>
-                )}
-
-                {s.rasmlar.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {s.rasmlar.map((r, i) => (
-                      <a key={i} href={r} target="_blank" rel="noreferrer">
-                        <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-
-                {/* Blogerning javobi — bahs panel ichida qolsin */}
-                {s.bloger_javobi && (
-                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
-                    <p className="text-[11px] font-bold text-blue-700">{tr("Bloger javobi")}</p>
-                    <p className="mt-0.5 text-sm text-ink/85">{s.bloger_javobi}</p>
-                  </div>
-                )}
-                {s.admin_izohi && (
-                  <div className="mt-2 rounded-xl border border-green/15 bg-[#fafdf7] p-3">
-                    <p className="text-[11px] font-bold text-muted">{tr("Administrator qarori")}</p>
-                    <p className="mt-0.5 text-sm text-ink/85">{s.admin_izohi}</p>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* ---- Yangi e'tiroz — MODAL ---- */}
-      {ochiq && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
-          onClick={() => setOchiq(false)}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="font-display text-lg font-bold">{tr("E'tiroz bildirish")}</h4>
-                <p className="mt-0.5 text-sm text-muted">
-                  {tr("Aniq yozing: nima noto'g'ri va qanday bo'lishi kerak edi.")}
-                </p>
-              </div>
-              <button onClick={() => setOchiq(false)} aria-label={tr("Yopish")}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-soft hover:text-ink">
-                <Icon d="M18 6L6 18 M6 6l12 12" className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-semibold text-muted">{tr("Bloger")}</label>
-                <select value={forma.blogger_id}
-                  onChange={(e) => setForma((f) => ({ ...f, blogger_id: e.target.value, video_link: "" }))}
-                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                  <option value="">{tr("Tanlang")}</option>
-                  {blogerlar.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-                {blogerlar.length === 0 && (
-                  <p className="mt-1 text-[11px] text-muted">
-                    {tr("Hali sizning kompaniyangiz uchun video qo'shilmagan.")}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted">{tr("Sabab")}</label>
-                <select value={forma.sabab}
-                  onChange={(e) => setForma((f) => ({ ...f, sabab: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                  {Object.entries(SHIKOYAT_SABAB).map(([k, v]) => (
-                    <option key={k} value={k}>{tr(v)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Video ro'yxatdan tanlanadi: havolani qo'lda ko'chirish
-                  noqulay va xato beradi */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-muted">{tr("Qaysi video (ixtiyoriy)")}</label>
-                <select value={forma.video_link}
-                  onChange={(e) => setForma((f) => ({ ...f, video_link: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green">
-                  <option value="">{tr("Umumiy — aniq video emas")}</option>
-                  {tanlanganVideolar.map((v) => (
-                    <option key={v.id} value={v.link}>{v.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-muted">{tr("Nima noto'g'ri?")}</label>
-                <textarea value={forma.matn} rows={5} maxLength={3000}
-                  onChange={(e) => setForma((f) => ({ ...f, matn: e.target.value }))}
-                  placeholder={tr("Masalan: TZ da mahsulot qadog'ini yaqindan ko'rsatish yozilgan edi, videoda umuman ko'rsatilmagan. Narx ham aytilmagan.")}
-                  className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-                <p className="mt-1 text-[11px] text-muted">
-                  {forma.matn.trim().length} / 10 {tr("belgi (kamida)")}
-                </p>
-              </div>
-
-              {/* Ekran surati — "sifati past" degan gapdan ko'ra rasm
-                  aniqroq va bahsni qisqartiradi */}
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-muted">{tr("Ekran surati (ixtiyoriy)")}</label>
-                {rasmlar.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-2">
-                    {rasmlar.map((r, i) => (
-                      <span key={i} className="relative">
-                        <img src={r} alt="" className="h-16 w-24 rounded-lg border border-green/15 object-cover" />
-                        <button type="button" onClick={() => setRasmlar((p) => p.filter((_, j) => j !== i))}
-                          aria-label={tr("O'chirish")}
-                          className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white">
-                          <Icon d="M18 6L6 18 M6 6l12 12" className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {rasmlar.length < 6 && (
-                  <div className="mt-1.5">
-                    <MediaUpload accept="image/*" multiple
-                      onUpload={(r) => setRasmlar((p) => [...p, r.signedUrl].slice(0, 6))} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2 border-t border-green/10 pt-4">
-              <button onClick={yubor} disabled={band}
-                className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 disabled:opacity-60">
-                {band
-                  ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  : <Icon d={I.send} className="h-4 w-4" />}
-                {band ? tr("Yuborilmoqda…") : tr("E'tirozni yuborish")}
-              </button>
-              <button onClick={() => setOchiq(false)}
-                className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted transition-colors hover:text-ink">
-                {tr("Bekor qilish")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 /* ---------- Hisobot ---------- */
 
-/** `YYYY-MM-DD` — sana kiritish maydonlari va solishtirish uchun */
-const kunGa = (d: Date) => d.toISOString().slice(0, 10)
 
 /**
  * Tayyor davrlar.
@@ -2212,57 +1433,8 @@ const kunGa = (d: Date) => d.toISOString().slice(0, 10)
  * Ilgari hisobot faqat "boshidan beri" edi va rahbariyatga "avgust
  * oyida nima qildik?" degan savolga javob bera olmasdi.
  */
-function davrOraliq(kalit: string): { dan: string; gacha: string } {
-  const hozir = new Date()
-  const oxiri = kunGa(hozir)
-  const y = hozir.getFullYear(), m = hozir.getMonth()
-  if (kalit === "shu-oy") return { dan: kunGa(new Date(y, m, 1)), gacha: oxiri }
-  if (kalit === "otgan-oy") {
-    return { dan: kunGa(new Date(y, m - 1, 1)), gacha: kunGa(new Date(y, m, 0)) }
-  }
-  if (kalit === "chorak") return { dan: kunGa(new Date(y, m - 2, 1)), gacha: oxiri }
-  if (kalit === "yarim-yil") return { dan: kunGa(new Date(y, m - 5, 1)), gacha: oxiri }
-  if (kalit === "yil") return { dan: kunGa(new Date(y, m - 11, 1)), gacha: oxiri }
-  return { dan: "", gacha: "" }   // butun davr
-}
 
-const DAVRLAR = [
-  { kalit: "hammasi", nom: "Butun davr" },
-  { kalit: "shu-oy", nom: "Shu oy" },
-  { kalit: "otgan-oy", nom: "O'tgan oy" },
-  { kalit: "chorak", nom: "3 oy" },
-  { kalit: "yarim-yil", nom: "6 oy" },
-  { kalit: "yil", nom: "1 yil" },
-] as const
 
-/* ---- TZ asosidagi hisobot ---- */
-type TzHisobotBand = {
-  id: string; title: string; status: string; note: string | null
-  done_at: string | null; done_by: string | null; done_by_name: string | null
-}
-type TzHisobotVideo = {
-  video_id: string; link: string; name: string; thumbnail: string | null
-  platform: string; views: string; likes: string; comments: string
-  ishonchli: boolean; ochirilgan: boolean; added_at: string
-}
-type TzHisobotBloger = {
-  id: string; name: string; avatar: string | null; slug: string | null
-  status: string; note: string | null
-  videolar: TzHisobotVideo[]
-  views: number; likes: number; comments: number; nomalum: number
-}
-type TzHisobot = {
-  id: string; title: string; description: string | null
-  priority: string; deadline: string | null; status: string
-  admin_note: string | null; created_at: string
-  takrorlanish: string; boshlanish: string | null; tugash: string | null; keyingi: string | null
-  /** Nechta davr yaratilgan (kunlik TZ da kunlar soni) */
-  davrSoni: number
-  bandlar: TzHisobotBand[]
-  bandJami: number; bandBajarildi: number
-  blogerlar: TzHisobotBloger[]
-  views: number; likes: number; comments: number; videoJami: number; nomalum: number
-}
 
 /* ==========================================================================
    HUJJAT — A4 formatidagi rasmiy hisobot
@@ -2282,847 +1454,5 @@ type TzHisobot = {
    matn beradi.
    ========================================================================== */
 
-/** Jadval katakchalari — hujjat bo'ylab bir xil */
-const th = "border border-gray-300 px-2 py-1.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-600"
-const td = "border border-gray-300 px-2 py-1.5 text-[11px] align-top"
 
-type HujjatBloger = {
-  id: string; name: string
-  tzSoni: number; videolar: number
-  views: number; likes: number; comments: number
-  bandlar: number; etirozlar: number
-}
 
-function Hujjat({ partner, extra, tz, shikoyatlar, davrNomi, raqamHolati, videoStat }: {
-  partner: Partner
-  extra: CompanyExtra
-  tz: TzHisobot[]
-  shikoyatlar: Shikoyat[]
-  davrNomi: string
-  raqamHolati: string | null
-  videoStat: Korsatkich
-}) {
-  const son = (n: number) => n.toLocaleString("ru-RU")
-  const bugun = new Date().toLocaleDateString("ru-RU")
-
-  /** Blogerlar bo'yicha yig'indi — barcha TZ lar bo'ylab */
-  const blogerlar = useMemo(() => {
-    const x = new Map<string, HujjatBloger>()
-    for (const b of tz) {
-      for (const bl of b.blogerlar) {
-        const bor = x.get(bl.id) || {
-          id: bl.id, name: bl.name, tzSoni: 0, videolar: 0,
-          views: 0, likes: 0, comments: 0, bandlar: 0, etirozlar: 0,
-        }
-        bor.tzSoni += 1
-        bor.videolar += bl.videolar.length
-        bor.views += bl.views
-        bor.likes += bl.likes
-        bor.comments += bl.comments
-        x.set(bl.id, bor)
-      }
-      // Bandlarni KIM bajargani — "kim qancha qildi" savoliga javob
-      for (const band of b.bandlar) {
-        if (band.status !== "done" || !band.done_by) continue
-        const bor = x.get(band.done_by)
-        if (bor) bor.bandlar += 1
-      }
-    }
-    for (const s of shikoyatlar) {
-      const bor = x.get(s.blogger_id)
-      if (bor) bor.etirozlar += 1
-    }
-    return [...x.values()].sort((a, b) => b.views - a.views)
-  }, [tz, shikoyatlar])
-
-  /** Bajarilmagan bandlar — aynan nima qilinmagani */
-  const bajarilmagan = useMemo(
-    () => tz.flatMap((b) => b.bandlar
-      .filter((x) => x.status !== "done")
-      .map((x) => ({ tz: b.title, band: x.title }))),
-    [tz],
-  )
-
-  const bandJami = tz.reduce((s, b) => s + b.bandJami, 0)
-  const bandBajarildi = tz.reduce((s, b) => s + b.bandBajarildi, 0)
-  const umumiyFoiz = bandJami ? Math.round((bandBajarildi / bandJami) * 100) : 0
-
-  /**
-   * ENG YAXSHI BLOGER.
-   *
-   * Faqat ko'rish soni bo'yicha emas: bandlarni bajarish va e'tiroz
-   * olmaslik ham muhim. Aks holda "ko'p ko'rilgan, lekin TZ ni
-   * bajarmagan" bloger birinchi chiqardi.
-   */
-  const eng = useMemo(() => {
-    if (!blogerlar.length) return null
-    const maxViews = Math.max(1, ...blogerlar.map((b) => b.views))
-    const maxBand = Math.max(1, ...blogerlar.map((b) => b.bandlar))
-    return [...blogerlar].sort((a, b) => {
-      const ball = (x: HujjatBloger) =>
-        (x.views / maxViews) * 0.6 + (x.bandlar / maxBand) * 0.4 - x.etirozlar * 0.15
-      return ball(b) - ball(a)
-    })[0]
-  }, [blogerlar])
-
-  const holatNomi = (b: TzHisobot) => {
-    if (b.status === "rejected") return tr("Qabul qilinmadi")
-    if (!b.bandJami) return b.status === "sent" ? tr("Yuborilgan") : tr("Kutilmoqda")
-    if (b.bandBajarildi >= b.bandJami) return tr("To'liq bajarildi")
-    if (b.bandBajarildi > 0) return tr("Qisman bajarildi")
-    return tr("Bajarilmagan")
-  }
-
-  return (
-    <div className="hujjat mx-auto max-w-[210mm] bg-white p-8 text-ink print:p-0">
-      {/* ---- Sarlavha ---- */}
-      <div className="border-b-2 border-ink pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-display text-lg font-extrabold tracking-tight">AGRO ALLIANCE</p>
-            <p className="text-[11px] text-gray-600">agroalliance.uz</p>
-          </div>
-          <div className="text-right text-[11px] text-gray-600">
-            <p>{tr("Tuzilgan sana")}: <b className="text-ink">{bugun}</b></p>
-            {raqamHolati && (
-              <p>{tr("Raqamlar holati")}: {new Date(Number(raqamHolati) || raqamHolati).toLocaleString("ru-RU")}</p>
-            )}
-          </div>
-        </div>
-        <h1 className="mt-4 text-center font-display text-xl font-extrabold">{tr("HAMKORLIK HISOBOTI")}</h1>
-        <p className="mt-1 text-center text-sm">
-          <b>{partner.name}</b>
-          {partner.sphere ? ` · ${partner.sphere}` : ""}
-        </p>
-        <p className="text-center text-[11px] text-gray-600">{tr("Hisobot davri")}: {davrNomi}</p>
-      </div>
-
-      {/* ---- 1. Shartnoma ---- */}
-      <section className="mt-5 print-block">
-        <h2 className="font-display text-sm font-bold">1. {tr("SHARTNOMA MA'LUMOTLARI")}</h2>
-        <table className="mt-2 w-full border-collapse">
-          <tbody>
-            {[
-              [tr("Shartnoma raqami"), partner.contractNo || "—"],
-              [tr("Shartnoma summasi"), `${fmtSom(partner.amount)} ${tr("so'm")}`],
-              [tr("Imzolangan sana"), partner.signedDate || "—"],
-              [tr("Holat"), (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label],
-              [tr("Faoliyat sohasi"), partner.sphere || "—"],
-              [tr("Veb-sayt"), extra.website || "—"],
-              [tr("Telefon"), extra.phone || "—"],
-              [tr("Manzil"), extra.address || "—"],
-            ].map(([k, v]) => (
-              <tr key={k}>
-                <td className={`${td} w-1/3 bg-gray-50 font-semibold`}>{k}</td>
-                <td className={td}>{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {/* ---- 2. Umumiy natija ---- */}
-      <section className="mt-5 print-block">
-        <h2 className="font-display text-sm font-bold">2. {tr("UMUMIY NATIJA")}</h2>
-        <table className="mt-2 w-full border-collapse">
-          <tbody>
-            <tr>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Berilgan topshiriqlar (TZ)")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(tz.length)}</td>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Videolar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(videoStat.total)}</td>
-            </tr>
-            <tr>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Reja bo'yicha bandlar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(bandJami)}</td>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Ko'rishlar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(videoStat.views)}</td>
-            </tr>
-            <tr>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Bajarilgan bandlar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(bandBajarildi)}</td>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Yoqtirishlar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(videoStat.likes)}</td>
-            </tr>
-            <tr>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Bajarilish darajasi")}</td>
-              <td className={`${td} text-right font-display font-extrabold tabular-nums`}>{umumiyFoiz}%</td>
-              <td className={`${td} bg-gray-50 font-semibold`}>{tr("Izohlar")}</td>
-              <td className={`${td} text-right tabular-nums`}>{son(videoStat.comments)}</td>
-            </tr>
-          </tbody>
-        </table>
-        {bandJami === 0 && (
-          <p className="mt-1 text-[10px] text-gray-600">
-            {tr("Bandlarga bo'lingan TZ yo'q — bajarilish darajasi hisoblanmadi.")}
-          </p>
-        )}
-      </section>
-
-      {/* ---- 3. TZ bo'yicha bajarilish ---- */}
-      <section className="mt-5">
-        <h2 className="font-display text-sm font-bold">3. {tr("TOPSHIRIQLAR BO'YICHA BAJARILISH")}</h2>
-        {tz.length === 0 ? (
-          <p className="mt-2 text-[11px] text-gray-600">{tr("Topshiriq berilmagan.")}</p>
-        ) : (
-          <table className="mt-2 w-full border-collapse">
-            <thead>
-              <tr>
-                <th className={`${th} w-6`}>№</th>
-                <th className={th}>{tr("Topshiriq")}</th>
-                <th className={th}>{tr("Takrorlanish")}</th>
-                <th className={`${th} text-right`}>{tr("Reja")}</th>
-                <th className={`${th} text-right`}>{tr("Bajarildi")}</th>
-                <th className={`${th} text-right`}>%</th>
-                <th className={`${th} text-right`}>{tr("Video")}</th>
-                <th className={`${th} text-right`}>{tr("Ko'rish")}</th>
-                <th className={th}>{tr("Holat")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tz.map((b, i) => {
-                const f = b.bandJami ? Math.round((b.bandBajarildi / b.bandJami) * 100) : 0
-                return (
-                  <tr key={b.id}>
-                    <td className={`${td} text-center`}>{i + 1}</td>
-                    <td className={td}>
-                      {b.title}
-                      <span className="block text-[10px] text-gray-500">
-                        {new Date(b.created_at).toLocaleDateString("ru-RU")}
-                        {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
-                      </span>
-                    </td>
-                    <td className={td}>
-                      {tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}
-                      {b.davrSoni > 1 && <span className="block text-[10px] text-gray-500">{b.davrSoni} {tr("davr")}</span>}
-                    </td>
-                    <td className={`${td} text-right tabular-nums`}>{b.bandJami || "—"}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.bandJami ? b.bandBajarildi : "—"}</td>
-                    <td className={`${td} text-right font-bold tabular-nums`}>{b.bandJami ? `${f}%` : "—"}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.videoJami}</td>
-                    <td className={`${td} text-right tabular-nums`}>{son(b.views)}</td>
-                    <td className={td}>{holatNomi(b)}</td>
-                  </tr>
-                )
-              })}
-              <tr className="bg-gray-50 font-bold">
-                <td className={td} colSpan={3}>{tr("JAMI")}</td>
-                <td className={`${td} text-right tabular-nums`}>{bandJami}</td>
-                <td className={`${td} text-right tabular-nums`}>{bandBajarildi}</td>
-                <td className={`${td} text-right tabular-nums`}>{umumiyFoiz}%</td>
-                <td className={`${td} text-right tabular-nums`}>{tz.reduce((s, b) => s + b.videoJami, 0)}</td>
-                <td className={`${td} text-right tabular-nums`}>{son(tz.reduce((s, b) => s + b.views, 0))}</td>
-                <td className={td} />
-              </tr>
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {/* ---- 4. Bajarilmagan bandlar ---- */}
-      {bajarilmagan.length > 0 && (
-        <section className="mt-5">
-          <h2 className="font-display text-sm font-bold">4. {tr("BAJARILMAGAN BANDLAR")}</h2>
-          <table className="mt-2 w-full border-collapse">
-            <thead>
-              <tr>
-                <th className={`${th} w-6`}>№</th>
-                <th className={th}>{tr("Topshiriq")}</th>
-                <th className={th}>{tr("Bajarilmagan talab")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bajarilmagan.map((x, i) => (
-                <tr key={i}>
-                  <td className={`${td} text-center`}>{i + 1}</td>
-                  <td className={td}>{x.tz}</td>
-                  <td className={td}>{x.band}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* ---- 5. Blogerlar ---- */}
-      <section className="mt-5">
-        <h2 className="font-display text-sm font-bold">
-          {bajarilmagan.length > 0 ? "5" : "4"}. {tr("BLOGERLAR BO'YICHA NATIJA")}
-        </h2>
-        {blogerlar.length === 0 ? (
-          <p className="mt-2 text-[11px] text-gray-600">{tr("Hali bloger biriktirilmagan.")}</p>
-        ) : (
-          <>
-            <table className="mt-2 w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className={`${th} w-6`}>№</th>
-                  <th className={th}>{tr("Bloger")}</th>
-                  <th className={`${th} text-right`}>{tr("TZ")}</th>
-                  <th className={`${th} text-right`}>{tr("Video")}</th>
-                  <th className={`${th} text-right`}>{tr("Bandlar")}</th>
-                  <th className={`${th} text-right`}>{tr("Ko'rish")}</th>
-                  <th className={`${th} text-right`}>{tr("Layk")}</th>
-                  <th className={`${th} text-right`}>{tr("E'tiroz")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blogerlar.map((b, i) => (
-                  <tr key={b.id} className={eng && b.id === eng.id ? "bg-gray-50 font-semibold" : ""}>
-                    <td className={`${td} text-center`}>{i + 1}</td>
-                    <td className={td}>{b.name}{eng && b.id === eng.id ? ` ★` : ""}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.tzSoni}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.videolar}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.bandlar}</td>
-                    <td className={`${td} text-right tabular-nums`}>{son(b.views)}</td>
-                    <td className={`${td} text-right tabular-nums`}>{son(b.likes)}</td>
-                    <td className={`${td} text-right tabular-nums`}>{b.etirozlar || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {eng && (
-              /* Baho FAQAT ko'rish bo'yicha emas: TZ bandlarini bajarish
-                 va e'tiroz olmaslik ham hisobga olinadi — aks holda
-                 "ko'p ko'rilgan, lekin TZ ni bajarmagan" bloger
-                 birinchi chiqardi */
-              <p className="mt-1.5 text-[11px]">
-                ★ <b>{tr("Eng yaxshi natija")}: {eng.name}</b> — {son(eng.views)} {tr("ko'rish")},{" "}
-                {eng.bandlar} {tr("band bajarilgan")}
-                {eng.etirozlar ? `, ${eng.etirozlar} ${tr("e'tiroz")}` : `, ${tr("e'tirozsiz")}`}.
-                <span className="block text-gray-600">
-                  {tr("Baho ko'rishlar (60%), bajarilgan bandlar (40%) va e'tirozlar asosida hisoblangan.")}
-                </span>
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* ---- 6. E'tirozlar ---- */}
-      {shikoyatlar.length > 0 && (
-        <section className="mt-5">
-          <h2 className="font-display text-sm font-bold">
-            {bajarilmagan.length > 0 ? "6" : "5"}. {tr("E'TIROZLAR")}
-          </h2>
-          <table className="mt-2 w-full border-collapse">
-            <thead>
-              <tr>
-                <th className={th}>{tr("Sana")}</th>
-                <th className={th}>{tr("Bloger")}</th>
-                <th className={th}>{tr("Sabab")}</th>
-                <th className={th}>{tr("Holat")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shikoyatlar.map((s) => (
-                <tr key={s.id}>
-                  <td className={`${td} whitespace-nowrap`}>{new Date(s.created_at).toLocaleDateString("ru-RU")}</td>
-                  <td className={td}>{s.blogger_name}</td>
-                  <td className={td}>{tr(SHIKOYAT_SABAB[s.sabab] || s.sabab)}</td>
-                  <td className={td}>{tr((SHIKOYAT_HOLAT[s.status] || SHIKOYAT_HOLAT.yangi).nom)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* ---- Oyoq: imzo joyi ----
-           `print-block` bilan birga: imzo va uning ostidagi izoh
-           ikkinchi varaqqa tushib qolmasin — bo'sh varaqda yolg'iz
-           turgan imzo hujjatni tugallanmagan ko'rsatadi */}
-      <div className="print-block mt-8 flex justify-between gap-8 text-[11px]">
-        <div className="flex-1">
-          <p className="border-t border-gray-400 pt-1">{tr("AGRO ALLIANCE vakili")}</p>
-        </div>
-        <div className="flex-1">
-          <p className="border-t border-gray-400 pt-1">{partner.name}</p>
-        </div>
-      </div>
-      <p className="mt-3 text-center text-[9px] text-gray-500">
-        {tr("Hujjat avtomatik tuzilgan. Ko'rish va yoqtirish raqamlari ijtimoiy tarmoqlardan olinadi va vaqt o'tishi bilan o'zgaradi.")}
-      </p>
-    </div>
-  )
-}
-
-function Report({ partner, counts, pct, extra }: { partner: Partner; counts: { total: number; done: number; progress: number; pending: number }; pct: number; extra: CompanyExtra }) {
-  const [videos, setVideos] = useState<PartnerVideo[]>([])
-  const [yuklanmoqda, setYuklanmoqda] = useState(true)
-  const [xato, setXato] = useState(false)
-
-  const [davr, setDavr] = useState<string>("hammasi")
-  const [dan, setDan] = useState("")
-  const [gacha, setGacha] = useState("")
-
-  /* TZ asosidagi hisobot — bandlar, blogerlar, videolar */
-  const [tz, setTz] = useState<TzHisobot[]>([])
-  const [raqamHolati, setRaqamHolati] = useState<string | null>(null)
-  /** Butun ro'yxatni ochish: sukut bo'yicha faqat yig'indi ko'rinadi */
-  const [toliq, setToliq] = useState(false)
-
-  const [shikoyatlar, setShikoyatlar] = useState<Shikoyat[]>([])
-  /** Hujjat ko'rinishi ekranda ham ochilganmi */
-  const [hujjat, setHujjat] = useState(false)
-
-  const yukla = useCallback(() => {
-    setYuklanmoqda(true); setXato(false)
-    Promise.all([
-      api<{ videos: PartnerVideo[] }>("/me/partner?action=videos")
-        .then((d) => setVideos(d.videos || [])),
-      // TZ hisoboti yiqilsa ham videolar statistikasi ko'rinsin
-      api<{ hisobot: TzHisobot[]; raqamlarHolati: string | null }>("/me/partner?action=brief-report")
-        .then((d) => { setTz(d.hisobot || []); setRaqamHolati(d.raqamlarHolati) })
-        .catch(() => {}),
-      // E'tirozlar hujjatda alohida bo'lim bo'lib chiqadi
-      api<{ shikoyatlar: Shikoyat[] }>("/me/partner?action=shikoyatlar")
-        .then((d) => setShikoyatlar(d.shikoyatlar || [])).catch(() => {}),
-    ])
-      // Xato "video yo'q" degani emas — ikkalasi bir xil ko'rinmasin
-      .catch(() => setXato(true))
-      .finally(() => setYuklanmoqda(false))
-  }, [])
-  useEffect(() => { yukla() }, [yukla])
-
-  const davrniTanla = (kalit: string) => {
-    setDavr(kalit)
-    const o = davrOraliq(kalit)
-    setDan(o.dan); setGacha(o.gacha)
-  }
-
-  /* Sana maydonlari qo'lda o'zgartirilsa tayyor davr belgisi olinadi —
-     aks holda "Shu oy" yozuvi turib, oraliq boshqa bo'lib qolardi */
-  const qolda = (yangiDan: string, yangiGacha: string) => {
-    setDan(yangiDan); setGacha(yangiGacha); setDavr("qolda")
-  }
-
-  const davrVideolari = useMemo(() => videos.filter((v) => {
-    const k = String(v.date || "").slice(0, 10)
-    if (!k) return !dan && !gacha      // sanasi yo'q video faqat "butun davr" da
-    if (dan && k < dan) return false
-    if (gacha && k > gacha) return false
-    return true
-  }), [videos, dan, gacha])
-
-  const k = useMemo(() => hisobla(davrVideolari), [davrVideolari])
-
-  /**
-   * OYLIK GRAFIK BUTUN DAVRNI ko'rsatadi, tanlangan oraliqni emas.
-   *
-   * Sabab: grafik filtrning O'ZI boshqaruvchisi — oy ustiga bosilsa
-   * hisobot shu oyga o'tadi. Agar u ham filtrlangan bo'lsa, bir oy
-   * tanlangach grafikda bitta ustun qolib, qaytish yo'li yo'qolardi.
-   * Videolar bo'limida ham xuddi shunday ishlaydi.
-   */
-  const oylik = useMemo(() => {
-    const xarita = new Map<string, { oy: string; views: number; videos: number }>()
-    for (const v of videos) {
-      const oy = String(v.date || "").slice(0, 7)
-      if (!oy) continue
-      const bor = xarita.get(oy) || { oy, views: 0, videos: 0 }
-      bor.views += songa(v.views); bor.videos += 1
-      xarita.set(oy, bor)
-    }
-    return [...xarita.values()].sort((a, b) => a.oy.localeCompare(b.oy))
-  }, [videos])
-
-  /** Oraliq AYNAN bitta to'liq oyga tengmi — grafikda shu oy belgilanadi */
-  const tanlanganOy = useMemo(() => {
-    if (!dan || !gacha || dan.slice(0, 7) !== gacha.slice(0, 7)) return null
-    const [y, m] = dan.split("-").map(Number)
-    const boshi = kunGa(new Date(y, m - 1, 1))
-    const oxiri = kunGa(new Date(y, m, 0))
-    return dan === boshi && gacha === oxiri ? dan.slice(0, 7) : null
-  }, [dan, gacha])
-
-  /** Grafikdan oy tanlash — hisobot davri shu oyga o'tadi */
-  const oyniTanla = (oy: string | null) => {
-    if (!oy) { davrniTanla("hammasi"); return }
-    const [y, m] = oy.split("-").map(Number)
-    setDan(kunGa(new Date(y, m - 1, 1)))
-    setGacha(kunGa(new Date(y, m, 0)))
-    setDavr("qolda")
-  }
-
-  const son = (n: number) => n.toLocaleString("ru-RU")
-  const davrNomi = dan || gacha
-    ? `${dan || "…"} — ${gacha || "…"}`
-    : tr("Butun hamkorlik davri")
-
-  /**
-   * A4 GA CHOP ETISH.
-   *
-   * Tashqi kutubxona QO'SHILMADI: brauzerning o'z chop etish oynasi
-   * "PDF sifatida saqlash" ni beradi va sahifa o'lchami, chekkalar,
-   * varaqlarga bo'linish `@media print` orqali boshqariladi
-   * (qarang: src/index.css). PDF kutubxonasi ~300 KB qo'shardi va
-   * SVG diagrammalarni qaytadan chizishga majbur qilardi.
-   *
-   * `print-area` sinfi shu blokdagina — chap menyu, tepa panel va
-   * tugmalar qog'ozga tushmaydi.
-   */
-  return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
-        <div className="min-w-0">
-          <h3 className="font-display text-lg font-bold">{tr("Hamkorlik hisoboti")}</h3>
-          <p className="mt-1 text-sm text-muted">{tr("Kompaniyangiz bo'yicha umumiy hisobot va rasmiy A4 hujjat.")}</p>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <button onClick={() => setHujjat((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-xl border border-green/25 bg-white px-4 py-2.5 text-sm font-bold text-green transition-colors hover:bg-green/5">
-            <Icon d={I.eye} className="h-4 w-4" />
-            {hujjat ? tr("Hujjatni yopish") : tr("Hujjatni ko'rish")}
-          </button>
-          <button onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105">
-            <Icon d={I.doc} className="h-4 w-4" /> {tr("PDF yuklab olish")}
-          </button>
-        </div>
-      </div>
-
-      {/* PDF brauzerning O'Z eksporti orqali saqlanadi. Buni aytib
-          qo'yish kerak: foydalanuvchi tugmani bosgach oyna ochilishini
-          kutmasa, "ishlamadi" deb o'ylardi. */}
-      <p className="mt-2 text-[11px] text-muted print:hidden">
-        {tr("\"PDF yuklab olish\" bosilganda saqlash oynasi ochiladi — u yerda \"PDF sifatida saqlash\" ni tanlang.")}
-      </p>
-
-      {/* ============ A4 HUJJAT ============
-          Ekranda faqat so'ralganda ko'rinadi, QOG'OZGA esa DOIM shu
-          tushadi. Paneldagi kartochkalar, ranglar va bosiladigan
-          diagrammalar qog'ozda kerak emas — ular hujjatni
-          chalkashtiradi. */}
-      <div className={`print-area ${hujjat ? "mt-5 rounded-2xl border border-green/15 shadow-sm" : "hidden print:block"}`}>
-        <Hujjat
-          partner={partner} extra={extra} tz={tz} shikoyatlar={shikoyatlar}
-          davrNomi={davrNomi} raqamHolati={raqamHolati} videoStat={k}
-        />
-      </div>
-
-      {/* Paneldagi ko'rinish — qog'ozga tushmaydi */}
-      <div className="print:hidden">
-
-      {/* ---- Davr tanlash ---- */}
-      <div className={`mt-5 ${card} print:hidden`}>
-        <div className="flex flex-wrap items-center gap-2">
-          {DAVRLAR.map((d) => (
-            <button key={d.kalit} onClick={() => davrniTanla(d.kalit)}
-              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
-                davr === d.kalit ? "bg-green text-white" : "border border-green/20 text-muted hover:border-green/50"
-              }`}>
-              {tr(d.nom)}
-            </button>
-          ))}
-          <span className="mx-1 h-5 w-px bg-green/15" />
-          <label className="flex items-center gap-1.5 text-xs text-muted">
-            {tr("dan")}
-            <input type="date" value={dan} onChange={(e) => qolda(e.target.value, gacha)}
-              className="rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-green" />
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-muted">
-            {tr("gacha")}
-            <input type="date" value={gacha} onChange={(e) => qolda(dan, e.target.value)}
-              className="rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-green" />
-          </label>
-        </div>
-      </div>
-
-      {/* ---- Hisobot varag'i ---- */}
-      <div className={`mt-5 ${card} print-block`}>
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-green/10 pb-4">
-          <div className="min-w-0">
-            <div className="font-display text-xl font-extrabold">{partner.name}</div>
-            <div className="text-sm text-muted">{partner.sphere || tr("Hamkor kompaniya")}{extra.website ? ` • ${extra.website}` : ""}</div>
-          </div>
-          {/* Qaysi davr uchun ekani QOG'OZDA ham ko'rinishi shart —
-              aks holda chop etilgan hisobotning raqamlari qaysi
-              oyga tegishli ekani noma'lum qolardi */}
-          <div className="text-right text-xs text-muted">
-            <div>{tr("Hisobot davri")}</div>
-            <div className="font-display text-sm font-bold text-ink">{davrNomi}</div>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[[tr("Shartnoma raqami"), partner.contractNo || "—"], [tr("Shartnoma summasi"), fmtSom(partner.amount) + " " + tr("so'm")], [tr("Imzolangan sana"), partner.signedDate || "—"], [tr("Holat"), (partnerStatusMeta[partner.status] || partnerStatusMeta.active).label], [tr("Jami ishlar"), String(counts.total)], [tr("Bajarilish"), `${pct}% (${counts.done}/${counts.total})`]].map(([l, v]) => (
-            <div key={l} className="rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{l}</div><div className="mt-0.5 font-display font-bold">{v}</div></div>
-          ))}
-        </div>
-        {extra.description && <div className="mt-4 rounded-xl bg-[#fafdf7] p-4"><div className="text-xs text-muted">{tr("Kompaniya haqida")}</div><div className="mt-1 text-sm">{extra.description}</div></div>}
-      </div>
-
-      {/* ============ REKLAMA NATIJALARI ============
-          Ilgari hisobotda faqat shartnoma ma'lumotlari bor edi va
-          "shu pulga nima oldik?" degan savolga javob yo'q edi.
-          Raqamlar Videolar bo'limida turardi, hisobotga tushmasdi. */}
-      {yuklanmoqda ? (
-        <div className="mt-6"><SkeletonStatGrid /></div>
-      ) : xato ? (
-        <div className={`mt-6 ${card}`}>
-          <ErrorState onRetry={yukla} message={tr("Reklama natijalarini yuklab bo'lmadi.")} />
-        </div>
-      ) : (
-        <div className="mt-6 space-y-6">
-          <h4 className="font-display text-base font-bold">
-            {tr("Reklama natijalari")}
-            <span className="ml-2 text-sm font-normal text-muted">{davrNomi}</span>
-          </h4>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: I.media, t: "Videolar", v: son(k.total), sub: `${son(k.bloggers)} ${tr("bloger")}` },
-              { icon: I.eye, t: "Ko'rishlar", v: son(k.views), sub: tr("barcha platformalar") },
-              { icon: I.star, t: "Yoqtirishlar", v: son(k.likes), sub: tr("like") },
-              { icon: I.message, t: "Izohlar", v: son(k.comments), sub: tr("komment") },
-            ].map((s) => (
-              <div key={s.t} className="min-w-0 print-block rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
-                <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
-                <div className="mt-1 truncate font-display text-2xl font-extrabold">{s.v}</div>
-                <div className="mt-0.5 text-[11px] font-semibold text-green">{s.sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {k.total === 0 ? (
-            <div className={`${card} text-center text-sm text-muted`}>
-              {tr("Tanlangan davrda video yo'q — boshqa oraliqni tanlab ko'ring.")}
-            </div>
-          ) : (
-            <>
-              {/* Oylik grafik faqat bir necha oy bo'lganda ma'noli:
-                  bitta ustunli grafik hech narsa ko'rsatmaydi */}
-              {oylik.length > 1 && (
-                <div className="print-block">
-                  <OylikGrafik data={oylik} tanlangan={tanlanganOy} onTanla={oyniTanla} />
-                </div>
-              )}
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="print-block"><PlatformaDonut stats={k} /></div>
-                <div className="print-block"><TopBloggers list={k.topBloggers.slice(0, 5)} /></div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ============ TZ BO'YICHA BAJARILISH ============
-          Hamkor TZ da nima yozgan bo'lsa — aynan shu bandlar va
-          ularning holati. Ilgari hisobot faqat "N ta ishdan M tasi"
-          deb ayta olardi: qaysi ish, kim qildi, qanday qildi va qaysi
-          video bilan — hech biri ko'rinmasdi. */}
-      {tz.length > 0 && (
-        <div className="print-page-break mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0">
-              <h4 className="font-display text-base font-bold">{tr("Topshiriqlar bo'yicha bajarilish")}</h4>
-              <p className="mt-0.5 text-sm text-muted">
-                {tr("Siz yuborgan har bir TZ va uning natijasi")}
-              </p>
-            </div>
-            {/* Uzun hisobot qog'ozda 20 varaq bo'lib ketadi. Sukut
-                bo'yicha yig'indi, to'liq ro'yxat esa so'ralganda. */}
-            <button type="button" onClick={() => setToliq((v) => !v)}
-              className="shrink-0 rounded-xl border border-green/25 px-4 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5 print:hidden">
-              {toliq ? tr("Qisqartirish") : tr("To'liq ro'yxatni ochish")}
-            </button>
-          </div>
-
-          {/* Raqamlar qachonligini AYTISH shart: bugun 120 000, ertaga
-              145 000 — chop etilgan ikki hisobot bir-biriga zid
-              ko'rinadi va sabab tushunarsiz qoladi. */}
-          {raqamHolati && (
-            <p className="mt-2 text-[11px] text-muted">
-              {tr("Ko'rish va yoqtirish raqamlari oxirgi marta yangilangan")}:{" "}
-              {new Date(Number(raqamHolati) || raqamHolati).toLocaleString("ru-RU")}
-            </p>
-          )}
-
-          <div className="mt-4 space-y-4">
-            {tz.map((b) => {
-              const foiz = b.bandJami ? Math.round((b.bandBajarildi / b.bandJami) * 100) : 0
-              const holat = BRIEF_HOLAT[b.status] || BRIEF_HOLAT.new
-              return (
-                <div key={b.id} className={`${card} print-block`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-green/10 pb-3">
-                    <div className="min-w-0">
-                      <h5 className="font-display font-bold">{b.title}</h5>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {new Date(b.created_at).toLocaleDateString("ru-RU")}
-                        {b.deadline ? ` · ${tr("muddat")}: ${b.deadline}` : ""}
-                        {b.takrorlanish !== "bir_marta" && (
-                          <> · <b className="text-green">{tr(TAKROR_NOM[b.takrorlanish] || b.takrorlanish)}</b>
-                          {b.davrSoni > 1 ? ` · ${b.davrSoni} ${tr("davr")}` : ""}</>
-                        )}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold ${holat.cls}`}>
-                      {tr(holat.nom)}
-                    </span>
-                  </div>
-
-                  {/* Natija raqamlari */}
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[
-                      { t: "Bandlar", v: `${b.bandBajarildi} / ${b.bandJami}` },
-                      { t: "Videolar", v: String(b.videoJami) },
-                      { t: "Ko'rishlar", v: son(b.views) },
-                      { t: "Yoqtirishlar", v: son(b.likes) },
-                    ].map((s) => (
-                      <div key={s.t} className="rounded-xl bg-[#fafdf7] p-3">
-                        <div className="text-[11px] text-muted">{tr(s.t)}</div>
-                        <div className="mt-0.5 font-display font-bold tabular-nums">{s.v}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Raqami noma'lum videolar — jimgina 0 deb sanash
-                      hisobotni yolg'on qilardi */}
-                  {b.nomalum > 0 && (
-                    <p className="mt-2 text-[11px] text-orange-600">
-                      {b.nomalum} {tr("ta videoning ko'rish soni noma'lum (faqat YouTube raqamlari avtomatik olinadi) — ular jamiga qo'shilmagan.")}
-                    </p>
-                  )}
-
-                  {b.bandJami > 0 && (
-                    <div className="mt-3">
-                      <div className="h-1.5 overflow-hidden rounded-full bg-soft">
-                        <div className="h-full rounded-full bg-green" style={{ width: `${foiz}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ---- Bandlar: nima bajarildi, nima yo'q ---- */}
-                  {b.bandlar.length > 0 ? (
-                    <ul className="mt-3 space-y-1.5">
-                      {(toliq ? b.bandlar : b.bandlar.slice(0, 4)).map((x) => {
-                        const ok = x.status === "done"
-                        return (
-                          <li key={x.id} className="flex items-start gap-2">
-                            <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded ${
-                              ok ? "bg-green text-white" : "border-2 border-gray-300"}`}>
-                              {ok && <Icon d={I.check} className="h-2.5 w-2.5" />}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className={`block text-xs ${ok ? "text-ink/85" : "text-muted"}`}>{x.title}</span>
-                              {/* "Qanday qilindi" — blogerning izohi */}
-                              {x.note && <span className="block text-[11px] text-muted">↳ {x.note}</span>}
-                              {ok && x.done_by_name && (
-                                <span className="block text-[11px] text-green">
-                                  {x.done_by_name}
-                                  {x.done_at ? ` · ${new Date(x.done_at).toLocaleDateString("ru-RU")}` : ""}
-                                </span>
-                              )}
-                            </span>
-                          </li>
-                        )
-                      })}
-                      {!toliq && b.bandlar.length > 4 && (
-                        <li className="text-[11px] text-muted">
-                          + {b.bandlar.length - 4} {tr("ta band — \"To'liq ro'yxatni ochish\"")}
-                        </li>
-                      )}
-                    </ul>
-                  ) : (
-                    /* Bandsiz TZ da 0% ko'rsatish "ish qilinmagan" degan
-                       yolg'on xabar bo'lardi — holatni boshqacha aytamiz */
-                    <p className="mt-3 rounded-xl bg-soft px-3 py-2 text-[11px] text-muted">
-                      {tr("Bu TZ bandlarga bo'linmagan — umumiy holat blogerlar bo'yicha ko'rsatilgan.")}
-                    </p>
-                  )}
-
-                  {/* ---- Kim bajardi va qanday natija ---- */}
-                  {b.blogerlar.length > 0 && (
-                    <div className="mt-3 border-t border-green/10 pt-3">
-                      <p className="text-xs font-bold text-ink">{tr("Kim bajardi")}</p>
-                      <ul className="mt-2 space-y-2">
-                        {b.blogerlar.map((bl) => (
-                          <li key={bl.id} className="rounded-xl bg-[#fafdf7] p-2.5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="min-w-0 flex-1 truncate text-xs font-bold">{bl.name}</span>
-                              <span className="shrink-0 text-[11px] text-muted">
-                                {bl.videolar.length} {tr("video")} · <b className="text-ink tabular-nums">{son(bl.views)}</b> {tr("ko'rish")} · {son(bl.likes)} {tr("layk")}
-                              </span>
-                            </div>
-                            {bl.note && <p className="mt-1 text-[11px] text-muted">{bl.note}</p>}
-                            {(toliq ? bl.videolar : bl.videolar.slice(0, 2)).map((v) => (
-                              <div key={v.link} className="mt-1.5 flex items-center gap-2">
-                                {v.thumbnail && <img src={v.thumbnail} alt="" className="h-7 w-12 shrink-0 rounded object-cover" />}
-                                <span className="min-w-0 flex-1">
-                                  <a href={v.link} target="_blank" rel="noreferrer"
-                                    className="block truncate text-[11px] font-semibold text-green hover:underline">{v.name}</a>
-                                  <span className="block text-[10px] text-muted">
-                                    {v.platform} ·{" "}
-                                    {v.ishonchli ? `${v.views} ${tr("ko'rish")}` : tr("ko'rish ma'lumoti yo'q")}
-                                    {v.ochirilgan && <span className="text-orange-600"> · {tr("video o'chirilgan")}</span>}
-                                  </span>
-                                </span>
-                              </div>
-                            ))}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Rad etilgan bo'lsa sababi */}
-                  {b.admin_note && (
-                    <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-[11px] text-orange-700">
-                      <b>{tr("Administrator javobi")}:</b> {b.admin_note}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-      </div>
-    </div>
-  )
-}
-
-/* ---------- Sozlamalar ---------- */
-function Settings() {
-  const [pwd, setPwd] = useState("")
-  const [pwd2, setPwd2] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-
-  const changePwd = async () => {
-    setMsg(null)
-    if (pwd.length < 6) { setMsg({ ok: false, text: tr("Parol kamida 6 belgi bo'lishi kerak") }); return }
-    if (pwd !== pwd2) { setMsg({ ok: false, text: tr("Parollar mos kelmadi") }); return }
-    setBusy(true)
-    try {
-      const sb = await getSupabase()
-      const { error } = await sb.auth.updateUser({ password: pwd })
-      if (error) throw new Error(error.message)
-      setMsg({ ok: true, text: tr("Parol muvaffaqiyatli o'zgartirildi") }); setPwd(""); setPwd2("")
-    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "Xatolik" }) } finally { setBusy(false) }
-  }
-
-  return (
-    <div className={`mt-6 ${card} max-w-lg`}>
-      <h3 className="font-display text-lg font-bold">{tr("Parolni o'zgartirish")}</h3>
-      <p className="mt-1 text-sm text-muted">{tr("Hisobingiz uchun yangi parol o'rnating.")}</p>
-      <div className="mt-4 space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-muted">{tr("Yangi parol")}</label>
-          <input value={pwd} onChange={(e) => setPwd(e.target.value)} type="password" placeholder={tr("Kamida 6 belgi")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-muted">{tr("Parolni tasdiqlang")}</label>
-          <input value={pwd2} onChange={(e) => setPwd2(e.target.value)} type="password" placeholder={tr("Yangi parolni qayta kiriting")} className="mt-1 w-full rounded-lg border border-green/20 bg-white px-3 py-2.5 text-sm outline-none focus:border-green" />
-        </div>
-        {msg && <div className={`rounded-xl px-4 py-3 text-sm font-medium ${msg.ok ? "bg-green/10 text-green" : "bg-red-50 text-red-600"}`}>{msg.text}</div>}
-        <button onClick={changePwd} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green/25 transition-transform hover:scale-105 disabled:opacity-60">
-          {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Icon d={I.lock} className="h-4 w-4" />} {tr("O'zgartirish")}
-        </button>
-      </div>
-    </div>
-  )
-}
