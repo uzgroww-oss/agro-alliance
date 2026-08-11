@@ -30,17 +30,16 @@ function BrandChip({ brend }: { brend: Brend }) {
   // (bg-soft) turgani uchun blur ko'rinmasdi ham — faqat GPU yuki edi.
   // Yumshoqlik endi butun lentaga BIR MARTA berilgan (qarang: BrandCarousel).
   return (
-    <div className="grid h-16 min-w-[150px] place-items-center rounded-2xl border border-green/10 bg-white/90 px-6 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)]">
-      {brend.logo ? (
+    <div className="flex h-16 min-w-[150px] items-center justify-center gap-2.5 rounded-2xl border border-green/10 bg-white/90 px-5 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)]">
+      {brend.logo && (
         <img
           src={brend.logo}
           /**
            * BEZAK RASM — matn muqobili ATAYLAB bo'sh.
            *
-           * Bu fon lentasi: brend nomlari sahifaning pastidagi
-           * "Hamkorlarimiz" bo'limida matn bilan baribir bor. Ekran
-           * o'quvchi uchun bu yerda ularni takrorlash faqat shovqin,
-           * shuning uchun butun qatlam `aria-hidden`.
+           * Yonida brend nomi matn bilan turibdi, ya'ni rasmni ekran
+           * o'quvchiga takrorlatish faqat shovqin bo'lardi. Butun fon
+           * qatlami baribir `aria-hidden`.
            */
           alt=""
           loading="lazy"
@@ -54,30 +53,21 @@ function BrandChip({ brend }: { brend: Brend }) {
            */
           referrerPolicy="no-referrer"
           /**
-           * Logolar tashqi manbalardan (wikimedia, gstatic va h.k.) va
-           * o'lchamlari har xil. `object-contain` + chegaralar ularni
-           * cho'zmasdan chipga sig'diradi.
+           * Logolar turli o'lchamda va turli nisbatda (John Deere keng,
+           * Bayer deyarli kvadrat). Balandlik qat'iy, kenglik erkin,
+           * `object-contain` esa cho'zilishning oldini oladi.
+           * `shrink-0` — nom uzun bo'lsa ham logo siqilib ketmasin.
            */
-          className="max-h-9 max-w-[110px] object-contain"
+          className="h-8 w-auto max-w-[56px] shrink-0 object-contain"
           /**
-           * Rasm ochilmasa (tashqi manba yiqilsa) chipda BO'SH joy
-           * qolmasin — o'rniga brend nomi chiqadi.
+           * Rasm ochilmasa (tashqi manba yiqilsa yoki hotlink
+           * bloklansa) shunchaki yashiriladi — nom yonida turgani
+           * uchun chip bo'sh qolmaydi.
            */
-          onError={(e) => {
-            const img = e.currentTarget
-            img.style.display = "none"
-            const ota = img.parentElement
-            if (ota && !ota.querySelector("[data-zaxira]")) {
-              const span = document.createElement("span")
-              span.dataset.zaxira = "1"
-              span.textContent = brend.name
-              ota.appendChild(span)
-            }
-          }}
+          onError={(e) => { e.currentTarget.style.display = "none" }}
         />
-      ) : (
-        brend.name
       )}
+      <span className="whitespace-nowrap">{brend.name}</span>
     </div>
   )
 }
