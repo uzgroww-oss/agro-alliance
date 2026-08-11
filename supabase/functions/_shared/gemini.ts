@@ -89,6 +89,34 @@ async function fetchWithAuthFallback(
  */
 export type InlineImage = { mimeType: string; data: string };
 
+/**
+ * MODELLAR RO'YXATI — biri ishlamasa keyingisi.
+ *
+ * NEGA RO'YXAT, BITTA NOM EMAS. Bu yerda `gemini-2.0-flash` qattiq
+ * yozilgan edi va Google uni ISTE'MOLDAN CHIQARDI:
+ *
+ *   404: This model models/gemini-2.0-flash is no longer available.
+ *
+ * Sezilmadi, chunki chaqiruvchilarning hammasida zaxira provayder bor
+ * edi — Gemini jimgina tushib qolgan, ishni Cloudflare/Groq bajarib
+ * turgan. Ya'ni "Gemini ishlayapti" degan taassurot yolg'on edi.
+ *
+ * Endi model o'lsa keyingisiga o'tiladi va bu takrorlanmaydi.
+ * `GEMINI_MODELS` muhit o'zgaruvchisi orqali qayta deploysiz ham
+ * almashtirsa bo'ladi (vergul bilan).
+ */
+function modellar(): string[] {
+  const custom = Deno.env.get("GEMINI_MODELS") || Deno.env.get("GEMINI_MODEL");
+  if (custom) return custom.split(",").map((s) => s.trim()).filter(Boolean);
+  return ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"];
+}
+
+/** Model butunlay yo'q — qayta urinishning ma'nosi yo'q, keyingisiga o'tamiz */
+function modelYoqmi(xato: unknown): boolean {
+  const m = xato instanceof Error ? xato.message : String(xato);
+  return /\b404\b/.test(m) && /no longer available|not found|is not supported/i.test(m);
+}
+
 export async function geminiChat(
   prompt: string,
   opts?: {
@@ -96,8 +124,33 @@ export async function geminiChat(
     image?: InlineImage; timeoutMs?: number;
   },
 ): Promise<{ text: string; tokens: number }> {
+  const royxat = opts?.model ? [opts.model] : modellar();
+  let oxirgi: unknown = new Error("Gemini: model topilmadi");
+
+  for (const m of royxat) {
+    try {
+      return await geminiChatModel(prompt, m, opts);
+    } catch (e) {
+      oxirgi = e;
+      // Faqat "model yo'q" bo'lsa keyingisini sinaymiz. Kvota yoki
+      // kalit xatosi hamma modelda bir xil — ro'yxat bo'ylab yugurish
+      // bekorga vaqt yeydi.
+      if (!modelYoqmi(e)) throw e;
+      console.warn(`Gemini modeli ishlamadi (${m}), keyingisiga o'tildi`);
+    }
+  }
+  throw oxirgi;
+}
+
+async function geminiChatModel(
+  prompt: string,
+  model: string,
+  opts?: {
+    temperature?: number; maxTokens?: number; retries?: number;
+    image?: InlineImage; timeoutMs?: number;
+  },
+): Promise<{ text: string; tokens: number }> {
   const apiKey = await getApiKey();
-  const model = opts?.model ?? "gemini-2.0-flash";
   const maxRetries = opts?.retries ?? 2;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -124,6 +177,24 @@ export async function geminiChat(
       contents: [{ parts }],
       generationConfig: {
         temperature: opts?.temperature ?? 0.7,
+        /**
+         * ⚠️ TOKEN BYUDJETI GEMINI 2.5 DA JAVOBGA TENG EMAS.
+         *
+         * 2.5 — o'ylaydigan model: javobdan oldin ichki mulohaza
+         * yuritadi va u ham SHU byudjetdan yeydi. Eski model
+         * (2.0-flash) umuman o'ylamasdi, shuning uchun chaqiruvchilar
+         * qo'ygan kichik qiymatlar yetib kelardi.
+         *
+         * O'lchandi: 300 token bilan javoblar shunday chiqardi —
+         *   "Rahmat, Bekzod!"            (15 belgi)
+         *   "Salom, Sardor! Oʻgʻit nar"  (so'z o'rtasida uzilgan)
+         * ya'ni mulohaza butun byudjetni yeb, matnga qoldirmagan.
+         *
+         * `thinkingConfig: { thinkingBudget: 0 }` SINAB KO'RILDI —
+         * Gemini uni qabul qilmadi: 400 INVALID_ARGUMENT. Shuning
+         * uchun yechim oddiy: chaqiruvchi yetarli byudjet bersin
+         * (qarang: izohJavob.ts dagi maxTokens).
+         */
         maxOutputTokens: opts?.maxTokens ?? 2048,
       },
     };
@@ -161,6 +232,9 @@ export async function geminiChat(
 
       return { text, tokens };
     } catch (e) {
+      // Model umuman yo'q bo'lsa qayta urinish behuda — darhol
+      // qaytaramiz, yuqoridagi sikl keyingi modelga o'tadi.
+      if (modelYoqmi(e)) throw e;
       if (attempt === maxRetries) throw e;
     }
   }

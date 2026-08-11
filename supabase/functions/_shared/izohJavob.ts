@@ -1,8 +1,6 @@
 import { supabaseAdmin } from "./supabase.ts"
+// Faqat Gemini — sabab pastda, PROVAYDERLAR ZANJIRI izohida.
 import { geminiChat } from "./gemini.ts"
-import { groqChat } from "./groq.ts"
-import { nimChat } from "./nim.ts"
-import { cfChat, cfChatAvailable } from "./cfChat.ts"
 import { aiKalitBormi } from "./aiKalit.ts"
 import { sarfYoz } from "./aiKesh.ts"
 import {
@@ -109,13 +107,27 @@ export async function sozlamaYoz(kalit: string, qiymat: string): Promise<boolean
 /* ==========================================================================
    PROVAYDERLAR ZANJIRI
    ==========================================================================
-   Tartib `smm-ai` dagi bilan bir xil sababga ko'ra: Cloudflare matnda
-   arzon va tez, Gemini sifatli lekin kvotasi kam, Groq zaxira,
-   NVIDIA sekin.
+   FAQAT GEMINI — tahririyat qarori.
 
-   Zanjir uchun UMUMIY vaqt chegarasi bor: bittasi osilib qolsa
-   qolganlariga vaqt qolishi kerak, aks holda avtomatik yurish bitta
-   izohda tiqilib qolardi va qolgan izohlar javobsiz qolardi.
+   Ilgari to'rtta provayder zanjiri edi (Cloudflare -> Gemini -> Groq
+   -> NVIDIA). Matn sifati provayderdan provayderga sezilarli farq
+   qilardi: izoh javobi kanal nomidan OMMAVIY chiqadi, ya'ni bu yerda
+   "ishlasa bo'ldi" emas, bir xil va bashorat qilinadigan ohang
+   muhimroq. Zaxira provayder tushib qolgan javob boshqacha uslubda
+   chiqib, tomoshabinga sezilardi.
+
+   ⚠️ NARXI: zaxira YO'Q. Gemini kvotasi tugasa yoki kaliti
+   ishlamasa — javob YOZILMAYDI. Bu jimgina o'tmaydi: holat `xato`
+   bo'lib bazaga sababi bilan yoziladi va panelda ko'rinadi, izoh
+   esa javobsiz qoladi (keyingi yurishda qayta urinilmaydi — yozuv
+   allaqachon bor, qo'lda "AI javob" bosish kerak).
+
+   Boshqa provayderni qaytarish kerak bo'lsa: importni tiklab, shu
+   ro'yxatga bitta qator qo'shing va `kalitBormi` ga tegishli
+   tarmoqni yozing. Qolgan mantiq o'zgarishsiz ishlaydi.
+
+   Zanjir uchun UMUMIY vaqt chegarasi qoladi: model osilib qolsa
+   avtomatik yurish bitta izohda tiqilib qolmasligi kerak.
    ========================================================================== */
 
 type ChatFn = (
@@ -123,11 +135,13 @@ type ChatFn = (
   o?: { maxTokens?: number; timeoutMs?: number },
 ) => Promise<{ text: string; tokens: number }>
 
+/**
+ * Chegara 15 -> 25 soniya. Ilgari Gemini sekinlik qilsa Cloudflare yoki
+ * Groq javobni ushlab qolardi; endi ortida hech kim yo'q, shuning uchun
+ * unga ko'proq vaqt beriladi. 45 soniyalik umumiy byudjetga sig'adi.
+ */
 const ZANJIR: { nom: string; fn: ChatFn; timeout: number }[] = [
-  { nom: "Cloudflare", fn: cfChat as ChatFn, timeout: 20_000 },
-  { nom: "Gemini", fn: geminiChat as ChatFn, timeout: 15_000 },
-  { nom: "Groq", fn: groqChat as ChatFn, timeout: 15_000 },
-  { nom: "NVIDIA", fn: nimChat as ChatFn, timeout: 25_000 },
+  { nom: "Gemini", fn: geminiChat as ChatFn, timeout: 25_000 },
 ]
 
 /** Butun zanjir uchun chegara — bitta izohga bir daqiqadan ko'p ketmasin */
@@ -136,10 +150,7 @@ const ZANJIR_BUDGET_MS = 45_000
 const ENG_KAM_MS = 5_000
 
 async function kalitBormi(nom: string): Promise<boolean> {
-  if (nom === "Cloudflare") return cfChatAvailable()
   if (nom === "Gemini") return await aiKalitBormi("gemini", "GEMINI_API_KEY")
-  if (nom === "Groq") return await aiKalitBormi("groq", "GROQ_API_KEY")
-  if (nom === "NVIDIA") return await aiKalitBormi("nvidia", "NVIDIA_API_KEY")
   return false
 }
 
@@ -189,8 +200,22 @@ export async function javobYoz(q: {
     const boshlandi = Date.now()
     try {
       const r = await p.fn(prompt, {
-        // Javob qisqa: 300 token har qanday tilda 200 belgiga yetadi
-        maxTokens: 300,
+        /**
+         * 300 EMAS, 1200.
+         *
+         * Javobning O'ZI qisqa — 300 token har qanday tilda 200
+         * belgiga yetadi va uzunlikni baribir `qisqartir` cheklaydi.
+         * Lekin Gemini 2.5 javobdan oldin ichki mulohaza yuritadi va
+         * u ham SHU byudjetdan yeydi. 300 bilan mulohaza butun
+         * byudjetni yeb, matnga 15-30 belgi qolardi:
+         *   "Rahmat, Bekzod!"  /  "Salom, Sardor! Oʻgʻit nar"
+         *
+         * Mulohazani o'chirish sinab ko'rildi (thinkingConfig) —
+         * Gemini 400 qaytardi. Shuning uchun byudjet kengaytirildi.
+         * Qo'shimcha token faqat mulohazaga ketadi, javob uzunligiga
+         * ta'sir qilmaydi.
+         */
+        maxTokens: 1200,
         timeoutMs: Math.min(p.timeout, qoldi),
       })
       const matn = tozala(r.text)
