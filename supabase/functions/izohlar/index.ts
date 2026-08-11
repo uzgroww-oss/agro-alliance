@@ -5,6 +5,7 @@ import { javobYoz, sozlamaYoz, sozlamalarOl } from "../_shared/izohJavob.ts"
 import { PLATFORMALAR, type Platforma } from "../_shared/izohMatn.ts"
 import { manbaOl } from "../_shared/izohManba.ts"
 import { holatOl, yozuvSaqla, yozuvlarOl } from "../_shared/izohBaza.ts"
+import { shablonOchir, shablonSaqla, shablonlarOl } from "../_shared/izohShablon.ts"
 
 /**
  * IZOHLARGA JAVOB — BARCHA TARMOQLAR.
@@ -191,6 +192,38 @@ Deno.serve(async (req) => {
       }
       if (yozildi.length === 0) return errorResponse("O'zgartiriladigan sozlama topilmadi", 400)
       return jsonResponse({ success: true, sozlama: await sozlamalarOl() })
+    }
+
+    /* ---------------- Tayyor javoblar (shablonlar) ----------------
+     *
+     * Ikkita maydon: `savol` — izohda nima yozilsa, `javob` — nima
+     * javob berish. Mos kelgan izohga AI umuman chaqirilmaydi
+     * (qarang: izohJavob.ts).
+     */
+    if (action === "shablon_list") {
+      return jsonResponse({ shablonlar: await shablonlarOl() })
+    }
+
+    if (action === "shablon_saqla" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const r = await shablonSaqla({
+        id: matn(body.id, 40) || undefined,
+        savol: matn(body.savol, 300),
+        javob: matn(body.javob, 1000),
+        platform: body.platform,
+        faol: body.faol === undefined ? true : Boolean(body.faol),
+        user: auth.user.id,
+      })
+      if (!r.ok) return errorResponse(r.xato || "Saqlab bo'lmadi", 400)
+      return jsonResponse({ success: true, shablonlar: await shablonlarOl() })
+    }
+
+    if (action === "shablon_ochir" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const id = matn(body.id, 40)
+      if (!id) return errorResponse("ID kerak", 400)
+      if (!(await shablonOchir(id))) return errorResponse("Shablon topilmadi", 404)
+      return jsonResponse({ success: true, shablonlar: await shablonlarOl() })
     }
 
     return errorResponse("Noma'lum amal", 400)

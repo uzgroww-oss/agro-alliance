@@ -91,6 +91,17 @@ const BOSH_YOZUV: IzohYozuv = {
   avto: false, provayder: null, yuborilgan_at: null,
 }
 
+/** Tayyor javob: ikkita maydon — nima yozilsa, nima javob berish */
+type Shablon = {
+  id: string
+  savol: string
+  javob: string
+  /** null — hamma tarmoqda ishlaydi */
+  platform: Platforma | null
+  faol: boolean
+  ishlatilgan: number
+}
+
 export default function Izohlar() {
   const [tarmoq, setTarmoq] = useState<Platforma>("youtube")
   const [yuklanmoqda, setYuklanmoqda] = useState(true)
@@ -103,6 +114,14 @@ export default function Izohlar() {
   /** Tahrirlanayotgan javob matnlari: izoh ID -> matn */
   const [matnlar, setMatnlar] = useState<Record<string, string>>({})
   const [filtr, setFiltr] = useState<"javobsiz" | "hammasi" | "yuborilgan">("javobsiz")
+
+  /* --- Tayyor javoblar --- */
+  const [shablonlar, setShablonlar] = useState<Shablon[]>([])
+  const [shablonOchiq, setShablonOchiq] = useState(false)
+  const [yangiSavol, setYangiSavol] = useState("")
+  const [yangiJavob, setYangiJavob] = useState("")
+  const [yangiTarmoq, setYangiTarmoq] = useState<"hammasi" | Platforma>("hammasi")
+  const [shablonBand, setShablonBand] = useState(false)
 
   /**
    * Yuklash funksiyasi HOLATNI O'ZGARTIRMASDAN boshlanadi.
@@ -155,6 +174,75 @@ export default function Izohlar() {
       ? { ...i, yozuv: { ...BOSH_YOZUV, ...(i.yozuv || {}), comment_id: id, ...y } }
       : i))
   }
+
+  /* ======================= TAYYOR JAVOBLAR =======================
+   *
+   * Ro'yxat TALAB BO'YICHA yuklanadi — bo'lim ochilgandagina. Izohlar
+   * varag'ini ochgan odamning ko'pchiligiga u kerak emas, so'rov esa
+   * bekorga ketardi.
+   */
+  const shablonlarniYukla = useCallback(async () => {
+    try {
+      const d = await api<{ shablonlar: Shablon[] }>("/izohlar?action=shablon_list")
+      setShablonlar(d.shablonlar || [])
+    } catch {
+      setXato(tr("Tayyor javoblarni yuklab bo'lmadi"))
+    }
+  }, [])
+
+  const shablonBolimi = () => {
+    const ochilyapti = !shablonOchiq
+    setShablonOchiq(ochilyapti)
+    if (ochilyapti && shablonlar.length === 0) void shablonlarniYukla()
+  }
+
+  const shablonQosh = async () => {
+    const savol = yangiSavol.trim()
+    const javob = yangiJavob.trim()
+    if (savol.length < 2 || javob.length < 2) {
+      setXato(tr("Ikkala maydonni ham to'ldiring"))
+      return
+    }
+    setShablonBand(true)
+    setXato("")
+    try {
+      const d = await api<{ shablonlar: Shablon[] }>("/izohlar?action=shablon_saqla", {
+        method: "POST",
+        body: JSON.stringify({ savol, javob, platform: yangiTarmoq }),
+      })
+      setShablonlar(d.shablonlar || [])
+      // Maydonlar tozalanadi — ketma-ket bir nechta shablon yozish oson bo'lsin
+      setYangiSavol("")
+      setYangiJavob("")
+      setXabar(tr("✅ Tayyor javob qo'shildi"))
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("Saqlab bo'lmadi"))
+    } finally {
+      setShablonBand(false)
+    }
+  }
+
+  const shablonniOchir = async (id: string) => {
+    setShablonBand(true)
+    try {
+      const d = await api<{ shablonlar: Shablon[] }>("/izohlar?action=shablon_ochir", {
+        method: "POST", body: JSON.stringify({ id }),
+      })
+      setShablonlar(d.shablonlar || [])
+    } catch (e) {
+      setXato(e instanceof Error ? e.message : tr("O'chirib bo'lmadi"))
+    } finally {
+      setShablonBand(false)
+    }
+  }
+
+  /** Shablon matnini javob maydoniga qo'yadi (yubormaydi — ko'rib chiqasiz) */
+  const shablonniQoy = (izohId: string, javob: string) => {
+    setMatnlar((p) => ({ ...p, [izohId]: javob }))
+  }
+
+  /** Shu tarmoqda ishlaydigan shablonlar — tanlash ro'yxati uchun */
+  const tarmoqShablonlari = shablonlar.filter((s) => s.faol && (!s.platform || s.platform === tarmoq))
 
   const aiJavob = async (i: Izoh) => {
     setBand(i.id); setXabar("")
@@ -230,8 +318,25 @@ export default function Izohlar() {
     setXabar("")
     try {
       const tana: Record<string, string> = {}
-      // Avtomatik rejim faqat KO'RILAYOTGAN tarmoq uchun yoziladi
-      if (yangi.avto !== undefined) tana["izoh_avto_" + tarmoq] = String(yangi.avto[tarmoq])
+      /**
+       * O'ZGARGAN tarmoqlarning HAMMASI yoziladi.
+       *
+       * Ilgari faqat ko'rilayotgan tarmoq yozilardi
+       * (`izoh_avto_${tarmoq}`) — bitta katakcha uchun to'g'ri edi,
+       * lekin "hammasini yoqish" tugmasi to'rttasini birdan
+       * o'zgartiradi va uchtasi jimgina yo'qolardi.
+       *
+       * Endi eski holat bilan solishtiriladi: nima o'zgargan bo'lsa
+       * o'sha ketadi. Bitta katakcha bosilganda ham xuddi shu kod
+       * ishlaydi — bitta kalit jo'natiladi.
+       */
+      if (yangi.avto !== undefined) {
+        for (const t of TARMOQLAR) {
+          if (yangi.avto[t.k] !== oldingi.avto[t.k]) {
+            tana["izoh_avto_" + t.k] = String(yangi.avto[t.k])
+          }
+        }
+      }
       if (yangi.ohang !== undefined) tana.izoh_ohang = yangi.ohang
       if (yangi.til !== undefined) tana.izoh_til = yangi.til
       if (yangi.limit !== undefined) tana.izoh_limit = String(yangi.limit)
@@ -268,6 +373,8 @@ export default function Izohlar() {
 
   const avtoYoqilgan = Boolean(sozlama?.avto?.[tarmoq])
   const tarmoqNomi = TARMOQLAR.find((t) => t.k === tarmoq)?.nom || tarmoq
+  const yoqilganSoni = TARMOQLAR.filter((t) => sozlama?.avto?.[t.k]).length
+  const hammasiYoqilgan = yoqilganSoni === TARMOQLAR.length
 
   return (
     <div className={card}>
@@ -334,6 +441,36 @@ export default function Izohlar() {
                 </span>
               </label>
 
+              {/*
+                HAMMA TARMOQNI BIRDAN YOQISH.
+                Yuqoridagi katakcha bittasini boshqaradi — to'rttasini
+                yoqish uchun to'rt marta varaq almashtirish kerak edi.
+                Bu tugma to'rtalasini bitta so'rovda yozadi.
+                Alohida turadi va matni ochiq: bu KENGROQ harakat,
+                tasodifan bosilmasligi kerak.
+              */}
+              <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg bg-white/70 p-3">
+                <input type="checkbox" checked={hammasiYoqilgan}
+                  onChange={(e) => {
+                    const q = e.target.checked
+                    const avto = { ...sozlama.avto }
+                    for (const t of TARMOQLAR) avto[t.k] = q
+                    void sozlamaSaqla({ avto })
+                  }}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-green" />
+                <span>
+                  <span className="block text-sm font-bold">
+                    {tr("Hamma tarmoqda avtomatik javob")}
+                    <span className="ml-2 rounded bg-green/15 px-1.5 py-0.5 text-[10px] font-bold text-green">
+                      {yoqilganSoni}/{TARMOQLAR.length}
+                    </span>
+                  </span>
+                  <span className="block text-xs text-muted">
+                    {tr("YouTube, Instagram, Facebook va Telegram — to'rttasini birdan yoqadi yoki o'chiradi.")}
+                  </span>
+                </span>
+              </label>
+
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <label className="block text-xs font-bold text-muted">
                   {tr("Javob tili")}
@@ -368,6 +505,109 @@ export default function Izohlar() {
               </label>
             </div>
           )}
+
+          {/* ================= TAYYOR JAVOBLAR =================
+              Bir xil savolga bir xil javob. Ikkita maydon: izohda
+              nima yozilsa va nima javob berish. Mos kelgan izohga AI
+              umuman chaqirilmaydi. */}
+          <div className="mt-4 rounded-xl border border-green/15 bg-white/70">
+            <button onClick={shablonBolimi}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left">
+              <span>
+                <span className="block text-sm font-bold">
+                  {tr("Tayyor javoblar")}
+                  {shablonlar.length > 0 && (
+                    <span className="ml-2 rounded bg-green/15 px-1.5 py-0.5 text-[10px] font-bold text-green">
+                      {shablonlar.length}
+                    </span>
+                  )}
+                </span>
+                <span className="block text-xs text-muted">
+                  {tr("Bir xil savolga bir xil javob — AI chaqirilmaydi")}
+                </span>
+              </span>
+              <Icon d={shablonOchiq ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} className="h-4 w-4 shrink-0 text-muted" />
+            </button>
+
+            {shablonOchiq && (
+              <div className="border-t border-green/10 p-4">
+                {/* --- Yangi qo'shish: IKKITA MAYDON --- */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs font-bold text-muted">
+                    {tr("Izohda shu yozilsa")}
+                    <textarea rows={3} value={yangiSavol} onChange={(e) => setYangiSavol(e.target.value)}
+                      placeholder={tr("narx qancha, narxi qanday, qancha turadi")}
+                      className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2 text-sm font-normal text-ink outline-none focus:border-green" />
+                    <span className="mt-1 block font-normal text-[11px] leading-snug text-muted">
+                      {tr("Bir nechta variantni vergul bilan ajrating. Kam so'z yozsangiz — ko'proq izohga mos keladi.")}
+                    </span>
+                  </label>
+
+                  <label className="block text-xs font-bold text-muted">
+                    {tr("Shu javob yuboriladi")}
+                    <textarea rows={3} value={yangiJavob} onChange={(e) => setYangiJavob(e.target.value)}
+                      placeholder={tr("Salom! Narxlar bo'yicha bizga yozing, batafsil aytamiz.")}
+                      className="mt-1 w-full resize-y rounded-lg border border-green/20 bg-white px-3 py-2 text-sm font-normal text-ink outline-none focus:border-green" />
+                    <span className="mt-1 block font-normal text-[11px] leading-snug text-muted">
+                      {tr("Matn AYNAN shu ko'rinishda ketadi — AI unga tegmaydi.")}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <label className="block text-xs font-bold text-muted">
+                    {tr("Qaysi tarmoqda")}
+                    <select value={yangiTarmoq} onChange={(e) => setYangiTarmoq(e.target.value as typeof yangiTarmoq)}
+                      className="mt-1 block rounded-lg border border-green/20 bg-white px-3 py-2 text-sm font-normal text-ink outline-none focus:border-green">
+                      <option value="hammasi">{tr("Hamma tarmoqda")}</option>
+                      {TARMOQLAR.map((t) => <option key={t.k} value={t.k}>{t.nom}</option>)}
+                    </select>
+                  </label>
+                  <button onClick={() => void shablonQosh()} disabled={shablonBand}
+                    className="rounded-lg bg-green px-4 py-2 text-xs font-bold text-white disabled:opacity-60">
+                    {tr("Qo'shish")}
+                  </button>
+                </div>
+
+                {/* --- Mavjud shablonlar --- */}
+                {shablonlar.length === 0 ? (
+                  <p className="mt-4 text-xs text-muted">
+                    {tr("Hali tayyor javob yo'q. Yuqorida birinchisini yozing.")}
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-2">
+                    {shablonlar.map((s) => (
+                      <li key={s.id} className="flex items-start gap-3 rounded-lg border border-green/10 bg-white p-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded bg-soft px-1.5 py-0.5 text-[10px] font-bold text-ink">
+                              {s.platform ? TARMOQLAR.find((t) => t.k === s.platform)?.nom : tr("Hammasi")}
+                            </span>
+                            {s.ishlatilgan > 0 && (
+                              <span className="rounded bg-green/10 px-1.5 py-0.5 text-[10px] font-bold text-green">
+                                {s.ishlatilgan}× {tr("ishlatilgan")}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 break-words text-xs font-bold text-ink">{s.savol}</p>
+                          <p className="mt-0.5 break-words text-xs text-muted">→ {s.javob}</p>
+                        </div>
+                        <button onClick={() => void shablonniOchir(s.id)} disabled={shablonBand}
+                          title={tr("O'chirish")}
+                          className="shrink-0 rounded-lg border border-green/15 p-1.5 text-muted transition-colors hover:text-red-500 disabled:opacity-50">
+                          {/* `I` to'plamida o'chirish ikonkasi yo'q —
+                              boshqa panellarda ham xuddi shu yo'l
+                              bevosita yozilgan */}
+                          <Icon d="M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M10 11v6 M14 11v6"
+                            className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ---------------- Ro'yxat ---------------- */}
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -463,6 +703,24 @@ export default function Izohlar() {
                             className="rounded-lg border border-green/15 px-3 py-1.5 text-xs font-bold text-muted disabled:opacity-60">
                             {tr("Kerak emas")}
                           </button>
+
+                          {/* Tayyor javobni QO'LDA qo'yish. Faqat matn
+                              maydoniga tushadi — ko'rib, kerak bo'lsa
+                              tahrirlab, o'zingiz yuborasiz.
+                              Shablon yo'q bo'lsa umuman ko'rinmaydi. */}
+                          {tarmoqShablonlari.length > 0 && (
+                            <select value="" disabled={ish}
+                              onChange={(e) => {
+                                const s = tarmoqShablonlari.find((x) => x.id === e.target.value)
+                                if (s) shablonniQoy(i.id, s.javob)
+                              }}
+                              className="rounded-lg border border-green/20 bg-white px-2 py-1.5 text-xs font-bold text-ink outline-none focus:border-green disabled:opacity-60">
+                              <option value="">{tr("Tayyor javob…")}</option>
+                              {tarmoqShablonlari.map((s) => (
+                                <option key={s.id} value={s.id}>{s.savol.slice(0, 40)}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </>
                     )}

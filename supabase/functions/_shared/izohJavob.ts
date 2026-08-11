@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./supabase.ts"
 // Faqat Gemini — sabab pastda, PROVAYDERLAR ZANJIRI izohida.
 import { geminiChat } from "./gemini.ts"
+import { ishlatildi, mosShablon } from "./izohShablon.ts"
 import { aiKalitBormi } from "./aiKalit.ts"
 import { sarfYoz } from "./aiKesh.ts"
 import {
@@ -180,6 +181,36 @@ export async function javobYoz(q: {
 }): Promise<JavobNatija> {
   const sabab = otkazSababi(q.izoh)
   if (sabab) return { holat: "otkaz", sabab }
+
+  /**
+   * TAYYOR JAVOB — AI DAN OLDIN.
+   *
+   * Izohlarning katta qismi bir xil savol ("narxi qancha",
+   * "hamkorlik qilasizmi"). Tahririyat javobni bir marta yozib
+   * qo'yadi va o'sha savol uchraganda AYNAN o'sha matn ketadi.
+   *
+   * NEGA AI DAN OLDIN, keyin emas:
+   *   - bir xil savolga bir xil javob kafolatlanadi (AI har safar
+   *     boshqacha yozardi va kanal nomidan chiqadigan matn uchun bu
+   *     yomon);
+   *   - AI aynan shu savollarga javob BERA OLMAYDI — prompt narx,
+   *     manzil va yetkazib berishni ataylab taqiqlaydi, ya'ni u
+   *     baribir SKIP qaytarardi va izoh javobsiz qolardi;
+   *   - Gemini so'rovi ketmaydi: tekin, bir zumda va kvota tejaladi
+   *     (zaxira provayder yo'q).
+   *
+   * ARZON FILTRDAN KEYIN turadi: spam izohga shablon bilan javob
+   * berishning ma'nosi yo'q.
+   *
+   * Xato bo'lsa oqim AI ga o'tadi — `mosShablon` istisno otmaydi.
+   */
+  const shablon = await mosShablon(q.izoh, q.platforma || "youtube")
+  if (shablon) {
+    // Javob KUTILMAYDI: bu hisob-kitob, javob yuborishni ushlab
+    // turmasligi kerak
+    void ishlatildi(shablon.id)
+    return { holat: "javob", matn: shablon.javob, provayder: "Shablon" }
+  }
 
   const prompt = promptYasa({
     izoh: q.izoh.trim().slice(0, 1200),
