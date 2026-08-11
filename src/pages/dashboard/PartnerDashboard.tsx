@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import DashboardLayout from "../../components/DashboardLayout"
-import { Icon, I, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
+import { Link, useNavigate } from "react-router-dom"
+import { Icon, I, logo, Skeleton, SkeletonStatGrid, ErrorState } from "../../lib/ui"
 import { api } from "../../lib/api"
 import { useAuth } from "../../lib/auth"
 import { tr } from "../../lib/i18n"
@@ -9,19 +8,19 @@ import { tr } from "../../lib/i18n"
 /**
  * HAMKOR KABINETI — FAQAT VIDEOLAR STATISTIKASI.
  *
- * Ilgari yetti bo'lim bor edi: Umumiy, Kompaniya profili, Shartnoma,
- * Videolar, Topshiriqlar, Hisobot, Sozlamalar. Hammasi OLIB
- * TASHLANDI (~1600 qator) — kompaniyaga ulardan hech biri kerak
+ * Ilgari yetti bo'lim va yon menyu bor edi: Umumiy, Kompaniya
+ * profili, Shartnoma, Videolar, Topshiriqlar, Hisobot, Sozlamalar.
+ * Hammasi olib tashlandi — kompaniyaga ulardan hech biri kerak
  * emasligi aytildi.
  *
  * Qoladigan yagona narsa: bloger o'z profiliga video qo'shayotib shu
- * kompaniyani belgilagan bo'lsa, o'sha video va uning ko'rsatkichlari
- * shu yerda ko'rinadi. Boshqa hech narsa.
+ * kompaniyani belgilagan bo'lsa, o'sha videolarning KO'RSATKICHLARI.
+ * Videolar ro'yxatining o'zi ham kerak emas — faqat raqamlar va
+ * diagrammalar.
  *
- * Bitta bo'lim qolgani uchun yon menyu tanlov emas — u faqat
- * chiqish tugmasi va foydalanuvchi nomini ushlab turadi.
+ * Bitta sahifa qolgani uchun yon menyu ham yo'q (pastdagi izohga
+ * qarang).
  */
-const nav = [{ label: "Statistika", icon: I.chart }]
 
 type Task = { id: number; title: string; status: "done" | "progress" | "pending" }
 type Partner = {
@@ -182,12 +181,15 @@ const partnerStatusMeta: Record<string, { label: string; cls: string }> = {
   pending: { label: tr("Kutilmoqda"), cls: "bg-orange-100 text-orange-600" },
   completed: { label: tr("Yakunlangan"), cls: "bg-blue-100 text-blue-600" },
 }
-const card = "min-w-0 rounded-2xl border border-green/10 bg-white p-6 shadow-[0_4px_24px_rgba(91,180,32,0.05)]"
+/**
+ * Kartalarning umumiy uslubi.
+ * `rounded-3xl` + kuchliroq soya: bloklar fondan aniq ajralib tursin,
+ * chunki sahifada endi yon menyu yo'q va tuzilishni faqat kartalar
+ * beradi.
+ */
+const card = "min-w-0 rounded-3xl border border-green/10 bg-white p-6 shadow-[0_8px_30px_rgba(91,180,32,0.07)]"
 
 export default function PartnerDashboard() {
-  // Bo'lim bitta — tanlov yo'q, lekin DashboardLayout yon menyuni
-  // belgilash uchun joriy nomni kutadi
-  const [active] = useState("Statistika")
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState("")
@@ -213,67 +215,94 @@ export default function PartnerDashboard() {
   const ps = partner ? (partnerStatusMeta[partner.status] || partnerStatusMeta.active) : null
 
   return (
-    <DashboardLayout
-      nav={nav}
-      active={active}
-      onNav={() => {}}
-      onLogout={doLogout}
-      user={{ name: user?.name || tr("Hamkor"), role: tr("Hamkor kompaniya"), initials }}
-    >
-      {loading && (
-        <div className="space-y-6">
-          <SkeletonStatGrid />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-64 w-full rounded-2xl" />
-            <Skeleton className="h-64 w-full rounded-2xl" />
-          </div>
-        </div>
-      )}
-      {/* Ilgari bu yerda faqat xato matni turardi — sabab ham, qayta
-          urinish tugmasi ham yo'q edi. */}
-      {err && !loading && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="font-semibold text-red-600">{err}</p>
-          <p className="mt-1 text-sm text-red-500">{tr("Internet aloqasini tekshiring yoki qaytadan kiring.")}</p>
-          <button onClick={reload}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white">
-            <Icon d={I.refresh} className="h-4 w-4" /> Qayta urinish
-          </button>
-        </div>
-      )}
-      {!loading && !err && !partner && (
-        <div className="grid min-h-[50vh] place-items-center text-center">
-          <div>
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.building} className="h-8 w-8" /></span>
-            <h2 className="mt-4 font-display text-xl font-bold">{tr("Kompaniya topilmadi")}</h2>
-            <p className="mt-2 text-muted">{tr("Hisobingizga biriktirilgan hamkor kompaniya topilmadi. Administrator bilan bog'laning.")}</p>
-          </div>
-        </div>
-      )}
+    /**
+     * YON MENYU YO'Q.
+     *
+     * Kabinetda bitta sahifa qoldi — tanlanadigan bo'lim yo'q, ya'ni
+     * yon panel faqat joy egallab, bitta yoqilgan tugmani ko'rsatib
+     * turardi. O'rniga ixcham yuqori panel: kompaniya nomi va chiqish.
+     *
+     * `DashboardLayout` shu sababdan ishlatilmaydi — u nav ro'yxati
+     * atrofida qurilgan.
+     */
+    <div className="min-h-screen bg-[#f7faf4]">
+      <header className="sticky top-0 z-30 border-b border-green/10 bg-white/85 backdrop-blur">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src={logo} alt="" width={88} height={88} className="h-8 w-8 object-contain" />
+            <span className="font-display text-base font-extrabold tracking-tight">
+              AGRO <span className="text-green">ALLIANCE</span>
+            </span>
+          </Link>
 
-      {partner && (
-        <>
-          {/* Header — QOG'OZGA TUSHMAYDI: hujjatning o'z sarlavhasi bor
-              va kabinet sarlavhasi uning ustida takrorlanib turardi */}
-          <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-            <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-green/10 text-green"><Icon d={I.building} className="h-7 w-7" /></span>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <div className="text-sm font-bold leading-tight">{user?.name || tr("Hamkor")}</div>
+              <div className="text-[11px] text-muted">{tr("Hamkor kompaniya")}</div>
+            </div>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-green/10 text-sm font-bold text-green">{initials}</span>
+            <button onClick={doLogout} title={tr("Chiqish")} aria-label={tr("Chiqish")}
+              className="grid h-9 w-9 place-items-center rounded-xl text-muted transition-colors hover:bg-soft hover:text-ink">
+              <Icon d={I.login} className="h-4.5 w-4.5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1240px] px-4 py-6 sm:px-6">
+        {loading && (
+          <div className="space-y-6">
+            <SkeletonStatGrid />
+            <Skeleton className="h-80 w-full rounded-3xl" />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Skeleton className="h-64 w-full rounded-3xl" />
+              <Skeleton className="h-64 w-full rounded-3xl" />
+            </div>
+          </div>
+        )}
+
+        {err && !loading && (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="font-semibold text-red-600">{err}</p>
+            <p className="mt-1 text-sm text-red-500">{tr("Internet aloqasini tekshiring yoki qaytadan kiring.")}</p>
+            <button onClick={reload}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-bold text-white">
+              <Icon d={I.refresh} className="h-4 w-4" /> {tr("Qayta urinish")}
+            </button>
+          </div>
+        )}
+
+        {!loading && !err && !partner && (
+          <div className="grid min-h-[50vh] place-items-center text-center">
+            <div>
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-soft text-green"><Icon d={I.building} className="h-8 w-8" /></span>
+              <h2 className="mt-4 font-display text-xl font-bold">{tr("Kompaniya topilmadi")}</h2>
+              <p className="mt-2 text-muted">{tr("Hisobingizga biriktirilgan hamkor kompaniya topilmadi. Administrator bilan bog'laning.")}</p>
+            </div>
+          </div>
+        )}
+
+        {partner && (
+          <>
+            {/* Kompaniya sarlavhasi — kimning paneli ekani ko'rinib tursin */}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-green/10 text-green">
+                <Icon d={I.building} className="h-6 w-6" />
+              </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="font-display text-2xl font-extrabold tracking-tight">{partner.name}</h1>
                   {ps && <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${ps.cls}`}>{ps.label}</span>}
                 </div>
-                <p className="mt-0.5 text-sm text-muted">{partner.sphere || tr("Hamkor kompaniya")} • {tr("Hamkorlik kabineti")}</p>
+                <p className="mt-0.5 text-sm text-muted">{partner.sphere || tr("Hamkor kompaniya")}</p>
               </div>
             </div>
-          </div>
 
-          {/* Yagona mazmun — shu kompaniyaga biriktirilgan videolar
-              va ularning ko'rsatkichlari */}
-          <PartnerVideos partnerId={String(partner.id)} />
-        </>
-      )}
-    </DashboardLayout>
+            <PartnerVideos partnerId={String(partner.id)} />
+          </>
+        )}
+      </main>
+    </div>
   )
 }
 
@@ -377,10 +406,12 @@ function OylikGrafik({ data, tanlangan, onTanla }: {
                   </span>
                 )}
                 <div
-                  className="w-full max-w-[24px] rounded-t transition-[height,opacity]"
+                  className="w-full max-w-[26px] rounded-t-lg transition-[height,opacity]"
                   style={{
                     height: d.views > 0 ? `max(${bal}%, 3px)` : "2px",
-                    background: d.views > 0 ? USTUN_RANG : "#e5e7eb",
+                    // Gradient: ustun tagi to'q, uchi ochroq — tekis
+                    // rangga qaraganda balandlik yaxshiroq o'qiladi
+                    background: d.views > 0 ? `linear-gradient(180deg, #6cc02c 0%, ${USTUN_RANG} 100%)` : "#e5e7eb",
                     // Oy tanlanganda faqat o'sha ustun to'liq rangda —
                     // qaysi oy ko'rilayotgani bir qarashda bilinsin
                     opacity: tanlangan ? (tanlandi ? 1 : 0.3) : (ustida === null || faol ? 1 : 0.55),
@@ -753,27 +784,41 @@ function TahlilRoyxat({ sarlavha, bosh, rang, elementlar }: {
 function Viloyatlar({ list }: { list: { viloyat: string; videos: number; views: number; likes: number }[] }) {
   const son = (n: number) => n.toLocaleString("ru-RU")
   const eng = Math.max(1, ...list.map((r) => r.views))
+  const jamiKorish = list.reduce((a, r) => a + r.views, 0)
   return (
     <div className={card}>
       <h3 className="font-display text-lg font-extrabold">{tr("Viloyatlar bo'yicha")}</h3>
       <p className="mt-1 text-xs text-muted">
         {tr("Har bir video bitta viloyatga yoziladi.")}
       </p>
-      <ul className="mt-4 space-y-3">
-        {list.map((r) => (
-          <li key={r.viloyat}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-sm font-bold">{r.viloyat}</span>
-              <span className="shrink-0 text-sm font-extrabold text-green">{son(r.views)}</span>
-            </div>
-            {/* Ustun uzunligi eng katta viloyatga nisbatan — mutlaq
-                songa emas, aks holda kichik viloyatlar ko'rinmasdi */}
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-soft">
-              <div className="h-full rounded-full bg-green" style={{ width: `${(r.views / eng) * 100}%` }} />
-            </div>
-            <div className="mt-1 flex gap-3 text-[11px] text-muted">
-              <span>{r.videos} {tr("video")}</span>
-              <span>{son(r.likes)} {tr("layk")}</span>
+      <ul className="mt-5 space-y-4">
+        {list.map((r, i) => (
+          <li key={r.viloyat} className="flex items-start gap-3">
+            {/* Tartib raqami — reyting bir qarashda o'qilsin */}
+            <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-green/10 text-[11px] font-extrabold text-green">
+              {i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm font-bold">{r.viloyat}</span>
+                <span className="shrink-0 font-display text-base font-extrabold text-green">{son(r.views)}</span>
+              </div>
+              {/* Ustun uzunligi eng katta viloyatga nisbatan — mutlaq
+                  songa emas, aks holda kichik viloyatlar ko'rinmasdi */}
+              <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-soft">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${Math.max(3, (r.views / eng) * 100)}%`,
+                    background: "linear-gradient(90deg, #6cc02c 0%, #2f7d1f 100%)",
+                  }}
+                />
+              </div>
+              <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted">
+                <span>{r.videos} {tr("video")}</span>
+                <span>{son(r.likes)} {tr("layk")}</span>
+                <span>{jamiKorish > 0 ? Math.round((r.views / jamiKorish) * 100) : 0}%</span>
+              </div>
             </div>
           </li>
         ))}
@@ -815,10 +860,14 @@ function KunlikGrafik({ data }: { data: { kun: string; views: number; likes: num
           {data.map((d) => (
             <div key={d.kun} className="group relative flex-1" title={`${d.kun}: ${son(d.views)} ko'rish, ${d.videos} video`}>
               <div
-                className={`w-full rounded-t transition-colors ${d.videos > 0 ? "bg-green/70 group-hover:bg-green" : "bg-soft"}`}
+                className="w-full rounded-t transition-opacity hover:opacity-80"
+                /* Gradient — oylik grafikdagi bilan bir xil til */
                 /* Video yo'q kunlar ham ko'rinib tursin — vaqt o'qi
                    uzilib qolmasligi kerak */
-                style={{ height: `${Math.max(d.views > 0 ? 6 : 2, (d.views / eng) * 100)}%` }}
+                style={{
+                  height: `${Math.max(d.views > 0 ? 6 : 2, (d.views / eng) * 100)}%`,
+                  background: d.videos > 0 ? "linear-gradient(180deg, #6cc02c 0%, #2f7d1f 100%)" : "#eef2ec",
+                }}
               />
             </div>
           ))}
@@ -952,15 +1001,21 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: tr("Videolar"), v: son(korsatkich.total), sub: tr("shu kompaniya uchun"), n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
-          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: tr("barcha platformalar"), n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
-          { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: tr("like"), n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
-          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: tr("komment"), n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
+          { icon: I.media, t: tr("Videolar"), v: son(korsatkich.total), sub: tr("shu kompaniya uchun"), n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0, rang: "#2f7d1f" },
+          { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: tr("barcha platformalar"), n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0, rang: "#5bb420" },
+          { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: tr("like"), n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0, rang: "#e8a33d" },
+          { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: tr("komment"), n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0, rang: "#3b82c4" },
         ].map((s) => (
-          <div key={s.t} className="min-w-0 rounded-2xl border border-green/10 bg-white p-5 shadow-[0_4px_24px_rgba(91,180,32,0.05)]">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-soft text-green"><Icon d={s.icon} className="h-5 w-5" /></span>
+          /* Har ko'rsatkichga o'z rangi — to'rtta bir xil yashil karta
+             bir-biriga qo'shilib ketardi va ko'z qaysi raqamni
+             qidirayotganini topolmasdi */
+          <div key={s.t} className="relative min-w-0 overflow-hidden rounded-3xl border border-green/10 bg-white p-5 shadow-[0_8px_30px_rgba(91,180,32,0.07)]">
+            <span className="absolute inset-x-0 top-0 h-1" style={{ background: s.rang }} />
+            <span className="grid h-11 w-11 place-items-center rounded-2xl" style={{ background: `${s.rang}1a`, color: s.rang }}>
+              <Icon d={s.icon} className="h-5 w-5" />
+            </span>
             <div className="mt-3 text-xs text-muted">{tr(s.t)}</div>
-            <div className="mt-1 font-display text-2xl font-extrabold truncate">{s.v}</div>
+            <div className="mt-1 truncate font-display text-3xl font-extrabold leading-tight">{s.v}</div>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold text-green">{tr(s.sub)}</span>
               {/* O'zgarish faqat oy tanlanganda — solishtiradigan davr o'shanda bor */}
@@ -998,11 +1053,12 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
         <OylikGrafik data={stats.monthly} tanlangan={oy} onTanla={setOy} />
       )}
 
-      {stats?.daily && <KunlikGrafik data={stats.daily} />}
-
-      {stats?.regions && stats.regions.length > 0 && (
-        <div className="mt-6"><Viloyatlar list={stats.regions} /></div>
-      )}
+      {/* Kunlik va viloyat yonma-yon — keng ekranda bo'sh joy
+          qolmasin, torda esa ustma-ust tushadi */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {stats?.daily && <KunlikGrafik data={stats.daily} />}
+        {stats?.regions && stats.regions.length > 0 && <Viloyatlar list={stats.regions} />}
+      </div>
 
       <IzohlarTahlili partnerId={partnerId} />
 
