@@ -21,18 +21,68 @@ const benefits: BenefitItem[] = [
 
 const iconMap: Record<string, string> = { sprout: I.sprout, shield: I.shield, tractor: I.tractor, cap: I.cap, megaphone: I.megaphone, handshake: I.handshake, globe: I.globe, users: I.users, building: I.building, star: I.star }
 
-function BrandChip({ name }: { name: string }) {
+/** Fon lentasidagi bitta brend — logo bo'lsa rasm, bo'lmasa nomi */
+type Brend = { name: string; logo: string | null }
+
+function BrandChip({ brend }: { brend: Brend }) {
   // backdrop-blur ataylab olib tashlangan: qatorlar 3 tadan 7 taga oshgach
   // 126 ta backdrop-filter qatlami hosil bo'lardi. Chip orqasida tekis fon
   // (bg-soft) turgani uchun blur ko'rinmasdi ham — faqat GPU yuki edi.
+  // Yumshoqlik endi butun lentaga BIR MARTA berilgan (qarang: BrandCarousel).
   return (
     <div className="grid h-16 min-w-[150px] place-items-center rounded-2xl border border-green/10 bg-white/90 px-6 font-display text-sm font-extrabold tracking-tight text-ink/65 shadow-[0_4px_20px_rgba(91,180,32,0.07)]">
-      {name}
+      {brend.logo ? (
+        <img
+          src={brend.logo}
+          /**
+           * BEZAK RASM — matn muqobili ATAYLAB bo'sh.
+           *
+           * Bu fon lentasi: brend nomlari sahifaning pastidagi
+           * "Hamkorlarimiz" bo'limida matn bilan baribir bor. Ekran
+           * o'quvchi uchun bu yerda ularni takrorlash faqat shovqin,
+           * shuning uchun butun qatlam `aria-hidden`.
+           */
+          alt=""
+          loading="lazy"
+          decoding="async"
+          /**
+           * Ba'zi manbalar (Google thumbnail, ayrim CDN lar) begona
+           * saytdan kelgan so'rovni referrer bo'yicha rad etadi.
+           * Referrersiz so'rov oddiy ochilish kabi ko'rinadi va
+           * yuklanish ehtimoli ortadi. Bizga zarari yo'q: bu bezak
+           * rasm, hech qanday hisob talab qilmaydi.
+           */
+          referrerPolicy="no-referrer"
+          /**
+           * Logolar tashqi manbalardan (wikimedia, gstatic va h.k.) va
+           * o'lchamlari har xil. `object-contain` + chegaralar ularni
+           * cho'zmasdan chipga sig'diradi.
+           */
+          className="max-h-9 max-w-[110px] object-contain"
+          /**
+           * Rasm ochilmasa (tashqi manba yiqilsa) chipda BO'SH joy
+           * qolmasin — o'rniga brend nomi chiqadi.
+           */
+          onError={(e) => {
+            const img = e.currentTarget
+            img.style.display = "none"
+            const ota = img.parentElement
+            if (ota && !ota.querySelector("[data-zaxira]")) {
+              const span = document.createElement("span")
+              span.dataset.zaxira = "1"
+              span.textContent = brend.name
+              ota.appendChild(span)
+            }
+          }}
+        />
+      ) : (
+        brend.name
+      )}
     </div>
   )
 }
 
-function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "right"; duration: string }) {
+function MarqueeRow({ items, dir, duration }: { items: Brend[]; dir: "left" | "right"; duration: string }) {
   const loop = [...items, ...items]
   return (
     <div className="flex overflow-hidden">
@@ -41,7 +91,7 @@ function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "
         style={{ animationDuration: duration }}
       >
         {loop.map((p, i) => (
-          <BrandChip key={`${p}-${i}`} name={p} />
+          <BrandChip key={`${p.name}-${i}`} brend={p} />
         ))}
       </div>
     </div>
@@ -49,10 +99,10 @@ function MarqueeRow({ items, dir, duration }: { items: string[]; dir: "left" | "
 }
 
 function BrandCarousel() {
-  const [livePartners, setLivePartners] = useState<string[]>([])
+  const [livePartners, setLivePartners] = useState<Brend[]>([])
   useEffect(() => {
     api<{ partners: LivePartner[] }>("/public/partners").then((d) => {
-      if (d.partners?.length) setLivePartners(d.partners.map((p) => p.name))
+      if (d.partners?.length) setLivePartners(d.partners.map((p) => ({ name: p.name, logo: p.logo })))
     }).catch(() => {})
   }, [])
   const marqueeRows = useMemo(() => {
@@ -72,7 +122,22 @@ function BrandCarousel() {
     })
   }, [livePartners])
   return (
-    <div className="marquee-track absolute inset-0 flex flex-col justify-center gap-3 py-4">
+    /**
+     * BLUR BUTUN LENTAGA — BIR MARTA.
+     *
+     * Har chipga alohida `blur` berilsa 7 qator x 16 chip = 112 ta
+     * filtr qatlami hosil bo'lardi va ularning hammasi har kadrda
+     * qayta hisoblanardi (lenta doim harakatda). Bu yerda esa bitta
+     * qatlam: ko'rinishi bir xil, narxi o'nlab marta arzon.
+     *
+     * Aynan shu sabab bilan ilgari `backdrop-blur` chiplardan olib
+     * tashlangan edi — yuqoridagi izohga qarang.
+     *
+     * 2px — logolar tanilib turadigan, lekin matnni o'qishga
+     * xalaqit bermaydigan chegara. Ustidagi oq qatlamlar bilan
+     * birgalikda fon yumshoq bo'lib qoladi.
+     */
+    <div className="marquee-track absolute inset-0 flex flex-col justify-center gap-3 py-4 blur-[2px]">
       {marqueeRows.map((r, i) => (
         <MarqueeRow key={i} items={r.items} dir={r.dir} duration={r.duration} />
       ))}
@@ -90,7 +155,9 @@ function Hero() {
   const fade = hero.loading ? "opacity-0" : "opacity-100 transition-opacity duration-300"
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10">
+      {/* Butun qatlam BEZAK: ekran o'quvchi uni o'qimasin — brend
+          nomlari sahifaning pastida matn bilan baribir bor */}
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
         <div className="absolute inset-0 bg-soft" />
         <BrandCarousel />
         <div className="absolute inset-0 bg-white/45" />
