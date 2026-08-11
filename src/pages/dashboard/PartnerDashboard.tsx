@@ -139,10 +139,9 @@ function songa(v: unknown): number {
 }
 
 type Korsatkich = {
-  total: number; views: number; likes: number; comments: number; bloggers: number
+  total: number; views: number; likes: number; comments: number
   platforms: Record<string, number>
   platformViews: Record<string, number>
-  topBloggers: TopBlogger[]
 }
 
 /**
@@ -154,7 +153,6 @@ type Korsatkich = {
 function hisobla(list: PartnerVideo[]): Korsatkich {
   const platforms: Record<string, number> = {}
   const platformViews: Record<string, number> = {}
-  const blogerlar = new Map<string, TopBlogger>()
   let views = 0, likes = 0, comments = 0
 
   for (const v of list) {
@@ -165,22 +163,12 @@ function hisobla(list: PartnerVideo[]): Korsatkich {
     const asosiy = v.plats[0] || "Boshqa"
     platforms[asosiy] = (platforms[asosiy] || 0) + 1
     platformViews[asosiy] = (platformViews[asosiy] || 0) + k
-
-    const b = v.blogger
-    const bor = blogerlar.get(b.id) || {
-      id: b.id, name: b.name, slug: b.slug, avatar: b.avatar,
-      videos: 0, views: 0, likes: 0, comments: 0,
-    }
-    bor.videos += 1; bor.views += k; bor.likes += y; bor.comments += i
-    blogerlar.set(b.id, bor)
   }
 
-  return {
-    total: list.length, views, likes, comments,
-    bloggers: blogerlar.size,
-    platforms, platformViews,
-    topBloggers: [...blogerlar.values()].sort((a, b) => b.views - a.views),
-  }
+  /* Bloger kesimi HISOBLANMAYDI: kompaniyaga video natijasi kerak,
+     kim joylagani emas — "Eng samarali blogerlar" bo'limi bilan
+     birga olib tashlandi. */
+  return { total: list.length, views, likes, comments, platforms, platformViews }
 }
 
 const OY_NOMI = [tr("Yan"), tr("Fev"), tr("Mar"), tr("Apr"), tr("May"), tr("Iyn"), tr("Iyl"), tr("Avg"), tr("Sen"), tr("Okt"), tr("Noy"), tr("Dek")]
@@ -348,20 +336,10 @@ function VideoCard({ v, onOpen }: { v: PartnerVideo; onOpen: () => void }) {
           {v.name}
         </button>
 
-        <div className="mt-1.5 flex items-center gap-1.5">
-          {v.blogger.avatar ? (
-            <img loading="lazy" decoding="async" src={v.blogger.avatar} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
-          ) : (
-            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green/10 text-[9px] font-bold text-green">{v.blogger.name[0]}</span>
-          )}
-          <div className="min-w-0 flex-1">
-            {v.blogger.slug ? (
-              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer" className="block truncate text-[10px] font-bold text-green hover:underline">{v.blogger.name}</a>
-            ) : (
-              <span className="block truncate text-[10px] font-bold">{v.blogger.name}</span>
-            )}
-          </div>
-          <span className="shrink-0 text-[9px] text-muted">{v.date || "—"}</span>
+        {/* Bloger nomi/avatari OLIB TASHLANDI — kompaniyaga video
+            natijasi kerak, kim joylagani emas. Sana qoladi. */}
+        <div className="mt-1.5 flex items-center justify-end">
+          <span className="text-[9px] text-muted">{v.date || "—"}</span>
         </div>
 
         <div className="mt-2 grid grid-cols-3 gap-1 border-t border-green/10 pt-2">
@@ -412,7 +390,6 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
   }, [ytId])
 
   const qatorlar: [string, string][] = [
-    ["Bloger", v.blogger.name],
     [tr("Kanal"), v.channel || "—"],
     ["Platforma", v.plats.join(", ") || "—"],
     [tr("Chiqarilgan sana"), v.date || "—"],
@@ -452,23 +429,7 @@ function VideoModal({ v, onClose }: { v: PartnerVideo; onClose: () => void }) {
             ))}
           </div>
 
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-green/12 p-3">
-            {v.blogger.avatar ? (
-              <img src={v.blogger.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-            ) : (
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-green/10 font-bold text-green">{v.blogger.name[0]}</span>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-bold">{v.blogger.name}</div>
-              <div className="text-[11px] text-muted">{tr("Videoni joylagan bloger")}</div>
-            </div>
-            {v.blogger.slug && (
-              <a href={`/blogerlar/${v.blogger.slug}`} target="_blank" rel="noreferrer"
-                className="shrink-0 rounded-lg border border-green/25 px-3 py-1.5 text-[11px] font-bold text-green transition-colors hover:bg-green hover:text-white">
-                {tr("Profil")}
-              </a>
-            )}
-          </div>
+
 
           <dl className="mt-4 divide-y divide-green/8 rounded-xl border border-green/12">
             {qatorlar.map(([k, val]) => (
@@ -806,61 +767,6 @@ function PlatformaDonut({ stats }: { stats: Korsatkich }) {
  * kattalikni ko'rsatib turibdi, rangga ikkinchi marta yuklash
  * ma'lumot qo'shmaydi.
  */
-function TopBloggers({ list }: { list: TopBlogger[] }) {
-  const [hammasi, setHammasi] = useState(false)
-  if (!list.length) return null
-  const max = Math.max(1, ...list.map((b) => b.views))
-  const korinadigan = hammasi ? list : list.slice(0, 5)
-
-  return (
-    <div className={card}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-display text-lg font-bold">{tr("Eng samarali blogerlar")}</h3>
-        <span className="text-xs text-muted">{tr("ko'rishlar bo'yicha")}</span>
-      </div>
-
-      <div className="mt-4 space-y-3">
-        {korinadigan.map((b, i) => (
-          <div key={b.id} className="flex items-center gap-3">
-            <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-extrabold ${i === 0 ? "bg-green text-white" : "bg-soft text-muted"}`}>
-              {i + 1}
-            </span>
-            {b.avatar
-              ? <img loading="lazy" decoding="async" src={b.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-              : <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-green/10 text-xs font-bold text-green">{b.name[0]}</span>}
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                {b.slug ? (
-                  <a href={`/blogerlar/${b.slug}`} target="_blank" rel="noreferrer"
-                    className="truncate text-sm font-bold hover:text-green hover:underline">{b.name}</a>
-                ) : (
-                  <span className="truncate text-sm font-bold">{b.name}</span>
-                )}
-                <span className="shrink-0 font-display text-sm font-extrabold">{qisqaSon(b.views)}</span>
-              </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-soft">
-                <div className="h-full rounded-full" style={{ width: `${Math.max((b.views / max) * 100, 2)}%`, background: USTUN_RANG }} />
-              </div>
-              <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-muted">
-                <span>{b.videos} {tr("video")}</span>
-                <span>{qisqaSon(b.likes)} {tr("yoqtirish")}</span>
-                <span>{qisqaSon(b.comments)} {tr("izoh")}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {list.length > 5 && (
-        <button onClick={() => setHammasi((h) => !h)}
-          className="mt-4 w-full rounded-xl border border-green/20 py-2 text-xs font-bold text-green transition-colors hover:bg-green/5">
-          {hammasi ? tr("Kamroq") : `${tr("Yana")} ${list.length - 5}`}
-        </button>
-      )}
-    </div>
-  )
-}
 
 /* ---------- Taqqoslash ---------- */
 
@@ -1078,7 +984,7 @@ function Viloyatlar({ list }: { list: { viloyat: string; videos: number; views: 
     <div className={card}>
       <h3 className="font-display text-lg font-extrabold">{tr("Viloyatlar bo'yicha")}</h3>
       <p className="mt-1 text-xs text-muted">
-        {tr("Hudud blogerning asosiy viloyati bo'yicha aniqlanadi.")}
+        {tr("Har bir video bitta viloyatga yoziladi.")}
       </p>
       <ul className="mt-4 space-y-3">
         {list.map((r) => (
@@ -1293,7 +1199,7 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { icon: I.media, t: tr("Videolar"), v: son(korsatkich.total), sub: `${son(korsatkich.bloggers)} ${tr("bloger")}`, n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
+          { icon: I.media, t: tr("Videolar"), v: son(korsatkich.total), sub: tr("shu kompaniya uchun"), n: korsatkich.total, oldin: oldingiKorsatkich?.total ?? 0 },
           { icon: I.eye, t: "Ko'rishlar", v: son(korsatkich.views), sub: tr("barcha platformalar"), n: korsatkich.views, oldin: oldingiKorsatkich?.views ?? 0 },
           { icon: I.star, t: tr("Yoqtirishlar"), v: son(korsatkich.likes), sub: tr("like"), n: korsatkich.likes, oldin: oldingiKorsatkich?.likes ?? 0 },
           { icon: I.message, t: "Izohlar", v: son(korsatkich.comments), sub: tr("komment"), n: korsatkich.comments, oldin: oldingiKorsatkich?.comments ?? 0 },
@@ -1350,7 +1256,6 @@ function PartnerVideos({ partnerId }: { partnerId: string }) {
       {Object.keys(korsatkich.platforms).length > 0 && (
         <div className="grid gap-6 lg:grid-cols-2">
           <PlatformaDonut stats={korsatkich} />
-          <TopBloggers list={korsatkich.topBloggers} />
         </div>
       )}
 

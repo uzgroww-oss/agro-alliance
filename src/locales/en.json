@@ -1333,5 +1333,11 @@
  "band bajarilgan": "items completed",
  "e'tiroz": "complaints",
  "e'tirozsiz": "no complaints",
- "\"PDF yuklab olish\" bosilganda saqlash oynasi ochiladi — u yerda \"PDF sifatida saqlash\" ni tanlang.": "Pressing \"Download PDF\" opens the save dialog — choose \"Save as PDF\" there."
+ "\"PDF yuklab olish\" bosilganda saqlash oynasi ochiladi — u yerda \"PDF sifatida saqlash\" ni tanlang.": "Pressing \"Download PDF\" opens the save dialog — choose \"Save as PDF\" there.",
+ "Viloyatlar bo'yicha": "By region",
+ "Har bir video bitta viloyatga yoziladi.": "Each video is counted in one region.",
+ "Oxirgi 30 kun": "Last 30 days",
+ "Ustun — o'sha kuni chiqarilgan videolar bugungacha yig'gan ko'rish. Bu kunlik o'sish emas.": "The bar shows views collected by videos published that day. This is not daily growth.",
+ "Oxirgi 30 kunda video chiqarilmagan.": "No videos published in the last 30 days.",
+ "shu kompaniya uchun": "for this company"
 }
