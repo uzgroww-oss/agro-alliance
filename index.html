@@ -50,7 +50,9 @@
       Supabase'ga ULANISHNI OLDINDAN boshlaymiz.
       Sayt ma'lumotining hammasi shu domendan keladi, lekin brauzer u haqda
       faqat JS yuklanib bo'lgach biladi. Foydalanuvchilar O'zbekistonda,
-      server esa Frankfurtda — DNS + TLS qo'l siqishi 300ms dan oshadi.
+      Supabase loyihasi esa SINGAPURDA (ap-southeast-1) — DNS + TLS qo'l
+      siqishi 300ms dan oshadi. (Ilgari bu izohda "Frankfurtda" deb
+      yozilgan edi — noto'g'ri.)
       Preconnect uni HTML o'qilayotgan paytda, ya'ni bekorga ketayotgan
       vaqtda boshlab qo'yadi.
     -->
@@ -94,7 +96,7 @@
       sabab yo'qolardi.
 
       Endi so'rov HTML o'qilayotgan payt, ya'ni JavaScript hali
-      yuklanmasdan boshlanadi. Frankfurtga borib kelish (~1 s) React
+      yuklanmasdan boshlanadi. Borib kelish (~1 s) React
       ishga tushayotgan paytga to'g'ri keladi, natijada birinchi
       chizishdayoq HAQIQIY matn chiqadi: skelet ham, siljish ham yo'q.
 
@@ -138,12 +140,26 @@
             til = b === "ru" ? "ru" : b === "en" ? "en" : b === "zh" ? "zh" : "uz"
             localStorage.setItem("aa_lang", til)
           }
+          /*
+            Manzil KESHLOVCHI PROKSI orqali (api/pub/[fn].js).
+
+            Ilgari bu yerda to'g'ridan-to'g'ri Supabase manzili turardi.
+            Endi so'rov Vercel'ning chekka tugunidan o'tadi va u yerda
+            keshlanadi — mehmon Singapurgacha bormaydi. Sabab va
+            o'lchovlar proksi faylida.
+
+            `api.ts` ham AYNAN shu manzilni quradi — ikkalasi mos
+            kelmasa bu va'da topilmay qolardi va so'rov ikki marta
+            ketardi.
+
+            Proksida kalit kerak emas: uni server o'zi qo'yadi.
+          */
           var url =
-            "%VITE_SUPABASE_URL%/functions/v1/public-homepage-sections" +
+            "/api/pub/public-homepage-sections" +
             (til !== "uz" ? "?lang=" + til : "")
           window.__aaBoot = {}
           window.__aaBoot[url] = fetch(url, {
-            headers: { "Content-Type": "application/json", apikey: "%VITE_SUPABASE_ANON_KEY%" },
+            headers: { "Content-Type": "application/json" },
           })
             .then(function (r) {
               return r.ok ? r.json().then(function (d) { return { ok: true, data: d } }) : { ok: false }

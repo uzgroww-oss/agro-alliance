@@ -45,37 +45,57 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "/public/team": "public-team",
 }
 
+/**
+ * OMMAVIY SO'ROVLAR KESHLOVCHI PROKSI ORQALI KETADI.
+ *
+ * `api/pub/[fn].js` — Vercel'ning chekka tuguni. U javobni o'zida
+ * keshlaydi, ya'ni mehmon Singapurgacha bormaydi va bir xil so'rov
+ * bazaga 5 daqiqada bir marta tushadi. Sabab va o'lchovlar o'sha
+ * faylda yozilgan.
+ *
+ * DEV'DA ISHLAMAYDI: Vite serverida `/api/...` yo'q. Shuning uchun
+ * ishlab chiqishda avvalgidek to'g'ridan-to'g'ri Supabase'ga
+ * boriladi — xatti-harakat bir xil, faqat kesh yo'q.
+ */
+const PROKSI = import.meta.env.PROD ? "/api/pub" : ""
+
+/** Funksiya nomidan manzil: prod'da proksi, dev'da to'g'ridan-to'g'ri */
+function fnUrl(fn: string, qs: string): string {
+  const savol = qs ? `?${qs}` : ""
+  return PROKSI ? `${PROKSI}/${fn}${savol}` : `${SUPABASE_FUNCTIONS_URL}/${fn}${savol}`
+}
+
 function resolvePublicUrl(path: string): string {
   const idx = path.indexOf("?")
   const basePath = idx === -1 ? path : path.substring(0, idx)
   const qsRaw = idx === -1 ? "" : path.substring(idx + 1)
 
   const fn = PUBLIC_ROUTES[basePath]
-  if (fn) return `${SUPABASE_FUNCTIONS_URL}/${fn}${qsRaw ? `?${qsRaw}` : ""}`
+  if (fn) return fnUrl(fn, qsRaw)
 
   const bloggerProfileMatch = basePath.match(/^\/public\/bloggers\/([^/]+)$/)
   if (bloggerProfileMatch) {
     const qs = new URLSearchParams(qsRaw)
     qs.set("slug", bloggerProfileMatch[1])
-    return `${SUPABASE_FUNCTIONS_URL}/public-bloggers-profile?${qs.toString()}`
+    return fnUrl("public-bloggers-profile", qs.toString())
   }
 
   const detailMatch = basePath.match(/^\/public\/news\/([^/]+)$/)
   if (detailMatch) {
     const qs = new URLSearchParams(qsRaw)
     qs.set("slug", detailMatch[1])
-    return `${SUPABASE_FUNCTIONS_URL}/public-news-detail?${qs.toString()}`
+    return fnUrl("public-news-detail", qs.toString())
   }
 
   const relatedMatch = basePath.match(/^\/public\/news\/([^/]+)\/related$/)
   if (relatedMatch) {
     const qs = new URLSearchParams(qsRaw)
     qs.set("slug", relatedMatch[1])
-    return `${SUPABASE_FUNCTIONS_URL}/public-news-related?${qs.toString()}`
+    return fnUrl("public-news-related", qs.toString())
   }
 
   const fnName = basePath.replace(/^\/public\//, "public-").replace(/\//g, "-")
-  return `${SUPABASE_FUNCTIONS_URL}/${fnName}${qsRaw ? `?${qsRaw}` : ""}`
+  return fnUrl(fnName, qsRaw)
 }
 
 function resolveAdminUrl(path: string, method: string): string {
@@ -691,6 +711,27 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
         { ...opts, headers: h },
         slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
       )
+      /**
+       * PROKSI YIQILSA — TO'G'RIDAN-TO'G'RI MANBAGA.
+       *
+       * Ommaviy so'rovlar keshlovchi proksi orqali ketadi
+       * (`/api/pub/...`). Agar u ishlamasa — sozlama yetishmasa,
+       * Vercel funksiyasi joylashmasa yoki vaqtincha yiqilsa — butun
+       * ommaviy sayt ishlamay qolardi. Bu juda qimmat xavf, chunki
+       * proksi tezlik uchun qo'shilgan, ishonchlilik uchun emas.
+       *
+       * Shuning uchun 5xx yoki 404 da bir marta eski yo'l bilan
+       * qayta urinamiz. Foydalanuvchi hech narsani sezmaydi, faqat
+       * o'sha so'rov sekinroq bo'ladi.
+       */
+      if (!res.ok && isPublic && url.startsWith("/api/pub/") && (res.status >= 500 || res.status === 404)) {
+        console.warn("Kesh proksisi javob bermadi, to'g'ridan-to'g'ri manbaga o'tildi:", res.status)
+        res = await fetchWithTimeout(
+          url.replace("/api/pub", SUPABASE_FUNCTIONS_URL),
+          { ...opts, headers: h },
+          slow ? SLOW_TIMEOUT : REQUEST_TIMEOUT,
+        )
+      }
     } catch (e) {
       // AbortError xom holda "signal is aborted without reason" deb chiqadi —
       // foydalanuvchi uchun tushunarsiz. Aniq sabab yozamiz.

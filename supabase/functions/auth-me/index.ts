@@ -1,6 +1,7 @@
 import { handleCors } from "../_shared/cors.ts"
 import { jsonResponse, errorResponse } from "../_shared/response.ts"
 import { supabaseAdmin } from "../_shared/supabase.ts"
+import { tokenTekshir } from "../_shared/jwtTekshir.ts"
 
 function feRole(role: string): string {
   switch (role) {
@@ -27,14 +28,27 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) return errorResponse("Token kerak", 401)
 
     const token = authHeader.slice(7)
-    const { data: { user: authData }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    if (authError || !authData) return errorResponse("Token notog'ri", 401)
+
+    /**
+     * Token AVVAL mahalliy tekshiriladi — Auth xizmatiga so'rov
+     * yubormasdan. O'lchandi: `getUser()` 0.5–0.95 soniya oladi va
+     * bu funksiya HAR SAHIFA YUKLANISHIDA chaqiriladi.
+     *
+     * Zaxira eski yo'l — qarang: _shared/jwtTekshir.ts
+     */
+    let uid = ""
+    const dava = await tokenTekshir(token)
+    if (dava) {
+      uid = dava.sub
+    } else {
+      const { data: { user: authData }, error: authError } = await supabaseAdmin.auth.getUser(token)
+      if (authError || !authData) return errorResponse("Token notog'ri", 401)
+      uid = authData.id
+    }
 
     // TEZLIK: bu 5 ta so'rov ilgari KETMA-KET bajarilardi — 5 ta alohida
-    // borish-kelish. Hammasi faqat authData.id ga bog'liq, ya'ni bir-birini
-    // kutishi shart emas. Bu funksiya har sahifa yuklanishida chaqiriladi,
-    // shuning uchun tejaladigan vaqt sezilarli.
-    const uid = authData.id
+    // borish-kelish. Hammasi faqat foydalanuvchi id siga bog'liq, ya'ni
+    // bir-birini kutishi shart emas.
     const [
       { data: profile, error: profileError },
       { data: userRoles },
