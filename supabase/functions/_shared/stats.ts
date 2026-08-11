@@ -16,10 +16,23 @@ function formatStatValue(count: number): string {
  * Jonli hisoblanadigan statistika:
  *  - bloggers: faol blogerlar soni
  *  - audience: barcha blogerlarning YouTube/Instagram obunachilari yig'indisi
- *  - views:    barcha blogerlar akkauntlaridagi ko'rishlar yig'indisi
+ *  - views:    OYLIK ko'rishlar yig'indisi
  *  - regions:  blogerlar mavjud viloyatlar soni
  * Manba: blogger_social_summary view (har bir akkauntning eng so'nggi
- * social_statistics snapshotidan total_subscribers/total_views oladi).
+ * social_statistics snapshotidan oladi).
+ *
+ * ⚠️ KO'RISHLAR UCHUN `total_monthly_views`, `total_views` EMAS.
+ *
+ * Bu yerdagi yorliq — "Oylik ko'rishlar", ya'ni raqam faqat
+ * `cron-monthly-views` hisoblagan oylik qiymat bo'lishi kerak.
+ * `total_views` esa `views_count` ustunidan keladi va unga profil
+ * sinxronizatsiyasi yozadi: YouTube uchun kanalning UMRBOD ko'rishi,
+ * Instagram uchun layk+izoh yig'indisi.
+ *
+ * Ilgari shu yerda `total_views` turardi va bloger o'z profilini
+ * yangilashi bilan bosh sahifadagi raqam umrbod qiymatga sakrab
+ * ketardi — keyingi oyning 1-sanasigacha shunday qolardi.
+ * Qarang: 20240708000432 migratsiyasi.
  */
 export async function getDynamicStats(): Promise<StatItem[]> {
   // 1. Blogerlar soni
@@ -31,12 +44,12 @@ export async function getDynamicStats(): Promise<StatItem[]> {
   // 2-3. Umumiy auditoriya (obunachilar) va ko'rishlar
   const { data: summary } = await supabaseAdmin
     .from("blogger_social_summary")
-    .select("total_subscribers, total_views")
+    .select("total_subscribers, total_monthly_views")
   let audienceCount = 0
   let viewsCount = 0
   for (const row of summary || []) {
     audienceCount += Number((row as Record<string, unknown>).total_subscribers || 0)
-    viewsCount += Number((row as Record<string, unknown>).total_views || 0)
+    viewsCount += Number((row as Record<string, unknown>).total_monthly_views || 0)
   }
 
   // 4. Viloyatlar — O'zbekistonning 12 viloyati bo'ylab qamrov (doimiy).

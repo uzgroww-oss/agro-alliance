@@ -241,16 +241,28 @@ Deno.serve(async (req) => {
     if (platform === "yt") { ytTotal += views; ytCount++ } else { igTotal += views; igCount++ }
     details.push({ platform, name: String(acc.profile_url || ""), views, method })
 
-    // social_statistics eng so'nggi yozuviga oylik ko'rishni saqlash
+    /**
+     * OYLIK KO'RISH ALOHIDA USTUNGA yoziladi (`monthly_views`).
+     *
+     * ILGARI `views_count` ga yozilardi — o'sha ustunga profil
+     * sinxronizatsiyasi ham yozadi va u BUTUNLAY BOSHQA narsani
+     * bildiradi: YouTube uchun kanalning umrbod ko'rishi, Instagram
+     * uchun esa layk+izoh yig'indisi.
+     *
+     * Natijada bloger profilini yangilashi bilan bosh sahifadagi
+     * "Oylik ko'rishlar" umrbod raqamga sakrab ketardi va keyingi
+     * oyning 1-sanasigacha shunday qolardi. Endi ikki qiymat
+     * bir-biriga tegmaydi.
+     */
     const { data: stat } = await supabaseAdmin
       .from("social_statistics").select("id")
       .eq("account_id", acc.id).is("deleted_at", null)
       .order("snapshot_date", { ascending: false }).limit(1).maybeSingle()
     if (stat) {
-      await supabaseAdmin.from("social_statistics").update({ views_count: views }).eq("id", stat.id)
+      await supabaseAdmin.from("social_statistics").update({ monthly_views: views }).eq("id", stat.id)
     } else {
       await supabaseAdmin.from("social_statistics")
-        .insert({ account_id: acc.id, views_count: views, snapshot_date: today })
+        .insert({ account_id: acc.id, monthly_views: views, snapshot_date: today })
     }
   }
 
